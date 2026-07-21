@@ -325,6 +325,12 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   .prefs-cat{justify-content:center}
   .prefs-body{padding:6px 14px 40px}
   .pset{flex-direction:column;align-items:flex-start;gap:10px}
+  /* поле поиска настроек должно сжиматься, иначе кнопка «закрыть» уезжала за
+     край экрана и настройки нельзя было закрыть без клавиатуры (Esc) */
+  .prefs-top{padding:10px 12px;gap:8px}
+  .prefs-search{min-width:0}
+  .prefs-top h3{font-size:14px}
+  #prefs-close{flex:0 0 auto}
 }
 .modal-bg{position:fixed;inset:0;background:#00000066;z-index:80;display:grid;place-items:center}
 .modal-bg.hidden{display:none}
@@ -335,9 +341,19 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .toast{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);z-index:90;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;max-width:70vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-/* ======================= УЗКИЕ ЭКРАНЫ =======================
-   На телефоне бок о бок ничего не помещается, поэтому конспект занимает
-   всю ширину, а симуляция открывается поверх него целиком. */
+
+/* ---- Мобильные элементы управления: по умолчанию (десктоп) скрыты, включаются
+   в медиазапросе узких экранов ниже. ---- */
+.mobile-only{display:none}
+.mdock{display:none}
+.msheet-bg{display:none}
+.msheet-head{display:none}
+
+/* ======================= УЗКИЕ ЭКРАНЫ (ТЕЛЕФОН/ПЛАНШЕТ) =======================
+   На телефоне бок о бок ничего не помещается: конспект занимает всю ширину, а
+   симуляция открывается поверх него целиком. Управление симуляцией вынесено в
+   плавающий док и выезжающую снизу шторку — верхняя и нижняя панели десктопа
+   на узком экране перекрыты полноэкранной сценой и недоступны. */
 @media (max-width:900px){
   .sidebar{position:absolute;z-index:40;height:calc(100% - 84px);
     box-shadow:4px 0 24px -12px #0006;background:var(--panel)}
@@ -348,29 +364,74 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom)}
   .simpane.hidden{display:none}
-  #btn-simback{display:inline-flex}
-  /* во весь экран симуляция уже и так — отдельная кнопка не нужна */
   #btn-simfull{display:none}
-  .simhead{padding:8px 10px;font-size:12px}
-  .simhead select{max-width:46vw}
-  /* крупнее цели для пальца */
-  .iconbtn{width:38px;height:38px}
-  .rail{width:40px;flex:0 0 40px}
   .content.wide{flex:1}
-}
-/* Телефон в альбомной ориентации: панели ниже, чтобы сцене осталась высота. */
-@media (max-width:900px) and (orientation:landscape) and (max-height:520px){
-  .topbar{height:38px}
-  .simhead{padding:4px 8px}
-  .iconbtn{width:32px;height:32px}
-  .chead{padding:8px 14px 6px}
-  .chead h1{font-size:17px}
-  .gbox{max-height:96px;overflow:hidden}
-}
-/* Совсем узкие экраны: прячем подписи, оставляем значки. */
-@media (max-width:420px){
+  .rail{width:40px;flex:0 0 40px}
+  .iconbtn{width:40px;height:40px}
+
+  /* ---- Слим-шапка симуляции: [‹]  Название ▾  [⚙] [⋯] ---- */
+  .simhead{padding:6px 6px;gap:2px;font-size:13px;text-transform:none;letter-spacing:0;
+    border-bottom:1px solid var(--line)}
+  .simhead-lbl,#clock,#btn-graph,#btn-makeout{display:none}   /* лишнее из шапки убираем */
+  #btn-simback{display:inline-flex}
+  .mobile-only{display:inline-flex}
+  #simsel{flex:1;min-width:0;max-width:none;font-size:15px;font-weight:600;color:var(--ink);
+    border:none;background:none;padding:6px 2px;text-transform:none;letter-spacing:0}
+
+  /* сцена занимает всё оставшееся место */
+  .canvas-wrap{flex:1}
+  #hsplit{display:none}
+
+  /* компактный HUD, чтобы не заслонял сцену */
+  .hud{font-size:10px;padding:5px 8px 6px;left:6px;top:6px;
+    background:color-mix(in srgb,var(--panel) 82%,transparent)}
+  .hud::before{font-size:8px;margin-bottom:3px}
+
+  /* ---- Нижняя панель превращается в выезжающую шторку ---- */
+  #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:78;height:auto!important;max-height:74vh;
+    background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+    box-shadow:0 -12px 34px -14px #0009;overflow-y:auto;
+    transform:translateY(110%);transition:transform .26s cubic-bezier(.4,0,.2,1);
+    padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+  #simbottom.msheet-open{transform:none}
+  #simbottom.collapsed{height:auto!important}     /* десктопное «свернуть» на мобильном не действует */
+  .gbox.off{display:none}
+  .msheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;position:sticky;top:0;
+    background:var(--panel);border-bottom:1px solid var(--line-soft);z-index:1}
+  .msheet-head b{font-size:14px;flex:1}
+  .msheet-head .iconbtn{width:34px;height:34px}
+  .msheet-grip{position:absolute;top:6px;left:50%;transform:translateX(-50%);
+    width:38px;height:4px;border-radius:2px;background:var(--line)}
+  .msheet-bg{display:block;position:fixed;inset:0;z-index:77;background:#0006;opacity:0;
+    pointer-events:none;transition:opacity .26s}
+  .msheet-bg.show{opacity:1;pointer-events:auto}
+
+  /* ---- Плавающий док управления ---- */
+  .mdock{display:flex;align-items:center;gap:5px;position:fixed;z-index:76;
+    left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));
+    padding:6px;border-radius:34px;background:color-mix(in srgb,var(--panel) 93%,transparent);
+    border:1px solid var(--line);box-shadow:0 8px 30px -8px #0008;backdrop-filter:blur(8px)}
+  .mdock .mdock-btn{width:44px;height:44px;border-radius:50%}
+  .mdock .mspeed{min-width:32px;text-align:center;font-family:var(--mono);font-size:13px;
+    color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .mplay{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
+    background:var(--accent);color:#fff;border:none;box-shadow:0 4px 14px -4px var(--accent);cursor:pointer}
+  .mplay svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round}
+  .mplay #ic-mplay{fill:currentColor}
+
+  /* попапы (меню симуляции) должны быть выше полноэкранной сцены */
+  .pop{z-index:200}
   .crumb{display:none}
-  .simhead select{max-width:38vw}
+}
+/* Телефон в альбомной ориентации: экономим высоту — док и шапка компактнее. */
+@media (max-width:900px) and (orientation:landscape){
+  .simhead{padding:4px 8px}
+  .mdock{bottom:calc(8px + env(safe-area-inset-bottom));gap:4px}
+  .mdock .mdock-btn{width:40px;height:40px}
+  .mplay{width:50px;height:50px}
+  .mplay svg{width:23px;height:23px}
+  #simbottom{max-height:90vh}
 }
 </style>
 </head>
@@ -425,7 +486,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 
     <section class="simpane" id="simpane">
       <div class="simhead">
-        <span style="flex:0 0 auto">симуляция:</span>
+        <span class="simhead-lbl" style="flex:0 0 auto">симуляция:</span>
         <button class="iconbtn" id="btn-simback" title="Назад к конспекту">
       <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <select id="simsel" title="Симуляции этой темы"></select>
@@ -435,6 +496,8 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
         <button class="iconbtn" id="btn-graph" title="Графики" aria-pressed="true" style="width:26px;height:24px">
           <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7 15l4-5 3 3 5-7"/></svg></button>
         <span class="clock" id="clock">t = 0.00 c</span>
+        <button class="iconbtn mobile-only" id="m-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="iconbtn mobile-only" id="m-menu" title="Меню симуляции"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></button>
       </div>
       <div class="warnbar hidden" id="warnbar"></div>
       <div class="canvas-wrap" id="cwrap">
@@ -452,11 +515,31 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
       </div>
       <div class="hsplit" id="hsplit" title="Потяните, чтобы изменить высоту панели. Двойной клик — свернуть"></div>
       <div class="simbottom" id="simbottom">
+        <div class="msheet-head" id="msheet-head">
+          <span class="msheet-grip"></span>
+          <b>Параметры и графики</b>
+          <button class="iconbtn" id="msheet-close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
         <div class="gbox" id="gbox"></div>
         <div class="pbox">
           <div class="sec-label">Параметры</div>
           <div id="params"></div>
         </div>
+      </div>
+
+      <!-- Мобильное управление: выезжающая шторка перекрывается фоном, а плавающий
+           док даёт доступ к пуску/паузе/сбросу/скорости прямо поверх сцены.
+           На десктопе оба элемента скрыты (см. .mdock/.msheet-bg display:none). -->
+      <div class="msheet-bg" id="msheet-bg"></div>
+      <div class="mdock" id="mdock">
+        <button class="iconbtn mdock-btn" id="m-reset" title="Сбросить"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button class="iconbtn mdock-btn" id="m-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
+        <div class="mspeed" id="m-speed">1×</div>
+        <button class="iconbtn mdock-btn" id="m-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
+        <button class="mplay" id="m-play" title="Пуск / пауза">
+          <svg viewBox="0 0 24 24" id="ic-mplay"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+          <svg viewBox="0 0 24 24" id="ic-mpause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.6"/></svg></button>
+        <button class="iconbtn mdock-btn" id="m-params" title="Параметры и графики"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       </div>
     </section>
   </div>
@@ -464,7 +547,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   <div class="statusbar">
     <div class="brand">Phy<span>.</span>Sim</div>
     <button class="iconbtn" id="btn-help" title="Помощник"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
-    <button class="iconbtn" id="btn-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></button>
+    <button class="iconbtn" id="btn-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <div class="sep"></div>
     <div class="group">
       <button class="iconbtn" id="btn-undo" title="Параметры назад (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
@@ -15647,7 +15730,12 @@ $('#btn-play').onclick=()=>{
   }
   S.playing=!S.playing; setPlayIcon();
 };
-function setPlayIcon(){ $('#ic-play').style.display=S.playing?'none':'block'; $('#ic-pause').style.display=S.playing?'block':'none'; }
+function setPlayIcon(){
+  const pl=S.playing;
+  $('#ic-play').style.display=pl?'none':'block'; $('#ic-pause').style.display=pl?'block':'none';
+  const mp=$('#ic-mplay'), mq=$('#ic-mpause');       // дублируем на мобильный док
+  if(mp&&mq){ mp.style.display=pl?'none':'block'; mq.style.display=pl?'block':'none'; }
+}
 $('#btn-reset').onclick=()=>{ const a=A(); if(!a) return; restart(a); toast('Симуляция сброшена'); };
 $('#btn-undo').onclick=undo; $('#btn-redo').onclick=redo;
 $('#btn-makeout').onclick=()=>{
@@ -16014,6 +16102,7 @@ $('#prefs').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagat
    пересчитывается, а вид симуляции заново вписывается в новые пропорции. */
 const isNarrow=()=>matchMedia('(max-width:900px)').matches;
 function closeSimMobile(){
+  mSheet(false);                          // на всякий случай закрываем шторку параметров
   $('#simpane').classList.add('hidden');
   $('#splitter').classList.add('hidden');
   $('#content').classList.add('wide');
@@ -16021,6 +16110,25 @@ function closeSimMobile(){
   resize();
 }
 $('#btn-simback').onclick=closeSimMobile;
+
+/* ===== МОБИЛЬНОЕ УПРАВЛЕНИЕ: плавающий док + шторка параметров/графиков =====
+   Кнопки дока проксируют на существующие обработчики — логика не дублируется. */
+function mSheet(open){
+  const sb=$('#simbottom'); if(!sb) return;
+  const now = open===undefined ? !sb.classList.contains('msheet-open') : open;
+  sb.classList.toggle('msheet-open', now);
+  $('#msheet-bg').classList.toggle('show', now);
+  if(now) requestAnimationFrame(resize);   // графики в раскрытой шторке получают размер
+}
+$('#m-params').onclick=()=>mSheet();
+$('#msheet-close').onclick=()=>mSheet(false);
+$('#msheet-bg').onclick=()=>mSheet(false);
+$('#m-reset').onclick=()=>$('#btn-reset').click();
+$('#m-play').onclick=()=>$('#btn-play').click();
+$('#m-slow').onclick=()=>stepSpeed(-1);
+$('#m-fast').onclick=()=>stepSpeed(1);
+$('#m-settings').onclick=()=>openPrefs();
+popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
 
 /* Поворот экрана и любое изменение размера окна. */
 let lastNarrow=isNarrow();
@@ -16146,7 +16254,9 @@ $('#simpane').addEventListener('contextmenu',e=>{
 const SPEEDS=[0.05,0.1,0.25,0.5,1,2,4,8,16,32,64,100,200];
 function setSpeed(v){
   S.speed=clamp(v,0.05,200);
-  $('#speedval').value=(S.speed>=1?(Number.isInteger(S.speed)?S.speed:S.speed.toFixed(1)):S.speed)+'×';
+  const lbl=(S.speed>=1?(Number.isInteger(S.speed)?S.speed:S.speed.toFixed(1)):S.speed)+'×';
+  $('#speedval').value=lbl;
+  const m=$('#m-speed'); if(m) m.textContent=lbl;     // дублируем на мобильный док
 }
 function stepSpeed(dir){
   const i=SPEEDS.findIndex(x=>x>=S.speed-1e-9);
