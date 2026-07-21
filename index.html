@@ -72,7 +72,7 @@
 
     <section class="simpane" id="simpane">
       <div class="simhead">
-        <span style="flex:0 0 auto">симуляция:</span>
+        <span class="simhead-lbl" style="flex:0 0 auto">симуляция:</span>
         <button class="iconbtn" id="btn-simback" title="Назад к конспекту">
       <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <select id="simsel" title="Симуляции этой темы"></select>
@@ -82,6 +82,8 @@
         <button class="iconbtn" id="btn-graph" title="Графики" aria-pressed="true" style="width:26px;height:24px">
           <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7 15l4-5 3 3 5-7"/></svg></button>
         <span class="clock" id="clock">t = 0.00 c</span>
+        <button class="iconbtn mobile-only" id="m-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="iconbtn mobile-only" id="m-menu" title="Меню симуляции"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></button>
       </div>
       <div class="warnbar hidden" id="warnbar"></div>
       <div class="canvas-wrap" id="cwrap">
@@ -99,11 +101,31 @@
       </div>
       <div class="hsplit" id="hsplit" title="Потяните, чтобы изменить высоту панели. Двойной клик — свернуть"></div>
       <div class="simbottom" id="simbottom">
+        <div class="msheet-head" id="msheet-head">
+          <span class="msheet-grip"></span>
+          <b>Параметры и графики</b>
+          <button class="iconbtn" id="msheet-close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
         <div class="gbox" id="gbox"></div>
         <div class="pbox">
           <div class="sec-label">Параметры</div>
           <div id="params"></div>
         </div>
+      </div>
+
+      <!-- Мобильное управление: выезжающая шторка перекрывается фоном, а плавающий
+           док даёт доступ к пуску/паузе/сбросу/скорости прямо поверх сцены.
+           На десктопе оба элемента скрыты (см. .mdock/.msheet-bg display:none). -->
+      <div class="msheet-bg" id="msheet-bg"></div>
+      <div class="mdock" id="mdock">
+        <button class="iconbtn mdock-btn" id="m-reset" title="Сбросить"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button class="iconbtn mdock-btn" id="m-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
+        <div class="mspeed" id="m-speed">1×</div>
+        <button class="iconbtn mdock-btn" id="m-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
+        <button class="mplay" id="m-play" title="Пуск / пауза">
+          <svg viewBox="0 0 24 24" id="ic-mplay"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+          <svg viewBox="0 0 24 24" id="ic-mpause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.6"/></svg></button>
+        <button class="iconbtn mdock-btn" id="m-params" title="Параметры и графики"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       </div>
     </section>
   </div>
@@ -111,7 +133,7 @@
   <div class="statusbar">
     <div class="brand">Phy<span>.</span>Sim</div>
     <button class="iconbtn" id="btn-help" title="Помощник"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
-    <button class="iconbtn" id="btn-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></button>
+    <button class="iconbtn" id="btn-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <div class="sep"></div>
     <div class="group">
       <button class="iconbtn" id="btn-undo" title="Параметры назад (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>

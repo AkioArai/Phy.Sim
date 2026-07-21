@@ -925,7 +925,12 @@ $('#btn-play').onclick=()=>{
   }
   S.playing=!S.playing; setPlayIcon();
 };
-function setPlayIcon(){ $('#ic-play').style.display=S.playing?'none':'block'; $('#ic-pause').style.display=S.playing?'block':'none'; }
+function setPlayIcon(){
+  const pl=S.playing;
+  $('#ic-play').style.display=pl?'none':'block'; $('#ic-pause').style.display=pl?'block':'none';
+  const mp=$('#ic-mplay'), mq=$('#ic-mpause');       // дублируем на мобильный док
+  if(mp&&mq){ mp.style.display=pl?'none':'block'; mq.style.display=pl?'block':'none'; }
+}
 $('#btn-reset').onclick=()=>{ const a=A(); if(!a) return; restart(a); toast('Симуляция сброшена'); };
 $('#btn-undo').onclick=undo; $('#btn-redo').onclick=redo;
 $('#btn-makeout').onclick=()=>{
@@ -1292,6 +1297,7 @@ $('#prefs').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagat
    пересчитывается, а вид симуляции заново вписывается в новые пропорции. */
 const isNarrow=()=>matchMedia('(max-width:900px)').matches;
 function closeSimMobile(){
+  mSheet(false);                          // на всякий случай закрываем шторку параметров
   $('#simpane').classList.add('hidden');
   $('#splitter').classList.add('hidden');
   $('#content').classList.add('wide');
@@ -1299,6 +1305,25 @@ function closeSimMobile(){
   resize();
 }
 $('#btn-simback').onclick=closeSimMobile;
+
+/* ===== МОБИЛЬНОЕ УПРАВЛЕНИЕ: плавающий док + шторка параметров/графиков =====
+   Кнопки дока проксируют на существующие обработчики — логика не дублируется. */
+function mSheet(open){
+  const sb=$('#simbottom'); if(!sb) return;
+  const now = open===undefined ? !sb.classList.contains('msheet-open') : open;
+  sb.classList.toggle('msheet-open', now);
+  $('#msheet-bg').classList.toggle('show', now);
+  if(now) requestAnimationFrame(resize);   // графики в раскрытой шторке получают размер
+}
+$('#m-params').onclick=()=>mSheet();
+$('#msheet-close').onclick=()=>mSheet(false);
+$('#msheet-bg').onclick=()=>mSheet(false);
+$('#m-reset').onclick=()=>$('#btn-reset').click();
+$('#m-play').onclick=()=>$('#btn-play').click();
+$('#m-slow').onclick=()=>stepSpeed(-1);
+$('#m-fast').onclick=()=>stepSpeed(1);
+$('#m-settings').onclick=()=>openPrefs();
+popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
 
 /* Поворот экрана и любое изменение размера окна. */
 let lastNarrow=isNarrow();
@@ -1424,7 +1449,9 @@ $('#simpane').addEventListener('contextmenu',e=>{
 const SPEEDS=[0.05,0.1,0.25,0.5,1,2,4,8,16,32,64,100,200];
 function setSpeed(v){
   S.speed=clamp(v,0.05,200);
-  $('#speedval').value=(S.speed>=1?(Number.isInteger(S.speed)?S.speed:S.speed.toFixed(1)):S.speed)+'×';
+  const lbl=(S.speed>=1?(Number.isInteger(S.speed)?S.speed:S.speed.toFixed(1)):S.speed)+'×';
+  $('#speedval').value=lbl;
+  const m=$('#m-speed'); if(m) m.textContent=lbl;     // дублируем на мобильный док
 }
 function stepSpeed(dir){
   const i=SPEEDS.findIndex(x=>x>=S.speed-1e-9);
