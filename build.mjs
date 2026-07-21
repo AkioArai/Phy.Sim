@@ -100,14 +100,18 @@ const css = new CleanCSS({ level: 2 }).minify(read('css/style.css')).styles;
      и защищён ровно так же. */
 let html = read('index.html');
 
+/* replace() ВАЖНО: подставляем через функцию, а не строку. У строки-замены
+   в String.replace есть спецсимволы ($$, $&, $` и т.п.) — если бы CSS/JS
+   содержал их буквально (а KaTeX-делимитер '$$' в коде именно так и
+   выглядит), replace() тихо испортил бы вставляемый текст. */
 html = html.replace(
   '<link rel="stylesheet" href="css/style.css">',
-  `<style>${css}</style>`
+  () => `<style>${css}</style>`
 );
 
 // все локальные подключения скриптов заменяем одним внешним бандлом
 html = html.replace(/[\t ]*<script defer src="js\/[^"]+"><\/script>\r?\n?/g, '');
-html = html.replace('</head>', `<script defer src="app.min.js"></script>\n</head>`);
+html = html.replace('</head>', () => `<script defer src="app.min.js"></script>\n</head>`);
 
 const distDir = join(root, 'dist');
 mkdirSync(distDir, { recursive: true });
