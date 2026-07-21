@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Phy.Sim — физика в симуляциях</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<script defer src="js/core.js"></script>
+<script defer src="js/sims/mechanics.js"></script>
+<script defer src="js/sims/oscillations.js"></script>
+<script defer src="js/sims/thermo.js"></script>
+<script defer src="js/sims/electricity.js"></script>
+<script defer src="js/sims/magnetism.js"></script>
+<script defer src="js/sims/waves-optics.js"></script>
+<script defer src="js/sims/quantum.js"></script>
+<script defer src="js/sims/matter-nuclear.js"></script>
+<script defer src="js/topics.js"></script>
+<script defer src="js/app.js"></script>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <button class="iconbtn" id="btn-rail" title="Скрыть/открыть панель тем (Tab)" aria-pressed="true">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+    <div class="sep"></div>
+    <button class="iconbtn on" id="tab-topics" title="Разделы"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+    <button class="iconbtn" id="tab-search" title="Поиск (Ctrl+K)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+    <button class="iconbtn" id="tab-marks" title="Закладки"><svg viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4z"/></svg></button>
+    <div class="spacer"></div>
+    <div class="crumb" id="crumb">Phy.Sim</div>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="btn-simmenu" title="Меню симуляции"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="19" r="1.4" fill="currentColor"/></svg></button>
+    <button class="iconbtn" id="btn-simhide" title="Скрыть симуляцию (H)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
+    <button class="iconbtn" id="btn-simfull" title="Симуляция во весь экран (F)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5"/></svg></button>
+  </div>
+
+  <div class="body">
+    <div class="rail">
+      <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z"/></svg></button>
+      <div class="sep-h"></div>
+      <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg></button>
+      <button class="iconbtn tool" data-tool="ruler" title="Линейка (L)"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1" transform="rotate(-20 12 12)"/><path d="M7 9.5v2M11 8v3M15 6.5v3"/></svg></button>
+      <button class="iconbtn tool" data-tool="vector" title="Векторная линия (Y)"><svg viewBox="0 0 24 24"><path d="M4 20 19 5m0 0h-6m6 0v6"/></svg></button>
+      <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9zM12 10l4-4 6 6-4 4"/></svg></button>
+      <div class="sep-h"></div>
+      <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+      <div class="sep-h"></div>
+      <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>
+    </div>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="search"><input id="search" type="search" placeholder="Поиск по темам и формулам…"></div>
+      <div class="tree" id="tree"></div>
+    </aside>
+
+    <main class="content" id="content">
+      <div class="chead">
+        <h1 id="t-title">—</h1>
+        <div class="sub" id="t-sub"></div>
+        <div class="tabs" id="tabs">
+          <button data-tab="notes" class="on">Конспект</button>
+        </div>
+      </div>
+      <div class="pane" id="pane"></div>
+    </main>
+
+    <div class="splitter" id="splitter"></div>
+
+    <section class="simpane" id="simpane">
+      <div class="simhead">
+        <span style="flex:0 0 auto">симуляция:</span>
+        <button class="iconbtn" id="btn-simback" title="Назад к конспекту">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <select id="simsel" title="Симуляции этой темы"></select>
+        <span id="simtitle" style="display:none"></span>
+        <div class="spacer"></div>
+        <button class="iconbtn" id="btn-makeout" title="Создать вывод B в конце цепи" style="display:none;width:auto;padding:0 8px;height:24px;font-size:11px;font-family:var(--mono)">вывод B</button>
+        <button class="iconbtn" id="btn-graph" title="Графики" aria-pressed="true" style="width:26px;height:24px">
+          <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7 15l4-5 3 3 5-7"/></svg></button>
+        <span class="clock" id="clock">t = 0.00 c</span>
+      </div>
+      <div class="warnbar hidden" id="warnbar"></div>
+      <div class="canvas-wrap" id="cwrap">
+        <canvas id="scene"></canvas><canvas id="overlay"></canvas>
+        <div class="hud" id="hud"></div>
+        <div class="histobox hidden" id="histobox"></div>
+        <div class="pvbox hidden" id="pvbox">
+          <div class="pvhead" id="pvhead"><b>PV-диаграмма</b><span class="pvtoggle" id="pvtoggle">▾</span></div>
+          <div class="pvbody" id="pvbody"></div>
+        </div>
+        <div class="energybox hidden" id="energybox"></div>
+        <div class="eventflag hidden" id="eventflag"></div>
+        <div class="empty" id="nosim" style="position:absolute;inset:0;display:grid;place-items:center;background:var(--canvas)">
+          Нажмите ▷ в углу формулы — здесь откроется её симуляция.</div>
+      </div>
+      <div class="hsplit" id="hsplit" title="Потяните, чтобы изменить высоту панели. Двойной клик — свернуть"></div>
+      <div class="simbottom" id="simbottom">
+        <div class="gbox" id="gbox"></div>
+        <div class="pbox">
+          <div class="sec-label">Параметры</div>
+          <div id="params"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="statusbar">
+    <div class="brand">Phy<span>.</span>Sim</div>
+    <button class="iconbtn" id="btn-help" title="Помощник"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
+    <button class="iconbtn" id="btn-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></button>
+    <div class="sep"></div>
+    <div class="group">
+      <button class="iconbtn" id="btn-undo" title="Параметры назад (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
+      <button class="iconbtn" id="btn-play" title="Пуск / стоп (Space)">
+        <svg viewBox="0 0 24 24" id="ic-play"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+        <svg viewBox="0 0 24 24" id="ic-pause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.4"/></svg></button>
+      <button class="iconbtn" id="btn-redo" title="Параметры вперёд (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h3"/></svg></button>
+      <button class="iconbtn" id="btn-reset" title="Сбросить (R)"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+    </div>
+    <div class="group">
+      <button class="iconbtn" id="btn-sdn" title="Замедлить время ([)"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
+      <input class="zoomval" id="speedval" value="1×" title="Скорость времени 0.05×–200× (можно вписать своё)">
+      <button class="iconbtn" id="btn-sup" title="Ускорить время (])"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
+    </div>
+    <div class="group">
+      <button class="iconbtn" id="btn-zout"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <input class="zoomval" id="zoomval" value="100%" title="Zoom 0.2%–3000% (можно вписать своё значение)">
+      <button class="iconbtn" id="btn-zin"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <button class="iconbtn" id="btn-fit" title="Вписать (0)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
+    <div class="spacer"></div>
+    <div class="clock" id="fps">—</div>
+  </div>
+</div>
+
+<div class="pop hidden" id="pop-simmenu">
+  <button class="item" id="mi-save"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg>Сохранить параметры</button>
+  <button class="item" id="mi-rec"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span id="rec-label">Записать симуляцию (WebM)</span></button>
+  <button class="item" id="mi-png"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-2 4 3"/></svg>Снимок кадра (PNG)</button>
+  <button class="item" id="mi-reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Всё сбросить</button>
+  <div class="ttl">Сохранённые параметры</div><div id="presets"></div>
+</div>
+<div class="pop hidden" id="pop-help">
+  <div class="ttl">Помощник</div>
+  <button class="item" id="mi-kb"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M8 14h8"/></svg>Горячие клавиши</button>
+  <a class="item" href="https://telegram.me/SOMITGC" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M21 4 3 11l5 2 2 6 3-4 5 4z"/></svg>Telegram-канал</a>
+</div>
+<div class="prefs hidden" id="prefs">
+  <div class="prefs-side" id="prefs-side"></div>
+  <div class="prefs-main">
+    <div class="prefs-top">
+      <h3 id="prefs-title">Настройки</h3>
+      <input class="prefs-search" id="prefs-search" type="search" placeholder="Найти настройку…">
+      <button class="iconbtn" id="prefs-close" title="Закрыть (Esc)">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="prefs-body" id="prefs-body"></div>
+  </div>
+</div>
+<div class="modal-bg hidden" id="modal-kb"><div class="modal">
+  <h3>Горячие клавиши</h3><div id="kb-list"></div>
+  <div style="margin-top:16px;text-align:right"><button class="btn primary" id="kb-close">Закрыть</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+</body>
+</html>
