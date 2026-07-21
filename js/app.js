@@ -692,10 +692,29 @@ function snapPt(x,y){
   return Math.hypot(gx-x,gy-y)<12/ppm()?[gx,gy]:[x,y];
 }
 let drag=null;
+/* ===== ПИНЧ-ЗУМ ДВУМЯ ПАЛЬЦАМИ =====
+   Аналог зума колесом мыши/тачпадом, но для сенсорных экранов: два пальца
+   на сцене масштабируют её к точке между пальцами и одновременно панорамируют
+   (разведение — приблизить, сведение — отдалить). Отслеживаем только касания
+   (pointerType==='touch'), так что поведение мыши и пера не меняется. */
+const touches=new Map();          // pointerId → {x,y} в координатах холста
+let pinch=null;                   // база жеста: {dist, cx, cy} с прошлого кадра
+function startPinch(){
+  const [p1,p2]=[...touches.values()];
+  pinch={dist:Math.max(1,Math.hypot(p1.x-p2.x,p1.y-p2.y)),cx:(p1.x+p2.x)/2,cy:(p1.y+p2.y)/2};
+}
 $('#cwrap').addEventListener('pointerdown',e=>{
   const a=A(); if(!a) return;
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
   const [wx,wy]=toWorld(px,py);
+  if(e.pointerType==='touch'){
+    touches.set(e.pointerId,{x:px,y:py});
+    if(touches.size>=2){                 // второй палец — переходим в пинч, отменяя одиночный жест
+      if(drag&&drag.mode==='dragpt'&&drag.wasPlaying){ S.playing=true; setPlayIcon(); acc=0; }
+      if(a.draft) a.draft=null;          // отбрасываем случайно начатую пометку
+      drag=null; startPinch(); return;
+    }
+  }
   if(e.button===1||e.shiftKey){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
   // КОНСТРУКТОР ЦЕПЕЙ: если симуляция умеет строиться мышью, ЛКМ отдаётся ей
   // ЦЕЛИКОМ — независимо от выбранного инструмента (перо, линейка и пр. не мешают).
@@ -811,6 +830,28 @@ $('#cwrap').addEventListener('wheel',e=>{
   a.view.scale=clamp(a.view.scale*clamp(k,0.35,2.9),ZMIN,ZMAX); setZoom();
   const [nx,ny]=toWorld(px,py); a.view.x+=wx-nx; a.view.y+=wy-ny;
 },{passive:false});
+/* Пинч: отдельный слушатель. Обычный pointermove выше на пинч не реагирует
+   (drag сброшен при заходе в жест), поэтому конфликта нет. */
+addEventListener('pointermove',e=>{
+  if(!pinch||e.pointerType!=='touch') return;
+  const a=A(); const p=touches.get(e.pointerId); if(!a||!p) return;
+  const r=scene.getBoundingClientRect(); p.x=e.clientX-r.left; p.y=e.clientY-r.top;
+  if(touches.size<2) return;
+  const [p1,p2]=[...touches.values()];
+  const dist=Math.max(1,Math.hypot(p1.x-p2.x,p1.y-p2.y)), cx=(p1.x+p2.x)/2, cy=(p1.y+p2.y)/2;
+  // 1) масштаб: держим мировую точку под ПРЕЖНЕЙ серединой на месте
+  const [wcx,wcy]=toWorld(pinch.cx,pinch.cy);
+  a.view.scale=clamp(a.view.scale*(dist/pinch.dist),ZMIN,ZMAX);
+  const [ncx,ncy]=toWorld(pinch.cx,pinch.cy); a.view.x+=wcx-ncx; a.view.y+=wcy-ncy;
+  // 2) панорама: середина между пальцами сдвинулась — двигаем вид следом
+  a.view.x-=(cx-pinch.cx)/ppm(); a.view.y+=(cy-pinch.cy)/ppm();
+  pinch.dist=dist; pinch.cx=cx; pinch.cy=cy; setZoom();
+},{passive:false});
+function dropTouch(e){
+  if(touches.delete(e.pointerId) && touches.size<2) pinch=null;   // палец поднят — жест окончен
+}
+addEventListener('pointerup',dropTouch);
+addEventListener('pointercancel',dropTouch);
 const ZMIN=0.002, ZMAX=30;                     // 0.2% … 3000%
 function zoomLabel(v){ const p=v*100; return (p<10?p.toFixed(p<1?2:1):Math.round(p))+'%'; }
 function setZoom(){ $('#zoomval').value=zoomLabel(A()?A().view.scale:1); }
@@ -1317,7 +1358,7 @@ const KEYS=[['Ctrl + ,','Настройки'],['Space','Пуск / стоп'],['
  ['V / P / L / Y / E','Курсор / карандаш / линейка / вектор / резинка'],['A','Привязка к анкерам и узлам сетки'],
  ['F','Симуляция во весь экран'],['H','Скрыть симуляцию'],['Tab','Скрыть панель тем'],['Ctrl + K','Поиск'],
  ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама'],
- ['ПКМ','Меню симуляции']];
+ ['Два пальца','Зум и панорама на сенсоре'],['ПКМ','Меню симуляции']];
 $('#kb-list').innerHTML=KEYS.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('');
 $('#mi-kb').onclick=()=>openPrefs('keys');
 $('#kb-close').onclick=()=>$('#modal-kb').classList.add('hidden');
