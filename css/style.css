@@ -265,12 +265,17 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .prefs-cat.on{background:var(--accent-soft);color:var(--accent)}
 .prefs-cat svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0}
 .prefs-main{flex:1;min-width:0;display:flex;flex-direction:column}
-.prefs-top{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+/* контент шапки и тела выровнены по одной полосе шириной до 1280px: на обычных
+   мониторах она занимает почти всю ширину (справа больше не пустует), а на
+   сверхшироких — центрируется, чтобы строки не растягивались бесконечно */
+.prefs-top{display:flex;align-items:center;gap:12px;
+  padding:12px max(18px,calc((100% - 1280px)/2));border-bottom:1px solid var(--line)}
 .prefs-top h3{font-size:15px;flex-shrink:0}
 .prefs-search{flex:1;max-width:340px;margin-left:auto;padding:7px 10px;border:1px solid var(--line);
   border-radius:var(--radius);background:var(--panel-2);color:var(--ink);font:inherit;font-size:13px}
 .prefs-search:focus{outline:none;border-color:var(--accent)}
-.prefs-body{flex:1;overflow-y:auto;padding:6px 26px 40px;max-width:920px;width:100%}
+.prefs-body{flex:1;overflow-y:auto;width:100%;
+  padding:6px max(26px,calc((100% - 1280px)/2)) 40px}
 .pset-h{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);
   margin:24px 0 2px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .pset{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:13px 2px;
@@ -396,17 +401,20 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
     pointer-events:none;transition:opacity .26s}
   .msheet-bg.show{opacity:1;pointer-events:auto}
 
-  /* ---- Плавающий док управления ---- */
-  .mdock{display:flex;align-items:center;gap:5px;position:fixed;z-index:76;
-    left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));
-    padding:6px;border-radius:34px;background:color-mix(in srgb,var(--panel) 93%,transparent);
-    border:1px solid var(--line);box-shadow:0 8px 30px -8px #0008;backdrop-filter:blur(8px)}
-  .mdock .mdock-btn{width:44px;height:44px;border-radius:50%}
-  .mdock .mspeed{min-width:32px;text-align:center;font-family:var(--mono);font-size:13px;
-    color:var(--ink-2);font-variant-numeric:tabular-nums}
-  .mplay{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
-    background:var(--accent);color:#fff;border:none;box-shadow:0 4px 14px -4px var(--accent);cursor:pointer}
-  .mplay svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;
+  /* ---- Плавающий док управления: строгий, в стиле статусбара десктопа —
+     плоская панель, тонкая рамка, малый радиус, разделители, без блюра ---- */
+  .mdock{display:flex;align-items:center;gap:1px;position:fixed;z-index:76;
+    left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));
+    padding:4px;border-radius:var(--radius);background:var(--panel);
+    border:1px solid var(--line);box-shadow:0 6px 20px -10px #0008}
+  .mdock .mdock-btn{width:38px;height:38px;border-radius:5px}
+  .mdock .msep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
+  .mdock .mspeed{min-width:36px;text-align:center;font-family:var(--mono);font-size:12px;
+    color:var(--ink-2);font-variant-numeric:tabular-nums;padding:0 2px}
+  .mplay{width:38px;height:38px;border-radius:5px;display:grid;place-items:center;flex:0 0 auto;
+    background:var(--accent);color:#fff;border:none;cursor:pointer}
+  .mplay:active{filter:brightness(.94)}
+  .mplay svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
   .mplay #ic-mplay{fill:currentColor}
 
@@ -414,12 +422,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   .pop{z-index:200}
   .crumb{display:none}
 }
-/* Телефон в альбомной ориентации: экономим высоту — док и шапка компактнее. */
+/* Телефон в альбомной ориентации: экономим высоту. */
 @media (max-width:900px) and (orientation:landscape){
   .simhead{padding:4px 8px}
-  .mdock{bottom:calc(8px + env(safe-area-inset-bottom));gap:4px}
-  .mdock .mdock-btn{width:40px;height:40px}
-  .mplay{width:50px;height:50px}
-  .mplay svg{width:23px;height:23px}
+  .mdock{bottom:calc(8px + env(safe-area-inset-bottom))}
+  .mdock .mdock-btn,.mplay{width:36px;height:36px}
   #simbottom{max-height:90vh}
 }
