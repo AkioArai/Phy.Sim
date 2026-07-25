@@ -756,7 +756,9 @@ circular:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460, H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(2.6*p.R*PX_PER_M),(H-50)/(2.6*p.R*PX_PER_M)),0.002,30);
+    // нижняя граница 1e-7 (а не 0.002): радиус может быть планетарным —
+    // пример «Экватор Земли», R = 6370 км
+    const scale=clamp(Math.min((W-70)/(2.6*p.R*PX_PER_M),(H-50)/(2.6*p.R*PX_PER_M)),1e-7,30);
     return {x:0,y:0,scale};
   },
   draw(ctx,s,p1,p){
@@ -2739,7 +2741,13 @@ statics:{
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     let spanX,spanY,cx,cy;
     if(p.sys==='lever'){ spanX=p.L*1.5; spanY=p.L*0.9; cx=p.L/2; cy=0.3; }
-    else if(p.sys==='beam'){ spanX=p.Lb*1.4; spanY=p.Lb*0.7; cx=p.Lb/2; cy=0.5; }
+    else if(p.sys==='beam'){
+      /* по горизонтали учитываем груз, вынесенный за опору, по вертикали —
+         стрелки сил (до 0.42·L вверх и вниз) и строку состояния под полом */
+      spanX=Math.max(p.Lb,p.lpos)*1.45+1;
+      spanY=p.Lb*1.25;
+      cx=Math.max(p.Lb,p.lpos)/2; cy=0.1;
+    }
     else if(p.sys==='ladder'){ const th=p.ang*Math.PI/180; spanX=Math.max(p.Ll*Math.cos(th),p.Ll*Math.sin(th))*2.2; spanY=p.Ll*1.2; cx=p.Ll*Math.cos(th)/2; cy=p.Ll*Math.sin(th)/2; }
     else { spanX=p.Lbr*2.6; spanY=p.Lbr*2.2; cx=p.Lbr*0.3; cy=0; }
     const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-70)/(spanY*PX_PER_M)),0.002,30);
@@ -2748,7 +2756,19 @@ statics:{
   draw(ctx,s,v,p){
     const d=this.solve(p), acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
           dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const kF=0.0022;                                 // масштаб стрелок сил: метры сцены на ньютон
+    /* Масштаб стрелок сил АДАПТИВНЫЙ: самая большая сила системы получает
+       стрелку в четверть характерного размера сцены. Раньше стоял жёсткий
+       коэффициент 0.0022 м/Н — при грузе 300 кг (2940 Н) стрелка выходила
+       длиной 6,5 м на балке длиной 6 м и уезжала далеко за экран. */
+    const kF=(()=>{
+      let span, forces;
+      if(p.sys==='lever'){ span=p.L; forces=[d.W1,d.W2,d.N]; }
+      else if(p.sys==='beam'){ span=p.Lb; forces=[d.Wb,d.Wl,d.R1,d.R2]; }
+      else if(p.sys==='ladder'){ span=p.Ll; forces=[d.W,d.Wm,d.N,d.Fw,d.need]; }
+      else { span=p.Lbr*2; forces=[d.W,d.T,d.comp]; }
+      const Fmax=Math.max(1,...forces.map(f=>Math.abs(f)||0));
+      return (span*0.42)/Fmax;                       // длиннейшая стрелка ≈ 0.42 span
+    })();
 
     if(p.sys==='lever'){
       const rot=s.rot||0, cs=Math.cos(rot), sn=Math.sin(rot);
@@ -2812,37 +2832,46 @@ statics:{
       }
       ctx.strokeStyle=ink; ctx.lineWidth=v.lw(6);
       ctx.beginPath(); ctx.moveTo(B0.x,B0.y); ctx.lineTo(BL.x,BL.y); ctx.stroke();
-      // опоры стоят на месте; реакция показывается только если она положительна
+      /* Опоры стоят на месте. Подписи разведены по вертикали в МИРОВЫХ
+         координатах, а не пиксельными сдвигами от одной точки: иначе на
+         разных зумах строки наезжали друг на друга (см. отчёт по «грузу за
+         опорой»). Реакция показывается только когда она положительна —
+         опора умеет лишь подпирать. */
       [[0,d.R1],[L,d.R2]].forEach(([x,Rr])=>{
         ctx.fillStyle=Rr<0?dang:sec; ctx.beginPath();
         ctx.moveTo(x,-0.05); ctx.lineTo(x-0.3,-0.65); ctx.lineTo(x+0.3,-0.65); ctx.closePath(); ctx.fill();
         if(Rr>=0){
           v.arrow(ctx,x,0.05,x,0.05+Rr*kF,sec);
-          v.label(ctx,`R = ${Rr.toFixed(0)} Н`,x,0.05+Rr*kF,-10,6,sec);
+          v.label(ctx,`R = ${Rr.toFixed(0)} Н`,x,0.05+Rr*kF,-26,-8,sec);
         } else {
-          v.label(ctx,'опора разгружена',x,-0.65,-30,18,dang);
-          v.label(ctx,`R = ${Rr.toFixed(0)} Н < 0`,x,-0.65,-28,32,dang);
+          // опора, с которой балка снялась: помечаем её и уводим текст вбок
+          ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.6);
+          ctx.beginPath(); ctx.arc(x,-0.35,0.22,0,7); ctx.stroke();
+          v.label(ctx,`опора разгружена (R < 0)`,x,-0.9,-56,0,dang);
         }
       });
       // вес балки в центре (точка едет вместе с балкой)
       const Bc=R(L/2);
       v.arrow(ctx,Bc.x,Bc.y,Bc.x,Bc.y-d.Wb*kF,dang);
-      v.label(ctx,`вес балки ${d.Wb.toFixed(0)} Н`,Bc.x,Bc.y-d.Wb*kF,-30,-6,dang);
+      // подпись веса — под остриём стрелки: сбоку она попадала бы на саму балку
+      v.label(ctx,`вес балки ${d.Wb.toFixed(0)} Н`,Bc.x,Bc.y-d.Wb*kF,-30,14,dang);
       // груз: поворачивается вместе с балкой
       const Bg=R(p.lpos), bs=0.25;
       ctx.save(); ctx.translate(Bg.x,Bg.y); ctx.rotate(rot);
       ctx.fillStyle=acc; ctx.fillRect(-bs,0,2*bs,2*bs);
       ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1); ctx.strokeRect(-bs,0,2*bs,2*bs);
       ctx.restore();
-      v.label(ctx,`${p.load} кг`,Bg.x,Bg.y,-16,-24,acc);
+      v.label(ctx,`${p.load} кг`,Bg.x,Bg.y,10,-16,acc);
       v.arrow(ctx,Bg.x,Bg.y,Bg.x,Bg.y-d.Wl*kF,dang);
-      v.label(ctx,`${d.Wl.toFixed(0)} Н`,Bg.x,Bg.y-d.Wl*kF,6,-4,dang);
+      v.label(ctx,`${d.Wl.toFixed(0)} Н`,Bg.x,Bg.y-d.Wl*kF,8,0,dang);
+      // строка состояния — ниже пола, отдельным «этажом», чтобы ни с чем не пересекаться
+      const yMsg=-1.35-Math.max(d.Wb,d.Wl)*kF*0.10;
       if(!d.balanced){
-        v.torqueArc(ctx,pivX,0.15,0.8,d.tipR?-1:1,dang);
-        v.label(ctx,'ОПРОКИДЫВАЕТСЯ: груз вынесен за опору',L/2,-1.2,-96,0,dang);
-        v.label(ctx,'реакция опоры не может тянуть вниз — балка задирается',L/2,-1.2,-124,16,ink3);
+        v.torqueArc(ctx,pivX,0.15,0.7,d.tipR?-1:1,dang);
+        v.label(ctx,'ОПРОКИДЫВАЕТСЯ: груз вынесен за опору',0,yMsg,0,0,dang);
+        v.label(ctx,'опора умеет только подпирать, а не тянуть вниз',0,yMsg,0,16,ink3);
       } else {
-        v.label(ctx,'равновесие: обе реакции положительны',L/2,-1.2,-96,0,sec);
+        v.label(ctx,'равновесие: обе реакции положительны',0,yMsg,0,0,sec);
       }
     }
 
