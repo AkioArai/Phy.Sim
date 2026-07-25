@@ -21,7 +21,7 @@ spring:{
   /* собственная частота: ω = √(k/m), период T = 2π√(m/k) */
   w(p){ return Math.sqrt(p.k/p.m); },
   T(p){ return 2*Math.PI/this.w(p); },
-  init(p){ return {t:0,q:p.A,v:0,periods:0,event:null,__stop:null}; },
+  init(p){ return {t:0,q:p.A,v:0,periods:0,heat:0,event:null,__stop:null}; },
   step(s,dt,p){
     if(s.event) return;
     const t=s.t+dt, w=this.w(p);
@@ -33,14 +33,22 @@ spring:{
     s.q+=s.v*dt+0.5*a1*dt*dt;
     const a2=acc(s.q,s.v+a1*dt);
     s.v+=0.5*(a1+a2)*dt;
+    /* Работа силы сопротивления уходит в ТЕПЛО и должна учитываться: иначе
+       при затухании механическая энергия просто исчезала, а полная энергия
+       падала «в никуда». Мощность рассеяния = m·g·v². */
+    if(g>0) s.heat=(s.heat||0)+p.m*g*s.v*s.v*dt;
     s.t=t; s.periods=s.t/this.T(p);
     if(p.periods>0 && s.periods>=p.periods){
       s.event={t:s.t,type:'periods'};
       s.__stop=`Пройдено ${p.periods} колебан. : t = ${s.t.toFixed(2)} с (период T = ${this.T(p).toFixed(3)} с)`;
     }
   },
-  anchors(s,p){ return [{x:s.q,y:0},{x:0,y:0}]; },
-  energies(s,p){ const Ek=0.5*p.m*s.v*s.v, Eel=0.5*p.k*s.q*s.q; return {Ek,Ep:0,Eel,Eth:0,tot:Ek+Eel}; },
+  // центр груза поднят на yb=0.5 — там же, где он и рисуется
+  anchors(s,p){ return [{x:s.q,y:0.5},{x:0,y:0.5}]; },
+  energies(s,p){
+    const Ek=0.5*p.m*s.v*s.v, Eel=0.5*p.k*s.q*s.q, Eth=s.heat||0;
+    return {Ek,Ep:0,Eel,Eth,tot:Ek+Eel+Eth};   // тепло входит в полную энергию
+  },
   readouts(s,p){
     const E=this.energies(s,p);
     return [['t',s.t,'с'],
@@ -52,14 +60,18 @@ spring:{
       ['сила упругости −kx',-p.k*s.q,'Н'],
       ['кинетическая энергия',E.Ek,'Дж'],
       ['потенциальная энергия пружины',E.Eel,'Дж'],
-      ['полная энергия',E.tot,'Дж'],
+      ['ушло в тепло (трение)',E.Eth, p.damp?'Дж':'Дж — затухание выключено'],
+      ['механическая E = K + U',E.Ek+E.Eel,'Дж'],
+      ['полная энергия с теплом',E.tot,'Дж — сохраняется'],
       ['колебаний пройдено',s.periods,'']];
   },
   graphs:[
     {label:'Смещение Δx во времени',unit:'м',series:['x'],get:s=>[s.q,null]},
     {label:'Скорость',unit:'м/с',series:['v'],get:s=>[s.v,null]},
     {label:'Энергия: кинетическая и упругая',unit:'Дж',series:['K','U'],
-     get(s,p){ const E=SIMS.spring.energies(s,p); return [E.Ek,E.Eel]; }}
+     get(s,p){ const E=SIMS.spring.energies(s,p); return [E.Ek,E.Eel]; }},
+    {label:'Механическая энергия и тепло',unit:'Дж',series:['K+U','тепло'],
+     get(s,p){ const E=SIMS.spring.energies(s,p); return [E.Ek+E.Eel,E.Eth]; }}
   ],
   presets:[
     {name:'Пружина m = 1 кг, k = 20 Н/м',values:{m:1,k:20,A:2,periods:0,tStop:0}},
@@ -557,20 +569,15 @@ damped:{
     ctx.fillStyle=acc; ctx.globalAlpha=.85; ctx.fillRect(bx-hs,-hs,2*hs,2*hs); ctx.globalAlpha=1;
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.2); ctx.strokeRect(bx-hs,-hs,2*hs,2*hs);
     v.label(ctx,`x = ${s.x.toFixed(3)} м`,bx,hs,-24,-10,acc);
-    // силы: упругая, трение, внешняя
-    const kF=1.2/Math.max(1,Math.abs(p.k*s.x),Math.abs(p.F0));
-    if(Math.abs(p.k*s.x)>1e-6){
-      v.arrow(ctx,bx,0,bx-p.k*s.x*kF,0,sec);
-      v.label(ctx,`упругая ${(-p.k*s.x).toFixed(1)} Н`,bx-p.k*s.x*kF,0,4,-14,sec);
-    }
-    if(Math.abs(p.b*s.v)>1e-6){
-      v.arrow(ctx,bx,-hs-0.12,bx-p.b*s.v*kF,-hs-0.12,dang);
-      v.label(ctx,`трение ${(-p.b*s.v).toFixed(1)} Н`,bx-p.b*s.v*kF,-hs-0.12,4,12,dang);
-    }
-    if(p.mode==='driven'){
-      const F=p.F0*Math.cos(p.w*s.t);
-      v.arrow(ctx,bx,hs+0.12,bx+F*kF,hs+0.12,meas);
-      v.label(ctx,`внешняя ${F.toFixed(1)} Н`,bx+F*kF,hs+0.12,4,-10,meas);
+    /* Силы рисуем штатной диаграммой свободного тела: ВСЕ из центра тела.
+       Раньше трение и внешняя сила были подняты и опущены на полразмера
+       бруска, чтобы стрелки не накладывались, — и выглядело так, будто силы
+       приложены к воздуху рядом с телом. */
+    {
+      const F=[{fx:-p.k*s.x, fy:0, label:'упругая', color:sec}];
+      if(Math.abs(p.b*s.v)>1e-6) F.push({fx:-p.b*s.v, fy:0, label:'трение', color:dang});
+      if(p.mode==='driven') F.push({fx:p.F0*Math.cos(p.w*s.t), fy:0, label:'внешняя', color:meas});
+      v.fbd(ctx,{x:bx, y:0, forces:F, len:1.4, resultant:false, units:'Н'});
     }
     // кривая резонанса A(ω) — врезка внизу сцены
     if(p.curve && p.mode==='driven'){

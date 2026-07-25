@@ -189,6 +189,205 @@ gas:{
 }
 ,
 
+/* ========== КИНЕТИЧЕСКАЯ ТЕОРИЯ: МИКРО- И МАКРОСОСТОЯНИЯ ==========
+   Модель урны Эренфестов. В ящике N пронумерованных молекул; в перегородке
+   есть дырка, и время от времени случайно выбранная молекула переходит на
+   другую сторону. МИКРОсостояние — полный список «кто где». МАКРОсостояние —
+   только число молекул слева n: их не различают. Число микросостояний в
+   макросостоянии — статистический вес W = C(N,n), а S = k·lnW.
+
+   Вся суть главы про необратимость видна на одном ползунке N: при N = 4
+   система то и дело сама возвращается в «все слева», а при N = 200 среднее
+   время возврата больше возраста Вселенной, хотя ни один закон механики
+   этого не запрещает. */
+micro:{
+  title:'Микро- и макросостояния: откуда берётся необратимость',
+  params:[
+    {key:'N',    label:'Число молекул N',min:2,max:200,step:1,default:60},
+    {key:'rate', label:'Переходов через дырку в секунду',unit:'1/с',min:1,max:400,step:1,default:60},
+    {key:'left', label:'Начать со всех молекул слева',type:'check',default:true},
+
+    {type:'group',label:'Показывать'},
+    {key:'bars', label:'Веса макросостояний W(n)',type:'check',default:true},
+    {key:'obs',  label:'Наблюдённую частоту (поверх W)',type:'check',default:true},
+    {key:'nums', label:'Номера молекул (при N ≤ 20)',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  Lx:12, Ly:8,                                    // размеры ящика (усл. ед.)
+  /* ln n! — таблицей, чтобы факториалы не переполняли double */
+  lnFact(n){ const T=this._lf||(this._lf=[0]);
+    for(let i=T.length;i<=n;i++) T[i]=T[i-1]+Math.log(i);
+    return T[n]; },
+  /* статистический вес макросостояния: сколько микросостояний ему отвечает */
+  lnW(N,n){ return this.lnFact(N)-this.lnFact(n)-this.lnFact(N-n); },
+  W(N,n){ return Math.exp(this.lnW(N,n)); },
+  /* Ячейка молекулы №i. Ячейка закреплена ЗА МОЛЕКУЛОЙ, а не за порядковым
+     номером среди «тех, кто сейчас слева»: иначе один переход перетасовывал бы
+     всю картинку, и глазом было бы не поймать, кто именно перескочил. */
+  slot(i,leftSide,N){
+    const cols=Math.max(2,Math.ceil(Math.sqrt(N))), rows=Math.ceil(N/cols);
+    const row=Math.floor(i/cols), col=i%cols;
+    const w=this.Lx/2-1.2, h=this.Ly-1.6;
+    const x=0.6+(col+0.5)*w/cols + (leftSide?0:this.Lx/2+0.1);
+    const y=0.8+(row+0.5)*h/rows;
+    return [x,y];
+  },
+  init(p){
+    const side=[];                                 // true — молекула слева
+    for(let i=0;i<p.N;i++) side.push(p.left?true:Math.random()<0.5);
+    const cnt=new Array(p.N+1).fill(0);
+    const n=side.filter(Boolean).length;
+    cnt[n]=1;
+    return {t:0, side, n, acc:0, moves:0, cnt, samples:1,
+            returns:0, tRet:null, flash:0, last:-1, event:null, __stop:null};
+  },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+    if(s.side.length!==p.N){ Object.assign(s,this.init(p)); s.t=t; return; }
+    s.flash=Math.max(0,s.flash-dt*4);
+    /* число переходов за шаг накапливаем: при rate·dt < 1 переход случается
+       не каждый кадр, и это честнее, чем «двигать по чуть-чуть» */
+    s.acc+=p.rate*dt;
+    while(s.acc>=1){
+      s.acc-=1;
+      const i=Math.floor(Math.random()*p.N);
+      s.side[i]=!s.side[i];
+      s.n+=s.side[i]?1:-1;
+      s.last=i; s.flash=1; s.moves++;
+      s.cnt[s.n]++; s.samples++;
+      /* возврат в исходное «всё слева» — то самое событие, которое в
+         макросистеме не наступает никогда */
+      if(s.n===p.N && s.last!==-1){ s.returns++; s.tRet=s.t; }
+    }
+  },
+  /* среднее время возврата в состояние «все слева»: обратная вероятность,
+     делённая на частоту переходов. Для N = 200 это 10⁵² лет. */
+  tReturn(p){ return Math.pow(2,p.N)/Math.max(p.rate,1e-9); },
+  anchors(s,p){ return [{x:this.Lx/2,y:this.Ly/2}]; },
+  readouts(s,p){
+    const N=p.N, n=s.n, W=this.W(N,n), Wmax=this.W(N,Math.round(N/2));
+    const tr=this.tReturn(p);
+    return [['t',s.t,'с'],
+      ['молекул N',N,''],
+      ['макросостояние: слева n',n,''],
+      ['справа N − n',N-n,''],
+      ['всего микросостояний 2^N',Math.pow(2,N),''],
+      ['вес макросостояния W = C(N,n)',W,'микросостояний'],
+      ['ln W',this.lnW(N,n),''],
+      ['энтропия S = k·lnW  →  S/k',this.lnW(N,n),''],
+      ['доля от самого вероятного W/W_max',W/Wmax,''],
+      ['вероятность этого макросостояния',W/Math.pow(2,N),''],
+      ['вероятность «все слева» 2^−N',Math.pow(2,-N),''],
+      ['среднее время возврата «все слева»',tr,'с'],
+      ['оно же в годах',tr/3.156e7,'лет'],
+      ['переходов через дырку',s.moves,''],
+      ['возвратов в «все слева» наблюдалось',s.returns,'']];
+  },
+  graphs:[
+    {label:'Молекул слева n(t)',unit:'шт',series:['n','N/2'],
+     get(s,p){ return [s.n,p.N/2]; }},
+    {label:'Энтропия S/k = ln W',unit:'',series:['S/k','max'],
+     get(s,p){ return [SIMS.micro.lnW(p.N,s.n),SIMS.micro.lnW(p.N,Math.round(p.N/2))]; }}
+  ],
+  presets:[
+    {name:'Микросистема N = 4: возвраты видны глазом',values:{N:4,rate:6,left:true,nums:true,tStop:0}},
+    {name:'N = 10: возврат раз в сотню переходов',values:{N:10,rate:20,left:true,nums:true,tStop:0}},
+    {name:'N = 30: возврата можно не дождаться',values:{N:30,rate:60,left:true,nums:false,tStop:0}},
+    {name:'Макросистема N = 200: необратимость',values:{N:200,rate:400,left:true,nums:false,tStop:0}},
+    {name:'Старт из случайного состояния',values:{N:60,rate:60,left:false,nums:false,tStop:0}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-60)/(this.Lx*1.15*PX_PER_M),(H-60)/(15.8*PX_PER_M)),0.002,30);
+    return {x:this.Lx/2,y:1.5,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const Lx=this.Lx, Ly=this.Ly, N=p.N, n=s.n;
+    if(s.side.length!==N) return;
+
+    // ---- ящик и перегородка с дыркой
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.5); ctx.strokeRect(0,0,Lx,Ly);
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2); ctx.beginPath();
+    ctx.moveTo(Lx/2,0);      ctx.lineTo(Lx/2,Ly/2-0.7);
+    ctx.moveTo(Lx/2,Ly/2+0.7); ctx.lineTo(Lx/2,Ly);
+    ctx.stroke();
+    /* подпись дырки — ПОД ящиком: внутри она неизбежно легла бы на молекулы,
+       которые заполняют обе половины вплотную к перегородке */
+    v.label(ctx,'дырка в перегородке',Lx/2,0,-58,16,ink3);
+
+    // ---- молекулы: каждая в своей ячейке, номера — только у микросистемы
+    const r=clamp(2.2/Math.sqrt(N),0.10,0.34);
+    for(let i=0;i<N;i++){
+      const L=s.side[i];
+      const [x,y]=this.slot(i,L,N);
+      ctx.fillStyle = (i===s.last&&s.flash>0) ? meas : (L?acc:sec);
+      ctx.globalAlpha = (i===s.last&&s.flash>0) ? 1 : .9;
+      ctx.beginPath(); ctx.arc(x,y,r*(i===s.last?1+0.6*s.flash:1),0,7); ctx.fill();
+      ctx.globalAlpha=1;
+      if(p.nums&&N<=20) v.label(ctx,String(i+1),x,y,-3,-1,v.c('--panel'));
+    }
+
+    // ---- макросостояние крупно над ящиком
+    v.label(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly,-96,-34,ink);
+    v.label(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,
+      Lx/2,Ly,-96,-20,ink3);
+    if(n===N) v.label(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly,-96,-48,ok);
+
+    // ---- гистограмма весов W(n): «гора» с острым пиком у макросистемы
+    if(p.bars){
+      const gx=0, gy=-4.2, gw=Lx, gh=3.0;
+      const lnMax=this.lnW(N,Math.round(N/2));
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
+      const bw=gw/(N+1);
+      for(let k=0;k<=N;k++){
+        const h=gh*Math.exp(this.lnW(N,k)-lnMax);     // W(k)/W_max — от 0 до 1
+        if(h<gh*0.004 && k!==n) continue;
+        ctx.fillStyle = (k===n)?meas:acc; ctx.globalAlpha=(k===n)?1:.45;
+        ctx.fillRect(gx+k*bw, gy, Math.max(bw*0.85, v.lw(1)/PX_PER_M), Math.max(h,k===n?gh*0.02:0));
+        ctx.globalAlpha=1;
+      }
+      /* наблюдённая частота: сколько времени система реально провела в каждом
+         макросостоянии. Она ложится на кривую W(n) — это и есть смысл
+         «равновероятны микросостояния, а не макросостояния». */
+      if(p.obs&&s.samples>20){
+        const mx=Math.max(...s.cnt);
+        if(mx>0){
+          ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+          for(let k=0;k<=N;k++){
+            const x=gx+(k+0.42)*bw, y=gy+gh*s.cnt[k]/mx;
+            k?ctx.lineTo(x,y):ctx.moveTo(x,y);
+          }
+          ctx.stroke();
+          v.label(ctx,'наблюдённая частота',gx+gw,gy+gh,-118,-2,sec);
+        }
+      }
+      /* Одна строка вместо трёх: подпись оси и пояснение к столбикам. Три
+         отдельные подписи толкались друг с другом под ящиком. */
+      v.label(ctx,`высота столбика — W(n), число микросостояний · слева n = 0, справа n = ${N}`,
+        gx,gy,0,15,ink3);
+    }
+
+    // ---- вывод главы: одна строка, ради которой всё и затевалось
+    const tr=this.tReturn(p), yr=tr/3.156e7;
+    const when = yr>1e6 ? `${yr.toExponential(1)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
+    v.label(ctx,`вероятность «все слева» = 2^−${N} · среднее время возврата ≈ ${when}`,
+      Lx/2,-5.7,-150,0,ink3);
+    v.label(ctx, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
+                       : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',
+      Lx/2,-5.7,-150,14,N<=12?ok:meas);
+  }
+}
+,
+
 /* ================== ТЕРМОДИНАМИКА: PV-ДИАГРАММА И ПРОЦЕССЫ ================= */
 thermo:{
   title:'Термодинамика: газ, поршень, процессы',

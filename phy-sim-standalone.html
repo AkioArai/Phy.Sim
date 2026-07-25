@@ -13,6 +13,7 @@
   --ink:#171a1f; --ink-2:#5c6570; --ink-3:#8b939d;
   --accent:#2f5ea8; --accent-soft:#2f5ea81a; --second:#7a4fa3; --measure:#c07615; --danger:#b3452f;
   --grid:#dfe3e8; --grid-major:#c9cfd6; --canvas:#fbfcfd;
+  --ok:#2e7d4f;                       /* «верно», прирост величины */
   --radius:7px; --fs:12pt;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
   --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
@@ -22,6 +23,7 @@
   --ink:#e6e9ed; --ink-2:#9aa3ae; --ink-3:#6d757f;
   --accent:#6fa2e8; --accent-soft:#6fa2e824; --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62;
   --grid:#232830; --grid-major:#2d333d; --canvas:#14171c;
+  --ok:#6fcf97;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -127,8 +129,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .verdict{font-size:12.5px;font-family:var(--mono)}
-.verdict.ok{color:#2e7d4f}.verdict.no{color:var(--danger)}
-[data-theme="dark"] .verdict.ok{color:#6fcf97}
+.verdict.ok{color:var(--ok)}.verdict.no{color:var(--danger)}
 
 .splitter{width:5px;flex:0 0 5px;cursor:col-resize;background:var(--line-soft);border-left:1px solid var(--line);border-right:1px solid var(--line)}
 .splitter:hover,.splitter.drag{background:var(--accent)}
@@ -148,8 +149,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    Именно правилом, а не inline-стилем: inline display:none перебивал
    медиазапрос, и на телефоне симуляцию было невозможно закрыть. */
 #btn-simback{display:none}
-.warnbar{padding:6px 10px;font-size:12px;line-height:1.45;color:#7a4a08;background:#fdf1dc;border-bottom:1px solid var(--line)}
-[data-theme="dark"] .warnbar{color:#f0c987;background:#3a2c12}
+.warnbar{padding:6px 10px;font-size:12px;line-height:1.45;
+  color:color-mix(in srgb,var(--measure) 78%,var(--ink));
+  background:color-mix(in srgb,var(--measure) 12%,var(--panel));
+  border-bottom:1px solid color-mix(in srgb,var(--measure) 30%,var(--line))}
 .warnbar.hidden{display:none}
 .canvas-wrap{position:relative;flex:1;min-height:170px;background:var(--canvas);overflow:hidden}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%;
@@ -159,17 +162,18 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 /* показатели вынесены в отдельную рамку, чтобы не сливались с рисунком */
 .hud{position:absolute;left:8px;top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-2);
   background:color-mix(in srgb,var(--panel) 93%,transparent);
-  padding:6px 10px 7px;line-height:1.55;white-space:pre;pointer-events:none;
+  line-height:1.55;
   border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;
   box-shadow:0 3px 12px -6px rgba(0,0,0,.45)}
-.hud::before{content:'ПОКАЗАТЕЛИ';display:block;font-size:9px;letter-spacing:.12em;
-  color:var(--ink-3);margin:0 0 5px;padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
+/* заголовок HUD теперь настоящий элемент .fp-head — за него панель таскают */
+.hud-body{padding:6px 10px 7px;white-space:pre;font-family:var(--mono)}
 .pvbox{position:absolute;right:8px;top:8px;width:320px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
   border:1px solid var(--line-soft);border-radius:8px;pointer-events:auto;overflow:hidden;
   transition:width .18s ease,height .18s ease;font-family:var(--sans)}
 .pvbox.hidden{display:none}
 .pvbox .pvhead{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 11px;
-  cursor:pointer;font-size:13px;color:var(--ink-2);border-bottom:1px solid var(--line-soft);user-select:none}
+  cursor:grab;font-size:13px;color:var(--ink-2);border-bottom:1px solid var(--line-soft);user-select:none;
+  text-transform:none;letter-spacing:0;font-family:var(--sans);background:none}
 .pvbox .pvhead b{font-weight:600}
 .pvbox .pvtoggle{font-family:var(--mono);font-size:13px;color:var(--ink-3);line-height:1}
 .pvbox .pvbody{padding:6px}
@@ -179,16 +183,18 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .pvbox svg{display:block;width:100%;height:auto}
 .pvbox .pvrow{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-2);padding:1px 3px}
 .pvbox .pvrow span:last-child{color:var(--ink)}
-.histobox{position:absolute;right:8px;bottom:8px;background:color-mix(in srgb,var(--canvas) 88%,transparent);
-  padding:9px 12px 7px;border-radius:7px;border:1px solid var(--line-soft);pointer-events:none}
+.histobox{position:absolute;right:8px;bottom:8px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
+  border-radius:7px;border:1px solid var(--line)}
+.histo-body{padding:8px 11px 7px}
 .histobox.hidden{display:none}
 .histobox .htitle{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:4px}
 .histobox .hbars{display:flex;gap:3px;align-items:flex-end;height:96px}
     .histobox .hb{width:13px;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;transition:height .08s linear}
 .histobox .hx{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:2px;text-align:center}
-.energybox{position:absolute;right:8px;top:8px;display:flex;gap:10px;align-items:flex-end;
-  background:color-mix(in srgb,var(--canvas) 88%,transparent);padding:8px 10px 6px;border-radius:7px;
-  border:1px solid var(--line-soft);pointer-events:none}
+.energybox{position:absolute;right:8px;top:8px;
+  background:color-mix(in srgb,var(--canvas) 92%,transparent);border-radius:7px;
+  border:1px solid var(--line)}
+.energy-body{display:flex;gap:10px;align-items:flex-end;padding:8px 10px 6px}
 .energybox.hidden{display:none}
 .ebar{display:flex;flex-direction:column;align-items:center;gap:3px;width:34px}
 .ebar .track{width:16px;height:78px;background:var(--line);border-radius:3px;position:relative;overflow:hidden}
@@ -353,6 +359,29 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+/* ==================== ПЛАВАЮЩИЕ ПАНЕЛИ НАД СЦЕНОЙ ====================
+   Показатели, энергия, PV-диаграмма, гистограмма и сравнение ведут себя как
+   окна: их можно таскать за заголовок, менять размер за угол и сворачивать
+   двойным кликом по заголовку. Положение запоминается на устройстве. */
+.fpanel{position:absolute;z-index:24;display:flex;flex-direction:column;
+  min-width:120px;min-height:60px;pointer-events:auto;overflow:hidden}
+.fpanel.dragging{opacity:.94;box-shadow:0 12px 34px -12px #0009;z-index:40}
+.fp-head{display:flex;align-items:center;gap:6px;flex:0 0 auto;cursor:grab;
+  padding:5px 8px 4px;border-bottom:1px solid var(--line-soft);user-select:none;
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);background:color-mix(in srgb,var(--panel) 55%,transparent)}
+.fp-head b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fpanel.dragging .fp-head{cursor:grabbing}
+.fp-head .iconbtn{width:20px;height:18px;border-radius:4px}
+.fp-head .iconbtn svg{width:12px;height:12px}
+.fpanel > :not(.fp-head):not(.fp-grip){flex:1;min-height:0;overflow:auto}
+/* уголок для изменения размера */
+.fp-grip{position:absolute;right:0;bottom:0;width:14px;height:14px;cursor:nwse-resize;
+  z-index:2;background:linear-gradient(135deg,transparent 50%,var(--line) 50%,var(--line) 62%,
+    transparent 62%,transparent 74%,var(--line) 74%,var(--line) 86%,transparent 86%)}
+.fpanel.rolled{height:auto!important;min-height:0}
+.fpanel.rolled > :not(.fp-head){display:none}
+
 /* ======================= ШКАЛА ВРЕМЕНИ (перемотка) ======================= */
 .timeline{display:flex;align-items:center;gap:5px;padding:4px 8px;flex:0 0 auto;
   border-top:1px solid var(--line-soft);background:var(--panel)}
@@ -361,8 +390,11 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .tl-range{flex:1;min-width:0;accent-color:var(--accent);height:18px}
 .tl-time{font-family:var(--mono);font-size:11px;color:var(--ink-3);
   font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:78px;text-align:right}
-.timeline.scrub .tl-time{color:var(--measure)}
-.timeline.scrub{background:color-mix(in srgb,var(--measure) 8%,var(--panel))}
+/* Режим просмотра подсвечиваем АКЦЕНТНЫМ цветом, а не янтарным «цветом
+   измерений»: янтарный выбивался из палитры интерфейса. */
+.timeline.scrub .tl-time{color:var(--accent)}
+.timeline.scrub{background:var(--accent-soft)}
+.timeline.scrub .tl-range{accent-color:var(--accent)}
 
 /* ==================== ФИЛЬТР И ДЕЙСТВИЯ НАД ПАРАМЕТРАМИ ================== */
 .pbox-head{display:flex;align-items:center;gap:6px}
@@ -404,15 +436,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--line);
   border-radius:8px;box-shadow:0 8px 26px -14px #0008;display:flex;flex-direction:column;overflow:hidden}
 .cmpbox.hidden{display:none}
-.cmp-head{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 11px;
-  border-bottom:1px solid var(--line-soft);font-size:12.5px}
-.cmp-head b{flex:1;font-weight:600}
-.cmp-head .iconbtn{width:26px;height:26px}
 .cmp-body{overflow-y:auto;padding:6px 10px 9px;font-family:var(--mono);font-size:11px}
 .cmp-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;color:var(--ink-2)}
 .cmp-row .d{font-variant-numeric:tabular-nums}
-.cmp-row .up{color:#2e7d4f}.cmp-row .dn{color:var(--danger)}
-[data-theme="dark"] .cmp-row .up{color:#6fcf97}
+.cmp-row .up{color:var(--ok)}.cmp-row .dn{color:var(--danger)}
 
 /* ======================= ЭКРАН ДОСТУПА (ПАРОЛЬ) ======================= */
 .lock{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:var(--bg);
@@ -632,13 +659,29 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
       <div class="warnbar hidden" id="warnbar"></div>
       <div class="canvas-wrap" id="cwrap">
         <canvas id="scene"></canvas><canvas id="overlay"></canvas>
-        <div class="hud" id="hud"></div>
-        <div class="histobox hidden" id="histobox"></div>
-        <div class="pvbox hidden" id="pvbox">
-          <div class="pvhead" id="pvhead"><b>PV-диаграмма</b><span class="pvtoggle" id="pvtoggle">▾</span></div>
+        <div class="hud fpanel" id="hud">
+          <div class="fp-head"><b>Показатели</b></div>
+          <div class="hud-body" id="hud-body"></div>
+        </div>
+        <div class="histobox fpanel hidden" id="histobox">
+          <div class="fp-head"><b>Распределение</b></div>
+          <div class="histo-body" id="histo-body"></div>
+        </div>
+        <div class="pvbox fpanel hidden" id="pvbox">
+          <div class="pvhead fp-head" id="pvhead"><b>PV-диаграмма</b><span class="pvtoggle" id="pvtoggle">▾</span></div>
           <div class="pvbody" id="pvbody"></div>
         </div>
-        <div class="energybox hidden" id="energybox"></div>
+        <div class="energybox fpanel hidden" id="energybox">
+          <div class="fp-head"><b>Энергия</b></div>
+          <div class="energy-body" id="energy-body"></div>
+        </div>
+        <!-- Панель сравнения: снимок состояния и разница с текущим -->
+        <div class="cmpbox fpanel hidden" id="cmpbox">
+          <div class="fp-head"><b>Сравнение со снимком</b>
+            <button class="iconbtn" id="cmp-close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+          <div class="cmp-body" id="cmp-body"></div>
+        </div>
         <div class="eventflag hidden" id="eventflag"></div>
         <div class="empty" id="nosim" style="position:absolute;inset:0;display:grid;place-items:center;background:var(--canvas)">
           Нажмите ▷ в углу формулы — здесь откроется её симуляция.</div>
@@ -768,12 +811,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   </div>
 </div>
 
-<!-- Панель сравнения: снимок состояния и разница с текущим -->
-<div class="cmpbox hidden" id="cmpbox">
-  <div class="cmp-head"><b>Сравнение со снимком</b>
-    <button class="iconbtn" id="cmp-close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-  </div>
-  <div class="cmp-body" id="cmp-body"></div>
+
 </div>
 
 <!-- Экран доступа: пособие открывается только по паролю. Проверка идёт по
@@ -4124,22 +4162,18 @@ buoyancy:{
       ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.stroke();
     }
     v.label(ctx,`ρт = ${p.rho} кг/м³`,0,yc,-30,-H*20-8,acc);
-    // силы
+    /* Силы — диаграммой свободного тела из ЦЕНТРА тела. Раньше F_A и N были
+       сдвинуты по горизонтали на 0.16 м, чтобы не совпасть с mg, и казалось,
+       что они приложены мимо тела. Противоположно направленные стрелки из
+       одной точки и так не накладываются. */
     if(p.forces){
       const m=this.mass(p), Wt=m*p.g, FA=this.FA(p,s.d);
-      const kF=1.0/Math.max(Wt,FA,1);
-      v.arrow(ctx,0,yc,0,yc-Wt*kF,dang);
-      v.label(ctx,`mg = ${Wt.toFixed(1)} Н`,0,yc-Wt*kF,8,4,dang);
-      if(FA>1e-6){
-        v.arrow(ctx,0.16,yc,0.16,yc+FA*kF,sec);
-        v.label(ctx,`F_A = ${FA.toFixed(1)} Н`,0.16,yc+FA*kF,8,-4,sec);
-      }
-      // если лежит на дне — реакция дна
-      if(!this.floats(p) && s.d>=Math.min(H,D)-1e-6){
-        const N=Math.max(0,Wt-FA);
-        v.arrow(ctx,-0.16,-D,-0.16,-D+N*kF,meas);
-        v.label(ctx,`N = ${N.toFixed(1)} Н`,-0.16,-D+N*kF,-46,-4,meas);
-      }
+      const F=[{fx:0, fy:-Wt, label:'mg', color:dang}];
+      if(FA>1e-6) F.push({fx:0, fy:FA, label:'F_A', color:sec});
+      // лежит на дне — добавляется реакция дна
+      if(!this.floats(p) && s.d>=Math.min(H,D)-1e-6)
+        F.push({fx:0, fy:Math.max(0,Wt-FA), label:'N', color:meas});
+      v.fbd(ctx,{x:0, y:yc, forces:F, len:1.0, resultant:false, units:'Н'});
     }
     // ватерлиния тела
     if(s.d>0.001 && s.d<H){
@@ -4164,159 +4198,6 @@ buoyancy:{
        Ω = M / (L·sinθ) = m·g·d / (I·ω),
    то есть чем быстрее раскручен волчок, тем МЕДЛЕННЕЕ он прецессирует.
    Условие «быстрого волчка» (гироскопическое приближение): L ≫ I·Ω.       */
-gyro:{
-  title:'Гироскоп: почему волчок не падает',
-  params:[
-    {key:'m',  label:'Масса маховика',unit:'кг',min:0.05,max:20,step:0.05,default:1},
-    {key:'R',  label:'Радиус маховика',unit:'м',min:0.02,max:0.6,step:0.01,default:0.12},
-    {key:'d',  label:'Плечо: опора → центр масс',unit:'м',min:0.02,max:1,step:0.01,default:0.2},
-    {key:'rpm',label:'Обороты маховика',unit:'об/мин',min:0,max:12000,step:50,default:3000},
-    {key:'th', label:'Наклон оси к вертикали θ',unit:'°',min:5,max:90,step:1,default:70},
-    {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
-    {type:'group',label:'Показывать'},
-    {key:'vecs', label:'Векторы L, M и ΔL',type:'check',default:true},
-    {key:'trail',label:'След конца оси',type:'check',default:true}
-  ],
-  /* Диск: I = mR²/2 относительно собственной оси */
-  I(p){ return 0.5*p.m*p.R*p.R; },
-  w(p){ return p.rpm*2*Math.PI/60; },
-  L(p){ return this.I(p)*this.w(p); },
-  torque(p){ return p.m*p.g*p.d*Math.sin(p.th*Math.PI/180); },
-  /* Ω = mgd/(Iω) — не зависит от угла наклона */
-  prec(p){ const L=this.L(p); return L>1e-9? p.m*p.g*p.d/L : Infinity; },
-  Tprec(p){ const O=this.prec(p); return isFinite(O)&&O>1e-9? 2*Math.PI/O : Infinity; },
-  /* Быстрый ли волчок: приближение верно, когда прецессия много медленнее вращения */
-  fast(p){ const O=this.prec(p); return isFinite(O) && O<0.1*Math.abs(this.w(p)); },
-  init(p){ return {t:0, phi:0, trail:[], event:null, __stop:null}; },
-  step(s,dt,p){
-    s.t+=dt;
-    const O=this.prec(p);
-    if(isFinite(O)) s.phi+=O*dt;
-    if(p.trail){
-      const th=p.th*Math.PI/180;
-      s.trail.push([p.d*Math.sin(th)*Math.cos(s.phi), p.d*Math.sin(th)*Math.sin(s.phi)*0.42+p.d*Math.cos(th)]);
-      if(s.trail.length>420) s.trail.shift();
-    }
-    if(this.w(p)<1e-9 && !s.event){
-      s.event={type:'fall',t:s.t};
-      s.__stop='Маховик не раскручен: момент импульса нулевой — волчок просто падает';
-    }
-  },
-  readouts(s,p){
-    const O=this.prec(p), w=this.w(p);
-    return [['t',s.t,'с'],
-      ['момент инерции I = mR²/2',this.I(p),'кг·м²'],
-      ['угловая скорость ω',w,'рад/с'],
-      ['обороты',p.rpm,'об/мин'],
-      ['момент импульса L = Iω',this.L(p),'кг·м²/с'],
-      ['момент силы тяжести M = mgd·sinθ',this.torque(p),'Н·м'],
-      ['скорость прецессии Ω = mgd/(Iω)',isFinite(O)?O:NaN, isFinite(O)?'рад/с':'маховик стоит — прецессии нет'],
-      ['период прецессии',isFinite(this.Tprec(p))?this.Tprec(p):NaN,
-        isFinite(this.Tprec(p))?'с':'прецессии нет — маховик не раскручен'],
-      ['повернулось на',s.phi*180/Math.PI,'°'],
-      ['отношение Ω/ω',isFinite(O)&&w>1e-9?O/w:NaN, (isFinite(O)&&w>1e-9)?'':'ω = 0: отношение не определено'],
-      ['режим',0, this.fast(p)?'быстрый волчок: формула точна':'медленный: появятся нутации, формула приближённая']];
-  },
-  graphs:[
-    {label:'Угол прецессии',unit:'°',series:['φ'],get(s,p){ return [s.phi*180/Math.PI,null]; }},
-    {label:'Скорость прецессии Ω',unit:'рад/с',series:['Ω'],
-     get(s,p){ const O=SIMS.gyro.prec(p); return [isFinite(O)?O:0,null]; }}
-  ],
-  presets:[
-    {name:'Классический волчок: медленная прецессия',values:{m:1,R:0.12,d:0.2,rpm:3000,th:70}},
-    {name:'Раскрутили вдвое — прецессия вдвое медленнее',values:{m:1,R:0.12,d:0.2,rpm:6000,th:70}},
-    {name:'Замедляется — прецессия ускоряется',values:{m:1,R:0.12,d:0.2,rpm:600,th:70}},
-    {name:'Ось почти горизонтальна',values:{m:1,R:0.12,d:0.2,rpm:3000,th:88}},
-    {name:'Маховик стоит: волчок падает',values:{m:1,R:0.12,d:0.2,rpm:0,th:70}}
-  ],
-  anchors(s,p){
-    const th=p.th*Math.PI/180;
-    return [{x:0,y:0},{x:p.d*Math.sin(th)*Math.cos(s.phi), y:p.d*Math.cos(th)}];
-  },
-  dragPoints(p){ return [{x:0,y:p.d}]; },
-  dragMove(p,idx,x,y){ p.d=clamp(Math.round(Math.hypot(x,y)*100)/100,0.02,1); },
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const span=Math.max(p.d*2.6+p.R*3,0.8);
-    const scale=clamp(Math.min((W-70)/(span*PX_PER_M),(H-70)/(span*PX_PER_M)),1e-7,30);
-    return {x:0,y:p.d*0.35,scale};
-  },
-  draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
-          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const th=p.th*Math.PI/180, ph=s.phi;
-    /* Косая проекция: круг прецессии рисуем эллипсом (сжатие по вертикали),
-       чтобы читалось как объём, оставаясь честным по горизонтали. */
-    const KY=0.42;
-    const tip=[p.d*Math.sin(th)*Math.cos(ph), p.d*Math.sin(th)*Math.sin(ph)*KY+p.d*Math.cos(th)];
-    // опора и вертикаль
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.2);
-    ctx.beginPath(); ctx.moveTo(-p.d*0.5,-p.d*0.28); ctx.lineTo(p.d*0.5,-p.d*0.28); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,-p.d*0.28); ctx.lineTo(0,0); ctx.stroke();
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,p.d*1.35); ctx.stroke();
-    ctx.setLineDash([]); ctx.globalAlpha=1;
-    v.label(ctx,'вертикаль',0,p.d*1.35,4,-6,ink3);
-    // окружность, по которой ходит конец оси
-    const rr=p.d*Math.sin(th);
-    ctx.strokeStyle=sec; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1.2);
-    ctx.beginPath();
-    for(let i=0;i<=64;i++){ const a=i/64*2*Math.PI;
-      const x=rr*Math.cos(a), y=rr*Math.sin(a)*KY+p.d*Math.cos(th);
-      i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke(); ctx.globalAlpha=1;
-    // след
-    if(p.trail&&s.trail.length>1){
-      ctx.strokeStyle=meas; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); s.trail.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
-      ctx.stroke(); ctx.globalAlpha=1;
-    }
-    // ось волчка
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(tip[0],tip[1]); ctx.stroke();
-    // маховик — эллипс, перпендикулярный оси
-    const ax=Math.atan2(tip[1],tip[0]);
-    ctx.save(); ctx.translate(tip[0],tip[1]); ctx.rotate(ax+Math.PI/2);
-    ctx.fillStyle=acc; ctx.globalAlpha=.25;
-    ctx.beginPath(); ctx.ellipse(0,0,p.R,p.R*0.34,0,0,7); ctx.fill(); ctx.globalAlpha=1;
-    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-    ctx.beginPath(); ctx.ellipse(0,0,p.R,p.R*0.34,0,0,7); ctx.stroke();
-    // спица показывает собственное вращение
-    const spin=this.w(p)*s.t;
-    ctx.beginPath(); ctx.moveTo(0,0);
-    ctx.lineTo(p.R*Math.cos(spin), p.R*0.34*Math.sin(spin)); ctx.stroke();
-    ctx.restore();
-    v.label(ctx,`маховик ${p.rpm} об/мин`,tip[0],tip[1],-26,-p.R*20-12,acc);
-    // векторы
-    if(p.vecs){
-      const kL=p.d*0.8/Math.max(this.L(p),1e-6);
-      const ux=tip[0]/Math.max(Math.hypot(tip[0],tip[1]),1e-9), uy=tip[1]/Math.max(Math.hypot(tip[0],tip[1]),1e-9);
-      // L вдоль оси
-      v.arrow(ctx,0,0, ux*p.d*0.9, uy*p.d*0.9, sec);
-      v.label(ctx,`L = ${this.L(p).toFixed(3)}`,ux*p.d*0.9,uy*p.d*0.9,8,-6,sec);
-      // вес в центре масс
-      const kF=p.d*0.5/Math.max(p.m*p.g,1e-6);
-      v.arrow(ctx,tip[0],tip[1],tip[0],tip[1]-p.m*p.g*kF,dang);
-      v.label(ctx,`mg`,tip[0],tip[1]-p.m*p.g*kF,6,6,dang);
-      // ΔL = M·dt — перпендикулярно оси и горизонтально: именно туда «уходит» ось
-      const dx=-uy, dy=ux;
-      v.arrow(ctx,tip[0],tip[1],tip[0]+dx*p.d*0.35,tip[1]+dy*p.d*0.35,meas);
-      v.label(ctx,'ΔL = M·Δt',tip[0]+dx*p.d*0.35,tip[1]+dy*p.d*0.35,6,-6,meas);
-    }
-    // подписи
-    const O=this.prec(p);
-    v.label(ctx,`θ = ${p.th}°`,0,p.d*0.5,10,0,ink3);
-    v.label(ctx, isFinite(O)
-      ? `Ω = mgd/(Iω) = ${O.toFixed(3)} рад/с, период ${this.Tprec(p).toFixed(2)} с`
-      : 'без вращения момента импульса нет — держаться нечему',
-      -p.d*1.25,-p.d*0.55,0,0, isFinite(O)?ink3:dang);
-    v.label(ctx,'момент тяжести не роняет ось, а поворачивает её: чем быстрее волчок, тем медленнее прецессия',
-      -p.d*1.25,-p.d*0.55,0,16,ink3);
-    if(!this.fast(p)&&isFinite(O))
-      v.label(ctx,'волчок раскручен слабо: в жизни добавятся нутации — ось будет подрагивать',
-        -p.d*1.25,-p.d*0.55,0,32,meas);
-  }
-}
 
 });
 
@@ -4344,7 +4225,7 @@ spring:{
   /* собственная частота: ω = √(k/m), период T = 2π√(m/k) */
   w(p){ return Math.sqrt(p.k/p.m); },
   T(p){ return 2*Math.PI/this.w(p); },
-  init(p){ return {t:0,q:p.A,v:0,periods:0,event:null,__stop:null}; },
+  init(p){ return {t:0,q:p.A,v:0,periods:0,heat:0,event:null,__stop:null}; },
   step(s,dt,p){
     if(s.event) return;
     const t=s.t+dt, w=this.w(p);
@@ -4356,14 +4237,22 @@ spring:{
     s.q+=s.v*dt+0.5*a1*dt*dt;
     const a2=acc(s.q,s.v+a1*dt);
     s.v+=0.5*(a1+a2)*dt;
+    /* Работа силы сопротивления уходит в ТЕПЛО и должна учитываться: иначе
+       при затухании механическая энергия просто исчезала, а полная энергия
+       падала «в никуда». Мощность рассеяния = m·g·v². */
+    if(g>0) s.heat=(s.heat||0)+p.m*g*s.v*s.v*dt;
     s.t=t; s.periods=s.t/this.T(p);
     if(p.periods>0 && s.periods>=p.periods){
       s.event={t:s.t,type:'periods'};
       s.__stop=`Пройдено ${p.periods} колебан. : t = ${s.t.toFixed(2)} с (период T = ${this.T(p).toFixed(3)} с)`;
     }
   },
-  anchors(s,p){ return [{x:s.q,y:0},{x:0,y:0}]; },
-  energies(s,p){ const Ek=0.5*p.m*s.v*s.v, Eel=0.5*p.k*s.q*s.q; return {Ek,Ep:0,Eel,Eth:0,tot:Ek+Eel}; },
+  // центр груза поднят на yb=0.5 — там же, где он и рисуется
+  anchors(s,p){ return [{x:s.q,y:0.5},{x:0,y:0.5}]; },
+  energies(s,p){
+    const Ek=0.5*p.m*s.v*s.v, Eel=0.5*p.k*s.q*s.q, Eth=s.heat||0;
+    return {Ek,Ep:0,Eel,Eth,tot:Ek+Eel+Eth};   // тепло входит в полную энергию
+  },
   readouts(s,p){
     const E=this.energies(s,p);
     return [['t',s.t,'с'],
@@ -4375,14 +4264,18 @@ spring:{
       ['сила упругости −kx',-p.k*s.q,'Н'],
       ['кинетическая энергия',E.Ek,'Дж'],
       ['потенциальная энергия пружины',E.Eel,'Дж'],
-      ['полная энергия',E.tot,'Дж'],
+      ['ушло в тепло (трение)',E.Eth, p.damp?'Дж':'Дж — затухание выключено'],
+      ['механическая E = K + U',E.Ek+E.Eel,'Дж'],
+      ['полная энергия с теплом',E.tot,'Дж — сохраняется'],
       ['колебаний пройдено',s.periods,'']];
   },
   graphs:[
     {label:'Смещение Δx во времени',unit:'м',series:['x'],get:s=>[s.q,null]},
     {label:'Скорость',unit:'м/с',series:['v'],get:s=>[s.v,null]},
     {label:'Энергия: кинетическая и упругая',unit:'Дж',series:['K','U'],
-     get(s,p){ const E=SIMS.spring.energies(s,p); return [E.Ek,E.Eel]; }}
+     get(s,p){ const E=SIMS.spring.energies(s,p); return [E.Ek,E.Eel]; }},
+    {label:'Механическая энергия и тепло',unit:'Дж',series:['K+U','тепло'],
+     get(s,p){ const E=SIMS.spring.energies(s,p); return [E.Ek+E.Eel,E.Eth]; }}
   ],
   presets:[
     {name:'Пружина m = 1 кг, k = 20 Н/м',values:{m:1,k:20,A:2,periods:0,tStop:0}},
@@ -4880,20 +4773,15 @@ damped:{
     ctx.fillStyle=acc; ctx.globalAlpha=.85; ctx.fillRect(bx-hs,-hs,2*hs,2*hs); ctx.globalAlpha=1;
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.2); ctx.strokeRect(bx-hs,-hs,2*hs,2*hs);
     v.label(ctx,`x = ${s.x.toFixed(3)} м`,bx,hs,-24,-10,acc);
-    // силы: упругая, трение, внешняя
-    const kF=1.2/Math.max(1,Math.abs(p.k*s.x),Math.abs(p.F0));
-    if(Math.abs(p.k*s.x)>1e-6){
-      v.arrow(ctx,bx,0,bx-p.k*s.x*kF,0,sec);
-      v.label(ctx,`упругая ${(-p.k*s.x).toFixed(1)} Н`,bx-p.k*s.x*kF,0,4,-14,sec);
-    }
-    if(Math.abs(p.b*s.v)>1e-6){
-      v.arrow(ctx,bx,-hs-0.12,bx-p.b*s.v*kF,-hs-0.12,dang);
-      v.label(ctx,`трение ${(-p.b*s.v).toFixed(1)} Н`,bx-p.b*s.v*kF,-hs-0.12,4,12,dang);
-    }
-    if(p.mode==='driven'){
-      const F=p.F0*Math.cos(p.w*s.t);
-      v.arrow(ctx,bx,hs+0.12,bx+F*kF,hs+0.12,meas);
-      v.label(ctx,`внешняя ${F.toFixed(1)} Н`,bx+F*kF,hs+0.12,4,-10,meas);
+    /* Силы рисуем штатной диаграммой свободного тела: ВСЕ из центра тела.
+       Раньше трение и внешняя сила были подняты и опущены на полразмера
+       бруска, чтобы стрелки не накладывались, — и выглядело так, будто силы
+       приложены к воздуху рядом с телом. */
+    {
+      const F=[{fx:-p.k*s.x, fy:0, label:'упругая', color:sec}];
+      if(Math.abs(p.b*s.v)>1e-6) F.push({fx:-p.b*s.v, fy:0, label:'трение', color:dang});
+      if(p.mode==='driven') F.push({fx:p.F0*Math.cos(p.w*s.t), fy:0, label:'внешняя', color:meas});
+      v.fbd(ctx,{x:bx, y:0, forces:F, len:1.4, resultant:false, units:'Н'});
     }
     // кривая резонанса A(ω) — врезка внизу сцены
     if(p.curve && p.mode==='driven'){
@@ -5133,6 +5021,205 @@ gas:{
       ctx.beginPath(); ctx.arc(m.x,m.y,r,0,7); ctx.fill();
     }
         v.label(ctx,`T = ${p.T} K   v_ср.кв = ${vr.toFixed(3)}`,0,-0.3,0,0,v.c('--ink-3'));
+  }
+}
+,
+
+/* ========== КИНЕТИЧЕСКАЯ ТЕОРИЯ: МИКРО- И МАКРОСОСТОЯНИЯ ==========
+   Модель урны Эренфестов. В ящике N пронумерованных молекул; в перегородке
+   есть дырка, и время от времени случайно выбранная молекула переходит на
+   другую сторону. МИКРОсостояние — полный список «кто где». МАКРОсостояние —
+   только число молекул слева n: их не различают. Число микросостояний в
+   макросостоянии — статистический вес W = C(N,n), а S = k·lnW.
+
+   Вся суть главы про необратимость видна на одном ползунке N: при N = 4
+   система то и дело сама возвращается в «все слева», а при N = 200 среднее
+   время возврата больше возраста Вселенной, хотя ни один закон механики
+   этого не запрещает. */
+micro:{
+  title:'Микро- и макросостояния: откуда берётся необратимость',
+  params:[
+    {key:'N',    label:'Число молекул N',min:2,max:200,step:1,default:60},
+    {key:'rate', label:'Переходов через дырку в секунду',unit:'1/с',min:1,max:400,step:1,default:60},
+    {key:'left', label:'Начать со всех молекул слева',type:'check',default:true},
+
+    {type:'group',label:'Показывать'},
+    {key:'bars', label:'Веса макросостояний W(n)',type:'check',default:true},
+    {key:'obs',  label:'Наблюдённую частоту (поверх W)',type:'check',default:true},
+    {key:'nums', label:'Номера молекул (при N ≤ 20)',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  Lx:12, Ly:8,                                    // размеры ящика (усл. ед.)
+  /* ln n! — таблицей, чтобы факториалы не переполняли double */
+  lnFact(n){ const T=this._lf||(this._lf=[0]);
+    for(let i=T.length;i<=n;i++) T[i]=T[i-1]+Math.log(i);
+    return T[n]; },
+  /* статистический вес макросостояния: сколько микросостояний ему отвечает */
+  lnW(N,n){ return this.lnFact(N)-this.lnFact(n)-this.lnFact(N-n); },
+  W(N,n){ return Math.exp(this.lnW(N,n)); },
+  /* Ячейка молекулы №i. Ячейка закреплена ЗА МОЛЕКУЛОЙ, а не за порядковым
+     номером среди «тех, кто сейчас слева»: иначе один переход перетасовывал бы
+     всю картинку, и глазом было бы не поймать, кто именно перескочил. */
+  slot(i,leftSide,N){
+    const cols=Math.max(2,Math.ceil(Math.sqrt(N))), rows=Math.ceil(N/cols);
+    const row=Math.floor(i/cols), col=i%cols;
+    const w=this.Lx/2-1.2, h=this.Ly-1.6;
+    const x=0.6+(col+0.5)*w/cols + (leftSide?0:this.Lx/2+0.1);
+    const y=0.8+(row+0.5)*h/rows;
+    return [x,y];
+  },
+  init(p){
+    const side=[];                                 // true — молекула слева
+    for(let i=0;i<p.N;i++) side.push(p.left?true:Math.random()<0.5);
+    const cnt=new Array(p.N+1).fill(0);
+    const n=side.filter(Boolean).length;
+    cnt[n]=1;
+    return {t:0, side, n, acc:0, moves:0, cnt, samples:1,
+            returns:0, tRet:null, flash:0, last:-1, event:null, __stop:null};
+  },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+    if(s.side.length!==p.N){ Object.assign(s,this.init(p)); s.t=t; return; }
+    s.flash=Math.max(0,s.flash-dt*4);
+    /* число переходов за шаг накапливаем: при rate·dt < 1 переход случается
+       не каждый кадр, и это честнее, чем «двигать по чуть-чуть» */
+    s.acc+=p.rate*dt;
+    while(s.acc>=1){
+      s.acc-=1;
+      const i=Math.floor(Math.random()*p.N);
+      s.side[i]=!s.side[i];
+      s.n+=s.side[i]?1:-1;
+      s.last=i; s.flash=1; s.moves++;
+      s.cnt[s.n]++; s.samples++;
+      /* возврат в исходное «всё слева» — то самое событие, которое в
+         макросистеме не наступает никогда */
+      if(s.n===p.N && s.last!==-1){ s.returns++; s.tRet=s.t; }
+    }
+  },
+  /* среднее время возврата в состояние «все слева»: обратная вероятность,
+     делённая на частоту переходов. Для N = 200 это 10⁵² лет. */
+  tReturn(p){ return Math.pow(2,p.N)/Math.max(p.rate,1e-9); },
+  anchors(s,p){ return [{x:this.Lx/2,y:this.Ly/2}]; },
+  readouts(s,p){
+    const N=p.N, n=s.n, W=this.W(N,n), Wmax=this.W(N,Math.round(N/2));
+    const tr=this.tReturn(p);
+    return [['t',s.t,'с'],
+      ['молекул N',N,''],
+      ['макросостояние: слева n',n,''],
+      ['справа N − n',N-n,''],
+      ['всего микросостояний 2^N',Math.pow(2,N),''],
+      ['вес макросостояния W = C(N,n)',W,'микросостояний'],
+      ['ln W',this.lnW(N,n),''],
+      ['энтропия S = k·lnW  →  S/k',this.lnW(N,n),''],
+      ['доля от самого вероятного W/W_max',W/Wmax,''],
+      ['вероятность этого макросостояния',W/Math.pow(2,N),''],
+      ['вероятность «все слева» 2^−N',Math.pow(2,-N),''],
+      ['среднее время возврата «все слева»',tr,'с'],
+      ['оно же в годах',tr/3.156e7,'лет'],
+      ['переходов через дырку',s.moves,''],
+      ['возвратов в «все слева» наблюдалось',s.returns,'']];
+  },
+  graphs:[
+    {label:'Молекул слева n(t)',unit:'шт',series:['n','N/2'],
+     get(s,p){ return [s.n,p.N/2]; }},
+    {label:'Энтропия S/k = ln W',unit:'',series:['S/k','max'],
+     get(s,p){ return [SIMS.micro.lnW(p.N,s.n),SIMS.micro.lnW(p.N,Math.round(p.N/2))]; }}
+  ],
+  presets:[
+    {name:'Микросистема N = 4: возвраты видны глазом',values:{N:4,rate:6,left:true,nums:true,tStop:0}},
+    {name:'N = 10: возврат раз в сотню переходов',values:{N:10,rate:20,left:true,nums:true,tStop:0}},
+    {name:'N = 30: возврата можно не дождаться',values:{N:30,rate:60,left:true,nums:false,tStop:0}},
+    {name:'Макросистема N = 200: необратимость',values:{N:200,rate:400,left:true,nums:false,tStop:0}},
+    {name:'Старт из случайного состояния',values:{N:60,rate:60,left:false,nums:false,tStop:0}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-60)/(this.Lx*1.15*PX_PER_M),(H-60)/(15.8*PX_PER_M)),0.002,30);
+    return {x:this.Lx/2,y:1.5,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const Lx=this.Lx, Ly=this.Ly, N=p.N, n=s.n;
+    if(s.side.length!==N) return;
+
+    // ---- ящик и перегородка с дыркой
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.5); ctx.strokeRect(0,0,Lx,Ly);
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2); ctx.beginPath();
+    ctx.moveTo(Lx/2,0);      ctx.lineTo(Lx/2,Ly/2-0.7);
+    ctx.moveTo(Lx/2,Ly/2+0.7); ctx.lineTo(Lx/2,Ly);
+    ctx.stroke();
+    /* подпись дырки — ПОД ящиком: внутри она неизбежно легла бы на молекулы,
+       которые заполняют обе половины вплотную к перегородке */
+    v.label(ctx,'дырка в перегородке',Lx/2,0,-58,16,ink3);
+
+    // ---- молекулы: каждая в своей ячейке, номера — только у микросистемы
+    const r=clamp(2.2/Math.sqrt(N),0.10,0.34);
+    for(let i=0;i<N;i++){
+      const L=s.side[i];
+      const [x,y]=this.slot(i,L,N);
+      ctx.fillStyle = (i===s.last&&s.flash>0) ? meas : (L?acc:sec);
+      ctx.globalAlpha = (i===s.last&&s.flash>0) ? 1 : .9;
+      ctx.beginPath(); ctx.arc(x,y,r*(i===s.last?1+0.6*s.flash:1),0,7); ctx.fill();
+      ctx.globalAlpha=1;
+      if(p.nums&&N<=20) v.label(ctx,String(i+1),x,y,-3,-1,v.c('--panel'));
+    }
+
+    // ---- макросостояние крупно над ящиком
+    v.label(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly,-96,-34,ink);
+    v.label(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,
+      Lx/2,Ly,-96,-20,ink3);
+    if(n===N) v.label(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly,-96,-48,ok);
+
+    // ---- гистограмма весов W(n): «гора» с острым пиком у макросистемы
+    if(p.bars){
+      const gx=0, gy=-4.2, gw=Lx, gh=3.0;
+      const lnMax=this.lnW(N,Math.round(N/2));
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
+      const bw=gw/(N+1);
+      for(let k=0;k<=N;k++){
+        const h=gh*Math.exp(this.lnW(N,k)-lnMax);     // W(k)/W_max — от 0 до 1
+        if(h<gh*0.004 && k!==n) continue;
+        ctx.fillStyle = (k===n)?meas:acc; ctx.globalAlpha=(k===n)?1:.45;
+        ctx.fillRect(gx+k*bw, gy, Math.max(bw*0.85, v.lw(1)/PX_PER_M), Math.max(h,k===n?gh*0.02:0));
+        ctx.globalAlpha=1;
+      }
+      /* наблюдённая частота: сколько времени система реально провела в каждом
+         макросостоянии. Она ложится на кривую W(n) — это и есть смысл
+         «равновероятны микросостояния, а не макросостояния». */
+      if(p.obs&&s.samples>20){
+        const mx=Math.max(...s.cnt);
+        if(mx>0){
+          ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+          for(let k=0;k<=N;k++){
+            const x=gx+(k+0.42)*bw, y=gy+gh*s.cnt[k]/mx;
+            k?ctx.lineTo(x,y):ctx.moveTo(x,y);
+          }
+          ctx.stroke();
+          v.label(ctx,'наблюдённая частота',gx+gw,gy+gh,-118,-2,sec);
+        }
+      }
+      /* Одна строка вместо трёх: подпись оси и пояснение к столбикам. Три
+         отдельные подписи толкались друг с другом под ящиком. */
+      v.label(ctx,`высота столбика — W(n), число микросостояний · слева n = 0, справа n = ${N}`,
+        gx,gy,0,15,ink3);
+    }
+
+    // ---- вывод главы: одна строка, ради которой всё и затевалось
+    const tr=this.tReturn(p), yr=tr/3.156e7;
+    const when = yr>1e6 ? `${yr.toExponential(1)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
+    v.label(ctx,`вероятность «все слева» = 2^−${N} · среднее время возврата ≈ ${when}`,
+      Lx/2,-5.7,-150,0,ink3);
+    v.label(ctx, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
+                       : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',
+      Lx/2,-5.7,-150,14,N<=12?ok:meas);
   }
 }
 ,
@@ -6308,403 +6395,7 @@ capacitor:{
 }
 ,
 
-/* ================== ЭЛЕКТРИЧЕСКИЙ ТОК: RC-ЦЕПИ (MNA-решатель) ================= */
-circuit:{
-  title:'Конструктор соединений: R или C',
-  params:[
-    {key:'elem',label:'Тип элемента',type:'select',default:'R',
-     options:[{v:'R',t:'Резисторы (R)'},{v:'C',t:'Конденсаторы (C)'}]},
-    {key:'conn',label:'Тип соединения',type:'select',default:'series',
-     options:[{v:'series',  t:'Последовательное'},
-              {v:'parallel',t:'Параллельное'}]},
-    {key:'n',label:'Число элементов',min:1,max:4,step:1,default:2},
-    {key:'U',label:'Напряжение источника U (клеммы A–B)',unit:'В',min:1,max:50,step:1,default:12},
 
-    {type:'group',label:'Номиналы (используются по числу элементов)'},
-    {key:'R1',label:'R₁ / C₁',min:0.1,max:20,step:0.1,default:2},
-    {key:'R2',label:'R₂ / C₂',min:0.1,max:20,step:0.1,default:3},
-    {key:'R3',label:'R₃ / C₃',min:0.1,max:20,step:0.1,default:1},
-    {key:'R4',label:'R₄ / C₄',min:0.1,max:20,step:0.1,default:4},
-
-    {type:'group',label:'Показывать'},
-    {key:'flow',  label:'Движение тока',type:'check',default:true},
-    {key:'values',label:'Номиналы и напряжения',type:'check',default:true}
-  ],
-  vals(p){ return [p.R1,p.R2,p.R3,p.R4].slice(0,p.n); },
-  /* эквивалент и токи. R в кОм, C в мкФ. */
-  calc(p){
-    const vals=this.vals(p), U=p.U, isR=p.elem==='R';
-    let Req,Ceq,I,items=[];
-    if(isR){
-      if(p.conn==='series'){ Req=vals.reduce((a,b)=>a+b,0); I=U/(Req*1e3);
-        items=vals.map((R,i)=>({name:`R${i+1}`,val:R,unit:'кОм',I:I,U:I*R*1e3})); }
-      else { const g=vals.reduce((a,R)=>a+1/R,0); Req=1/g; I=U/(Req*1e3);
-        items=vals.map((R,i)=>({name:`R${i+1}`,val:R,unit:'кОм',I:U/(R*1e3),U:U})); }
-      return {isR,Req,I,items,total:Req,totalUnit:'кОм'};
-    } else {
-      // конденсаторы: последовательное 1/C=Σ1/Ci, параллельное C=ΣCi
-      if(p.conn==='series'){ const inv=vals.reduce((a,C)=>a+1/C,0); Ceq=1/inv;
-        const Q=Ceq*1e-6*U; items=vals.map((C,i)=>({name:`C${i+1}`,val:C,unit:'мкФ',Q:Q*1e6,U:Q/(C*1e-6)})); }
-      else { Ceq=vals.reduce((a,b)=>a+b,0); items=vals.map((C,i)=>({name:`C${i+1}`,val:C,unit:'мкФ',Q:C*1e-6*U*1e6,U:U})); }
-      const Wtot=0.5*Ceq*1e-6*U*U;
-      return {isR:false,Ceq,items,Wtot,total:Ceq,totalUnit:'мкФ'};
-    }
-  },
-  init(p){ return {t:0,flow:0,event:null,__stop:null}; },
-  step(s,dt,p){ const c=this.calc(p); s.flow += (c.isR?c.I*30:0.6)*dt; s.t+=dt; },
-  anchors(s,p){ return [{x:-6,y:0},{x:6,y:0}]; },     // клеммы A и B
-  readouts(s,p){
-    const c=this.calc(p);
-    const out=[['t',s.t,'с'],['напряжение A–B',p.U,'В'],['тип',0,p.elem==='R'?'резисторы':'конденсаторы'],
-               ['соединение',0,p.conn==='series'?'последовательное':'параллельное']];
-    if(c.isR){
-      out.push(['эквивалент R',c.Req,'кОм'],['общий ток I',c.I*1000,'мА']);
-      c.items.forEach(it=>out.push([`${it.name}: ток / напряж.`,it.I*1000, `мА → ${it.U.toFixed(1)} В`]));
-    } else {
-      out.push(['эквивалент C',c.Ceq,'мкФ'],['энергия W=½CU²',c.Wtot*1e6,'мкДж']);
-      c.items.forEach(it=>out.push([`${it.name}: заряд / напряж.`,it.Q, `нКл → ${it.U.toFixed(1)} В`]));
-    }
-    return out;
-  },
-  graphs:[
-    {label:'Эквивалент (R в кОм или C в мкФ)',unit:'',series:['экв'],get(s,p){ return [SIMS.circuit.calc(p).total,null]; }}
-  ],
-  presets:[
-    {name:'Резисторы последовательно',values:{elem:'R',conn:'series',n:2,U:12,R1:2,R2:3}},
-    {name:'Резисторы параллельно',values:{elem:'R',conn:'parallel',n:2,U:12,R1:2,R2:3}},
-    {name:'Конденсаторы последовательно',values:{elem:'C',conn:'series',n:2,U:12,R1:2,R2:3}},
-    {name:'Конденсаторы параллельно',values:{elem:'C',conn:'parallel',n:2,U:12,R1:2,R2:3}},
-    {name:'Три резистора параллельно',values:{elem:'R',conn:'parallel',n:3,U:12,R1:2,R2:3,R3:1}}
-  ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(15*PX_PER_M),(H-70)/(10*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
-  },
-  /* --- рисование элементов на проводе (провод разрывается под элементом) --- */
-  drawResistor(ctx,v,cx,cy,horiz,col){
-    const L=1.6, w=0.5;
-    ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=col; ctx.lineWidth=v.lw(2);
-    if(horiz){ ctx.beginPath(); ctx.rect(cx-L/2,cy-w/2,L,w); ctx.fill(); ctx.stroke(); }
-    else { ctx.beginPath(); ctx.rect(cx-w/2,cy-L/2,w,L); ctx.fill(); ctx.stroke(); }
-  },
-  drawCap(ctx,v,cx,cy,horiz,col){
-    // пластины ПЕРПЕНДИКУЛЯРНЫ проводу: горизонтальный провод → вертикальные пластины
-    ctx.strokeStyle=col; ctx.lineWidth=v.lw(3); const g=0.18, pl=0.5;
-    if(horiz){
-      ctx.beginPath(); ctx.moveTo(cx-g,cy-pl); ctx.lineTo(cx-g,cy+pl);
-      ctx.moveTo(cx+g,cy-pl); ctx.lineTo(cx+g,cy+pl); ctx.stroke();
-    } else {
-      ctx.beginPath(); ctx.moveTo(cx-pl,cy-g); ctx.lineTo(cx+pl,cy-g);
-      ctx.moveTo(cx-pl,cy+g); ctx.lineTo(cx+pl,cy+g); ctx.stroke();
-    }
-  },
-  /* провод с разрывом под элементом (element gap) */
-  wireGap(ctx,v,ax,ay,bx,by,gapCenters,gapHalf){
-    // рисуем провод от a до b, вырезая отрезки вокруг каждого центра из gapCenters (вдоль прямой)
-    ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(2);
-    const dx=bx-ax, dy=by-ay, len=Math.hypot(dx,dy), ux=dx/len, uy=dy/len;
-    // параметры t центров вдоль линии
-    const gaps=gapCenters.map(c=>{ const t=((c.x-ax)*ux+(c.y-ay)*uy); return t; }).sort((p,q)=>p-q);
-    let t0=0;
-    for(const gc of gaps){
-      const gStart=gc-gapHalf, gEnd=gc+gapHalf;
-      if(gStart>t0){ ctx.beginPath(); ctx.moveTo(ax+ux*t0,ay+uy*t0); ctx.lineTo(ax+ux*gStart,ay+uy*gStart); ctx.stroke(); }
-      t0=gEnd;
-    }
-    if(t0<len){ ctx.beginPath(); ctx.moveTo(ax+ux*t0,ay+uy*t0); ctx.lineTo(bx,by); ctx.stroke(); }
-  },
-  draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const c=this.calc(p), n=p.n, isR=p.elem==='R', col=isR?acc:sec;
-    const Ax=-6, Bx=6, midT=1;                       // клеммы
-    // клеммы A и B (кружки-разъёмы)
-    const term=(x,lab)=>{ ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.arc(x,0,0.28,0,7); ctx.stroke();
-      v.label(ctx,lab,x,0,x<0?-18:10,-16,ink); };
-    term(Ax,'A'); term(Bx,'B');
-
-    const drawElem=(cx,cy,horiz,idx)=>{
-      if(isR) this.drawResistor(ctx,v,cx,cy,horiz,col);
-      else    this.drawCap(ctx,v,cx,cy,horiz,col);
-      if(p.values){
-        const it=c.items[idx];
-        v.label(ctx,`${it.name} = ${it.val} ${isR?'кОм':'мкФ'}`,cx,cy,horiz?-20:14,horiz?-18:0,col);
-        v.label(ctx,`${it.U.toFixed(1)} В`,cx,cy,horiz?-12:14,horiz?18:14,ink3);
-      }
-    };
-
-    if(p.conn==='series'){
-      // все элементы в ряд между A и B на одной линии
-      const x0=Ax+0.28, x1=Bx-0.28, span=x1-x0;
-      const centers=[]; for(let i=0;i<n;i++) centers.push({x:x0+span*(i+0.5)/n, y:0});
-      this.wireGap(ctx,v,x0,0,x1,0,centers,0.85);
-      centers.forEach((ct,i)=>drawElem(ct.x,ct.y,true,i));
-    } else {
-      // параллельно: n горизонтальных ветвей между двумя вертикальными шинами
-      const busL=Ax+2, busR=Bx-2, ys=[];
-      for(let i=0;i<n;i++){ const y=(n===1)?0:(-2.4+4.8*i/(n-1)); ys.push(y); }
-      // провода от клемм к шинам
-      ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.moveTo(Ax+0.28,0); ctx.lineTo(busL,0); ctx.moveTo(busR,0); ctx.lineTo(Bx-0.28,0); ctx.stroke();
-      // вертикальные шины
-      const ymin=Math.min(...ys), ymax=Math.max(...ys);
-      ctx.beginPath(); ctx.moveTo(busL,ymin); ctx.lineTo(busL,ymax); ctx.moveTo(busR,ymin); ctx.lineTo(busR,ymax); ctx.stroke();
-      // узлы соединения
-      ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(busL,0,v.lw(3),0,7); ctx.fill(); ctx.beginPath(); ctx.arc(busR,0,v.lw(3),0,7); ctx.fill();
-      // ветви с элементами
-      ys.forEach((y,i)=>{
-        const cx=(busL+busR)/2;
-        this.wireGap(ctx,v,busL,y,busR,y,[{x:cx,y}],0.85);
-        drawElem(cx,y,true,i);
-      });
-    }
-
-    // движение тока (только для резисторов; конденсаторы в статике заряжены)
-    if(p.flow && isR && c.I>1e-9){
-      // простая анимация: точки бегут по внешнему проводу A→B
-      const path=[[Ax+0.28,0],[Bx-0.28,0]];
-      const nd=10; ctx.fillStyle=dang;
-      for(let k=0;k<nd;k++){ const t=((s.flow+k/nd)%1+1)%1;
-        const px=path[0][0]+(path[1][0]-path[0][0])*t;
-        ctx.beginPath(); ctx.arc(px,0.001,v.lw(2.5),0,7); ctx.fill(); }
-    }
-
-    // сводка
-    if(isR) v.label(ctx,`R_экв = ${c.Req.toFixed(2)} кОм,  I = ${(c.I*1000).toFixed(2)} мА`,0,3.4,-56,0,ink3);
-    else    v.label(ctx,`C_экв = ${c.Ceq.toFixed(2)} мкФ,  W = ${(c.Wtot*1e6).toFixed(2)} мкДж`,0,3.4,-56,0,ink3);
-    v.label(ctx,'меняйте тип, число и номиналы элементов',0,3.4,-64,16,ink3);
-  }
-},
-
-resistors:{
-  title:'Конструктор цепей (закон Ома)',
-  A:{x:-6,y:0},
-  params:[
-    {key:'tool',label:'Инструмент (или ПКМ по сцене)',type:'select',default:'wire',
-     options:[{v:'wire',t:'Провод (тянуть от узла)'},
-              {v:'R',   t:'Резистор (тянуть от узла)'}]},
-    {key:'U',   label:'Напряжение источника U (A→B)',unit:'В',min:1,max:50,step:1,default:12},
-    {key:'Rnew',label:'Номинал нового резистора',unit:'Ом',min:1,max:1000,step:1,default:100},
-    {type:'group',label:'Показывать'},
-    {key:'flow',  label:'Движение тока',type:'check',default:true},
-    {key:'values',label:'Номиналы',type:'check',default:true},
-    {key:'clear', label:'Очистить схему',type:'check',default:false}
-  ],
-  /* --- сеть: сегменты между узлами целочисленной сетки --- */
-  netOf(p){
-    if(!p._net) p._net={segs:[],B:null};
-    if(p.clear){ p._net={segs:[],B:null}; p.clear=false; }
-    return p._net;
-  },
-  key(x,y){ return x+','+y; },
-  solveLinear(A,b){
-    const n=b.length, M=A.map((r,i)=>[...r,b[i]]);
-    for(let col=0;col<n;col++){
-      let piv=col; for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>Math.abs(M[piv][col])) piv=r;
-      if(Math.abs(M[piv][col])<1e-12) continue;
-      [M[col],M[piv]]=[M[piv],M[col]];
-      for(let r=0;r<n;r++){ if(r===col) continue; const f=M[r][col]/M[col][col];
-        for(let c=col;c<=n;c++) M[r][c]-=f*M[col][c]; }
-    }
-    return M.map((row,i)=>Math.abs(M[i][i])<1e-12?0:row[n]/M[i][i]);
-  },
-  /* Расчёт: провода объединяют узлы (union-find), резисторы — рёбра между
-     супер-узлами, MNA даёт ток источника U между A и B. Работает для ЛЮБОЙ
-     топологии — это и есть «раскрытие скобок», выполненное честной алгеброй. */
-  calc(p){
-    const net=this.netOf(p), U=p.U;
-    const par={};
-    const add=k=>{ if(!(k in par)) par[k]=k; return k; };
-    const find=k=>{ k=add(k); while(par[k]!==k){ par[k]=par[par[k]]; k=par[k]; } return k; };
-    const uni=(x,y)=>{ x=find(x); y=find(y); if(x!==y) par[x]=y; };
-    const kA=this.key(this.A.x,this.A.y); add(kA);
-    for(const g of net.segs){
-      const k1=this.key(g.x1,g.y1), k2=this.key(g.x2,g.y2); add(k1); add(k2);
-      if(g.type==='wire') uni(k1,k2);
-    }
-    if(!net.B) return {status:'noB'};
-    const kB=this.key(net.B.x,net.B.y); add(kB);
-    const nA=find(kA), nB=find(kB);
-    if(nA===nB) return {status:'short',Req:0};
-    const rs=[];
-    for(const g of net.segs) if(g.type==='R'){
-      const x=find(this.key(g.x1,g.y1)), y=find(this.key(g.x2,g.y2));
-      if(x!==y) rs.push({a:x,b:y,R:g.value});
-    }
-    // связность A—B по резисторному графу
-    const adj={}; rs.forEach(r=>{ (adj[r.a]=adj[r.a]||[]).push(r.b); (adj[r.b]=adj[r.b]||[]).push(r.a); });
-    const seen=new Set([nA]), q=[nA];
-    while(q.length){ const x=q.pop(); for(const y of adj[x]||[]) if(!seen.has(y)){ seen.add(y); q.push(y); } }
-    if(!seen.has(nB)) return {status:'open'};
-    // MNA: земля = nB, источник U между nA и землёй
-    const ids=new Map();
-    const idOf=k=>{ if(k===nB) return -1; if(!ids.has(k)) ids.set(k,ids.size); return ids.get(k); };
-    idOf(nA); rs.forEach(r=>{ idOf(r.a); idOf(r.b); });
-    const n=ids.size, sz=n+1;
-    const G=Array.from({length:sz},()=>new Array(sz).fill(0)), Iv=new Array(sz).fill(0);
-    for(const r of rs){ const g=1/r.R, ia=idOf(r.a), ib=idOf(r.b);
-      if(ia>=0)G[ia][ia]+=g; if(ib>=0)G[ib][ib]+=g;
-      if(ia>=0&&ib>=0){ G[ia][ib]-=g; G[ib][ia]-=g; } }
-    const iA=idOf(nA), row=n;
-    G[iA][row]+=1; G[row][iA]+=1; Iv[row]=U;
-    const x=this.solveLinear(G,Iv);
-    const I=-x[row], Req=Math.abs(I)>1e-12?U/I:Infinity;
-    return {status:'ok',I,Req};
-  },
-  /* --- интерактив: рисование проводов зажатием ЛКМ от узла --- */
-  nodesList(p){
-    const net=this.netOf(p), pts=[{x:this.A.x,y:this.A.y}];
-    for(const g of net.segs){ pts.push({x:g.x1,y:g.y1},{x:g.x2,y:g.y2}); }
-    return pts;
-  },
-  wireStart(p,x,y){
-    // старт только от существующего узла (A или конец сегмента)
-    let best=null,bd=0.55;
-    for(const q of this.nodesList(p)){ const d=Math.hypot(q.x-x,q.y-y); if(d<bd){ bd=d; best=q; } }
-    if(best) return {sx:best.x, sy:best.y};
-    return null;
-  },
-  wireMove(p,h,x,y){
-    const dx=x-h.sx, dy=y-h.sy;
-    let ex,ey;
-    if(Math.abs(dx)>=Math.abs(dy)){ ex=Math.round(h.sx+dx); ey=h.sy; }   // горизонталь
-    else { ex=h.sx; ey=Math.round(h.sy+dy); }                            // вертикаль
-    p._preview={x1:h.sx,y1:h.sy,x2:ex,y2:ey};
-  },
-  wireEnd(p,h){
-    const pv=p._preview; p._preview=null;
-    if(!pv) return;
-    const len=Math.abs(pv.x2-pv.x1)+Math.abs(pv.y2-pv.y1);
-    if(len<1) return;
-    const type=p.tool==='R'?'R':'wire';
-    this.netOf(p).segs.push({x1:pv.x1,y1:pv.y1,x2:pv.x2,y2:pv.y2,type,value:p.Rnew});
-  },
-  /* развилки образуются автоматически: сегменты, сходящиеся в одном узле сетки,
-     объединяются союзом узлов при расчёте — отдельный инструмент не нужен. */
-  undoAction(p){
-    const net=this.netOf(p);
-    if(net.B){ net.B=null; return true; }
-    if(net.segs.length){ net.segs.pop(); return true; }
-    return false;
-  },
-  makeOutput(p){
-    const net=this.netOf(p);
-    if(!net.segs.length) return;
-    const l=net.segs[net.segs.length-1];
-    net.B={x:l.x2,y:l.y2};
-  },
-  ctxTools(p){
-    const m=t=>(p.tool===t?'● ':'○ ');
-    return [
-      {label:m('wire')+'Инструмент: провод',       on:q=>{ q.tool='wire'; }},
-      {label:m('R')+`Инструмент: резистор (${p.Rnew} Ом)`, on:q=>{ q.tool='R'; }},
-      {label:'Создать вывод B (конец цепи)',       on:q=>{ SIMS.resistors.makeOutput(q); }},
-      {label:'Отменить последнее (Ctrl+Z)',        on:q=>{ SIMS.resistors.undoAction(q); }}
-    ];
-  },
-  init(p){ this.netOf(p); return {t:0,flow:0,event:null,__stop:null}; },
-  step(s,dt,p){
-    const c=this.calc(p);
-    const I=(c.status==='ok')?c.I:(c.status==='short'?0.05:0);
-    s.flow+=Math.min(Math.abs(I),0.05)*dt*60; s.t+=dt;
-  },
-  anchors(s,p){
-    const net=this.netOf(p), out=[{x:this.A.x,y:this.A.y}];
-    if(net.B) out.push({x:net.B.x,y:net.B.y});
-    return out;
-  },
-  readouts(s,p){
-    const net=this.netOf(p), c=this.calc(p);
-    // развилки: узлы со степенью >= 3
-    const deg={}; const bump=k=>deg[k]=(deg[k]||0)+1;
-    for(const g of net.segs){ bump(this.key(g.x1,g.y1)); bump(this.key(g.x2,g.y2)); }
-    const forks=Object.values(deg).filter(d=>d>=3).length;
-    const nR=net.segs.filter(g=>g.type==='R').length;
-    const out=[['t',s.t,'с'],['напряжение U (A→B)',p.U,'В'],
-      ['сегментов',net.segs.length,''],['резисторов',nR,''],['развилок',forks,'']];
-    if(c.status==='noB') out.push(['состояние',0,'нет вывода B — кнопка «вывод B»']);
-    else if(c.status==='open') out.push(['состояние',0,'цепь разомкнута (A и B не связаны)']);
-    else if(c.status==='short') out.push(['состояние',0,'КОРОТКОЕ ЗАМЫКАНИЕ (R=0)']);
-    else out.push(['эквивалентное R',c.Req,'Ом'],['ток I = U/R',c.I*1000,'мА'],['мощность P = UI',p.U*c.I,'Вт']);
-    return out;
-  },
-  graphs:[
-    {label:'Ток I',unit:'мА',series:['I'],get(s,p){ const c=SIMS.resistors.calc(p); return [c.status==='ok'?c.I*1000:0,null]; }},
-    {label:'Эквивалентное R',unit:'Ом',series:['R'],get(s,p){ const c=SIMS.resistors.calc(p); return [c.status==='ok'?c.Req:0,null]; }}
-  ],
-  presets:[],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(18*PX_PER_M),(H-70)/(11*PX_PER_M)),0.002,30);
-    return {x:1,y:0,scale};
-  },
-  draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const net=this.netOf(p), c=this.calc(p);
-    // перекрестия сетки в рабочей области (узлы, куда можно вести провод)
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.35;
-    for(let gx=-7;gx<=9;gx++) for(let gy=-4;gy<=4;gy++){
-      ctx.beginPath(); ctx.moveTo(gx-0.12,gy); ctx.lineTo(gx+0.12,gy);
-      ctx.moveTo(gx,gy-0.12); ctx.lineTo(gx,gy+0.12); ctx.stroke();
-    }
-    ctx.globalAlpha=1;
-    // сегменты
-    let rIdx=0;
-    for(const g of net.segs){
-      ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.2);
-      ctx.beginPath(); ctx.moveTo(g.x1,g.y1); ctx.lineTo(g.x2,g.y2); ctx.stroke();
-      if(g.type==='R'){
-        rIdx++;
-        const cx=(g.x1+g.x2)/2, cy=(g.y1+g.y2)/2, horiz=g.y1===g.y2;
-        ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-        if(horiz){ ctx.beginPath(); ctx.rect(cx-0.6,cy-0.24,1.2,0.48); ctx.fill(); ctx.stroke(); }
-        else { ctx.beginPath(); ctx.rect(cx-0.24,cy-0.6,0.48,1.2); ctx.fill(); ctx.stroke(); }
-        if(p.values){ v.label(ctx,`R${rIdx}`,cx,cy,horiz?-8:12,horiz?-14:-4,acc);
-          v.label(ctx,`${g.value} Ом`,cx,cy,horiz?-14:12,horiz?16:10,ink3); }
-      }
-    }
-    // предпросмотр рисуемого сегмента
-    if(p._preview){
-      const pv=p._preview;
-      ctx.strokeStyle=p.tool==='R'?acc:sec; ctx.lineWidth=v.lw(2); ctx.setLineDash([v.lw(5),v.lw(4)]);
-      ctx.beginPath(); ctx.moveTo(pv.x1,pv.y1); ctx.lineTo(pv.x2,pv.y2); ctx.stroke(); ctx.setLineDash([]);
-    }
-    // узлы-развилки (степень >= 3)
-    const deg={}; const bump=k=>deg[k]=(deg[k]||0)+1;
-    for(const g of net.segs){ bump(this.key(g.x1,g.y1)); bump(this.key(g.x2,g.y2)); }
-    ctx.fillStyle=ink;
-    for(const k in deg){ if(deg[k]>=3){ const [x,y]=k.split(',').map(Number);
-      ctx.beginPath(); ctx.arc(x,y,v.lw(4),0,7); ctx.fill(); } }
-    // клемма A
-    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2.4);
-    ctx.beginPath(); ctx.arc(this.A.x,this.A.y,0.3,0,7); ctx.stroke();
-    v.label(ctx,'A (ввод)',this.A.x,this.A.y,-24,-16,dang);
-    // клемма B
-    if(net.B){
-      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.4);
-      ctx.beginPath(); ctx.arc(net.B.x,net.B.y,0.3,0,7); ctx.stroke();
-      v.label(ctx,'B (вывод)',net.B.x,net.B.y,10,-16,sec);
-    }
-    // движение тока
-    if(p.flow && c.status==='ok' && Math.abs(c.I)>1e-9){
-      ctx.fillStyle=dang;
-      for(const g of net.segs){
-        const L=Math.abs(g.x2-g.x1)+Math.abs(g.y2-g.y1), nd=Math.max(2,Math.round(L*2));
-        for(let k=0;k<nd;k++){ const t=((s.flow+k/nd)%1+1)%1;
-          ctx.beginPath(); ctx.arc(g.x1+(g.x2-g.x1)*t, g.y1+(g.y2-g.y1)*t, v.lw(2.2),0,7); ctx.fill(); }
-      }
-    }
-    // статус
-    let st;
-    if(c.status==='noB') st='нарисуйте цепь от A и нажмите «вывод B»';
-    else if(c.status==='open') st='цепь разомкнута: A и B не соединены';
-    else if(c.status==='short') st='КОРОТКОЕ ЗАМЫКАНИЕ: A и B связаны проводом без резисторов';
-    else st=`R_экв = ${c.Req.toFixed(1)} Ом,   I = ${(c.I*1000).toFixed(2)} мА`;
-    v.label(ctx,st,1,-4.6,-90,0,c.status==='short'?dang:ink3);
-    v.label(ctx,'зажмите ЛКМ на узле и ведите провод по сетке · ПКМ — инструменты · Ctrl+Z — отмена',1,4.6,-150,0,ink3);
-  }
-},
 });
 
 ;
@@ -6866,8 +6557,10 @@ battery:{
     {key:'values',label:'Номиналы и напряжения',type:'check',default:true},
     {key:'reset', label:'Сбросить заряд',type:'check',default:false}
   ],
-  /* используем тот же MNA-решатель из circuit */
-  solveLinear(A,b){ return SIMS.circuit.solveLinear ? SIMS.circuit.solveLinear(A,b) : (()=>{
+  /* Собственный MNA-решатель (метод Гаусса с выбором главного элемента).
+     Раньше он брался из конструктора цепей; конструкторы удалены, поэтому
+     решатель теперь живёт здесь и ни от чего не зависит. */
+  solveLinear(A,b){ return (()=>{
     const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
     for(let col=0;col<n;col++){ let piv=col; for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>Math.abs(M[piv][col]))piv=r;
       if(Math.abs(M[piv][col])<1e-12)continue; [M[col],M[piv]]=[M[piv],M[col]];
@@ -10460,7 +10153,7 @@ compton:{
       ['энергия фотона после',this.Eout(p),'кэВ'],
       ['энергия электрона отдачи',this.Eelectron(p),'кэВ'],
       ['проверка сохранения энергии',this.Eout(p)+this.Eelectron(p),'кэВ'],
-      ['угол отдачи электрона',this.phiElectron(p),'°'],
+      ['угол отдачи электрона φ (по другую сторону оси)',Math.abs(this.phiElectron(p)),'°'],
       ['импульс фотона до p = h/λ',this.pIn(p)*1e24,'·10⁻²⁴ кг·м/с']];
   },
   graphs:[
@@ -10479,67 +10172,118 @@ compton:{
     const scale=clamp(Math.min((W-70)/(11*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
     return {x:0,y:0,scale};
   },
-  draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const th=p.ang*Math.PI/180, R=2.8, phi=this.phiElectron(p)*Math.PI/180;
-    // электрон-мишень
-    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,0.16,0,7); ctx.fill();
-    v.label(ctx,'покоящийся электрон',0,0,-52,20,ink3);
-    // падающий фотон — волна слева
-    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
-    for(let i=0;i<=120;i++){ const x=-4.6+i/120*4.4, k=18/p.lam*4;
-      const y=0.24*Math.sin(x*k+s.ph*4);
-      i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke();
-    v.arrow(ctx,-1.0,0,-0.35,0,dang);
-    v.label(ctx,`фотон λ = ${p.lam} пм (${this.Ein(p).toFixed(1)} кэВ)`,-4.6,0,0,-24,dang);
-    // рассеянный фотон
-    const ox=R*Math.cos(th), oy=R*Math.sin(th);
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
-    for(let i=0;i<=160;i++){ const t=i/160, d=0.3+t*(R-0.3);
-      const k=clamp(18/this.lamOut(p)*4,3,26);      // не даём волне «дребезжать»
-      const env=Math.min(1,t*6);                    // амплитуда нарастает от электрона
-      const w=0.17*env*Math.sin(d*k-s.ph*4);
-      const x=d*Math.cos(th)-w*Math.sin(th);
-      const y=d*Math.sin(th)+w*Math.cos(th);
-      i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke();
-    ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(ox,oy,v.lw(4),0,7); ctx.fill();
-    // подписи уводим наружу вдоль луча, чтобы не легли на саму волну
-    {
-      const outX=Math.cos(th)>=0? 10 : -104;
-      v.label(ctx,`λ′ = ${this.lamOut(p).toFixed(2)} пм`,ox,oy,outX,-9,sec);
-      v.label(ctx,`${this.Eout(p).toFixed(1)} кэВ`,ox,oy,outX,9,sec);
+  /* Одна и та же процедура рисует ОБЕ волны — падающую и рассеянную. Раньше
+     они рисовались разным кодом: у рассеянной амплитуда «нарастала» от
+     электрона, а её длина волны зажималась clamp'ом, из-за чего картинка
+     выходила несимметричной, а разница λ и λ′ пропадала. Теперь обе волны
+     одинаковы по стилю, длина волны честно пропорциональна λ, а фаза бежит
+     наружу от точки рассеяния. */
+  drawWave(ctx,v,x0,y0,dir,len,lamScene,amp,phase,color,lw){
+    const ux=Math.cos(dir), uy=Math.sin(dir);      // вдоль луча
+    const nx=-uy, ny=ux;                            // поперёк луча
+    const k=2*Math.PI/Math.max(lamScene,1e-6);
+    ctx.strokeStyle=color; ctx.lineWidth=v.lw(lw||1.7);
+    ctx.beginPath();
+    const N=200;
+    for(let i=0;i<=N;i++){
+      const d=len*i/N;
+      const w=amp*Math.sin(k*d-phase);
+      const x=x0+ux*d+nx*w, y=y0+uy*d+ny*w;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
     }
-    // электрон отдачи
-    const ex=2.2*Math.cos(phi), ey=2.2*Math.sin(phi);
-    ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(4),v.lw(3)]);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(ex,ey); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(ex,ey,v.lw(4),0,7); ctx.fill();
-    v.label(ctx,`электрон отдачи ${this.Eelectron(p).toFixed(2)} кэВ`,ex,ey,-36,ey<0?22:-16,meas);
-    /* Угол рисуем интерполяцией направлений: через ctx.arc он зеркалился,
-       потому что ось Y в сцене направлена вверх. */
-    {
-      const rad=0.85;
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1.2);
+    ctx.stroke();
+  },
+  /* Длина волны в единицах сцены: пропорциональна λ, но с мягкими границами,
+     чтобы и 1 пм, и 100 пм оставались читаемыми. */
+  lamScene(lamPm){ return clamp(0.03*lamPm, 0.22, 1.5); },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const th=p.ang*Math.PI/180, phi=this.phiElectron(p)*Math.PI/180;
+    const RIN=3.4, ROUT=3.0, REL=2.2;              // длины лучей
+    const AMP=0.20;                                 // общая амплитуда обеих волн
+    const ph=s.ph*4;
+
+    // ось: продолжение исходного направления — от неё отсчитывается θ
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.32; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(ROUT+0.7,0); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+
+    /* Угол рассеяния θ всегда в [0°,180°], поэтому рассеянный фотон уходит
+       ВВЕРХ от оси, а электрон отдачи — ВНИЗ. Значит подписи разводятся без
+       фокусов: у падающего фотона — под осью, у рассеянного — над лучом,
+       у электрона — под его лучом. Раньше все три жались к левому верхнему
+       углу и налезали друг на друга при больших θ. */
+    const norm=(a,up)=>{ let nx=-Math.sin(a), ny=Math.cos(a);     // нормаль к лучу
+                         if(up? ny<0 : ny>0){ nx=-nx; ny=-ny; }   // разворачиваем в нужную сторону
+                         return [nx,ny]; };
+
+    // ---- падающий фотон: волна приходит слева, к электрону в начале координат
+    this.drawWave(ctx,v,-RIN,0,0,RIN-0.28,this.lamScene(p.lam),AMP,ph,dang,1.8);
+    v.arrow(ctx,-0.95,0,-0.3,0,dang);
+    v.label(ctx,`падающий фотон`,-RIN,0,-4,16,dang);
+    v.label(ctx,`λ = ${p.lam} пм · ${this.Ein(p).toFixed(1)} кэВ`,-RIN,0,-4,30,dang);
+
+    // ---- рассеянный фотон: та же волна, но вдоль направления θ
+    this.drawWave(ctx,v,0.28*Math.cos(th),0.28*Math.sin(th),th,ROUT-0.28,
+                  this.lamScene(this.lamOut(p)),AMP,ph,sec,1.8);
+    const ox=ROUT*Math.cos(th), oy=ROUT*Math.sin(th);
+    v.arrow(ctx,ox-0.62*Math.cos(th),oy-0.62*Math.sin(th),ox-0.1*Math.cos(th),oy-0.1*Math.sin(th),sec);
+    ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(ox,oy,v.lw(3.6),0,7); ctx.fill();
+    {   /* подпись уводим ПОПЕРЁК луча и всегда ПРОЧЬ от оси (вверх), а по
+           горизонтали — в ту сторону, где ещё есть место в кадре. */
+      const [nx,ny]=norm(th,true);
+      const lx=ox+nx*0.45, ly=oy+ny*0.45;
+      const dx=Math.cos(th)<0? 6 : -38;
+      v.label(ctx,`рассеянный фотон`,lx,ly,dx,-13,sec);
+      v.label(ctx,`λ′ = ${this.lamOut(p).toFixed(2)} пм · ${this.Eout(p).toFixed(1)} кэВ`,lx,ly,dx,1,sec);
+    }
+
+    // ---- электрон отдачи: сплошная стрелка, угол φ из сохранения импульса
+    const ex=REL*Math.cos(phi), ey=REL*Math.sin(phi);
+    if(this.Eelectron(p)>1e-6){
+      v.arrow(ctx,0.3*Math.cos(phi),0.3*Math.sin(phi),ex,ey,meas);
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(ex,ey,v.lw(4),0,7); ctx.fill();
+      const [nx,ny]=norm(phi,false);                          // подпись ниже луча
+      const lx=ex+nx*0.45, ly=ey+ny*0.45;
+      v.label(ctx,`электрон отдачи`,lx,ly,6,2,meas);
+      v.label(ctx,`${this.Eelectron(p).toFixed(2)} кэВ · φ = ${Math.abs(this.phiElectron(p)).toFixed(1)}°`,
+        lx,ly,6,16,meas);
+    }
+
+    // ---- сам электрон-мишень поверх лучей
+    ctx.fillStyle=v.c('--panel'); ctx.beginPath(); ctx.arc(0,0,0.26,0,7); ctx.fill();
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.arc(0,0,0.26,0,7); ctx.stroke();
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,0.13,0,7); ctx.fill();
+    /* Подпись мишени уводим в левый нижний квадрант — единственный, куда при
+       θ∈[0°,180°] не заходит ни рассеянный фотон (он всегда вверх), ни электрон
+       отдачи (он всегда вниз-вправо). */
+    v.label(ctx,'электрон покоился',0,0,-120,52,ink3);
+
+    /* Дуги углов. Через ctx.arc они зеркалились бы: ось Y сцены смотрит
+       вверх, а флаг направления arc считает наоборот. Строим полилинией. */
+    const arc=(a0,a1,rad,col,lab)=>{
+      ctx.strokeStyle=col; ctx.globalAlpha=.65; ctx.lineWidth=v.lw(1.2);
       ctx.beginPath();
-      for(let i=0;i<=32;i++){ const a=th*i/32;
+      for(let i=0;i<=40;i++){ const a=a0+(a1-a0)*i/40;
         const x=rad*Math.cos(a), y=rad*Math.sin(a);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke(); ctx.globalAlpha=1;
-      v.label(ctx,`θ = ${p.ang}°`,rad*1.22*Math.cos(th/2),rad*1.22*Math.sin(th/2),-14,4,ink3);
-    }
-    // ось
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(R+0.6,0); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      const am=(a0+a1)/2;
+      v.label(ctx,lab,rad*1.25*Math.cos(am),rad*1.25*Math.sin(am),-12,4,col);
+    };
+    if(Math.abs(th)>1e-3) arc(0,th,0.95,sec,`θ = ${p.ang}°`);
+    /* φ показываем модулем: знак — лишь напоминание, что электрон уходит по
+       другую сторону оси, и это видно по картинке. Минус в подписи путал. */
+    if(this.Eelectron(p)>1e-6 && Math.abs(phi)>1e-3) arc(0,phi,1.35,meas,`φ = ${Math.abs(this.phiElectron(p)).toFixed(0)}°`);
 
-    // график Δλ(θ)
+    // ---- график Δλ(θ) в нижнем левом углу
     if(p.graph){
-      const gx=-4.9, gy=-3.5, gw=3.2, gh=1.5, mx=2*this.lamC();
+      const gx=-4.9, gy=-3.6, gw=3.2, gh=1.5, mx=2*this.lamC();
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
       ctx.globalAlpha=1;
-      v.label(ctx,'Δλ, пм',gx,gy+gh,-30,-2,ink3); v.label(ctx,'θ',gx+gw,gy,10,4,ink3);
+      v.label(ctx,'Δλ, пм',gx,gy+gh,0,-6,ink3);
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=120;i++){ const a=i/120*Math.PI;
         const d=this.lamC()*(1-Math.cos(a));
@@ -10547,14 +10291,15 @@ compton:{
         i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }
       ctx.stroke();
       ctx.fillStyle=meas; ctx.beginPath();
-      ctx.arc(gx+gw*(p.ang/180), gy+gh*(this.dLam(p)/mx), v.lw(3),0,7); ctx.fill();
-      v.label(ctx,'0°',gx,gy,-4,14,ink3); v.label(ctx,'180°',gx+gw,gy,-14,14,ink3);
+      ctx.arc(gx+gw*(p.ang/180), gy+gh*(this.dLam(p)/mx), v.lw(3.4),0,7); ctx.fill();
+      v.label(ctx,'0°',gx,gy,-4,14,ink3); v.label(ctx,'180°',gx+gw,gy,-16,14,ink3);
     }
-    // формулы — отдельной колонкой справа, вне поля графика и лучей
-    v.label(ctx,`Δλ = λC (1 − cos θ) = ${this.dLam(p).toFixed(3)} пм`,0.4,-2.9,0,0,ink3);
-    v.label(ctx,`комптоновская длина λC = ${this.lamC().toFixed(3)} пм`,0.4,-2.9,0,17,ink3);
-    v.label(ctx,'сдвиг не зависит от исходной длины волны —',0.4,-2.9,0,38,ink3);
-    v.label(ctx,'только от угла рассеяния',0.4,-2.9,0,54,ink3);
+
+    // ---- итог
+    v.label(ctx,`Δλ = λC (1 − cos θ) = ${this.dLam(p).toFixed(3)} пм`,0.5,-2.9,0,0,ink3);
+    v.label(ctx,`комптоновская длина λC = h/mc = ${this.lamC().toFixed(3)} пм`,0.5,-2.9,0,16,ink3);
+    v.label(ctx,'сдвиг не зависит от исходной длины волны —',0.5,-2.9,0,36,ink3);
+    v.label(ctx,'только от угла рассеяния',0.5,-2.9,0,52,ink3);
   }
 },
 
@@ -14513,9 +14258,7 @@ const T_rot={
     {tex:'d=\\dfrac{h\\tg\\alpha}{2}\\le\\dfrac{w}{2}',
      note:'Точка приложения нормальной силы уезжает к нижнему ребру; дошла до края — тело встаёт на ребро.', sim:'stability'},
     {tex:'a=\\dfrac{g\\sin\\alpha}{1+I/mR^2}',
-     note:'Скатывание без проскальзывания: важна только форма тела через $\\beta=I/mR^2$, а масса и радиус — нет.', sim:'rolling'},
-    {tex:'\\Omega=\\dfrac{mgd}{I\\omega}',
-     note:'Прецессия гироскопа: момент тяжести не роняет ось, а поворачивает её. Чем быстрее волчок, тем медленнее прецессия.', sim:'gyro'}
+     note:'Скатывание без проскальзывания: важна только форма тела через $\\beta=I/mR^2$, а масса и радиус — нет.', sim:'rolling'}
   ],
   problems:[]
 };
@@ -14635,7 +14378,26 @@ const T_gas={
   увидите, как они замедляются.</p>
   <div class="callout">Скорости молекул не одинаковы — они распределены по <strong>закону Максвелла</strong>: мало
   очень медленных, мало очень быстрых, большинство — около среднего. Гистограмма в симуляции показывает это
-  распределение вживую; при нагреве весь «колокол» сдвигается вправо, к бо́льшим скоростям.</div>`,
+  распределение вживую; при нагреве весь «колокол» сдвигается вправо, к бо́льшим скоростям.</div>
+
+  <h3 class="sub">Микро- и макросостояния: почему газ не собирается в углу</h3>
+  <p>Законы Ньютона обратимы: если снять фильм о столкновениях молекул и пустить его задом наперёд, ни один закон
+  механики не будет нарушен. Почему же газ, выпущенный из половины сосуда, растекается по всему объёму — и никогда
+  не собирается обратно сам?</p>
+  <p>Ответ — в счёте состояний. <strong>Микросостояние</strong> — это полный список: какая именно молекула где
+  находится. <strong>Макросостояние</strong> — то, что мы способны измерить: просто <em>сколько</em> молекул слева,
+  без разбора, каких именно. Одному макросостоянию отвечает много микросостояний, и их число называют
+  <strong>статистическим весом</strong> $W$: для $N$ молекул и $n$ штук слева $W=C_N^{\\,n}=\\dfrac{N!}{n!(N-n)!}$.</p>
+  <p>Все микросостояния равновероятны — вот и вся физика. А макросостояния равновероятными не получаются: у
+  «пополам» микросостояний астрономически больше, чем у «все слева». Для $N=4$ молекул «все слева» — это
+  1 микросостояние из $2^4=16$, шанс приличный. Для $N=200$ — 1 из $2^{200}\\approx10^{60}$: ждать пришлось бы
+  $10^{52}$ лет, хотя запрета нет.</p>
+  <p>Больцман связал вес макросостояния с энтропией: $S=k\\ln W$. Рост энтропии — не мистический закон, а простое
+  «система оказывается там, где состояний больше». В этом смысле второе начало термодинамики — утверждение не о
+  невозможном, а о невероятном.</p>
+  <div class="callout">В симуляции «Микро- и макросостояния» поставьте $N=4$ — и вы своими глазами увидите, как
+  система то и дело возвращается в исходное «все слева». Затем поставьте $N=200$: то же самое движение, тот же
+  механизм, но возврата не будет никогда. Необратимость рождается из одного лишь количества частиц.</div>`,
   formulas:[
     {tex:'P=\\dfrac{F}{A},\\qquad P=\\rho g h',
      note:'Давление и гидростатическое давление на глубине $h$.', sim:'gas'},
@@ -14650,7 +14412,13 @@ const T_gas={
     {tex:'\\langle E_k\\rangle=\\tfrac32 kT',
      note:'Средняя кинетическая энергия молекулы пропорциональна абсолютной температуре.', sim:'gas'},
     {tex:'v_{\\text{ср.кв}}=\\sqrt{\\dfrac{3kT}{m}}',
-     note:'Среднеквадратичная скорость. Лёгкие молекулы быстрее тяжёлых при той же температуре.', sim:'gas'}
+     note:'Среднеквадратичная скорость. Лёгкие молекулы быстрее тяжёлых при той же температуре.', sim:'gas'},
+    {tex:'W=C_N^{\\,n}=\\dfrac{N!}{n!\\,(N-n)!}',
+     note:'Статистический вес макросостояния: столько микросостояний («кто именно где») отвечают одному макросостоянию «слева $n$ молекул».', sim:'micro'},
+    {tex:'S=k\\ln W',
+     note:'Формула Больцмана. Энтропия — это логарифм числа микросостояний; система идёт к самому «широкому» макросостоянию просто потому, что их там больше.', sim:'micro'},
+    {tex:'P(n)=\\dfrac{C_N^{\\,n}}{2^N},\\qquad P(\\text{все слева})=2^{-N}',
+     note:'Вероятность макросостояния. При $N=4$ вернуться «все слева» — один шанс из 16, при $N=200$ — один из $10^{60}$: отсюда необратимость.', sim:'micro'}
   ],
   problems:[]
 };
@@ -14918,7 +14686,7 @@ const T_potential={
     {tex:'E=\\dfrac{U}{d},\\qquad W=\\tfrac12 CU^2',
      note:'Однородное поле между пластинами и энергия, запасённая в конденсаторе.', sim:'capacitor'},
     {tex:'C_{\\text{пар}}=C_1+C_2,\\qquad \\dfrac1{C_{\\text{посл}}}=\\dfrac1{C_1}+\\dfrac1{C_2}',
-     note:'Соединение конденсаторов — правила противоположны резисторным: параллельные ёмкости складываются, последовательные складываются обратными величинами. Конструктор позволяет собрать и сравнить обе цепочки.', sim:'circuit'}
+     note:'Соединение конденсаторов — правила противоположны резисторным: параллельные ёмкости складываются, последовательные складываются обратными величинами.', sim:'capacitor'}
   ],
   problems:[]
 };
@@ -14981,17 +14749,17 @@ const T_current={
   электродвигателя и отклоняет стрелку измерительных приборов.</p>`,
   formulas:[
     {tex:'I=\\dfrac{\\Delta q}{\\Delta t}',
-     note:'Определение тока: заряд через сечение за единицу времени. Единица — ампер (А).', sim:'resistors'},
+     note:'Определение тока: заряд через сечение за единицу времени. Единица — ампер (А).', sim:'battery'},
     {tex:'R=\\dfrac{U}{I}\\quad\\Rightarrow\\quad I=\\dfrac{U}{R}',
-     note:'Закон Ома. Сопротивление в омах (В/А).', sim:'resistors'},
+     note:'Закон Ома. Сопротивление в омах (В/А).', sim:'battery'},
     {tex:'R_{\\text{посл}}=R_1+R_2,\\qquad \\dfrac1{R_{\\text{пар}}}=\\dfrac1{R_1}+\\dfrac1{R_2}',
-     note:'Последовательное и параллельное соединение резисторов.', sim:'resistors'},
+     note:'Последовательное и параллельное соединение резисторов — обе схемы можно переключить в симуляции.', sim:'battery'},
     {tex:'R_{\\text{посл}}>R_{\\text{макс}},\\qquad R_{\\text{пар}}<R_{\\text{мин}}',
-     note:'Полезная проверка: последовательное соединение всегда больше самого большого сопротивления, параллельное — меньше самого малого. Конструктор соединений собирает цепочку из 1–4 элементов и считает результат.', sim:'circuit'},
+     note:'Полезная проверка: последовательное соединение всегда больше самого большого сопротивления, параллельное — меньше самого малого.', sim:'battery'},
     {tex:'P=UI=I^2R=\\dfrac{U^2}{R}',
-     note:'Мощность тока — выделяемое тепло.', sim:'resistors'},
+     note:'Мощность тока — выделяемое тепло.', sim:'battery'},
     {tex:'\\tau=RC',
-     note:'Постоянная времени RC-цепи: за время τ конденсатор заряжается до ~63%. Конструктор соединений и замкнутая цепь с батареей.', sim:'battery'},
+     note:'Постоянная времени RC-цепи: за время τ конденсатор заряжается до ~63 %.', sim:'battery'},
     {tex:'F=qvB,\\qquad R=\\dfrac{mv}{qB}',
      note:'Сила Лоренца и радиус окружности заряда в магнитном поле.', sim:'magnetism'},
     {tex:'F=BIL',
@@ -16168,6 +15936,7 @@ const scene=$('#scene'), overlay=$('#overlay');
 const sctx=scene.getContext('2d'), octx=overlay.getContext('2d');
 let CW=0,CH=0,DPR=1, gcanvas=[];
 function resize(){
+  if(typeof fpClampAll==='function') setTimeout(fpClampAll,0);   // панели держим внутри сцены
   const r=$('#cwrap').getBoundingClientRect();
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
   const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
@@ -16532,6 +16301,25 @@ function drawAll(){
       octx.stroke(); octx.globalAlpha=1;
     });
   }
+  /* Видимые ручки перетаскивания. Симуляции объявляют dragPoints, но раньше
+     эти точки никак не помечались — было не догадаться, что луч, заряд или
+     груз вообще можно тянуть. Рисуем кружок-манипулятор. */
+  if(a.def.dragPoints && (S.tool==='cursor'||S.tool==='pan')){
+    let pts=[]; try{ pts=a.def.dragPoints(a.params)||[]; }catch(_){}
+    for(const q of pts){
+      if(!isFinite(q.x)||!isFinite(q.y)) continue;
+      const rr=VIEW.lw(6.5);
+      octx.fillStyle=css('--accent'); octx.globalAlpha=.16;
+      octx.beginPath(); octx.arc(q.x,q.y,rr,0,7); octx.fill();
+      octx.globalAlpha=1;
+      octx.strokeStyle=css('--accent'); octx.lineWidth=VIEW.lw(1.6);
+      octx.beginPath(); octx.arc(q.x,q.y,rr,0,7); octx.stroke();
+      octx.beginPath();
+      octx.moveTo(q.x-rr*0.45,q.y); octx.lineTo(q.x+rr*0.45,q.y);
+      octx.moveTo(q.x,q.y-rr*0.45); octx.lineTo(q.x,q.y+rr*0.45);
+      octx.stroke();
+    }
+  }
   if(S.snap&&S.tool!=='pan'){
     octx.fillStyle=css('--measure'); octx.globalAlpha=.7;
     for(const an of (a.def.anchors?a.def.anchors(a.state,a.params):[])){
@@ -16547,7 +16335,7 @@ function drawAll(){
   const wb=$('#warnbar');
   const showW = w && S.settings.events!==false;
   if((showW?w:'')!==wb.dataset.msg){ wb.dataset.msg=showW?w:''; wb.textContent=showW?w:''; wb.classList.toggle('hidden',!showW); }
-  $('#hud').textContent=a.def.readouts(a.state,a.params)
+  $('#hud-body').textContent=a.def.readouts(a.state,a.params)
     .map(([l,v,u])=>`${l.padEnd(14)} ${fmt(v).padStart(9)} ${u}`).join('\n');
   $('#clock').textContent=`t = ${a.state.t.toFixed(2)} c`;
 }
@@ -16753,8 +16541,8 @@ function updateHistoBox(a){
   const M=a.def.measure(s,p), vr=M.vrms||1, bins=16, cnt=new Array(bins).fill(0), vmax=vr*2.6||1;
   for(const m of s.mol){ const sp=Math.hypot(m.vx,m.vy); const bi=Math.min(bins-1,Math.floor(sp/vmax*bins)); cnt[bi]++; }
   const maxC=Math.max(...cnt,1);
-  box.innerHTML=`<div class="htitle">распределение по скоростям (Максвелл)</div>`+
-    `<div class="hbars">`+cnt.map(c=>`<div class="hb" style="height:${(c/maxC*100).toFixed(0)}%"></div>`).join('')+`</div>`+
+  $('#histo-body').innerHTML=`<div class="hbars">`+
+    cnt.map(c=>`<div class="hb" style="height:${(c/maxC*100).toFixed(0)}%"></div>`).join('')+`</div>`+
     `<div class="hx">медленные ← v → быстрые</div>`;
   box.classList.remove('hidden');
 }
@@ -16771,7 +16559,7 @@ function updateEnergyBox(a){
   else if(Math.abs(E.Ep)>1e-9 || p.mode==='hill' || p.exp==='orbit' || p.kind==='pend' || p.kind==='phys')
     bars.push(['E_пот',E.Ep,'var(--second)']);
   const tot=Math.max(E.tot, a.state.E0||E.tot, 1e-6);
-  box.innerHTML=`<div class="tot">полная<br>${E.tot.toFixed(0)} Дж</div>`+
+  $('#energy-body').innerHTML=`<div class="tot">полная<br>${E.tot.toFixed(0)} Дж</div>`+
     bars.map(([lab,val,col])=>`<div class="ebar">
       <div class="val">${val.toFixed(0)}</div>
       <div class="track"><div class="fill" style="height:${(Math.abs(val)/tot*100).toFixed(1)}%;background:${col}"></div></div>
@@ -17214,7 +17002,14 @@ $('#cwrap').addEventListener('pointerdown',e=>{
       drag=null; startPinch(); return;
     }
   }
-  if(e.button===1||e.shiftKey){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
+  /* Панорама: средняя кнопка, Shift+ЛКМ и ПРАВАЯ кнопка (как в CAD).
+     Раньше правая кнопка не панорамировала вовсе, зато успевала схватить
+     точку симуляции и одновременно открыть контекстное меню. */
+  if(e.button===1||e.button===2||e.shiftKey){
+    drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y,rmb:e.button===2,moved:false};
+    try{ e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId); }catch(_){}
+    return;
+  }
   // КОНСТРУКТОР ЦЕПЕЙ: если симуляция умеет строиться мышью, ЛКМ отдаётся ей
   // ЦЕЛИКОМ — независимо от выбранного инструмента (перо, линейка и пр. не мешают).
   // Панорама остаётся на Shift, средней кнопке и протягивании пустого места.
@@ -17230,7 +17025,7 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   }
   // перетаскивание точек симуляции (заряды, пробы, гауссова поверхность) — приоритет над панорамой.
   // Работает в режимах курсора и панорамы: если кликнули близко к точке, хватаем её.
-  if(a.def.dragPoints && (S.tool==='cursor'||S.tool==='pan')){
+  if(a.def.dragPoints && e.button===0 && (S.tool==='cursor'||S.tool==='pan')){
     const pts=a.def.dragPoints(a.params);
     let best=-1, bestPx=22;                       // 22 px радиус попадания
     for(let i=0;i<pts.length;i++){
@@ -17288,7 +17083,10 @@ addEventListener('pointermove',e=>{
   const a=A(); if(!drag||!a) return;
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
   const [wx,wy]=toWorld(px,py);
-  if(drag.mode==='pan'){ a.view.x=drag.vx-(px-drag.px)/ppm(); a.view.y=drag.vy+(py-drag.py)/ppm(); }
+  if(drag.mode==='pan'){
+    if(Math.hypot(px-drag.px,py-drag.py)>3) drag.moved=true;
+    a.view.x=drag.vx-(px-drag.px)/ppm(); a.view.y=drag.vy+(py-drag.py)/ppm();
+  }
   else if(drag.mode==='simdraw'){ a.def.wireMove(a.params,drag.handle,wx,wy); }
   else if(drag.mode==='click'){
     if(Math.hypot(px-drag.px,py-drag.py)>6) drag.moved=true;
@@ -17312,8 +17110,14 @@ addEventListener('pointercancel',()=>{
   if(a) a.draft=null;
   drag=null;
 });
+let pendingMenu=null;        // отложенный запрос меню от правой кнопки
 addEventListener('pointerup',()=>{
   const a=A();
+  if(drag&&drag.mode==='pan'&&drag.rmb){
+    // кнопку не тащили — значит это был обычный правый клик, показываем меню
+    if(!drag.moved&&pendingMenu) openSimMenu(pendingMenu.x,pendingMenu.y);
+    pendingMenu=null;
+  }
   if(a&&a.draft&&drag&&drag.mode==='draw'){
     const d=a.draft;
     const ok=d.type==='pencil'?d.pts.length>2:Math.hypot(d.p[2]-d.p[0],d.p[3]-d.p[1])>0.05;
@@ -18242,10 +18046,14 @@ addEventListener('keydown',e=>{
 });
 
 /* ПКМ по симуляции → меню симуляции вместо меню браузера */
-$('#simpane').addEventListener('contextmenu',e=>{
-  e.preventDefault();
+/* Меню симуляции по правой кнопке.
+   ВАЖНО: в браузерах на Linux событие contextmenu приходит уже на НАЖАТИИ,
+   поэтому при панорамировании правой кнопкой меню успевало выскочить в
+   начале жеста. Поэтому меню не открывается сразу: запрос запоминается, а
+   показывается в pointerup — и только если кнопку не тащили. */
+function openSimMenu(clientX,clientY){
   const pop=$('#pop-simmenu');
-  // инструменты конструктора цепей (если симуляция их объявляет)
+  // инструменты конструктора (если симуляция их объявляет)
   let tl=$('#simmenu-tools');
   if(!tl){ tl=document.createElement('div'); tl.id='simmenu-tools'; pop.prepend(tl); }
   tl.innerHTML='';
@@ -18253,7 +18061,7 @@ $('#simpane').addEventListener('contextmenu',e=>{
   if(at&&at.def.ctxTools){
     for(const it of at.def.ctxTools(at.params)){
       const b=document.createElement('button'); b.className='item'; b.textContent=it.label;
-      b.onclick=()=>{ it.on(at.params); at.state=at.def.init(at.params); pop.classList.add('hidden'); };
+      b.onclick=()=>{ it.on(at.params); at.state=at.def.init(at.params); pop.classList.add('hidden'); renderSimTools(); };
       tl.appendChild(b);
     }
     const hr=document.createElement('div');
@@ -18263,9 +18071,15 @@ $('#simpane').addEventListener('contextmenu',e=>{
   document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden'));
   pop.style.visibility='hidden'; pop.classList.remove('hidden');
   const w=pop.offsetWidth, h=pop.offsetHeight;
-  pop.style.left=clamp(e.clientX,8,innerWidth-w-8)+'px';
-  pop.style.top=clamp(e.clientY,8,innerHeight-h-8)+'px';
+  pop.style.left=clamp(clientX,8,innerWidth-w-8)+'px';
+  pop.style.top=clamp(clientY,8,innerHeight-h-8)+'px';
   pop.style.visibility='visible';
+}
+$('#simpane').addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  // жест правой кнопкой ещё идёт — решим в pointerup, тащили её или нет
+  if(drag&&drag.mode==='pan'&&drag.rmb){ pendingMenu={x:e.clientX,y:e.clientY}; return; }
+  openSimMenu(e.clientX,e.clientY);
 });
 
 const SPEEDS=[0.05,0.1,0.25,0.5,1,2,4,8,16,32,64,100,200];
@@ -18291,6 +18105,124 @@ function toast(m){
   if(prefGet('toasts')===false) return;     // подсказки можно выключить в настройках
   const t=$('#toast'); t.textContent=m; t.classList.add('show');
   clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ==================== ПЛАВАЮЩИЕ ПАНЕЛИ НАД СЦЕНОЙ ====================
+   Показатели, энергия, PV-диаграмма, гистограмма и сравнение ведут себя как
+   окна в системе: их таскают за заголовок, размер меняют за уголок, двойной
+   клик по заголовку сворачивает в полоску. Геометрия каждой панели хранится
+   в localStorage, поэтому расстановка переживает перезагрузку.
+
+   Позиции задаются ТОЛЬКО через left/top: панели по умолчанию прижаты
+   правым или нижним краем (right/bottom), и если этого не снять, при
+   перетаскивании панель растягивалась бы вместо того, чтобы ехать. */
+const FPANELS=['hud','energybox','pvbox','histobox','cmpbox'];
+function fpLoad(){ return LS.get('panels',{}); }
+function fpSave(id,geom){
+  const all=fpLoad(); all[id]={...(all[id]||{}),...geom}; LS.set('panels',all);
+}
+function fpApply(el){
+  const g=fpLoad()[el.id];
+  if(!g) return;
+  if(g.x!==undefined){ el.style.left=g.x+'px'; el.style.right='auto'; }
+  if(g.y!==undefined){ el.style.top=g.y+'px';  el.style.bottom='auto'; }
+  if(g.w) el.style.width=g.w+'px';
+  if(g.h) el.style.height=g.h+'px';
+  if(g.rolled) el.classList.add('rolled');
+}
+function fpClampAll(){
+  const wrap=$('#cwrap'); if(!wrap) return;
+  const W=wrap.clientWidth, H=wrap.clientHeight;
+  for(const id of FPANELS){
+    const el=document.getElementById(id);
+    if(!el||el.classList.contains('hidden')||!el.style.left) continue;
+    const r=el.getBoundingClientRect();
+    const x=clamp(parseFloat(el.style.left)||0, 0, Math.max(0,W-Math.min(r.width,W)));
+    const y=clamp(parseFloat(el.style.top)||0,  0, Math.max(0,H-28));
+    el.style.left=x+'px'; el.style.top=y+'px';
+  }
+}
+function makeFloating(el){
+  if(!el||el.__fp) return; el.__fp=true;
+  const head=el.querySelector('.fp-head');
+  if(!head) return;
+  // уголок изменения размера
+  const grip=document.createElement('div');
+  grip.className='fp-grip'; grip.title='Потяните, чтобы изменить размер';
+  el.appendChild(grip);
+  fpApply(el);
+
+  // перевод из right/bottom в left/top перед первым перетаскиванием
+  const toLeftTop=()=>{
+    const wrap=$('#cwrap'), pr=wrap.getBoundingClientRect(), r=el.getBoundingClientRect();
+    el.style.left=(r.left-pr.left)+'px'; el.style.top=(r.top-pr.top)+'px';
+    el.style.right='auto'; el.style.bottom='auto';
+  };
+
+  let drag=null;
+  head.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button')) return;          // кнопки в шапке работают как обычно
+    e.preventDefault(); e.stopPropagation();
+    toLeftTop();
+    drag={sx:e.clientX, sy:e.clientY,
+          x0:parseFloat(el.style.left)||0, y0:parseFloat(el.style.top)||0, moved:false};
+    try{ head.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  head.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy;
+    if(!drag.moved && Math.hypot(dx,dy)<3) return;   // порог: короткий клик не считается перетаскиванием
+    drag.moved=true; el.classList.add('dragging');
+    const wrap=$('#cwrap'), W=wrap.clientWidth, H=wrap.clientHeight, r=el.getBoundingClientRect();
+    el.style.left=clamp(drag.x0+dx, 0, Math.max(0,W-r.width))+'px';
+    el.style.top =clamp(drag.y0+dy, 0, Math.max(0,H-28))+'px';
+  });
+  const endDrag=()=>{
+    if(!drag) return;
+    if(drag.moved) fpSave(el.id,{x:parseFloat(el.style.left)||0, y:parseFloat(el.style.top)||0});
+    drag=null; el.classList.remove('dragging');
+  };
+  head.addEventListener('pointerup',endDrag);
+  head.addEventListener('pointercancel',endDrag);
+  // двойной клик по шапке — свернуть/развернуть
+  head.addEventListener('dblclick',e=>{
+    if(e.target.closest('button')) return;
+    const rolled=el.classList.toggle('rolled');
+    fpSave(el.id,{rolled});
+  });
+
+  let rs=null;
+  grip.addEventListener('pointerdown',e=>{
+    e.preventDefault(); e.stopPropagation();
+    const r=el.getBoundingClientRect();
+    rs={sx:e.clientX, sy:e.clientY, w0:r.width, h0:r.height};
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  grip.addEventListener('pointermove',e=>{
+    if(!rs) return;
+    el.classList.remove('rolled');
+    const wrap=$('#cwrap');
+    const w=clamp(rs.w0+(e.clientX-rs.sx),120,wrap.clientWidth);
+    const h=clamp(rs.h0+(e.clientY-rs.sy),60,wrap.clientHeight);
+    el.style.width=w+'px'; el.style.height=h+'px';
+  });
+  const endRs=()=>{
+    if(!rs) return;
+    fpSave(el.id,{w:parseFloat(el.style.width)||undefined, h:parseFloat(el.style.height)||undefined, rolled:false});
+    rs=null;
+  };
+  grip.addEventListener('pointerup',endRs);
+  grip.addEventListener('pointercancel',endRs);
+}
+function initFloatingPanels(){ for(const id of FPANELS) makeFloating(document.getElementById(id)); }
+function resetPanels(){
+  LS.set('panels',{});
+  for(const id of FPANELS){
+    const el=document.getElementById(id); if(!el) continue;
+    el.classList.remove('rolled');
+    el.style.left=el.style.top=el.style.right=el.style.bottom=el.style.width=el.style.height='';
+  }
+  toast('Расположение панелей сброшено');
+}
 
 /* ======================== КОМАНДНАЯ ПАЛИТРА (Ctrl+P) =====================
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
@@ -18338,6 +18270,7 @@ const CMDS=[
   {k:'Время',t:'Шаг назад', hint:',', run:()=>$('#tl-prev').click()},
   {k:'Время',t:'Шаг вперёд', hint:'.', run:()=>$('#tl-next').click()},
   {k:'Время',t:'Вернуться к живому расчёту', hint:'`', run:()=>scrubLive()},
+  {k:'Вид',t:'Сбросить расположение панелей', run:()=>resetPanels()},
   {k:'Прочее',t:'Настройки', hint:'Ctrl+,', run:()=>openPrefs()},
   {k:'Прочее',t:'Горячие клавиши', run:()=>openPrefs('keys')},
   {k:'Прочее',t:'Сохранить настройки в файл', run:()=>{ openPrefs('data'); setTimeout(()=>$('#pref-export')&&$('#pref-export').click(),120); }},
@@ -18547,6 +18480,7 @@ function lockInit(){
   inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') attempt(); });
   setTimeout(()=>inp.focus(),60);
 }
+initFloatingPanels();
 lockInit();
 
 /* ================================= СТАРТ =============================== */

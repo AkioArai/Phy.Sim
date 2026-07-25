@@ -3,6 +3,7 @@
   --ink:#171a1f; --ink-2:#5c6570; --ink-3:#8b939d;
   --accent:#2f5ea8; --accent-soft:#2f5ea81a; --second:#7a4fa3; --measure:#c07615; --danger:#b3452f;
   --grid:#dfe3e8; --grid-major:#c9cfd6; --canvas:#fbfcfd;
+  --ok:#2e7d4f;                       /* «верно», прирост величины */
   --radius:7px; --fs:12pt;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
   --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
@@ -12,6 +13,7 @@
   --ink:#e6e9ed; --ink-2:#9aa3ae; --ink-3:#6d757f;
   --accent:#6fa2e8; --accent-soft:#6fa2e824; --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62;
   --grid:#232830; --grid-major:#2d333d; --canvas:#14171c;
+  --ok:#6fcf97;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -117,8 +119,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .verdict{font-size:12.5px;font-family:var(--mono)}
-.verdict.ok{color:#2e7d4f}.verdict.no{color:var(--danger)}
-[data-theme="dark"] .verdict.ok{color:#6fcf97}
+.verdict.ok{color:var(--ok)}.verdict.no{color:var(--danger)}
 
 .splitter{width:5px;flex:0 0 5px;cursor:col-resize;background:var(--line-soft);border-left:1px solid var(--line);border-right:1px solid var(--line)}
 .splitter:hover,.splitter.drag{background:var(--accent)}
@@ -138,8 +139,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    Именно правилом, а не inline-стилем: inline display:none перебивал
    медиазапрос, и на телефоне симуляцию было невозможно закрыть. */
 #btn-simback{display:none}
-.warnbar{padding:6px 10px;font-size:12px;line-height:1.45;color:#7a4a08;background:#fdf1dc;border-bottom:1px solid var(--line)}
-[data-theme="dark"] .warnbar{color:#f0c987;background:#3a2c12}
+.warnbar{padding:6px 10px;font-size:12px;line-height:1.45;
+  color:color-mix(in srgb,var(--measure) 78%,var(--ink));
+  background:color-mix(in srgb,var(--measure) 12%,var(--panel));
+  border-bottom:1px solid color-mix(in srgb,var(--measure) 30%,var(--line))}
 .warnbar.hidden{display:none}
 .canvas-wrap{position:relative;flex:1;min-height:170px;background:var(--canvas);overflow:hidden}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%;
@@ -149,17 +152,18 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 /* показатели вынесены в отдельную рамку, чтобы не сливались с рисунком */
 .hud{position:absolute;left:8px;top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-2);
   background:color-mix(in srgb,var(--panel) 93%,transparent);
-  padding:6px 10px 7px;line-height:1.55;white-space:pre;pointer-events:none;
+  line-height:1.55;
   border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;
   box-shadow:0 3px 12px -6px rgba(0,0,0,.45)}
-.hud::before{content:'ПОКАЗАТЕЛИ';display:block;font-size:9px;letter-spacing:.12em;
-  color:var(--ink-3);margin:0 0 5px;padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
+/* заголовок HUD теперь настоящий элемент .fp-head — за него панель таскают */
+.hud-body{padding:6px 10px 7px;white-space:pre;font-family:var(--mono)}
 .pvbox{position:absolute;right:8px;top:8px;width:320px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
   border:1px solid var(--line-soft);border-radius:8px;pointer-events:auto;overflow:hidden;
   transition:width .18s ease,height .18s ease;font-family:var(--sans)}
 .pvbox.hidden{display:none}
 .pvbox .pvhead{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 11px;
-  cursor:pointer;font-size:13px;color:var(--ink-2);border-bottom:1px solid var(--line-soft);user-select:none}
+  cursor:grab;font-size:13px;color:var(--ink-2);border-bottom:1px solid var(--line-soft);user-select:none;
+  text-transform:none;letter-spacing:0;font-family:var(--sans);background:none}
 .pvbox .pvhead b{font-weight:600}
 .pvbox .pvtoggle{font-family:var(--mono);font-size:13px;color:var(--ink-3);line-height:1}
 .pvbox .pvbody{padding:6px}
@@ -169,16 +173,18 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .pvbox svg{display:block;width:100%;height:auto}
 .pvbox .pvrow{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-2);padding:1px 3px}
 .pvbox .pvrow span:last-child{color:var(--ink)}
-.histobox{position:absolute;right:8px;bottom:8px;background:color-mix(in srgb,var(--canvas) 88%,transparent);
-  padding:9px 12px 7px;border-radius:7px;border:1px solid var(--line-soft);pointer-events:none}
+.histobox{position:absolute;right:8px;bottom:8px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
+  border-radius:7px;border:1px solid var(--line)}
+.histo-body{padding:8px 11px 7px}
 .histobox.hidden{display:none}
 .histobox .htitle{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:4px}
 .histobox .hbars{display:flex;gap:3px;align-items:flex-end;height:96px}
     .histobox .hb{width:13px;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;transition:height .08s linear}
 .histobox .hx{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:2px;text-align:center}
-.energybox{position:absolute;right:8px;top:8px;display:flex;gap:10px;align-items:flex-end;
-  background:color-mix(in srgb,var(--canvas) 88%,transparent);padding:8px 10px 6px;border-radius:7px;
-  border:1px solid var(--line-soft);pointer-events:none}
+.energybox{position:absolute;right:8px;top:8px;
+  background:color-mix(in srgb,var(--canvas) 92%,transparent);border-radius:7px;
+  border:1px solid var(--line)}
+.energy-body{display:flex;gap:10px;align-items:flex-end;padding:8px 10px 6px}
 .energybox.hidden{display:none}
 .ebar{display:flex;flex-direction:column;align-items:center;gap:3px;width:34px}
 .ebar .track{width:16px;height:78px;background:var(--line);border-radius:3px;position:relative;overflow:hidden}
@@ -343,6 +349,29 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+/* ==================== ПЛАВАЮЩИЕ ПАНЕЛИ НАД СЦЕНОЙ ====================
+   Показатели, энергия, PV-диаграмма, гистограмма и сравнение ведут себя как
+   окна: их можно таскать за заголовок, менять размер за угол и сворачивать
+   двойным кликом по заголовку. Положение запоминается на устройстве. */
+.fpanel{position:absolute;z-index:24;display:flex;flex-direction:column;
+  min-width:120px;min-height:60px;pointer-events:auto;overflow:hidden}
+.fpanel.dragging{opacity:.94;box-shadow:0 12px 34px -12px #0009;z-index:40}
+.fp-head{display:flex;align-items:center;gap:6px;flex:0 0 auto;cursor:grab;
+  padding:5px 8px 4px;border-bottom:1px solid var(--line-soft);user-select:none;
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);background:color-mix(in srgb,var(--panel) 55%,transparent)}
+.fp-head b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fpanel.dragging .fp-head{cursor:grabbing}
+.fp-head .iconbtn{width:20px;height:18px;border-radius:4px}
+.fp-head .iconbtn svg{width:12px;height:12px}
+.fpanel > :not(.fp-head):not(.fp-grip){flex:1;min-height:0;overflow:auto}
+/* уголок для изменения размера */
+.fp-grip{position:absolute;right:0;bottom:0;width:14px;height:14px;cursor:nwse-resize;
+  z-index:2;background:linear-gradient(135deg,transparent 50%,var(--line) 50%,var(--line) 62%,
+    transparent 62%,transparent 74%,var(--line) 74%,var(--line) 86%,transparent 86%)}
+.fpanel.rolled{height:auto!important;min-height:0}
+.fpanel.rolled > :not(.fp-head){display:none}
+
 /* ======================= ШКАЛА ВРЕМЕНИ (перемотка) ======================= */
 .timeline{display:flex;align-items:center;gap:5px;padding:4px 8px;flex:0 0 auto;
   border-top:1px solid var(--line-soft);background:var(--panel)}
@@ -351,8 +380,11 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .tl-range{flex:1;min-width:0;accent-color:var(--accent);height:18px}
 .tl-time{font-family:var(--mono);font-size:11px;color:var(--ink-3);
   font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:78px;text-align:right}
-.timeline.scrub .tl-time{color:var(--measure)}
-.timeline.scrub{background:color-mix(in srgb,var(--measure) 8%,var(--panel))}
+/* Режим просмотра подсвечиваем АКЦЕНТНЫМ цветом, а не янтарным «цветом
+   измерений»: янтарный выбивался из палитры интерфейса. */
+.timeline.scrub .tl-time{color:var(--accent)}
+.timeline.scrub{background:var(--accent-soft)}
+.timeline.scrub .tl-range{accent-color:var(--accent)}
 
 /* ==================== ФИЛЬТР И ДЕЙСТВИЯ НАД ПАРАМЕТРАМИ ================== */
 .pbox-head{display:flex;align-items:center;gap:6px}
@@ -394,15 +426,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--line);
   border-radius:8px;box-shadow:0 8px 26px -14px #0008;display:flex;flex-direction:column;overflow:hidden}
 .cmpbox.hidden{display:none}
-.cmp-head{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 11px;
-  border-bottom:1px solid var(--line-soft);font-size:12.5px}
-.cmp-head b{flex:1;font-weight:600}
-.cmp-head .iconbtn{width:26px;height:26px}
 .cmp-body{overflow-y:auto;padding:6px 10px 9px;font-family:var(--mono);font-size:11px}
 .cmp-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;color:var(--ink-2)}
 .cmp-row .d{font-variant-numeric:tabular-nums}
-.cmp-row .up{color:#2e7d4f}.cmp-row .dn{color:var(--danger)}
-[data-theme="dark"] .cmp-row .up{color:#6fcf97}
+.cmp-row .up{color:var(--ok)}.cmp-row .dn{color:var(--danger)}
 
 /* ======================= ЭКРАН ДОСТУПА (ПАРОЛЬ) ======================= */
 .lock{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:var(--bg);
