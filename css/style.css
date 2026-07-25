@@ -343,6 +343,28 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+/* ======================= ШКАЛА ВРЕМЕНИ (перемотка) ======================= */
+.timeline{display:flex;align-items:center;gap:5px;padding:4px 8px;flex:0 0 auto;
+  border-top:1px solid var(--line-soft);background:var(--panel)}
+.timeline.hidden{display:none}
+.timeline .tl-btn{width:26px;height:24px}
+.tl-range{flex:1;min-width:0;accent-color:var(--accent);height:18px}
+.tl-time{font-family:var(--mono);font-size:11px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:78px;text-align:right}
+.timeline.scrub .tl-time{color:var(--measure)}
+.timeline.scrub{background:color-mix(in srgb,var(--measure) 8%,var(--panel))}
+
+/* ==================== ФИЛЬТР И ДЕЙСТВИЯ НАД ПАРАМЕТРАМИ ================== */
+.pbox-head{display:flex;align-items:center;gap:6px}
+.pbox-head span{flex:0 0 auto}
+.pfilter{flex:1;min-width:0;padding:3px 7px;border:1px solid var(--line);border-radius:5px;
+  background:var(--panel-2);color:var(--ink);font:inherit;font-size:11.5px;
+  font-family:var(--sans);text-transform:none;letter-spacing:0}
+.pfilter:focus{outline:none;border-color:var(--accent)}
+.pbox-head .pbox-btn{width:24px;height:22px}
+.param.hide{display:none}
+.param.changed .name::after{content:'•';color:var(--accent);margin-left:5px;font-weight:700}
+
 /* ==================== КОМАНДНАЯ ПАЛИТРА (Ctrl+P) ==================== */
 .cmdk{position:fixed;inset:0;z-index:300;background:#0006;display:flex;
   justify-content:center;align-items:flex-start;padding:12vh 16px 16px}
@@ -453,6 +475,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   /* сцена занимает всё оставшееся место */
   .canvas-wrap{flex:1}
   #hsplit{display:none}
+  /* шкала времени на телефоне компактнее и без подписи-времени */
+  .timeline{padding:3px 6px;gap:3px}
+  .timeline .tl-btn{width:32px;height:30px}
+  .tl-time{min-width:0;font-size:10px}
 
   /* компактный HUD, чтобы не заслонял сцену */
   .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;

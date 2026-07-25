@@ -457,5 +457,169 @@ carnot:{
     v.label(ctx,'цикл Карно — на панели справа →',cx+cw/2,cyTop+cyH,-64,26,ink3);
   }
 }
+
 ,
+/* ============ ТЕПЛОТА: НАГРЕВ, ПЛАВЛЕНИЕ, КИПЕНИЕ ============
+   Орир, т.1. Пока вещество в одной фазе, теплота идёт на нагрев:
+       Q = c·m·ΔT   (температура растёт),
+   а на фазовом переходе — на перестройку связей при ПОСТОЯННОЙ температуре:
+       Q = λ·m (плавление),  Q = r·m (парообразование).
+   Отсюда ступенчатый график T(t): наклонные участки чередуются с полками. */
+calorimetry:{
+  title:'Нагрев, плавление и кипение: график с полками',
+  params:[
+    {key:'subst',label:'Вещество',type:'select',default:'water',
+     options:[{v:'water',t:'Вода (лёд → вода → пар)'},
+              {v:'lead', t:'Свинец'},
+              {v:'alu',  t:'Алюминий'}]},
+    {key:'m',  label:'Масса',unit:'кг',min:0.05,max:5,step:0.05,default:0.5},
+    {key:'T0', label:'Начальная температура',unit:'°C',min:-80,max:200,step:1,default:-30},
+    {key:'P',  label:'Мощность нагревателя',unit:'Вт',min:50,max:5000,step:10,default:800},
+    {type:'group',label:'Показывать'},
+    {key:'bar',  label:'Полоса подведённой теплоты',type:'check',default:true},
+    {key:'parts',label:'Разбивка по этапам',type:'check',default:true}
+  ],
+  /* c — удельные теплоёмкости фаз, Дж/(кг·К); λ, r — теплоты переходов, Дж/кг */
+  SUB:{
+    water:{name:'вода', Tm:0,   Tb:100,  cS:2100, cL:4200, cG:2000, lam:334000, r:2260000},
+    lead: {name:'свинец',Tm:327, Tb:1749, cS:130,  cL:140,  cG:140,  lam:24500,  r:871000},
+    alu:  {name:'алюминий',Tm:660,Tb:2519,cS:900,  cL:1080, cG:1080, lam:397000, r:10900000}
+  },
+  S(p){ return this.SUB[p.subst]; },
+  /* Границы этапов в единицах подведённой теплоты Q (Дж) */
+  stages(p){
+    const S=this.S(p), m=p.m, T0=clamp(p.T0,-273,1e5);
+    const out=[];
+    let T=T0, Q=0;
+    if(T<S.Tm){ const q=S.cS*m*(S.Tm-T); out.push({kind:'нагрев твёрдого',Q0:Q,Q1:Q+q,T0:T,T1:S.Tm}); Q+=q; T=S.Tm; }
+    if(T0<=S.Tm){ const q=S.lam*m; out.push({kind:'плавление',Q0:Q,Q1:Q+q,T0:S.Tm,T1:S.Tm}); Q+=q; }
+    if(T<S.Tb){ const q=S.cL*m*(S.Tb-Math.max(T,S.Tm)); out.push({kind:'нагрев жидкости',Q0:Q,Q1:Q+q,T0:Math.max(T,S.Tm),T1:S.Tb}); Q+=q; T=S.Tb; }
+    { const q=S.r*m; out.push({kind:'кипение',Q0:Q,Q1:Q+q,T0:S.Tb,T1:S.Tb}); Q+=q; }
+    out.push({kind:'нагрев пара',Q0:Q,Q1:Q+S.cG*m*200,T0:S.Tb,T1:S.Tb+200});
+    return out;
+  },
+  /* Температура и фаза при подведённой теплоте Q */
+  stateAtQ(p,Q){
+    const st=this.stages(p);
+    for(const g of st){
+      if(Q<=g.Q1+1e-9){
+        const u=(g.Q1-g.Q0)>1e-9? (Q-g.Q0)/(g.Q1-g.Q0) : 1;
+        return {T:g.T0+(g.T1-g.T0)*clamp(u,0,1), kind:g.kind, frac:clamp(u,0,1)};
+      }
+    }
+    const last=st[st.length-1];
+    return {T:last.T1, kind:last.kind, frac:1};
+  },
+  Qtotal(p){ const st=this.stages(p); return st[st.length-1].Q1; },
+  init(p){ return {t:0,Q:0,event:null,__stop:null,marks:{}}; },
+  step(s,dt,p){
+    s.t+=dt; s.Q+=p.P*dt;
+    const st=this.stages(p);
+    // отмечаем начало каждого фазового перехода
+    for(const g of st){
+      if((g.kind==='плавление'||g.kind==='кипение') && !s.marks[g.kind] && s.Q>=g.Q0){
+        s.marks[g.kind]=s.t;
+        s.event={type:g.kind,t:s.t};
+        s.__stop=`Начало: ${g.kind} при ${g.T0} °C — температура стоит, пока идёт перестройка`;
+      }
+    }
+    if(s.Q>this.Qtotal(p)) s.Q=this.Qtotal(p);
+  },
+  readouts(s,p){
+    const S=this.S(p), st=this.stateAtQ(p,s.Q);
+    const stg=this.stages(p);
+    const out=[['t',s.t,'с'],
+      ['подведено теплоты Q',s.Q/1000,'кДж'],
+      ['мощность',p.P,'Вт'],
+      ['температура',st.T,'°C'],
+      ['что происходит',0,st.kind],
+      ['температура плавления',S.Tm,'°C'],
+      ['температура кипения',S.Tb,'°C'],
+      ['удельная теплота плавления λ',S.lam/1000,'кДж/кг'],
+      ['удельная теплота парообразования r',S.r/1000,'кДж/кг']];
+    if(p.parts) for(const g of stg)
+      out.push([`${g.kind}: нужно`, (g.Q1-g.Q0)/1000, `кДж (${((g.Q1-g.Q0)/p.P).toFixed(0)} с)`]);
+    return out;
+  },
+  graphs:[
+    {label:'T(t) — температура',unit:'°C',series:['T'],
+     get(s,p){ return [SIMS.calorimetry.stateAtQ(p,s.Q).T,null]; }},
+    {label:'Подведённая теплота',unit:'кДж',series:['Q'],get(s,p){ return [s.Q/1000,null]; }}
+  ],
+  presets:[
+    {name:'Лёд −30 °C → пар: все четыре этапа',values:{subst:'water',m:0.5,T0:-30,P:800}},
+    {name:'Вода 20 °C: только нагрев и кипение',values:{subst:'water',m:0.5,T0:20,P:800}},
+    {name:'Кипение — самый долгий этап',values:{subst:'water',m:1,T0:90,P:1000}},
+    {name:'Свинец: плавится легко',values:{subst:'lead',m:1,T0:20,P:2000}},
+    {name:'Алюминий: тугоплавкий',values:{subst:'alu',m:0.5,T0:20,P:3000}}
+  ],
+  anchors(s,p){ return [{x:0,y:0}]; },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),1e-7,30);
+    return {x:0,y:0.2,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const S=this.S(p), stg=this.stages(p), Qt=this.Qtotal(p);
+    const cur=this.stateAtQ(p,s.Q);
+    // ---- график T(Q) ----
+    const x0=-5.2, x1=5.2, y0=-1.6, y1=3.2;
+    const Tmin=Math.min(p.T0,S.Tm)-20, Tmax=S.Tb+230;
+    const X=Q=>x0+(x1-x0)*clamp(Q/Qt,0,1);
+    const Y=T=>y0+(y1-y0)*clamp((T-Tmin)/(Tmax-Tmin),0,1);
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2); ctx.globalAlpha=.85;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y0); ctx.moveTo(x0,y0); ctx.lineTo(x0,y1); ctx.stroke();
+    ctx.globalAlpha=1;
+    v.label(ctx,'T, °C',x0,y1,-4,-8,ink3);
+    v.label(ctx,'подведённая теплота Q',x1,y0,-90,16,ink3);
+    // опорные температуры
+    for(const [T,lab,col] of [[S.Tm,`плавление ${S.Tm} °C`,sec],[S.Tb,`кипение ${S.Tb} °C`,dang]]){
+      ctx.strokeStyle=col; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(x0,Y(T)); ctx.lineTo(x1,Y(T)); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      v.label(ctx,lab,x0,Y(T),4,-6,col);
+    }
+    // сама ломаная: наклон — нагрев, полка — переход
+    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
+    ctx.moveTo(X(0),Y(stg[0].T0));
+    for(const g of stg){ ctx.lineTo(X(g.Q0),Y(g.T0)); ctx.lineTo(X(g.Q1),Y(g.T1)); }
+    ctx.stroke();
+    // подписи этапов
+    for(const g of stg){
+      const xm=(X(g.Q0)+X(g.Q1))/2, flat=Math.abs(g.T1-g.T0)<1e-9;
+      if(X(g.Q1)-X(g.Q0)<0.5) continue;
+      v.label(ctx,g.kind,xm,Y((g.T0+g.T1)/2),-24,flat?-10:14,flat?meas:ink3);
+    }
+    // текущая точка
+    const cx=X(s.Q), cy=Y(cur.T);
+    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(3),v.lw(3)]);
+    ctx.beginPath(); ctx.moveTo(cx,y0); ctx.lineTo(cx,cy); ctx.moveTo(x0,cy); ctx.lineTo(cx,cy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(cx,cy,v.lw(4.5),0,7); ctx.fill();
+    v.label(ctx,`${cur.T.toFixed(1)} °C`,cx,cy,8,-8,dang);
+    // ---- полоса подведённой теплоты ----
+    if(p.bar){
+      const by=-2.5, bh=0.42;
+      ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.2);
+      ctx.strokeRect(x0,by,x1-x0,bh);
+      const cols=[sec,meas,acc,dang,ink3];
+      stg.forEach((g,i)=>{
+        const a=X(g.Q0), b=X(g.Q1);
+        ctx.fillStyle=cols[i%cols.length]; ctx.globalAlpha=.28;
+        ctx.fillRect(a,by,b-a,bh); ctx.globalAlpha=1;
+      });
+      ctx.fillStyle=dang; ctx.globalAlpha=.55;
+      ctx.fillRect(x0,by,cx-x0,bh); ctx.globalAlpha=1;
+      v.label(ctx,`подведено ${(s.Q/1000).toFixed(1)} кДж из ${(Qt/1000).toFixed(1)} кДж`,x0,by,0,-8,ink3);
+      v.label(ctx,`ширина участка = сколько теплоты он «съедает»`,x0,by,0,bh*20+14,ink3);
+    }
+    // вывод
+    v.label(ctx,`${S.name}, ${p.m} кг: сейчас — ${cur.kind}`,x0,-3.4,0,0,acc);
+    v.label(ctx,'на полке вся теплота идёт на разрыв связей, а не на нагрев — термометр стоит',
+      x0,-3.4,0,16,ink3);
+  }
+}
+
 });
