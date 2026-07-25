@@ -6,6 +6,8 @@ const RT={};
 const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:false,graphOn:true,rec:null,speed:1,
   snap:LS.get('snap',true), marks:LS.get('marks',[]), open:LS.get('open',['intro','mech']),
   trace:LS.get('trace',false), probe:null, recent:LS.get('recent',[]),
+  scrub:null, loop:LS.get('loop',false), favs:LS.get('favs',[]),
+  coords:LS.get('coords',false), mouse:null,
   settings:LS.get('settings',{theme:'light',fs:12,quality:'high',bgPause:true,videoQ:'med',nums:true,hud:true,events:true,energy:true})};
 
 function rt(id){
@@ -349,6 +351,17 @@ function drawAll(){
       octx.setLineDash(EMPTY_DASH);
     }
   }
+  // координаты под курсором
+  if(S.coords&&S.mouse){
+    const col=css('--ink-3'), {x,y}=S.mouse;
+    octx.strokeStyle=col; octx.globalAlpha=.45; octx.lineWidth=VIEW.lw(1);
+    octx.setLineDash([VIEW.lw(3),VIEW.lw(3)]);
+    const [wx0,wy1]=toWorld(0,0), [wx1,wy0]=toWorld(CW,CH);
+    octx.beginPath();
+    octx.moveTo(wx0,y); octx.lineTo(wx1,y); octx.moveTo(x,wy0); octx.lineTo(x,wy1);
+    octx.stroke(); octx.setLineDash(EMPTY_DASH); octx.globalAlpha=1;
+    VIEW.label(octx,`${x.toFixed(2)} ; ${y.toFixed(2)} м`,x,y,10,-10,col);
+  }
   // отметка пробника
   if(S.probe){
     const col=css('--danger'), {x,y}=S.probe;
@@ -471,7 +484,8 @@ function loop(now){
   }
   const a=A();
   const idle=S.settings.bgPause&&(document.hidden||$('#simpane').classList.contains('hidden'));
-  if(a&&S.playing&&!idle){
+  const scrubbing=S.scrub!==null&&S.scrub!==undefined;   // на перемотке расчёт стоит
+  if(a&&S.playing&&!idle&&!scrubbing){
     acc+=Math.min(raw,0.05)*S.speed;                       // ускорение/замедление времени
     const budget=Math.ceil(1200*Math.max(1,S.speed));      // шагов за кадр
     let g=0;
@@ -482,11 +496,13 @@ function loop(now){
         const ty=a.state.event&&a.state.event.type;
         a.state.done=a.state.done||{};
         if(a.state.done[ty]){ a.state.__stop=null; a.state.event=null; continue; }  // уже показывали
-        a.state.done[ty]=true; record(a); stopEvent(a); break;
+        a.state.done[ty]=true; record(a);
+        if(S.loop){ restart(a); S.playing=true; setPlayIcon(); break; }   // зацикливание
+        stopEvent(a); break;
       }
     }
   }
-  if(a&&!idle){ drawAll(); drawGraphs(); updateCompare(); }
+  if(a&&!idle){ drawAll(); drawGraphs(); updateCompare(); updateTimeline(); }
   frames++;
   if(now-fpsT>800){ $('#fps').textContent=Math.round(frames/((now-fpsT)/1000))+' fps'; frames=0; fpsT=now; }
   requestAnimationFrame(loop);
@@ -622,9 +638,21 @@ function updateEnergyBox(a){
   box.classList.remove('hidden');
 }
 function record(a){
-  if(!a.def.graphs) return;
-  a.hist.push({t:a.state.t, v:a.def.graphs.map(g=>g.get(a.state,a.params))});
-  if(a.hist.length>4000) a.hist.shift();
+  if(a.def.graphs){
+    a.hist.push({t:a.state.t, v:a.def.graphs.map(g=>g.get(a.state,a.params))});
+    if(a.hist.length>4000) a.hist.shift();
+  }
+  /* Лента состояний для шкалы времени: храним снимки самого state, чтобы
+     можно было отмотать расчёт назад и рассмотреть момент. Снимки берём
+     реже, чем точки графиков, — иначе память растёт слишком быстро. */
+  if(prefGet('timeline')!==false){
+    a.tape=a.tape||[];
+    const last=a.tape[a.tape.length-1];
+    if(!last || a.state.t-last.t>=0.02){
+      try{ a.tape.push({t:a.state.t, s:JSON.stringify(a.state)}); }catch(_){}
+      if(a.tape.length>900) a.tape.shift();
+    }
+  }
 }
 function stopEvent(a){
   const msg=a.state.__stop; a.state.__stop=null; acc=0;
@@ -635,6 +663,14 @@ function stopEvent(a){
 }
 
 /* ============================== ДЕРЕВО ТЕМ ============================== */
+/* Избранные симуляции — быстрый доступ через палитру (клавиша J). */
+function toggleFav(id){
+  if(!id){ toast('Сначала откройте симуляцию'); return; }
+  const i=S.favs.indexOf(id);
+  i<0? S.favs.push(id) : S.favs.splice(i,1);
+  LS.set('favs',S.favs);
+  toast((i<0?'В избранное: ':'Убрано из избранного: ')+(SIMS[id]?SIMS[id].title:id));
+}
 /* Закладка на тему: используется и звёздочкой в дереве, и клавишей S. */
 function toggleMark(id){
   if(!id) return;
@@ -881,20 +917,122 @@ function renderParams(){
       d.addEventListener('auxclick',e=>{ if(e.button===1){ e.preventDefault(); put(p.default); toast(p.label+': по умолчанию'); } });
       d.title=`допустимый диапазон: ${p.min} … ${p.max}\nможно вписать выражение (2*9.8), стрелки и колесо меняют шагами, средняя кнопка — сброс`;
     }
+    // помечаем параметры, изменённые относительно значения по умолчанию
+    if(p.default!==undefined && String(a.params[p.key])!==String(p.default))
+      d.classList.add('changed');
+    d.dataset.search=(p.label+' '+(p.unit||'')).toLowerCase();
     box.append(d);
   }
+  applyParamFilter();
 }
+/* Фильтр по названию параметра — у симуляций с полусотней полей это спасает. */
+function applyParamFilter(){
+  const q=(($('#pfilter')&&$('#pfilter').value)||'').trim().toLowerCase();
+  document.querySelectorAll('#params .param').forEach(d=>{
+    d.classList.toggle('hide', !!q && !(d.dataset.search||'').includes(q));
+  });
+  // заголовки групп прячем, если в группе ничего не осталось
+  const kids=[...document.querySelectorAll('#params > *')];
+  kids.forEach((el,i)=>{
+    if(!el.classList.contains('pgroup')) return;
+    let any=false;
+    for(let j=i+1;j<kids.length;j++){
+      if(kids[j].classList.contains('pgroup')) break;
+      if(!kids[j].classList.contains('hide')){ any=true; break; }
+    }
+    el.style.display=any?'':'none';
+  });
+}
+if($('#pfilter')){
+  $('#pfilter').oninput=applyParamFilter;
+  $('#pfilter').onkeydown=e=>{ e.stopPropagation(); if(e.key==='Escape'){ e.target.value=''; applyParamFilter(); } };
+}
+if($('#btn-pdefaults')) $('#btn-pdefaults').onclick=()=>{
+  const a=A(); if(!a) return;
+  for(const p of a.def.params) if(p.type!=='group') a.params[p.key]=p.default;
+  pushUndo(a); restart(a); renderParams(); buildGraphs(); toast('Параметры сброшены к исходным');
+};
+if($('#btn-prand')) $('#btn-prand').onclick=()=>{
+  const a=A(); if(!a) return;
+  /* Случайные значения — чтобы быстро «пощупать» диапазон. Берём только
+     числовые поля и держимся середины диапазона, иначе легко получить
+     физически бессмысленную комбинацию. */
+  for(const p of a.def.params){
+    if(p.type==='group'||p.type==='check'||p.type==='select') continue;
+    if(p.min===undefined||p.max===undefined) continue;
+    const lo=p.min+(p.max-p.min)*0.15, hi=p.min+(p.max-p.min)*0.85;
+    a.params[p.key]=round(lo+Math.random()*(hi-lo), p.step||0.1);
+  }
+  pushUndo(a); restart(a); renderParams(); buildGraphs(); toast('Случайные параметры — Ctrl+Z вернёт');
+};
 const round=(v,step)=>{ const dg=(String(step).split('.')[1]||'').length; return +(+v).toFixed(dg); };
 function commit(key,val){
   const a=A(); if(!a) return;
   a.params[key]=val;
   restart(a); fitView();
+  pushUndo(a);
+}
+/* Запись текущих параметров в историю Undo (общая точка для commit,
+   сброса к умолчаниям и случайных значений). */
+function pushUndo(a){
+  a=a||A(); if(!a) return;
   const s=JSON.stringify(a.params);
   if(a.undo[a.undo.length-1]!==s){ a.undo.push(s); if(a.undo.length>60) a.undo.shift(); a.redo=[]; }
 }
 function restart(a){
   a.state=a.def.init(a.params); a.hist=[]; a.tick=0; acc=0;
+  a.tape=[]; S.scrub=null; updateTimeline();
   $('#eventflag').classList.add('hidden');
+}
+
+/* ======================= ШКАЛА ВРЕМЕНИ (перемотка) =======================
+   Пока идёт расчёт, ползунок стоит в конце и просто показывает время. Стоит
+   потянуть его — включается режим просмотра (S.scrub): состояние берётся из
+   ленты снимков, расчёт при этом стоит. Кнопка «живой расчёт» возвращает
+   всё как было. Похоже на таймлайн видеоредактора. */
+function updateTimeline(){
+  const a=A(), tl=$('#timeline'); if(!tl) return;
+  const on=prefGet('timeline')!==false && !!a;
+  tl.classList.toggle('hidden',!on);
+  if(!on) return;
+  const tape=a.tape||[];
+  const r=$('#tl-range');
+  r.max=String(Math.max(0,tape.length-1));
+  const scrubbing=S.scrub!==null&&S.scrub!==undefined;
+  if(!scrubbing) r.value=String(Math.max(0,tape.length-1));
+  tl.classList.toggle('scrub',scrubbing);
+  const t=scrubbing? (tape[S.scrub]?tape[S.scrub].t:0) : (a.state.t||0);
+  $('#tl-time').textContent=(scrubbing?'◀ ':'')+`t = ${t.toFixed(2)} c`;
+}
+function scrubTo(i){
+  const a=A(); if(!a||!a.tape||!a.tape.length) return;
+  const idx=clamp(Math.round(i),0,a.tape.length-1);
+  S.scrub=idx;
+  try{ a.state=JSON.parse(a.tape[idx].s); }catch(_){}
+  if(S.playing){ S.playing=false; setPlayIcon(); }
+  $('#tl-range').value=String(idx);
+  updateTimeline();
+}
+function scrubLive(){
+  const a=A(); if(!a) return;
+  if(S.scrub!==null&&S.scrub!==undefined&&a.tape&&a.tape.length){
+    // возвращаемся к последнему рассчитанному состоянию
+    try{ a.state=JSON.parse(a.tape[a.tape.length-1].s); }catch(_){}
+  }
+  S.scrub=null; updateTimeline();
+}
+if($('#tl-range')){
+  $('#tl-range').addEventListener('input',e=>scrubTo(+e.target.value));
+  $('#tl-range').addEventListener('keydown',e=>e.stopPropagation());
+  $('#tl-prev').onclick=()=>{ const a=A(); if(!a||!a.tape) return;
+    scrubTo((S.scrub===null||S.scrub===undefined? a.tape.length-1 : S.scrub)-1); };
+  $('#tl-next').onclick=()=>{ const a=A(); if(!a||!a.tape) return;
+    scrubTo((S.scrub===null||S.scrub===undefined? a.tape.length-1 : S.scrub)+1); };
+  $('#tl-live').onclick=()=>{ scrubLive(); toast('Живой расчёт'); };
+  $('#tl-loop').onclick=()=>{ S.loop=!S.loop; LS.set('loop',S.loop);
+    $('#tl-loop').classList.toggle('on',S.loop);
+    toast('Зацикливание: '+(S.loop?'вкл — по событию сброс и заново':'выкл')); };
+  $('#tl-loop').classList.toggle('on',S.loop);
 }
 function applyParams(s){ const a=A(); a.params=JSON.parse(s); restart(a); renderParams(); buildGraphs(); }
 function undo(){ const a=A(); if(!a||a.undo.length<2) return; a.redo.push(a.undo.pop()); applyParams(a.undo[a.undo.length-1]); toast('Параметры: назад'); }
@@ -1195,6 +1333,22 @@ $('#btn-trace').onclick=()=>{
   toast('След за телами: '+(S.trace?'вкл':'выкл'));
 };
 $('#btn-trace').classList.toggle('on',S.trace);
+/* Координаты под курсором: постоянная подсказка у указателя — как строка
+   состояния в CAD. Работает с любым инструментом, ничего не рисует в сцену. */
+$('#btn-coords').onclick=()=>{
+  S.coords=!S.coords; LS.set('coords',S.coords);
+  $('#btn-coords').classList.toggle('on',S.coords);
+  toast('Координаты под курсором: '+(S.coords?'вкл':'выкл'));
+};
+$('#btn-coords').classList.toggle('on',S.coords);
+$('#cwrap').addEventListener('pointermove',e=>{
+  if(!S.coords) return;
+  const r=scene.getBoundingClientRect();
+  const px=e.clientX-r.left, py=e.clientY-r.top;
+  if(px<0||py<0||px>r.width||py>r.height){ S.mouse=null; return; }
+  const [wx,wy]=toWorld(px,py); S.mouse={x:wx,y:wy};
+});
+$('#cwrap').addEventListener('pointerleave',()=>{ S.mouse=null; });
 
 /* ===== Инструменты конкретной симуляции в левой панели =====
    Раньше ctxTools жили только в меню по правой кнопке — на телефоне туда
@@ -1468,7 +1622,7 @@ const PREF_CATS=[
 ];
 const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   quality:'high',bgPause:true,fps:0,videoQ:'med',
-  nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,
+  nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,timeline:true,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
   serifNotes:false,toasts:true,dockSize:'norm',
@@ -1526,6 +1680,8 @@ const PREFS=[
    options:[[1,'1 знак'],[2,'2 знака'],[3,'3 знака']]},
   {cat:'scene',key:'clockShow',type:'toggle',def:true,
    name:'Часы t в шапке',desc:'Текущее время симуляции над сценой (на компьютере).'},
+  {cat:'scene',key:'timeline',type:'toggle',def:true,
+   name:'Шкала времени под сценой',desc:'Полоса перемотки: можно вернуться к любому моменту расчёта и рассмотреть его покадрово. Отключите, если не нужна — расчёт станет чуть легче.'},
   {cat:'scene',key:'labelFix',type:'toggle',def:true,
    name:'Разводить подписи на сцене',desc:'Автоматически сдвигает наехавшие друг на друга подписи и возвращает в кадр уехавшие за край. Выключите, если хотите видеть их строго там, где они рассчитаны.'},
 
@@ -1863,13 +2019,15 @@ $('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtogg
 const KEYS=[['Ctrl + P','Командная палитра: темы, симуляции, команды'],
  ['Ctrl + Shift + P','Палитра: только команды'],
  ['Ctrl + D','Снимок показаний для сравнения'],['S','Закладка на тему'],['F11','Во весь экран'],
+ ['J','Симуляция в избранное'],['Ctrl + L','Зациклить проигрывание'],
+ [', / .','Шаг по записи назад / вперёд'],['`','Вернуться к живому расчёту'],
  ['Ctrl + ,','Настройки'],['Space','Пуск / стоп'],['R','Сбросить симуляцию'],['Ctrl + Z','Параметры: назад'],['Ctrl + Y','Параметры: вперёд'],
  ['V / P / L / Y / E','Курсор / карандаш / линейка / вектор / резинка'],
  ['Q / M','Пробник координат / зум рамкой'],
  ['D / G / C','Размер / транспортир / окружность'],
  ['Shift + A','Площадь многоугольника'],['N / U','Заметка / направляющая'],
  ['Enter / Esc','Замкнуть / отменить построение'],
- ['T','След за телами'],['A','Привязка к анкерам и узлам сетки'],
+ ['T','След за телами'],['K','Координаты под курсором'],['A','Привязка к анкерам и узлам сетки'],
  ['F','Симуляция во весь экран'],['H','Скрыть симуляцию'],['Tab','Скрыть панель тем'],['Ctrl + K','Поиск'],
  ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама'],
  ['Два пальца','Зум и панорама на сенсоре'],['ПКМ','Меню симуляции']];
@@ -1892,6 +2050,7 @@ addEventListener('keydown',e=>{
   // командная палитра: Ctrl+P — всё подряд, Ctrl+Shift+P — только команды
   if(mod&&C==='KeyP'){ e.preventDefault(); cmdkOpen(e.shiftKey?'>':''); return; }
   if(mod&&C==='KeyD'){ e.preventDefault(); takeSnapshot(); return; }
+  if(mod&&C==='KeyL'){ e.preventDefault(); $('#tl-loop').click(); return; }
   if(mod&&C==='Comma'){ e.preventDefault(); prefsOpen? closePrefs() : openPrefs(); return; }
   if(prefsOpen){ if(e.key==='Escape'){ e.preventDefault(); closePrefs(); } return; }
   if(mod&&C==='KeyK'){ e.preventDefault(); $('#tab-search').click(); return; }
@@ -1922,10 +2081,15 @@ addEventListener('keydown',e=>{
     KeyQ:()=>setTool('probe'), KeyM:()=>setTool('marquee'), KeyD:()=>setTool('dim'),
     KeyG:()=>setTool('angle'), KeyC:()=>setTool('circle'), KeyN:()=>setTool('note'),
     KeyU:()=>setTool('guide'), KeyT:()=>$('#btn-trace').click(),
+    KeyK:()=>$('#btn-coords').click(),
     KeyA:()=>e.shiftKey? setTool('area') : $('#btn-snap').click(),
     KeyR:()=>$('#btn-reset').click(),
     KeyS:()=>toggleMark(S.topic&&S.topic.id),      // закладка на текущую тему
     F11:()=>toggleFullscreen(),
+    Comma:()=>$('#tl-prev').click(),              // покадрово назад
+    Period:()=>$('#tl-next').click(),             // покадрово вперёд
+    KeyJ:()=>toggleFav(S.active),                 // избранная симуляция
+    Backquote:()=>{ scrubLive(); },
     KeyF:()=>$('#btn-simfull').click(), KeyH:()=>$('#btn-simhide').click(),
     Space:()=>$('#btn-play').click(), Tab:()=>$('#btn-rail').click(), KeyB:()=>$('#btn-rail').click(),
     Digit0:fitView, Numpad0:fitView,
@@ -2024,7 +2188,15 @@ const CMDS=[
   {k:'Инструмент',t:'Заметка на сцене', hint:'N', run:()=>setTool('note')},
   {k:'Инструмент',t:'Направляющая', hint:'U', run:()=>setTool('guide')},
   {k:'Инструмент',t:'След за телами', hint:'T', run:()=>$('#btn-trace').click()},
+  {k:'Инструмент',t:'Координаты под курсором', hint:'K', run:()=>$('#btn-coords').click()},
   {k:'Инструмент',t:'Стереть все пометки', run:()=>$('#btn-clear').click()},
+  {k:'Симуляция',t:'Все параметры — по умолчанию', run:()=>$('#btn-pdefaults').click()},
+  {k:'Симуляция',t:'Случайные параметры', run:()=>$('#btn-prand').click()},
+  {k:'Симуляция',t:'В избранное / убрать', hint:'J', run:()=>toggleFav(S.active)},
+  {k:'Время',t:'Зациклить проигрывание', hint:'Ctrl+L', run:()=>$('#tl-loop').click()},
+  {k:'Время',t:'Шаг назад', hint:',', run:()=>$('#tl-prev').click()},
+  {k:'Время',t:'Шаг вперёд', hint:'.', run:()=>$('#tl-next').click()},
+  {k:'Время',t:'Вернуться к живому расчёту', hint:'`', run:()=>scrubLive()},
   {k:'Прочее',t:'Настройки', hint:'Ctrl+,', run:()=>openPrefs()},
   {k:'Прочее',t:'Горячие клавиши', run:()=>openPrefs('keys')},
   {k:'Прочее',t:'Сохранить настройки в файл', run:()=>{ openPrefs('data'); setTimeout(()=>$('#pref-export')&&$('#pref-export').click(),120); }},
@@ -2047,6 +2219,9 @@ function cmdkSource(){
   if(!onlyCmd){
     // недавние темы — первыми при пустом запросе
     if(!s){
+      for(const id of (S.favs||[])){
+        if(SIMS[id]) list.push({k:'Избранное',t:SIMS[id].title,hint:'симуляция',run:()=>openSim(id)});
+      }
       for(const id of (S.recent||[]).slice(0,5)){
         const t=ALL.find(x=>x.id===id);
         if(t) list.push({k:'Недавнее',t:t.title,hint:t.section,run:()=>openTopic(t.id)});
@@ -2061,7 +2236,9 @@ function cmdkSource(){
                  sub:pr.desc,run:()=>openPrefs(pr.cat)});
   }
   list=list.concat(CMDS);
-  if(!s) return list.slice(0,40);
+  /* Без запроса показываем весь список команд (он прокручивается): при
+     жёстком срезе в 40 записей последние команды были недостижимы. */
+  if(!s) return list.slice(0,200);
   // нечёткий поиск: все буквы запроса встречаются по порядку
   const score=(txt)=>{
     const l=txt.toLowerCase();
@@ -2076,7 +2253,7 @@ function cmdkSource(){
     if(sc<0&&it.sub) sc=score(it.sub)>0?10:-1;
     if(sc<0&&it.k) sc=score(it.k)>0?5:-1;
     return {it,sc};
-  }).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc).slice(0,40).map(x=>x.it);
+  }).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc).slice(0,60).map(x=>x.it);
 }
 function cmdkRender(){
   const box=$('#cmdk-list'); if(!box) return;

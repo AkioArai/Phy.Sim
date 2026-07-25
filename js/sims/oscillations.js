@@ -406,5 +406,218 @@ physpend:{
       0,-L*1.15,-116,16,ink3);
   }
 }
+
 ,
+/* ============ КОЛЕБАНИЯ: ЗАТУХАНИЕ, ВЫНУЖДЕННЫЕ КОЛЕБАНИЯ, РЕЗОНАНС ==========
+   Орир, т.1: осциллятор с трением и внешней силой.
+       m·x¨ + b·x˙ + k·x = F₀·cos(ωt)
+   Свободные: ω₀=√(k/m), γ=b/(2m); при γ<ω₀ колебания затухают как e^(−γt).
+   Вынужденные: установившаяся амплитуда
+       A(ω) = (F₀/m) / √((ω₀²−ω²)² + (2γω)²),
+   максимум — на ω_рез = √(ω₀²−2γ²) (существует, пока 2γ² < ω₀²).            */
+damped:{
+  title:'Затухание, вынужденные колебания и резонанс',
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'free',
+     options:[{v:'free',  t:'Свободные колебания с трением'},
+              {v:'driven',t:'Вынужденные колебания и резонанс'}]},
+    {key:'m',label:'Масса',unit:'кг',min:0.1,max:20,step:0.1,default:1},
+    {key:'k',label:'Жёсткость k',unit:'Н/м',min:1,max:400,step:1,default:40},
+    {key:'b',label:'Коэффициент трения b',unit:'кг/с',min:0,max:20,step:0.05,default:0.6},
+
+    {type:'group',label:'Свободные колебания'},
+    {key:'x0',label:'Начальное отклонение',unit:'м',min:-3,max:3,step:0.05,default:1.5},
+    {key:'v0',label:'Начальная скорость',unit:'м/с',min:-10,max:10,step:0.1,default:0},
+
+    {type:'group',label:'Вынужденная сила'},
+    {key:'F0',label:'Амплитуда силы F₀',unit:'Н',min:0,max:100,step:0.5,default:10},
+    {key:'w', label:'Частота силы ω',unit:'рад/с',min:0.2,max:30,step:0.05,default:6.3},
+
+    {type:'group',label:'Показывать'},
+    {key:'env',  label:'Огибающая затухания e^(−γt)',type:'check',default:true},
+    {key:'curve',label:'Кривая резонанса A(ω)',type:'check',default:true}
+  ],
+  w0(p){ return Math.sqrt(p.k/p.m); },
+  gam(p){ return p.b/(2*p.m); },
+  /* Установившаяся амплитуда и сдвиг фазы вынужденных колебаний. */
+  amp(p,w){
+    const w0=this.w0(p), g=this.gam(p);
+    const d=Math.pow(w0*w0-w*w,2)+Math.pow(2*g*w,2);
+    return d>1e-12? (p.F0/p.m)/Math.sqrt(d) : Infinity;
+  },
+  phase(p,w){ const w0=this.w0(p), g=this.gam(p); return Math.atan2(2*g*w, w0*w0-w*w); },
+  /* Частота, на которой амплитуда максимальна. Пока затухание мало. */
+  wRes(p){ const w0=this.w0(p), g=this.gam(p);
+    const q=w0*w0-2*g*g; return q>0? Math.sqrt(q) : null; },
+  Q(p){ const g=this.gam(p); return g>1e-9? this.w0(p)/(2*g) : Infinity; },
+  regime(p){
+    const w0=this.w0(p), g=this.gam(p);
+    if(g<w0-1e-9) return 'колебательный (недозатухание)';
+    if(Math.abs(g-w0)<1e-9) return 'критическое затухание';
+    return 'апериодический (перезатухание)';
+  },
+  init(p){
+    return {t:0, x:p.mode==='free'?p.x0:0, v:p.mode==='free'?p.v0:0,
+            xmax:0, event:null, __stop:null};
+  },
+  step(s,dt,p){
+    // полушаговая схема (Эйлер–Кромер): устойчива и сохраняет вид колебаний
+    const F = p.mode==='driven'? p.F0*Math.cos(p.w*s.t) : 0;
+    const a = (F - p.b*s.v - p.k*s.x)/p.m;
+    s.v += a*dt; s.x += s.v*dt; s.t += dt;
+    if(s.t>1) s.xmax=Math.max(s.xmax,Math.abs(s.x));   // после переходного процесса
+  },
+  readouts(s,p){
+    const w0=this.w0(p), g=this.gam(p);
+    const out=[['t',s.t,'с'],['смещение x',s.x,'м'],['скорость v',s.v,'м/с'],
+      ['собственная частота ω₀',w0,'рад/с'],
+      ['период без трения T₀',2*Math.PI/w0,'с'],
+      ['коэффициент затухания γ',g,'1/с'],
+      ['режим',0,this.regime(p)],
+      ['добротность Q',this.Q(p),'']];
+    if(g<w0){
+      const wd=Math.sqrt(w0*w0-g*g);
+      out.push(['частота с трением ω_d',wd,'рад/с'],
+               ['период с трением',2*Math.PI/wd,'с'],
+               ['время затухания в e раз',g>1e-9?1/g:Infinity,'с']);
+    }
+    if(p.mode==='driven'){
+      const wr=this.wRes(p);
+      out.push(['частота силы ω',p.w,'рад/с'],
+        ['амплитуда установившаяся',this.amp(p,p.w),'м'],
+        ['сдвиг фазы',this.phase(p,p.w)*180/Math.PI,'°'],
+        ['резонансная частота',wr===null?NaN:wr, wr===null?'затухание слишком велико — резонанса нет':'рад/с'],
+        ['амплитуда в резонансе',wr===null?NaN:this.amp(p,wr),'м'],
+        ['измеренный размах',s.xmax,'м']);
+    }
+    return out;
+  },
+  graphs:[
+    {label:'x(t) — смещение',unit:'м',series:['x'],get(s,p){ return [s.x,null]; }},
+    {label:'v(t) — скорость',unit:'м/с',series:['v'],get(s,p){ return [s.v,null]; }},
+    {label:'Энергия: полная',unit:'Дж',series:['E'],
+     get(s,p){ return [0.5*p.m*s.v*s.v+0.5*p.k*s.x*s.x,null]; }}
+  ],
+  presets:[
+    {name:'Слабое трение: колебания гаснут медленно',values:{mode:'free',m:1,k:40,b:0.3,x0:1.5,v0:0}},
+    {name:'Критическое затухание: без единого качания',values:{mode:'free',m:1,k:40,b:12.65,x0:1.5,v0:0}},
+    {name:'Перезатухание: вязко возвращается',values:{mode:'free',m:1,k:40,b:20,x0:1.5,v0:0}},
+    {name:'Резонанс: частота силы = собственной',values:{mode:'driven',m:1,k:40,b:0.6,F0:10,w:6.3}},
+    {name:'Далеко от резонанса: почти не раскачивается',values:{mode:'driven',m:1,k:40,b:0.6,F0:10,w:2}},
+    {name:'Острый резонанс (высокая добротность)',values:{mode:'driven',m:1,k:40,b:0.15,F0:10,w:6.32}}
+  ],
+  anchors(s,p){ return [{x:s.x,y:0}]; },
+  dragPoints(p){ return p.mode==='free'? [{x:p.x0,y:0}] : []; },
+  dragMove(p,idx,x,y){ p.x0=clamp(Math.round(x*20)/20,-3,3); },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const A=p.mode==='free'? Math.max(Math.abs(p.x0),0.5)
+                           : clamp(this.amp(p,p.w),0.2,6);
+    const spanX=Math.max(4*A+2,6);
+    // в режиме вынужденных колебаний внизу ещё врезка с кривой A(ω)
+    const spanY=p.mode==='driven'? 8.2 : 5.2;
+    const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-70)/(spanY*PX_PER_M)),1e-7,30);
+    return {x:0, y:p.mode==='driven'? -1.6 : 0.1, scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const w0=this.w0(p), g=this.gam(p);
+    // стена и пол
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.4);
+    const WALL=-Math.max(Math.abs(p.x0),2)-2.2;
+    ctx.beginPath(); ctx.moveTo(WALL,-0.9); ctx.lineTo(WALL,1.5); ctx.stroke();
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.6;
+    for(let u=-0.9;u<1.5;u+=0.28){ ctx.beginPath(); ctx.moveTo(WALL,u); ctx.lineTo(WALL-0.25,u+0.16); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(WALL,-0.55); ctx.lineTo(-WALL,-0.55); ctx.stroke(); ctx.globalAlpha=1;
+    // пружина от стены к телу
+    const bx=s.x, N=16, span=bx-WALL;
+    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+    for(let i=0;i<=N*4;i++){
+      const u=i/(N*4), x=WALL+span*u;
+      const y=(u>0.08&&u<0.92)? 0.26*Math.sin(u*N*Math.PI*2) : 0;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+    // положение равновесия
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(0,-0.5); ctx.lineTo(0,1.2); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+    v.label(ctx,'равновесие',0,1.2,-28,-6,ink3);
+    // огибающая затухания
+    if(p.env && p.mode==='free' && g>1e-9){
+      const A0=Math.abs(p.x0)||0.001, e=A0*Math.exp(-g*s.t);
+      ctx.strokeStyle=meas; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
+      ctx.beginPath(); ctx.moveTo(-e,-0.35); ctx.lineTo(-e,0.95); ctx.moveTo(e,-0.35); ctx.lineTo(e,0.95); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      v.label(ctx,`огибающая ±${e.toFixed(2)} м`,e,0.95,6,-6,meas);
+    }
+    // тело
+    const hs=0.3;
+    ctx.fillStyle=acc; ctx.globalAlpha=.85; ctx.fillRect(bx-hs,-hs,2*hs,2*hs); ctx.globalAlpha=1;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.2); ctx.strokeRect(bx-hs,-hs,2*hs,2*hs);
+    v.label(ctx,`x = ${s.x.toFixed(3)} м`,bx,hs,-24,-10,acc);
+    // силы: упругая, трение, внешняя
+    const kF=1.2/Math.max(1,Math.abs(p.k*s.x),Math.abs(p.F0));
+    if(Math.abs(p.k*s.x)>1e-6){
+      v.arrow(ctx,bx,0,bx-p.k*s.x*kF,0,sec);
+      v.label(ctx,`упругая ${(-p.k*s.x).toFixed(1)} Н`,bx-p.k*s.x*kF,0,4,-14,sec);
+    }
+    if(Math.abs(p.b*s.v)>1e-6){
+      v.arrow(ctx,bx,-hs-0.12,bx-p.b*s.v*kF,-hs-0.12,dang);
+      v.label(ctx,`трение ${(-p.b*s.v).toFixed(1)} Н`,bx-p.b*s.v*kF,-hs-0.12,4,12,dang);
+    }
+    if(p.mode==='driven'){
+      const F=p.F0*Math.cos(p.w*s.t);
+      v.arrow(ctx,bx,hs+0.12,bx+F*kF,hs+0.12,meas);
+      v.label(ctx,`внешняя ${F.toFixed(1)} Н`,bx+F*kF,hs+0.12,4,-10,meas);
+    }
+    // кривая резонанса A(ω) — врезка внизу сцены
+    if(p.curve && p.mode==='driven'){
+      const x0=WALL+0.4, x1=-WALL-0.4, yb=-4.3, hh=1.9;
+      const wmax=Math.max(w0*2.2,p.w*1.2), wr=this.wRes(p);
+      let amax=0; const pts=[];
+      for(let i=0;i<=110;i++){ const w=0.05+wmax*i/110, A=this.amp(p,w);
+        if(isFinite(A)) amax=Math.max(amax,A); pts.push([w,A]); }
+      amax=Math.min(amax, this.amp(p,wr===null?w0:wr)*1.05)||1;
+      // оси
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.8;
+      ctx.beginPath(); ctx.moveTo(x0,yb); ctx.lineTo(x1,yb); ctx.moveTo(x0,yb); ctx.lineTo(x0,yb+hh); ctx.stroke();
+      ctx.globalAlpha=1;
+      v.label(ctx,'A(ω): кривая резонанса',x0,yb+hh,2,-8,ink3);
+      v.label(ctx,'ω, рад/с',x1,yb,-42,14,ink3);
+      // кривая
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+      pts.forEach(([w,A],i)=>{
+        const X=x0+(x1-x0)*(w/wmax), Y=yb+hh*clamp(A/amax,0,1);
+        i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);
+      });
+      ctx.stroke();
+      // текущая частота
+      const Xc=x0+(x1-x0)*(p.w/wmax), Ac=this.amp(p,p.w);
+      ctx.strokeStyle=meas; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
+      ctx.beginPath(); ctx.moveTo(Xc,yb); ctx.lineTo(Xc,yb+hh*clamp(Ac/amax,0,1)); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(Xc,yb+hh*clamp(Ac/amax,0,1),v.lw(3.4),0,7); ctx.fill();
+      v.label(ctx,`ω = ${p.w.toFixed(2)}`,Xc,yb+hh*clamp(Ac/amax,0,1),6,-8,meas);
+      // отметка резонанса
+      if(wr!==null){
+        const Xr=x0+(x1-x0)*(wr/wmax);
+        ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
+        ctx.beginPath(); ctx.moveTo(Xr,yb); ctx.lineTo(Xr,yb+hh); ctx.stroke(); ctx.globalAlpha=1;
+        v.label(ctx,`резонанс ${wr.toFixed(2)}`,Xr,yb+hh,-30,-8,dang);
+      }
+    }
+    // пояснение
+    v.label(ctx, p.mode==='free'
+      ? `${this.regime(p)}: γ = ${g.toFixed(2)} 1/с, ω₀ = ${w0.toFixed(2)} рад/с`
+      : `амплитуда ${this.amp(p,p.w).toFixed(3)} м, добротность Q = ${this.Q(p).toFixed(1)}`,
+      WALL,-1.5,0,0,ink3);
+    v.label(ctx, p.mode==='free'
+      ? 'чем больше трение, тем быстрее гаснут колебания; при γ = ω₀ качаний уже нет'
+      : 'на резонансе малая сила раскачивает сильно — и тем сильнее, чем меньше трение',
+      WALL,-1.5,0,16,ink3);
+  }
+}
+
 });

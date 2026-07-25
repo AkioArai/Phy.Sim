@@ -596,6 +596,29 @@ tir:{
     const w=this.wallAngle(p), c=this.critical(p);
     return c!==null && w!==null && w>=c-1e-9;
   },
+  /* Перетаскивание луча мышью и пальцем. Раньше его здесь не было вовсе —
+     угол менялся только полем параметра, хотя тянуть сам луч куда нагляднее.
+     Плоская граница: плотная среда СНИЗУ, луч приходит из левой нижней
+     четверти, поэтому ручка стоит в (−L·sinθ, −L·cosθ).
+     Световод: тем же жестом меняем угол входа в торец. */
+  dragPoints(p){
+    if(p.mode==='fiber'){
+      const a=p.angIn*Math.PI/180, X0=-5.6;
+      return [{x:X0-2.2, y:2.2*Math.tan(a)}];
+    }
+    const a=p.ang*Math.PI/180, L=4.2;
+    return [{x:-L*Math.sin(a), y:-L*Math.cos(a)}];
+  },
+  dragMove(p,idx,x,y){
+    if(p.mode==='fiber'){
+      const X0=-5.6, dx=Math.max(0.3,X0-x);        // насколько ручка левее торца
+      p.angIn=clamp(Math.round(Math.atan2(y,dx)*180/Math.PI*2)/2,0,60);
+      return;
+    }
+    // угол от нормали, отсчитанной вниз: луч живёт в нижней полуплоскости
+    p.ang=clamp(Math.round(Math.atan2(-x,-y)*180/Math.PI*2)/2,0,89);
+  },
+  anchors(s,p){ return [{x:0,y:0}]; },
   init(p){ return {t:0,event:null,__stop:null}; },
   step(s,dt,p){ s.t+=dt; },
   readouts(s,p){
@@ -2088,5 +2111,156 @@ grating:{
     v.label(ctx,txt,0,-HH-0.5,-Math.round(txt.length*3),0,ink3);
   }
 }
+
 ,
+/* ===================== ЭФФЕКТ ДОПЛЕРА ======================
+   Орир, т.1 (волны). Источник и приёмник движутся вдоль одной прямой:
+       f' = f · (v ± v_пр) / (v ∓ v_ист),
+   верхние знаки — когда сближаются. Если v_ист ≥ v, фронты не успевают уйти
+   вперёд и складываются в конус Маха с полууглом sinθ = v/v_ист.            */
+doppler:{
+  title:'Эффект Доплера: движется источник или приёмник',
+  params:[
+    {key:'f0',label:'Частота источника f',unit:'Гц',min:20,max:2000,step:5,default:440},
+    {key:'c', label:'Скорость волны в среде v',unit:'м/с',min:20,max:400,step:1,default:340},
+    {key:'vs',label:'Скорость источника (→ вправо)',unit:'м/с',min:-500,max:500,step:1,default:80},
+    {key:'vo',label:'Скорость приёмника (→ вправо)',unit:'м/с',min:-200,max:200,step:1,default:0},
+    {key:'xo',label:'Где стоит приёмник',unit:'м',min:-40,max:60,step:1,default:26},
+    {type:'group',label:'Показывать'},
+    {key:'fronts',label:'Фронты волн',type:'check',default:true},
+    {key:'mach',  label:'Конус Маха при сверхзвуке',type:'check',default:true}
+  ],
+  /* Наблюдаемая частота. Ось x направлена вправо; сближение определяем по
+     знаку проекций скоростей на направление «источник → приёмник». */
+  fObs(p,xs,xo){
+    const dir=Math.sign(xo-xs)||1;               // от источника к приёмнику
+    const vs=p.vs*dir, vo=p.vo*dir;              // проекции на это направление
+    const num=p.c-vo, den=p.c-vs;                // приёмник убегает → меньше; источник догоняет → больше
+    if(Math.abs(den)<1e-9) return Infinity;
+    const f=p.f0*num/den;
+    return f>0? f : 0;
+  },
+  mach(p){ return Math.abs(p.vs)/p.c; },
+  machAngle(p){ const M=this.mach(p); return M>1? Math.asin(1/M)*180/Math.PI : null; },
+  init(p){
+    return {t:0, xs:-30, xo:p.xo, fronts:[], nextEmit:0, event:null, __stop:null};
+  },
+  step(s,dt,p){
+    s.t+=dt;
+    s.xs+=p.vs*dt;
+    s.xo+=p.vo*dt;
+    // выпускаем фронты с равными промежутками (не каждый период — их было бы слишком много)
+    const per=Math.max(0.05, 1/Math.max(p.f0,1)*20);
+    if(s.t>=s.nextEmit){
+      s.fronts.push({x:s.xs, t0:s.t});
+      s.nextEmit=s.t+per;
+      if(s.fronts.length>26) s.fronts.shift();
+    }
+    // источник ушёл далеко — возвращаем, чтобы картинка не убегала
+    if(s.xs>90){ s.xs=-30; s.fronts=[]; }
+    if(s.xs<-90){ s.xs=60; s.fronts=[]; }
+  },
+  readouts(s,p){
+    const f=this.fObs(p,s.xs,s.xo);
+    const M=this.mach(p), ma=this.machAngle(p);
+    const approaching=(p.vs-p.vo)*Math.sign(s.xo-s.xs)>0;
+    return [['t',s.t,'с'],
+      ['частота источника f',p.f0,'Гц'],
+      ['скорость волны v',p.c,'м/с'],
+      ['скорость источника',p.vs,'м/с'],
+      ['скорость приёмника',p.vo,'м/с'],
+      ['положение источника',s.xs,'м'],
+      ['положение приёмника',s.xo,'м'],
+      ['слышимая частота f′',isFinite(f)?f:NaN, isFinite(f)?'Гц':'источник идёт со скоростью волны'],
+      ['сдвиг Δf = f′ − f',isFinite(f)?f-p.f0:NaN,'Гц'],
+      ['относительный сдвиг',isFinite(f)?100*(f-p.f0)/p.f0:NaN,'%'],
+      ['сближаются?',0, approaching?'да — тон выше':'нет — тон ниже'],
+      ['число Маха M = |vи|/v',M,''],
+      ['угол конуса Маха',ma===null?NaN:ma, ma===null?'дозвук — конуса нет':'°']];
+  },
+  graphs:[
+    {label:'Слышимая частота f′',unit:'Гц',series:["f'"],
+     get(s,p){ const f=SIMS.doppler.fObs(p,s.xs,s.xo); return [isFinite(f)?f:0,null]; }},
+    {label:'Расстояние источник–приёмник',unit:'м',series:['r'],
+     get(s,p){ return [Math.abs(s.xo-s.xs),null]; }}
+  ],
+  presets:[
+    {name:'Сирена приближается: тон выше',values:{f0:440,c:340,vs:80,vo:0,xo:40}},
+    {name:'Сирена удаляется: тон ниже',values:{f0:440,c:340,vs:-80,vo:0,xo:40}},
+    {name:'Движется приёмник, источник стоит',values:{f0:440,c:340,vs:0,vo:60,xo:20}},
+    {name:'Звуковой барьер: M = 1',values:{f0:440,c:340,vs:340,vo:0,xo:40}},
+    {name:'Сверхзвук: конус Маха',values:{f0:440,c:340,vs:500,vo:0,xo:40}}
+  ],
+  anchors(s,p){ return [{x:s.xs,y:0},{x:s.xo,y:0}]; },
+  dragPoints(p){ return [{x:p.xo,y:0}]; },
+  dragMove(p,idx,x,y){ p.xo=clamp(Math.round(x),-40,60); },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const spanX=150, spanY=95;
+    const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-70)/(spanY*PX_PER_M)),1e-7,30);
+    return {x:15,y:0,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    // ось движения
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(-90,0); ctx.lineTo(100,0); ctx.stroke(); ctx.globalAlpha=1;
+    // фронты: радиус = v·(t − t₀), центр — где источник был в момент испускания
+    if(p.fronts){
+      ctx.lineWidth=v.lw(1.2);
+      for(const fr of s.fronts){
+        const R=p.c*(s.t-fr.t0);
+        if(R<=0.01) continue;
+        const near=Math.abs(s.xo-fr.x)<R;         // фронт уже накрыл приёмник
+        ctx.strokeStyle=near?meas:sec;
+        ctx.globalAlpha=near?.5:.32;
+        ctx.beginPath(); ctx.arc(fr.x,0,R,0,7); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
+    // конус Маха
+    const ma=this.machAngle(p);
+    if(p.mach && ma!==null){
+      const th=ma*Math.PI/180, dir=Math.sign(p.vs)||1, Lc=120;
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8); ctx.globalAlpha=.8;
+      ctx.beginPath();
+      ctx.moveTo(s.xs,0); ctx.lineTo(s.xs-dir*Lc*Math.cos(th), Lc*Math.sin(th));
+      ctx.moveTo(s.xs,0); ctx.lineTo(s.xs-dir*Lc*Math.cos(th),-Lc*Math.sin(th));
+      ctx.stroke(); ctx.globalAlpha=1;
+      v.label(ctx,`конус Маха, θ = ${ma.toFixed(1)}°  (M = ${this.mach(p).toFixed(2)})`,
+        s.xs-dir*40*Math.cos(th),40*Math.sin(th),0,-8,dang);
+    }
+    // источник
+    ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(s.xs,0,v.lw(6),0,7); ctx.fill();
+    v.label(ctx,`источник, f = ${p.f0} Гц`,s.xs,0,-30,-16,acc);
+    if(Math.abs(p.vs)>1e-6){
+      const k=28/Math.max(Math.abs(p.vs),1);
+      v.arrow(ctx,s.xs,-6,s.xs+p.vs*k,-6,acc);
+      v.label(ctx,`${p.vs} м/с`,s.xs+p.vs*k,-6,4,12,acc);
+    }
+    // приёмник
+    ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(s.xo,0,v.lw(6),0,7); ctx.fill();
+    const f=this.fObs(p,s.xs,s.xo);
+    v.label(ctx,`приёмник`,s.xo,0,-24,16,meas);
+    v.label(ctx,isFinite(f)?`слышит ${f.toFixed(1)} Гц`:'фронт не доходит',s.xo,0,-30,32,
+      isFinite(f)&&f>p.f0?dang:(isFinite(f)?sec:ink3));
+    if(Math.abs(p.vo)>1e-6){
+      const k=28/Math.max(Math.abs(p.vo),1);
+      v.arrow(ctx,s.xo,6,s.xo+p.vo*k,6,meas);
+      v.label(ctx,`${p.vo} м/с`,s.xo+p.vo*k,6,4,-8,meas);
+    }
+    // вывод
+    const dfp=isFinite(f)? 100*(f-p.f0)/p.f0 : NaN;
+    v.label(ctx, isFinite(f)
+      ? `f′ = f·(v − v_пр)/(v − v_ист) = ${f.toFixed(1)} Гц  (${dfp>0?'+':''}${dfp.toFixed(1)} %)`
+      : 'источник движется со скоростью волны: фронты копятся в одной точке',
+      -85,-38,0,0, isFinite(f)?ink3:dang);
+    v.label(ctx, this.mach(p)>=1
+      ? 'сверхзвук: источник обгоняет свои же волны, они складываются в ударную волну'
+      : 'сгущение фронтов спереди — тон выше, разрежение сзади — тон ниже',
+      -85,-38,0,16,ink3);
+  }
+}
+
 });

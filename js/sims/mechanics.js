@@ -2624,16 +2624,22 @@ statics:{
       return {W1,W2,N,tau,a,b,balanced:Math.abs(tau)<0.5,balancedPiv};
     }
     if(p.sys==='beam'){
-      const Wb=p.mb*p.g, Wl=p.load*p.g, L=p.Lb, d=p.lpos;    // груз может быть и за опорой
-      // опоры на концах: R1 (левая), R2 (правая). ΣF=0, Στ=0 относительно левой
-      const R2=(Wb*(L/2)+Wl*d)/L;
+      /* Опоры стоят на 0 и Lb, но САМА балка может быть длиннее: если груз
+         вынесен дальше правой опоры, он лежит на свесе балки, а не висит в
+         воздухе за её концом (раньше груз рисовался вне балки и вращался
+         вместе с ней — тело буквально лежало «за бруском»).
+         Вес балки приложен в середине её полной длины. */
+      const Wb=p.mb*p.g, Wl=p.load*p.g, L=p.Lb, d=p.lpos;
+      const Lbeam=Math.max(L, d+0.4);                       // полная длина со свесом
+      // ΣF=0, Στ=0 относительно левой опоры
+      const R2=(Wb*(Lbeam/2)+Wl*d)/L;
       const R1=Wb+Wl-R2;
       // опора умеет только подпирать: если реакция вышла отрицательной, балка задирается и опрокидывается
       const tipL=R1<0, tipR=R2<0;
       // момент опрокидывания относительно ближней опоры
-      const tipTau = tipR ? (Wl*(0-d)-Wb*(L/2))    // груз левее левой опоры
-                   : (tipL ? (Wl*(d-L)-Wb*(L/2)) : 0);
-      return {Wb,Wl,R1,R2,L,d,tipL,tipR,tipTau,balanced:!tipL&&!tipR};
+      const tipTau = tipR ? (Wl*(0-d)-Wb*(Lbeam/2))    // груз левее левой опоры
+                   : (tipL ? (Wl*(d-L)-Wb*(Lbeam/2-L)) : 0);
+      return {Wb,Wl,R1,R2,L,Lbeam,d,tipL,tipR,tipTau,balanced:!tipL&&!tipR};
     }
     if(p.sys==='ladder'){
       const th=p.ang*Math.PI/180, W=p.mL*p.g, Wm=p.mMan*p.g, L=p.Ll;
@@ -2712,7 +2718,9 @@ statics:{
               ['опора для равновесия',d.balancedPiv,'м']];
     if(p.sys==='beam')
       return [['вес балки',d.Wb,'Н'],['вес груза',d.Wl,'Н'],
-              ['положение груза от левой опоры',d.d,'м'],['длина балки',d.L,'м'],
+              ['положение груза от левой опоры',d.d,'м'],
+              ['пролёт между опорами',d.L,'м'],
+              ['полная длина балки',d.Lbeam, d.Lbeam>d.L+1e-6? `м (свес ${(d.Lbeam-d.L).toFixed(1)} м)` : 'м'],
               ['реакция левой опоры R₁',d.R1,'Н'],['реакция правой опоры R₂',d.R2,'Н'],
               ['сумма реакций',d.R1+d.R2,'Н'],['сумма весов',d.Wb+d.Wl,'Н'],
               ['равновесие',d.balanced?1:0,
@@ -2744,9 +2752,10 @@ statics:{
     else if(p.sys==='beam'){
       /* по горизонтали учитываем груз, вынесенный за опору, по вертикали —
          стрелки сил (до 0.42·L вверх и вниз) и строку состояния под полом */
-      spanX=Math.max(p.Lb,p.lpos)*1.45+1;
-      spanY=p.Lb*1.25;
-      cx=Math.max(p.Lb,p.lpos)/2; cy=0.1;
+      const Lb=Math.max(p.Lb,p.lpos+0.4);
+      spanX=Lb*1.35+1;
+      spanY=Lb*1.2;
+      cx=Lb/2; cy=0.1;
     }
     else if(p.sys==='ladder'){ const th=p.ang*Math.PI/180; spanX=Math.max(p.Ll*Math.cos(th),p.Ll*Math.sin(th))*2.2; spanY=p.Ll*1.2; cx=p.Ll*Math.cos(th)/2; cy=p.Ll*Math.sin(th)/2; }
     else { spanX=p.Lbr*2.6; spanY=p.Lbr*2.2; cx=p.Lbr*0.3; cy=0; }
@@ -2820,18 +2829,27 @@ statics:{
     }
 
     else if(p.sys==='beam'){
-      const L=p.Lb, rot=s.rot||0;
+      const L=d.L, Lb=d.Lbeam, rot=s.rot||0;
       // при опрокидывании балка поворачивается вокруг той опоры, что ещё нагружена
       const pivX = d.tipR? 0 : L;
       const R=(x)=>({x:pivX+(x-pivX)*Math.cos(rot), y:(x-pivX)*Math.sin(rot)});
-      const B0=R(0), BL=R(L);
+      const B0=R(0), BL=R(Lb);          // балка рисуется на всю длину, включая свес
       // пол — чтобы было видно, куда валится
       if(!d.balanced){
         ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.2);
-        ctx.beginPath(); ctx.moveTo(-1,-0.7); ctx.lineTo(L+1,-0.7); ctx.stroke(); ctx.globalAlpha=1;
+        ctx.beginPath(); ctx.moveTo(-1,-0.7); ctx.lineTo(Lb+1,-0.7); ctx.stroke(); ctx.globalAlpha=1;
       }
       ctx.strokeStyle=ink; ctx.lineWidth=v.lw(6);
       ctx.beginPath(); ctx.moveTo(B0.x,B0.y); ctx.lineTo(BL.x,BL.y); ctx.stroke();
+      // отметка свеса за правой опорой
+      if(Lb>L+1e-6){
+        const S1=R(L), S2=R(Lb);
+        ctx.strokeStyle=sec; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+        ctx.setLineDash([v.lw(3),v.lw(3)]);
+        ctx.beginPath(); ctx.moveTo(S1.x,S1.y-0.28); ctx.lineTo(S2.x,S2.y-0.28); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha=1;
+        v.label(ctx,`свес ${(Lb-L).toFixed(1)} м`,(S1.x+S2.x)/2,(S1.y+S2.y)/2,-24,22,sec);
+      }
       /* Опоры стоят на месте. Подписи разведены по вертикали в МИРОВЫХ
          координатах, а не пиксельными сдвигами от одной точки: иначе на
          разных зумах строки наезжали друг на друга (см. отчёт по «грузу за
@@ -2851,7 +2869,7 @@ statics:{
         }
       });
       // вес балки в центре (точка едет вместе с балкой)
-      const Bc=R(L/2);
+      const Bc=R(Lb/2);   // центр тяжести — середина ПОЛНОЙ длины, включая свес
       v.arrow(ctx,Bc.x,Bc.y,Bc.x,Bc.y-d.Wb*kF,dang);
       // подпись веса — под остриём стрелки: сбоку она попадала бы на саму балку
       v.label(ctx,`вес балки ${d.Wb.toFixed(0)} Н`,Bc.x,Bc.y-d.Wb*kF,-30,14,dang);
@@ -2954,5 +2972,528 @@ statics:{
     }
   }
 }
+
 ,
+/* ============ ВРАЩЕНИЕ: СКАТЫВАНИЕ ТЕЛ И МОМЕНТ ИНЕРЦИИ ============
+   Орир, т.1: тело катится без проскальзывания по наклонной плоскости.
+   Из mg·sinα − Fтр = m·a и Fтр·R = I·ε, при a = ε·R получаем
+       a = g·sinα / (1 + I/(mR²)),
+   то есть ускорение зависит ТОЛЬКО от формы (через β = I/mR²), но не от
+   массы и радиуса. Нужное для качения трение
+       Fтр = m·a·β,  условие непроскальзывания:  μ ≥ β·tgα/(1+β).          */
+rolling:{
+  title:'Скатывание тел: момент инерции решает, кто быстрее',
+  params:[
+    {key:'ang',label:'Угол наклона α',unit:'°',min:2,max:45,step:0.5,default:20},
+    {key:'L',  label:'Длина склона',unit:'м',min:1,max:20,step:0.5,default:6},
+    {key:'R',  label:'Радиус тел',unit:'м',min:0.1,max:0.8,step:0.05,default:0.3},
+    {key:'m',  label:'Масса каждого тела',unit:'кг',min:0.1,max:50,step:0.1,default:2},
+    {key:'mu', label:'Коэффициент трения μ',min:0,max:1.5,step:0.05,default:0.6},
+    {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
+    {type:'group',label:'Кто участвует'},
+    {key:'hoop',  label:'Обруч (β = 1)',type:'check',default:true},
+    {key:'disk',  label:'Диск / цилиндр (β = 1/2)',type:'check',default:true},
+    {key:'sphere',label:'Шар (β = 2/5)',type:'check',default:true},
+    {key:'slide', label:'Брусок без трения (β = 0)',type:'check',default:true},
+    {type:'group',label:'Показывать'},
+    {key:'energy',label:'Разделение энергии',type:'check',default:true}
+  ],
+  /* β = I/(mR²) — вся форма тела сидит в одном числе */
+  BODIES:[
+    {key:'hoop',  name:'обруч',  beta:1,   col:'--danger'},
+    {key:'disk',  name:'диск',   beta:0.5, col:'--accent'},
+    {key:'sphere',name:'шар',    beta:0.4, col:'--second'},
+    {key:'slide', name:'брусок', beta:0,   col:'--measure'}
+  ],
+  active(p){ return this.BODIES.filter(b=>p[b.key]); },
+  acc(p,beta){ return p.g*Math.sin(p.ang*Math.PI/180)/(1+beta); },
+  /* нужное трение и предельное, которое может дать поверхность */
+  fNeed(p,beta){ return p.m*this.acc(p,beta)*beta; },
+  fMax(p){ return p.mu*p.m*p.g*Math.cos(p.ang*Math.PI/180); },
+  slips(p,beta){ return beta>0 && this.fNeed(p,beta)>this.fMax(p)+1e-9; },
+  tFinish(p,beta){ const a=this.acc(p,beta); return a>1e-9? Math.sqrt(2*p.L/a) : Infinity; },
+  init(p){
+    const st={t:0,event:null,__stop:null,done:{}};
+    for(const b of this.BODIES) st[b.key]={s:0,v:0,fin:null};
+    return st;
+  },
+  step(s,dt,p){
+    s.t+=dt;
+    let allDone=true;
+    for(const b of this.active(p)){
+      const o=s[b.key];
+      if(o.fin!==null) continue;
+      allDone=false;
+      const a=this.acc(p,b.beta);
+      o.v+=a*dt; o.s+=o.v*dt;
+      if(o.s>=p.L){ o.s=p.L; o.fin=s.t; }
+    }
+    // как только финишировал первый — отмечаем событие
+    if(!s.done.first){
+      const fin=this.active(p).filter(b=>s[b.key].fin!==null);
+      if(fin.length){
+        s.done.first=true;
+        const w=fin[0];
+        s.event={type:'first',t:s.t};
+        s.__stop=`Первым внизу: ${w.name} (β = ${w.beta}), t = ${s[w.key].fin.toFixed(3)} с`;
+      }
+    }
+  },
+  readouts(s,p){
+    const a0=p.g*Math.sin(p.ang*Math.PI/180);
+    const out=[['t',s.t,'с'],['угол α',p.ang,'°'],
+      ['без трения a = g·sinα',a0,'м/с²'],
+      ['предельное трение μN',this.fMax(p),'Н']];
+    for(const b of this.active(p)){
+      const o=s[b.key], a=this.acc(p,b.beta);
+      out.push([`${b.name}: a`,a,'м/с²'],
+        [`${b.name}: путь`,o.s,'м'],
+        [`${b.name}: v`,o.v,'м/с'],
+        [`${b.name}: время спуска`,o.fin!==null?o.fin:this.tFinish(p,b.beta),
+          o.fin!==null?'с (финиш)':'с (расчёт)'],
+        [`${b.name}: нужно трение`,this.fNeed(p,b.beta),
+          this.slips(p,b.beta)?'Н — БОЛЬШЕ предельного, поедет юзом':'Н']);
+    }
+    return out;
+  },
+  graphs:[
+    {label:'Путь по склону',unit:'м',series:['обруч','шар'],
+     get(s,p){ return [s.hoop?s.hoop.s:null, s.sphere?s.sphere.s:null]; }},
+    {label:'Скорость',unit:'м/с',series:['обруч','шар'],
+     get(s,p){ return [s.hoop?s.hoop.v:null, s.sphere?s.sphere.v:null]; }}
+  ],
+  presets:[
+    {name:'Классика: шар обгоняет диск, обруч последний',values:{ang:20,L:6,R:0.3,m:2,mu:0.6}},
+    {name:'Крутой склон: трения не хватает, обруч буксует',values:{ang:40,L:6,R:0.3,m:2,mu:0.15}},
+    {name:'Только обруч и шар — разница видна лучше всего',values:{ang:25,L:8,R:0.3,m:2,mu:0.8,disk:false,slide:false}},
+    {name:'Брусок без трения обгоняет всех',values:{ang:20,L:6,R:0.3,m:2,mu:0.6,slide:true}}
+  ],
+  anchors(s,p){
+    const a=p.ang*Math.PI/180, out=[];
+    this.active(p).forEach((b,i)=>{
+      const o=s[b.key], lane=(i-1)*2.2*p.R;
+      out.push({x:o.s*Math.cos(a)+lane*Math.sin(a), y:-o.s*Math.sin(a)+lane*Math.cos(a)+p.R});
+    });
+    return out;
+  },
+  dragPoints(p){ return [{x:p.L*Math.cos(p.ang*Math.PI/180), y:-p.L*Math.sin(p.ang*Math.PI/180)}]; },
+  dragMove(p,idx,x,y){
+    const L=Math.hypot(x,y); p.L=clamp(Math.round(L*2)/2,1,20);
+    const a=Math.atan2(-y,Math.max(x,0.01))*180/Math.PI;
+    p.ang=clamp(Math.round(a*2)/2,2,45);
+  },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, a=p.ang*Math.PI/180;
+    const spanX=p.L*Math.cos(a)+3, spanY=Math.max(p.L*Math.sin(a)+3.4,4);
+    const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-70)/(spanY*PX_PER_M)),1e-7,30);
+    return {x:spanX/2-1.2, y:-p.L*Math.sin(a)/2+0.6, scale};
+  },
+  draw(ctx,s,v,p){
+    const ink=v.c('--ink-2'), ink3=v.c('--ink-3'), dang=v.c('--danger');
+    const a=p.ang*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+    const ux=[ca,-sa], uy=[sa,ca];                 // вдоль склона и по нормали
+    const P=(u,n)=>[u*ux[0]+n*uy[0], u*ux[1]+n*uy[1]];
+    // склон
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.4);
+    const e0=P(-0.6,0), e1=P(p.L+0.8,0);
+    ctx.beginPath(); ctx.moveTo(e0[0],e0[1]); ctx.lineTo(e1[0],e1[1]); ctx.stroke();
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.5;
+    for(let u=-0.4;u<p.L+0.8;u+=0.42){
+      const q=P(u,0); ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(q[0]-0.16,q[1]-0.24); ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    // отметки старта и финиша
+    const st=P(0,0), fi=P(p.L,0);
+    ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
+    ctx.beginPath(); ctx.moveTo(st[0],st[1]); ctx.lineTo(st[0]+uy[0]*1.6,st[1]+uy[1]*1.6);
+    ctx.moveTo(fi[0],fi[1]); ctx.lineTo(fi[0]+uy[0]*1.6,fi[1]+uy[1]*1.6); ctx.stroke();
+    ctx.setLineDash([]);
+    v.label(ctx,'старт',st[0],st[1],-34,-6,ink3);
+    v.label(ctx,`финиш, L = ${p.L} м`,fi[0],fi[1],6,-6,ink3);
+    v.label(ctx,`α = ${p.ang}°`,P(0.9,0)[0],P(0.9,0)[1],0,20,ink3);
+    // тела на своих дорожках
+    const act=this.active(p);
+    act.forEach((b,i)=>{
+      const col=v.c(b.col), o=s[b.key];
+      /* Все тела катятся по ОДНОЙ поверхности: центр на расстоянии R по
+         нормали. Разносить их по нормали нельзя — тела уходили под склон;
+         они и так расходятся сами, потому что ускорения разные. */
+      const q=P(o.s, p.R);
+      ctx.strokeStyle=col; ctx.lineWidth=v.lw(2);
+      if(b.beta===0){
+        // брусок: квадрат, скользит без вращения
+        ctx.save(); ctx.translate(q[0],q[1]); ctx.rotate(-a);
+        ctx.fillStyle=col; ctx.globalAlpha=.2; ctx.fillRect(-p.R,-p.R,2*p.R,2*p.R); ctx.globalAlpha=1;
+        ctx.strokeRect(-p.R,-p.R,2*p.R,2*p.R);
+        ctx.restore();
+      } else {
+        ctx.fillStyle=col; ctx.globalAlpha=.18;
+        ctx.beginPath(); ctx.arc(q[0],q[1],p.R,0,7); ctx.fill(); ctx.globalAlpha=1;
+        ctx.beginPath(); ctx.arc(q[0],q[1],p.R,0,7); ctx.stroke();
+        // спица показывает поворот: φ = s/R
+        const ph=-o.s/Math.max(p.R,1e-6)-a;
+        ctx.beginPath(); ctx.moveTo(q[0],q[1]);
+        ctx.lineTo(q[0]+p.R*Math.cos(ph), q[1]+p.R*Math.sin(ph)); ctx.stroke();
+        if(b.beta===1){   // у обруча внутренняя окружность — видно, что масса на ободе
+          ctx.globalAlpha=.5;
+          ctx.beginPath(); ctx.arc(q[0],q[1],p.R*0.82,0,7); ctx.stroke(); ctx.globalAlpha=1;
+        }
+      }
+      const lab=`${b.name} β=${b.beta}`+(o.fin!==null?`  ${o.fin.toFixed(2)} с`:'');
+      v.label(ctx,lab,q[0],q[1],-14,-p.R*20-10-i*13,col);
+      if(this.slips(p,b.beta)) v.label(ctx,'буксует!',q[0],q[1],-14,p.R*20+14,dang);
+    });
+    // разделение энергии для первого активного тела
+    if(p.energy && act.length){
+      const b=act[0], o=s[b.key];
+      const Ek=0.5*p.m*o.v*o.v, Er=0.5*p.m*b.beta*o.v*o.v;
+      const yb=P(0.2,0)[1]-2.4, xb=P(0.2,0)[0];
+      v.label(ctx,`${b.name}: поступательная ${Ek.toFixed(2)} Дж, вращательная ${Er.toFixed(2)} Дж`,xb,yb,0,0,ink3);
+      v.label(ctx,`доля вращения β/(1+β) = ${(b.beta/(1+b.beta)*100).toFixed(0)} % энергии`,xb,yb,0,16,ink3);
+    }
+    v.label(ctx,'a = g·sinα / (1 + I/mR²) — масса и радиус не влияют, важна только форма',
+      P(-0.5,0)[0],P(-0.5,0)[1]-3.0,0,0,ink3);
+  }
+}
+,
+/* ================= ГИДРОСТАТИКА: АРХИМЕД И ПЛАВАНИЕ =================
+   Орир, т.1. Сила Архимеда равна весу вытесненной жидкости:
+       F_A = ρж·g·V_погр.
+   Плавающее тело тонет ровно настолько, чтобы F_A уравновесила вес:
+       ρт·V·g = ρж·g·V_погр  ⇒  V_погр/V = ρт/ρж.
+   Если ρт > ρж, тело тонет и лежит на дне: N = mg − F_A.
+   Давление на глубине: p = p₀ + ρж·g·h.                                  */
+buoyancy:{
+  title:'Архимед: плавает, тонет или висит',
+  params:[
+    {key:'shape',label:'Тело',type:'select',default:'cube',
+     options:[{v:'cube',t:'Куб (сторона a)'},{v:'ball',t:'Шар (радиус R)'}]},
+    {key:'a',   label:'Размер тела (сторона / радиус)',unit:'м',min:0.1,max:1.2,step:0.05,default:0.4},
+    {key:'rho', label:'Плотность тела ρт',unit:'кг/м³',min:50,max:12000,step:10,default:600},
+    {key:'liq', label:'Жидкость',type:'select',default:'water',
+     options:[{v:'water',t:'вода, 1000 кг/м³'},{v:'oil',t:'масло, 900'},
+              {v:'sea',  t:'морская вода, 1025'},{v:'merc',t:'ртуть, 13546'}]},
+    {key:'depth',label:'Глубина сосуда',unit:'м',min:0.5,max:4,step:0.1,default:1.6},
+    {key:'g',   label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
+    {type:'group',label:'Показывать'},
+    {key:'forces',label:'Силы',type:'check',default:true},
+    {key:'press', label:'Эпюра давления',type:'check',default:true}
+  ],
+  RHO:{water:1000, oil:900, sea:1025, merc:13546},
+  nameOf:{water:'вода', oil:'масло', sea:'морская вода', merc:'ртуть'},
+  rhoL(p){ return this.RHO[p.liq]; },
+  vol(p){ return p.shape==='cube'? Math.pow(p.a,3) : (4/3)*Math.PI*Math.pow(p.a,3); },
+  mass(p){ return p.rho*this.vol(p); },
+  /* доля объёма под водой в равновесии (для плавающего тела) */
+  frac(p){ return clamp(p.rho/this.rhoL(p),0,1); },
+  floats(p){ return p.rho<this.rhoL(p); },
+  /* Погружённый объём при заданной осадке d (глубина погружения тела) */
+  subVol(p,d){
+    const h=p.shape==='cube'? p.a : 2*p.a;
+    const t=clamp(d,0,h);
+    if(p.shape==='cube') return p.a*p.a*t;
+    // шаровой сегмент: V = π·t²·(3R − t)/3
+    return Math.PI*t*t*(3*p.a-t)/3;
+  },
+  height(p){ return p.shape==='cube'? p.a : 2*p.a; },
+  FA(p,d){ return this.rhoL(p)*p.g*this.subVol(p,d); },
+  init(p){
+    // тело начинает у поверхности и приходит к равновесию
+    return {t:0, d:0.02, v:0, rest:false, event:null, __stop:null};
+  },
+  step(s,dt,p){
+    s.t+=dt;
+    const m=this.mass(p), W=m*p.g, H=this.height(p);
+    /* Осадка d отсчитывается ВНИЗ, поэтому и силу берём вниз-положительной:
+       вес тянет топить, Архимед — выталкивать. (Со знаком «вверх» тело
+       всплывало из воды вместо того, чтобы садиться на свою ватерлинию.) */
+    const F=W-this.FA(p,s.d);
+    // вязкое сопротивление, чтобы тело не качалось вечно
+    const drag=-6*this.rhoL(p)*Math.pow(p.a,2)*s.v*0.5;
+    const acc=(F+drag)/m;
+    s.v+=acc*dt; s.d+=s.v*dt;
+    // дно сосуда: глубже погрузиться некуда
+    if(s.d>Math.min(H,p.depth)){ s.d=Math.min(H,p.depth); if(s.v>0) s.v=0; }
+    if(s.d<0){ s.d=0; if(s.v<0) s.v=0; }
+    if(!s.rest && Math.abs(s.v)<1e-3 && s.t>1.2){
+      s.rest=true; s.event={type:'rest',t:s.t};
+      s.__stop=this.floats(p)
+        ? `Тело всплыло и плавает: под водой ${(100*this.subVol(p,s.d)/this.vol(p)).toFixed(1)} % объёма`
+        : `Тело утонуло: сила Архимеда меньше веса`;
+    }
+  },
+  readouts(s,p){
+    const V=this.vol(p), m=this.mass(p), W=m*p.g;
+    const FA=this.FA(p,s.d), Vs=this.subVol(p,s.d);
+    const rl=this.rhoL(p);
+    return [['t',s.t,'с'],
+      ['объём тела V',V*1000,'л'],
+      ['масса тела',m,'кг'],
+      ['вес mg',W,'Н'],
+      ['плотность тела ρт',p.rho,'кг/м³'],
+      ['плотность жидкости ρж',rl,'кг/м³'],
+      ['осадка (глубина погружения)',s.d,'м'],
+      ['погружённый объём',Vs*1000,'л'],
+      ['доля под водой',100*Vs/V,'%'],
+      ['сила Архимеда F_A = ρж·g·V',FA,'Н'],
+      ['равнодействующая F_A − mg',FA-W,'Н'],
+      ['теоретическая доля ρт/ρж',this.floats(p)?100*this.frac(p):100,
+        this.floats(p)?'% — тело плавает':'% — тело тонет'],
+      ['давление на дне p = ρ·g·h',rl*p.g*p.depth,'Па'],
+      ['состояние',0, this.floats(p)?'плавает':'тонет']];
+  },
+  graphs:[
+    {label:'Осадка',unit:'м',series:['d'],get(s,p){ return [s.d,null]; }},
+    {label:'Силы: Архимеда и вес',unit:'Н',series:['F_A','mg'],
+     get(s,p){ return [SIMS.buoyancy.FA(p,s.d), SIMS.buoyancy.mass(p)*p.g]; }}
+  ],
+  presets:[
+    {name:'Дерево в воде: плавает, погружено 60 %',values:{shape:'cube',a:0.4,rho:600,liq:'water'}},
+    {name:'Лёд в воде: над водой лишь десятая часть',values:{shape:'cube',a:0.4,rho:917,liq:'water'}},
+    {name:'Сталь в воде: тонет',values:{shape:'cube',a:0.3,rho:7800,liq:'water'}},
+    {name:'Сталь в ртути: всплывает!',values:{shape:'cube',a:0.3,rho:7800,liq:'merc'}},
+    {name:'Шар ровно нейтральный (ρт = ρж)',values:{shape:'ball',a:0.3,rho:1000,liq:'water'}}
+  ],
+  anchors(s,p){ return [{x:0,y:-s.d+this.height(p)/2}]; },
+  dragPoints(p){ return [{x:0,y:0}]; },
+  dragMove(p,idx,x,y){ /* уровень жидкости фиксирован — тянуть нечего */ },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const spanY=p.depth+2.2, spanX=4.4;
+    const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-70)/(spanY*PX_PER_M)),1e-7,30);
+    return {x:0,y:-p.depth/2+0.5,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const W=1.9, D=p.depth, rl=this.rhoL(p);
+    // сосуд
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.4);
+    ctx.beginPath(); ctx.moveTo(-W,0.7); ctx.lineTo(-W,-D); ctx.lineTo(W,-D); ctx.lineTo(W,0.7); ctx.stroke();
+    // жидкость
+    ctx.fillStyle=sec; ctx.globalAlpha=.16; ctx.fillRect(-W,-D,2*W,D); ctx.globalAlpha=1;
+    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath(); ctx.moveTo(-W,0); ctx.lineTo(W,0); ctx.stroke();
+    v.label(ctx,`${this.nameOf[p.liq]}, ρж = ${rl} кг/м³`,-W,0,4,-10,sec);
+    // эпюра давления по стенке: p = ρgh растёт линейно с глубиной
+    if(p.press){
+      const pmax=rl*p.g*D, sc=0.9/Math.max(pmax,1);
+      ctx.strokeStyle=meas; ctx.globalAlpha=.65; ctx.lineWidth=v.lw(1.2);
+      ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W+pmax*sc,-D); ctx.lineTo(W,-D); ctx.stroke();
+      for(let i=1;i<=5;i++){
+        const h=D*i/5, pr=rl*p.g*h;
+        ctx.beginPath(); ctx.moveTo(W,-h); ctx.lineTo(W+pr*sc,-h); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+      v.label(ctx,`p = ρgh, на дне ${(pmax/1000).toFixed(1)} кПа`,W,-D,6,-8,meas);
+    }
+    // тело
+    /* Осадка s.d — насколько тело утоплено считая от его дна. Значит дно
+       лежит на y = −d, а центр — на полвысоты выше. (Раньше за центр брали
+       само дно, и тело рисовалось целиком под водой.) */
+    const H=this.height(p), yc=-s.d+H/2;
+    ctx.fillStyle=acc; ctx.globalAlpha=.30;
+    if(p.shape==='cube'){
+      ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
+    } else {
+      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
+      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.stroke();
+    }
+    v.label(ctx,`ρт = ${p.rho} кг/м³`,0,yc,-30,-H*20-8,acc);
+    // силы
+    if(p.forces){
+      const m=this.mass(p), Wt=m*p.g, FA=this.FA(p,s.d);
+      const kF=1.0/Math.max(Wt,FA,1);
+      v.arrow(ctx,0,yc,0,yc-Wt*kF,dang);
+      v.label(ctx,`mg = ${Wt.toFixed(1)} Н`,0,yc-Wt*kF,8,4,dang);
+      if(FA>1e-6){
+        v.arrow(ctx,0.16,yc,0.16,yc+FA*kF,sec);
+        v.label(ctx,`F_A = ${FA.toFixed(1)} Н`,0.16,yc+FA*kF,8,-4,sec);
+      }
+      // если лежит на дне — реакция дна
+      if(!this.floats(p) && s.d>=Math.min(H,D)-1e-6){
+        const N=Math.max(0,Wt-FA);
+        v.arrow(ctx,-0.16,-D,-0.16,-D+N*kF,meas);
+        v.label(ctx,`N = ${N.toFixed(1)} Н`,-0.16,-D+N*kF,-46,-4,meas);
+      }
+    }
+    // ватерлиния тела
+    if(s.d>0.001 && s.d<H){
+      ctx.strokeStyle=meas; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
+      ctx.beginPath(); ctx.moveTo(-p.a*0.9,0); ctx.lineTo(p.a*0.9,0); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,`под водой ${(100*this.subVol(p,s.d)/this.vol(p)).toFixed(0)} %`,p.a*0.9,0,6,14,meas);
+    }
+    // вывод
+    const f=this.floats(p);
+    v.label(ctx, f? `ρт < ρж — плавает, погружено ρт/ρж = ${(100*this.frac(p)).toFixed(1)} % объёма`
+                  : `ρт > ρж — тонет: веса больше, чем может вытолкнуть жидкость`,
+      -W,-D,0,26,f?sec:dang);
+    v.label(ctx,'сила Архимеда равна весу вытесненной жидкости, а не весу тела',
+      -W,-D,0,42,ink3);
+  }
+}
+,
+/* ============ МОМЕНТ ИМПУЛЬСА: ГИРОСКОП И ПРЕЦЕССИЯ ============
+   Орир, т.1. Момент силы тяжести перпендикулярен моменту импульса, поэтому
+   он не меняет |L|, а поворачивает его: dL/dt = M. Отсюда угловая скорость
+   прецессии
+       Ω = M / (L·sinθ) = m·g·d / (I·ω),
+   то есть чем быстрее раскручен волчок, тем МЕДЛЕННЕЕ он прецессирует.
+   Условие «быстрого волчка» (гироскопическое приближение): L ≫ I·Ω.       */
+gyro:{
+  title:'Гироскоп: почему волчок не падает',
+  params:[
+    {key:'m',  label:'Масса маховика',unit:'кг',min:0.05,max:20,step:0.05,default:1},
+    {key:'R',  label:'Радиус маховика',unit:'м',min:0.02,max:0.6,step:0.01,default:0.12},
+    {key:'d',  label:'Плечо: опора → центр масс',unit:'м',min:0.02,max:1,step:0.01,default:0.2},
+    {key:'rpm',label:'Обороты маховика',unit:'об/мин',min:0,max:12000,step:50,default:3000},
+    {key:'th', label:'Наклон оси к вертикали θ',unit:'°',min:5,max:90,step:1,default:70},
+    {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
+    {type:'group',label:'Показывать'},
+    {key:'vecs', label:'Векторы L, M и ΔL',type:'check',default:true},
+    {key:'trail',label:'След конца оси',type:'check',default:true}
+  ],
+  /* Диск: I = mR²/2 относительно собственной оси */
+  I(p){ return 0.5*p.m*p.R*p.R; },
+  w(p){ return p.rpm*2*Math.PI/60; },
+  L(p){ return this.I(p)*this.w(p); },
+  torque(p){ return p.m*p.g*p.d*Math.sin(p.th*Math.PI/180); },
+  /* Ω = mgd/(Iω) — не зависит от угла наклона */
+  prec(p){ const L=this.L(p); return L>1e-9? p.m*p.g*p.d/L : Infinity; },
+  Tprec(p){ const O=this.prec(p); return isFinite(O)&&O>1e-9? 2*Math.PI/O : Infinity; },
+  /* Быстрый ли волчок: приближение верно, когда прецессия много медленнее вращения */
+  fast(p){ const O=this.prec(p); return isFinite(O) && O<0.1*Math.abs(this.w(p)); },
+  init(p){ return {t:0, phi:0, trail:[], event:null, __stop:null}; },
+  step(s,dt,p){
+    s.t+=dt;
+    const O=this.prec(p);
+    if(isFinite(O)) s.phi+=O*dt;
+    if(p.trail){
+      const th=p.th*Math.PI/180;
+      s.trail.push([p.d*Math.sin(th)*Math.cos(s.phi), p.d*Math.sin(th)*Math.sin(s.phi)*0.42+p.d*Math.cos(th)]);
+      if(s.trail.length>420) s.trail.shift();
+    }
+    if(this.w(p)<1e-9 && !s.event){
+      s.event={type:'fall',t:s.t};
+      s.__stop='Маховик не раскручен: момент импульса нулевой — волчок просто падает';
+    }
+  },
+  readouts(s,p){
+    const O=this.prec(p), w=this.w(p);
+    return [['t',s.t,'с'],
+      ['момент инерции I = mR²/2',this.I(p),'кг·м²'],
+      ['угловая скорость ω',w,'рад/с'],
+      ['обороты',p.rpm,'об/мин'],
+      ['момент импульса L = Iω',this.L(p),'кг·м²/с'],
+      ['момент силы тяжести M = mgd·sinθ',this.torque(p),'Н·м'],
+      ['скорость прецессии Ω = mgd/(Iω)',isFinite(O)?O:NaN, isFinite(O)?'рад/с':'маховик стоит — прецессии нет'],
+      ['период прецессии',isFinite(this.Tprec(p))?this.Tprec(p):NaN,
+        isFinite(this.Tprec(p))?'с':'прецессии нет — маховик не раскручен'],
+      ['повернулось на',s.phi*180/Math.PI,'°'],
+      ['отношение Ω/ω',isFinite(O)&&w>1e-9?O/w:NaN, (isFinite(O)&&w>1e-9)?'':'ω = 0: отношение не определено'],
+      ['режим',0, this.fast(p)?'быстрый волчок: формула точна':'медленный: появятся нутации, формула приближённая']];
+  },
+  graphs:[
+    {label:'Угол прецессии',unit:'°',series:['φ'],get(s,p){ return [s.phi*180/Math.PI,null]; }},
+    {label:'Скорость прецессии Ω',unit:'рад/с',series:['Ω'],
+     get(s,p){ const O=SIMS.gyro.prec(p); return [isFinite(O)?O:0,null]; }}
+  ],
+  presets:[
+    {name:'Классический волчок: медленная прецессия',values:{m:1,R:0.12,d:0.2,rpm:3000,th:70}},
+    {name:'Раскрутили вдвое — прецессия вдвое медленнее',values:{m:1,R:0.12,d:0.2,rpm:6000,th:70}},
+    {name:'Замедляется — прецессия ускоряется',values:{m:1,R:0.12,d:0.2,rpm:600,th:70}},
+    {name:'Ось почти горизонтальна',values:{m:1,R:0.12,d:0.2,rpm:3000,th:88}},
+    {name:'Маховик стоит: волчок падает',values:{m:1,R:0.12,d:0.2,rpm:0,th:70}}
+  ],
+  anchors(s,p){
+    const th=p.th*Math.PI/180;
+    return [{x:0,y:0},{x:p.d*Math.sin(th)*Math.cos(s.phi), y:p.d*Math.cos(th)}];
+  },
+  dragPoints(p){ return [{x:0,y:p.d}]; },
+  dragMove(p,idx,x,y){ p.d=clamp(Math.round(Math.hypot(x,y)*100)/100,0.02,1); },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const span=Math.max(p.d*2.6+p.R*3,0.8);
+    const scale=clamp(Math.min((W-70)/(span*PX_PER_M),(H-70)/(span*PX_PER_M)),1e-7,30);
+    return {x:0,y:p.d*0.35,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const th=p.th*Math.PI/180, ph=s.phi;
+    /* Косая проекция: круг прецессии рисуем эллипсом (сжатие по вертикали),
+       чтобы читалось как объём, оставаясь честным по горизонтали. */
+    const KY=0.42;
+    const tip=[p.d*Math.sin(th)*Math.cos(ph), p.d*Math.sin(th)*Math.sin(ph)*KY+p.d*Math.cos(th)];
+    // опора и вертикаль
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.2);
+    ctx.beginPath(); ctx.moveTo(-p.d*0.5,-p.d*0.28); ctx.lineTo(p.d*0.5,-p.d*0.28); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,-p.d*0.28); ctx.lineTo(0,0); ctx.stroke();
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,p.d*1.35); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+    v.label(ctx,'вертикаль',0,p.d*1.35,4,-6,ink3);
+    // окружность, по которой ходит конец оси
+    const rr=p.d*Math.sin(th);
+    ctx.strokeStyle=sec; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1.2);
+    ctx.beginPath();
+    for(let i=0;i<=64;i++){ const a=i/64*2*Math.PI;
+      const x=rr*Math.cos(a), y=rr*Math.sin(a)*KY+p.d*Math.cos(th);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke(); ctx.globalAlpha=1;
+    // след
+    if(p.trail&&s.trail.length>1){
+      ctx.strokeStyle=meas; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.4);
+      ctx.beginPath(); s.trail.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+      ctx.stroke(); ctx.globalAlpha=1;
+    }
+    // ось волчка
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(tip[0],tip[1]); ctx.stroke();
+    // маховик — эллипс, перпендикулярный оси
+    const ax=Math.atan2(tip[1],tip[0]);
+    ctx.save(); ctx.translate(tip[0],tip[1]); ctx.rotate(ax+Math.PI/2);
+    ctx.fillStyle=acc; ctx.globalAlpha=.25;
+    ctx.beginPath(); ctx.ellipse(0,0,p.R,p.R*0.34,0,0,7); ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
+    ctx.beginPath(); ctx.ellipse(0,0,p.R,p.R*0.34,0,0,7); ctx.stroke();
+    // спица показывает собственное вращение
+    const spin=this.w(p)*s.t;
+    ctx.beginPath(); ctx.moveTo(0,0);
+    ctx.lineTo(p.R*Math.cos(spin), p.R*0.34*Math.sin(spin)); ctx.stroke();
+    ctx.restore();
+    v.label(ctx,`маховик ${p.rpm} об/мин`,tip[0],tip[1],-26,-p.R*20-12,acc);
+    // векторы
+    if(p.vecs){
+      const kL=p.d*0.8/Math.max(this.L(p),1e-6);
+      const ux=tip[0]/Math.max(Math.hypot(tip[0],tip[1]),1e-9), uy=tip[1]/Math.max(Math.hypot(tip[0],tip[1]),1e-9);
+      // L вдоль оси
+      v.arrow(ctx,0,0, ux*p.d*0.9, uy*p.d*0.9, sec);
+      v.label(ctx,`L = ${this.L(p).toFixed(3)}`,ux*p.d*0.9,uy*p.d*0.9,8,-6,sec);
+      // вес в центре масс
+      const kF=p.d*0.5/Math.max(p.m*p.g,1e-6);
+      v.arrow(ctx,tip[0],tip[1],tip[0],tip[1]-p.m*p.g*kF,dang);
+      v.label(ctx,`mg`,tip[0],tip[1]-p.m*p.g*kF,6,6,dang);
+      // ΔL = M·dt — перпендикулярно оси и горизонтально: именно туда «уходит» ось
+      const dx=-uy, dy=ux;
+      v.arrow(ctx,tip[0],tip[1],tip[0]+dx*p.d*0.35,tip[1]+dy*p.d*0.35,meas);
+      v.label(ctx,'ΔL = M·Δt',tip[0]+dx*p.d*0.35,tip[1]+dy*p.d*0.35,6,-6,meas);
+    }
+    // подписи
+    const O=this.prec(p);
+    v.label(ctx,`θ = ${p.th}°`,0,p.d*0.5,10,0,ink3);
+    v.label(ctx, isFinite(O)
+      ? `Ω = mgd/(Iω) = ${O.toFixed(3)} рад/с, период ${this.Tprec(p).toFixed(2)} с`
+      : 'без вращения момента импульса нет — держаться нечему',
+      -p.d*1.25,-p.d*0.55,0,0, isFinite(O)?ink3:dang);
+    v.label(ctx,'момент тяжести не роняет ось, а поворачивает её: чем быстрее волчок, тем медленнее прецессия',
+      -p.d*1.25,-p.d*0.55,0,16,ink3);
+    if(!this.fast(p)&&isFinite(O))
+      v.label(ctx,'волчок раскручен слабо: в жизни добавятся нутации — ось будет подрагивать',
+        -p.d*1.25,-p.d*0.55,0,32,meas);
+  }
+}
+
 });

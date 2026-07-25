@@ -57,6 +57,7 @@
       <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9zM12 10l4-4 6 6-4 4"/></svg></button>
       <div class="sep-h"></div>
       <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+      <button class="iconbtn" id="btn-coords" title="Координаты под курсором (K)"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m8 16 4-6 3 3 4-7" stroke-dasharray="2.5 2"/></svg></button>
       <button class="iconbtn" id="btn-trace" title="След за телами (T)"><svg viewBox="0 0 24 24"><path d="M3 17c4 0 5-10 9-10s5 6 9 6" stroke-dasharray="2.5 2.5"/><circle cx="21" cy="13" r="1.6" fill="currentColor" stroke="none"/></svg></button>
       <div class="sep-h"></div>
       <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>
@@ -115,6 +116,16 @@
         <div class="empty" id="nosim" style="position:absolute;inset:0;display:grid;place-items:center;background:var(--canvas)">
           Нажмите ▷ в углу формулы — здесь откроется её симуляция.</div>
       </div>
+      <!-- Шкала времени: перемотка записанной истории, как в видеоредакторе.
+           Пишем состояние по ходу расчёта и позволяем вернуться назад. -->
+      <div class="timeline" id="timeline">
+        <button class="iconbtn tl-btn" id="tl-prev" title="Шаг назад (,)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7M6 5v14"/></svg></button>
+        <button class="iconbtn tl-btn" id="tl-next" title="Шаг вперёд (.)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7M18 5v14"/></svg></button>
+        <input class="tl-range" id="tl-range" type="range" min="0" max="0" step="1" value="0" title="Перемотка по записи">
+        <span class="tl-time" id="tl-time">t = 0.00 c</span>
+        <button class="iconbtn tl-btn" id="tl-loop" title="Зациклить проигрывание (Ctrl+L)"><svg viewBox="0 0 24 24"><path d="M4 10a5 5 0 0 1 5-5h9m0 0-3-3m3 3-3 3M20 14a5 5 0 0 1-5 5H6m0 0 3 3m-3-3 3-3"/></svg></button>
+        <button class="iconbtn tl-btn" id="tl-live" title="Вернуться к живому расчёту"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9"/></svg></button>
+      </div>
       <div class="hsplit" id="hsplit" title="Потяните, чтобы изменить высоту панели. Двойной клик — свернуть"></div>
       <div class="simbottom" id="simbottom">
         <div class="msheet-head" id="msheet-head">
@@ -124,7 +135,12 @@
         </div>
         <div class="gbox" id="gbox"></div>
         <div class="pbox">
-          <div class="sec-label">Параметры</div>
+          <div class="sec-label pbox-head">
+            <span>Параметры</span>
+            <input class="pfilter" id="pfilter" type="search" placeholder="фильтр…" title="Показать только подходящие параметры">
+            <button class="iconbtn pbox-btn" id="btn-pdefaults" title="Все параметры — по умолчанию"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+            <button class="iconbtn pbox-btn" id="btn-prand" title="Случайные значения (эксперимент)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.3" fill="currentColor" stroke="none"/></svg></button>
+          </div>
           <div id="params"></div>
         </div>
       </div>
