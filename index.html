@@ -29,6 +29,7 @@
     <div class="sep"></div>
     <button class="iconbtn on" id="tab-topics" title="Разделы"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
     <button class="iconbtn" id="tab-search" title="Поиск (Ctrl+K)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+    <button class="iconbtn" id="btn-cmdk" title="Командная палитра (Ctrl+P)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg></button>
     <button class="iconbtn" id="tab-marks" title="Закладки"><svg viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4z"/></svg></button>
     <div class="spacer"></div>
     <div class="crumb" id="crumb">Phy.Sim</div>
@@ -39,17 +40,31 @@
   </div>
 
   <div class="body">
-    <div class="rail">
+    <div class="rail" id="rail">
       <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z"/></svg></button>
+      <button class="iconbtn tool" data-tool="probe" title="Пробник: координаты и величины в точке (Q)"><svg viewBox="0 0 24 24"><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/><circle cx="12" cy="12" r="2.2"/></svg></button>
+      <button class="iconbtn tool" data-tool="marquee" title="Зум рамкой: обвести область (M)"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button>
       <div class="sep-h"></div>
       <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg></button>
       <button class="iconbtn tool" data-tool="ruler" title="Линейка (L)"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1" transform="rotate(-20 12 12)"/><path d="M7 9.5v2M11 8v3M15 6.5v3"/></svg></button>
+      <button class="iconbtn tool" data-tool="dim" title="Размерная линия с выносками (D)"><svg viewBox="0 0 24 24"><path d="M4 6v12M20 6v12M4 12h16M6 10l-2 2 2 2M18 10l2 2-2 2"/></svg></button>
       <button class="iconbtn tool" data-tool="vector" title="Векторная линия (Y)"><svg viewBox="0 0 24 24"><path d="M4 20 19 5m0 0h-6m6 0v6"/></svg></button>
+      <button class="iconbtn tool" data-tool="angle" title="Транспортир: угол по трём точкам (G)"><svg viewBox="0 0 24 24"><path d="M5 19h15M5 19 17 7"/><path d="M13 19a8 8 0 0 0-2.3-5.6"/></svg></button>
+      <button class="iconbtn tool" data-tool="circle" title="Окружность от центра (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><path d="M12 12l5.6 5.6"/></svg></button>
+      <button class="iconbtn tool" data-tool="area" title="Площадь многоугольника (Shift+A)"><svg viewBox="0 0 24 24"><path d="M4 18 8 6l7 3 5 9z"/></svg></button>
+      <button class="iconbtn tool" data-tool="note" title="Заметка на сцене (N)"><svg viewBox="0 0 24 24"><path d="M4 5h16v10l-4 4H4z"/><path d="M16 19v-4h4M7 9h10M7 13h6"/></svg></button>
+      <button class="iconbtn tool" data-tool="guide" title="Направляющая линия (U)"><svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18" stroke-dasharray="3 3"/><path d="M6 4v16"/></svg></button>
       <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9zM12 10l4-4 6 6-4 4"/></svg></button>
       <div class="sep-h"></div>
       <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+      <button class="iconbtn" id="btn-trace" title="След за телами (T)"><svg viewBox="0 0 24 24"><path d="M3 17c4 0 5-10 9-10s5 6 9 6" stroke-dasharray="2.5 2.5"/><circle cx="21" cy="13" r="1.6" fill="currentColor" stroke="none"/></svg></button>
       <div class="sep-h"></div>
       <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>
+      <!-- Инструменты конкретной симуляции (конструктор цепей, машины Атвуда
+           и т.п.) добавляются сюда во время работы — раньше они прятались
+           только в контекстном меню по правой кнопке. -->
+      <div class="sep-h simtools-sep" id="simtools-sep" style="display:none"></div>
+      <div class="simtools" id="simtools"></div>
     </div>
 
     <aside class="sidebar" id="sidebar">
@@ -82,6 +97,7 @@
         <button class="iconbtn" id="btn-graph" title="Графики" aria-pressed="true" style="width:26px;height:24px">
           <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7 15l4-5 3 3 5-7"/></svg></button>
         <span class="clock" id="clock">t = 0.00 c</span>
+        <button class="iconbtn mobile-only" id="m-cmdk" title="Командная палитра"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg></button>
         <button class="iconbtn mobile-only" id="m-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button class="iconbtn mobile-only" id="m-menu" title="Меню симуляции"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></button>
       </div>
@@ -153,7 +169,7 @@
     </div>
     <div class="group">
       <button class="iconbtn" id="btn-zout"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
-      <input class="zoomval" id="zoomval" value="100%" title="Zoom 0.2%–3000% (можно вписать своё значение)">
+      <input class="zoomval" id="zoomval" value="100%" title="Масштаб 0.00001%–3000% (можно вписать своё значение)">
       <button class="iconbtn" id="btn-zin"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
     <button class="iconbtn" id="btn-fit" title="Вписать (0)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
@@ -166,6 +182,9 @@
   <button class="item" id="mi-save"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg>Сохранить параметры</button>
   <button class="item" id="mi-rec"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span id="rec-label">Записать симуляцию (WebM)</span></button>
   <button class="item" id="mi-png"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-2 4 3"/></svg>Снимок кадра (PNG)</button>
+  <button class="item" id="mi-snap"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M9 12h6M12 9v6"/></svg>Снимок для сравнения</button>
+  <button class="item" id="mi-copyout"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>Скопировать показания</button>
+  <button class="item" id="mi-cmdk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg>Командная палитра</button>
   <button class="item" id="mi-reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Всё сбросить</button>
   <div class="ttl">Сохранённые параметры</div><div id="presets"></div>
 </div>
@@ -191,6 +210,28 @@
   <div style="margin-top:16px;text-align:right"><button class="btn primary" id="kb-close">Закрыть</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
+
+<!-- Командная палитра (Ctrl+P / Ctrl+Shift+P): быстрый переход к теме,
+     симуляции, настройке или действию — как в Obsidian и VS Code. -->
+<div class="cmdk hidden" id="cmdk">
+  <div class="cmdk-box">
+    <input class="cmdk-inp" id="cmdk-inp" type="text" autocomplete="off" spellcheck="false"
+           placeholder="Тема, симуляция, действие…  (&gt; — только команды)">
+    <div class="cmdk-list" id="cmdk-list"></div>
+    <div class="cmdk-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> выбор</span><span><kbd>Enter</kbd> открыть</span>
+      <span><kbd>&gt;</kbd> команды</span><span><kbd>Esc</kbd> закрыть</span>
+    </div>
+  </div>
+</div>
+
+<!-- Панель сравнения: снимок состояния и разница с текущим -->
+<div class="cmpbox hidden" id="cmpbox">
+  <div class="cmp-head"><b>Сравнение со снимком</b>
+    <button class="iconbtn" id="cmp-close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="cmp-body" id="cmp-body"></div>
+</div>
 
 <!-- Экран доступа: пособие открывается только по паролю. Проверка идёт по
      SHA-256-хэшу на устройстве; сам пароль нигде в коде не хранится. -->

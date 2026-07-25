@@ -5,6 +5,7 @@ const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSO
 const RT={};
 const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:false,graphOn:true,rec:null,speed:1,
   snap:LS.get('snap',true), marks:LS.get('marks',[]), open:LS.get('open',['intro','mech']),
+  trace:LS.get('trace',false), probe:null, recent:LS.get('recent',[]),
   settings:LS.get('settings',{theme:'light',fs:12,quality:'high',bgPause:true,videoQ:'med',nums:true,hud:true,events:true,energy:true})};
 
 function rt(id){
@@ -47,6 +48,16 @@ const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim
 const VIEW={
   get quality(){return S.settings.quality}, c:css,
   lw:px=>px*(S.settings.lineW||1)/ppm(),
+  /* Подписи на сцене. Позиции в симуляциях заданы вручную пиксельными
+     сдвигами, поэтому на разных зумах и наборах параметров они наезжали друг
+     на друга и уползали за кадр. Раскладку чиним здесь, централизованно —
+     как это делают CAD и библиотеки графиков:
+       1) подпись прижимается внутрь кадра, если вылезла за край;
+       2) если она перекрыла уже нарисованную, её сдвигаем по вертикали до
+          свободного места (несколько попыток вверх/вниз).
+     Список занятых прямоугольников обнуляется каждый кадр (labelFrame). */
+  _lbl:[],
+  labelFrame(){ this._lbl.length=0; },
   label(ctx,text,wx,wy,dx=0,dy=0,color){
     if(S.settings.nums===false){                       // режим «без чисел»
       text=String(text).replace(/=\s*[-+]?[\d.,]+(?:e[-+]?\d+)?\s*[^\s,;]*/gi,'')
@@ -56,7 +67,37 @@ const VIEW={
     const [sx,sy]=toScreen(wx,wy);
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.fillStyle=color||css('--ink-2'); ctx.font='11px ui-monospace,monospace'; ctx.textBaseline='middle';
-    ctx.fillText(text,sx+dx,sy+dy); ctx.restore();
+    let x=sx+dx, y=sy+dy;
+    if(S.settings.labelFix!==false && isFinite(x) && isFinite(y)){
+      // 0) длинные пояснения ужимаем по кеглю, пока не влезут в кадр
+      let w=ctx.measureText(text).width;
+      if(w>CW-6){
+        for(let fs=10;fs>=8&&w>CW-6;fs--){
+          ctx.font=fs+'px ui-monospace,monospace';
+          w=ctx.measureText(text).width;
+        }
+      }
+      const h=12;
+      // 1) вернуть в кадр
+      x=Math.max(2,Math.min(x,CW-w-2));
+      y=Math.max(8,Math.min(y,CH-6));
+      // 2) развести с уже нарисованными
+      const hit=(yy)=>this._lbl.some(r=>
+        x < r.x+r.w+3 && x+w+3 > r.x && yy-h/2 < r.y+r.h && yy+h/2 > r.y-0);
+      if(hit(y)){
+        const step=13;
+        let placed=false;
+        for(let i=1;i<=6&&!placed;i++){
+          for(const cand of [y+step*i, y-step*i]){
+            if(cand<8||cand>CH-6) continue;
+            if(!hit(cand)){ y=cand; placed=true; break; }
+          }
+        }
+      }
+      this._lbl.push({x,y:y-h/2,w,h});
+      if(this._lbl.length>400) this._lbl.shift();      // страховка от разрастания
+    }
+    ctx.fillText(text,x,y); ctx.restore();
   },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
      o = { x, y,                      точка приложения (центр тела)
@@ -205,6 +246,7 @@ const fmt=v=>{
 
 function drawAll(){
   const a=A(); if(!a) return;
+  VIEW.labelFrame();                       // новый кадр — раскладка подписей с чистого листа
   applyWorld(sctx);
   if(S.settings.grid!==false) drawGrid(sctx);
   /* Сцену рисуем в собственном состоянии холста. Внутри draw бывают ранние
@@ -230,7 +272,111 @@ function drawAll(){
       const [x1,y1,x2,y2]=an.p;
       VIEW.arrow(octx,x1,y1,x2,y2,css('--accent'));
       VIEW.label(octx,`${Math.hypot(x2-x1,y2-y1).toFixed(2)} ∠${(Math.atan2(y2-y1,x2-x1)*180/Math.PI).toFixed(0)}°`,x2,y2,8,-8,css('--accent'));
+    } else if(an.type==='dim'){
+      /* Размерная линия как в чертеже: сама линия со стрелками на концах
+         и две выноски-перпендикуляра от измеряемых точек. */
+      const [x1,y1,x2,y2]=an.p, dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1e-9;
+      const nx=-dy/L, ny=dx/L, off=VIEW.lw(14);
+      const ax=x1+nx*off, ay=y1+ny*off, bx=x2+nx*off, by=y2+ny*off;
+      octx.strokeStyle=css('--measure'); octx.lineWidth=VIEW.lw(1);
+      octx.beginPath();
+      octx.moveTo(x1,y1); octx.lineTo(ax+nx*off*0.25,ay+ny*off*0.25);
+      octx.moveTo(x2,y2); octx.lineTo(bx+nx*off*0.25,by+ny*off*0.25);
+      octx.stroke();
+      VIEW.arrow(octx,ax,ay,bx,by,css('--measure'));
+      VIEW.arrow(octx,bx,by,ax,ay,css('--measure'));
+      VIEW.label(octx,`${L.toFixed(2)} м`,(ax+bx)/2,(ay+by)/2,-16,-8,css('--measure'));
+    } else if(an.type==='circle'){
+      const [cx0,cy0,px2,py2]=an.p, R=Math.hypot(px2-cx0,py2-cy0);
+      octx.strokeStyle=css('--second'); octx.lineWidth=VIEW.lw(1.4);
+      octx.beginPath(); octx.arc(cx0,cy0,R,0,7); octx.stroke();
+      octx.setLineDash([VIEW.lw(3),VIEW.lw(3)]);
+      octx.beginPath(); octx.moveTo(cx0,cy0); octx.lineTo(px2,py2); octx.stroke();
+      octx.setLineDash(EMPTY_DASH);
+      VIEW.label(octx,`R = ${R.toFixed(2)} м   S = ${(Math.PI*R*R).toFixed(2)} м²`,cx0,cy0,8,-10,css('--second'));
+    } else if(an.type==='angle'&&an.pts.length>=2){
+      // транспортир: вершина — вторая точка
+      const P=an.pts, col=css('--accent');
+      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(1.4);
+      octx.beginPath(); P.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1])); octx.stroke();
+      if(P.length>=3){
+        const [A1,V0,B1]=P;
+        const a1=Math.atan2(A1[1]-V0[1],A1[0]-V0[0]), a2=Math.atan2(B1[1]-V0[1],B1[0]-V0[0]);
+        let d=a2-a1; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI;
+        const R=Math.min(Math.hypot(A1[0]-V0[0],A1[1]-V0[1]),Math.hypot(B1[0]-V0[0],B1[1]-V0[1]))*0.4;
+        octx.beginPath();
+        for(let i=0;i<=30;i++){ const t=a1+d*i/30, x=V0[0]+R*Math.cos(t), y=V0[1]+R*Math.sin(t); i?octx.lineTo(x,y):octx.moveTo(x,y); }
+        octx.stroke();
+        VIEW.label(octx,`${Math.abs(d*180/Math.PI).toFixed(1)}°`,V0[0]+R*Math.cos(a1+d/2),V0[1]+R*Math.sin(a1+d/2),8,-6,col);
+      }
+    } else if(an.type==='area'&&an.pts.length>=2){
+      const P=an.pts, col=css('--second');
+      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(1.4);
+      octx.beginPath(); P.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1]));
+      if(P.length>=3){
+        octx.closePath();
+        octx.fillStyle=col; octx.globalAlpha=.14; octx.fill(); octx.globalAlpha=1;
+      }
+      octx.stroke();
+      if(P.length>=3){
+        // площадь по формуле шнурования (Гаусса)
+        let S2=0, cx0=0, cy0=0;
+        for(let i=0;i<P.length;i++){ const j=(i+1)%P.length; S2+=P[i][0]*P[j][1]-P[j][0]*P[i][1]; cx0+=P[i][0]; cy0+=P[i][1]; }
+        let per=0; for(let i=0;i<P.length;i++){ const j=(i+1)%P.length; per+=Math.hypot(P[j][0]-P[i][0],P[j][1]-P[i][1]); }
+        VIEW.label(octx,`S = ${Math.abs(S2/2).toFixed(2)} м²   P = ${per.toFixed(2)} м`,
+          cx0/P.length,cy0/P.length,-40,0,col);
+      }
+    } else if(an.type==='note'){
+      const [x,y]=an.p, col=css('--measure');
+      octx.fillStyle=col; octx.beginPath(); octx.arc(x,y,VIEW.lw(3),0,7); octx.fill();
+      VIEW.label(octx,an.text,x,y,10,-8,col);
+    } else if(an.type==='guide'){
+      const [x,y]=an.p;
+      const [wx0,wy1]=toWorld(0,0), [wx1,wy0]=toWorld(CW,CH);
+      octx.strokeStyle=css('--accent'); octx.globalAlpha=.55;
+      octx.lineWidth=VIEW.lw(1); octx.setLineDash([VIEW.lw(6),VIEW.lw(4)]);
+      octx.beginPath();
+      if(an.dir==='v'){ octx.moveTo(x,wy0); octx.lineTo(x,wy1); }
+      else { octx.moveTo(wx0,y); octx.lineTo(wx1,y); }
+      octx.stroke(); octx.setLineDash(EMPTY_DASH); octx.globalAlpha=1;
+      VIEW.label(octx,an.dir==='v'?`x = ${x.toFixed(2)}`:`y = ${y.toFixed(2)}`,
+        an.dir==='v'?x:wx0, an.dir==='v'?wy0:y, 6, -6, css('--accent'));
+    } else if(an.type==='marquee'){
+      const [x1,y1,x2,y2]=an.p;
+      octx.strokeStyle=css('--accent'); octx.lineWidth=VIEW.lw(1);
+      octx.setLineDash([VIEW.lw(4),VIEW.lw(3)]);
+      octx.strokeRect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));
+      octx.setLineDash(EMPTY_DASH);
     }
+  }
+  // отметка пробника
+  if(S.probe){
+    const col=css('--danger'), {x,y}=S.probe;
+    octx.strokeStyle=col; octx.lineWidth=VIEW.lw(1.2);
+    const r=VIEW.lw(7);
+    octx.beginPath(); octx.moveTo(x-r,y); octx.lineTo(x+r,y); octx.moveTo(x,y-r); octx.lineTo(x,y+r); octx.stroke();
+    octx.beginPath(); octx.arc(x,y,r*0.55,0,7); octx.stroke();
+    VIEW.label(octx,S.probe.text,x,y,10,-12,col);
+  }
+  /* След за телами: копим позиции якорей и рисуем путь. Инструмент общий —
+     работает в любой симуляции, объявляющей anchors(). */
+  if(S.trace&&a.def.anchors){
+    const pts=a.def.anchors(a.state,a.params)||[];
+    a.tracePts=a.tracePts||[];
+    if(S.playing){
+      pts.forEach((q,i)=>{
+        (a.tracePts[i]=a.tracePts[i]||[]).push([q.x,q.y]);
+        if(a.tracePts[i].length>900) a.tracePts[i].shift();
+      });
+    }
+    const cols=[css('--accent'),css('--second'),css('--measure'),css('--danger')];
+    a.tracePts.forEach((path,i)=>{
+      if(!path||path.length<2) return;
+      octx.strokeStyle=cols[i%cols.length]; octx.globalAlpha=.55;
+      octx.lineWidth=VIEW.lw(1.4); octx.lineJoin='round';
+      octx.beginPath(); path.forEach((q,j)=>j?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1]));
+      octx.stroke(); octx.globalAlpha=1;
+    });
   }
   if(S.snap&&S.tool!=='pan'){
     octx.fillStyle=css('--measure'); octx.globalAlpha=.7;
@@ -340,7 +486,7 @@ function loop(now){
       }
     }
   }
-  if(a&&!idle){ drawAll(); drawGraphs(); }
+  if(a&&!idle){ drawAll(); drawGraphs(); updateCompare(); }
   frames++;
   if(now-fpsT>800){ $('#fps').textContent=Math.round(frames/((now-fpsT)/1000))+' fps'; frames=0; fpsT=now; }
   requestAnimationFrame(loop);
@@ -489,6 +635,16 @@ function stopEvent(a){
 }
 
 /* ============================== ДЕРЕВО ТЕМ ============================== */
+/* Закладка на тему: используется и звёздочкой в дереве, и клавишей S. */
+function toggleMark(id){
+  if(!id) return;
+  const i=S.marks.indexOf(id);
+  i<0? S.marks.push(id) : S.marks.splice(i,1);
+  LS.set('marks',S.marks);
+  renderTree($('#search').value);
+  const t=ALL.find(x=>x.id===id);
+  toast((i<0?'В закладки: ':'Убрано из закладок: ')+(t?t.title:id));
+}
 function renderTree(q=''){
   const box=$('#tree'); box.innerHTML=''; q=q.trim().toLowerCase();
   let total=0;
@@ -517,9 +673,7 @@ function renderTree(q=''){
       b.className='topic-item'+(S.topic&&S.topic.id===t.id?' active':'')+(ready?'':' wip')+(sec.hard?' hard':'');
       const st=document.createElement('span');
       st.className='star'+(S.marks.includes(t.id)?' on':''); st.textContent='★';
-      st.onclick=e=>{ e.stopPropagation();
-        const i=S.marks.indexOf(t.id); i<0?S.marks.push(t.id):S.marks.splice(i,1);
-        LS.set('marks',S.marks); renderTree($('#search').value); };
+      st.onclick=e=>{ e.stopPropagation(); toggleMark(t.id); };
       const ch=document.createElement('span'); ch.className='ch'; ch.textContent=t.ch?t.ch+'.':'§';
       const tx=document.createElement('span'); tx.textContent=t.title; tx.style.flex='1';
       b.append(st,ch,tx);
@@ -536,6 +690,9 @@ function openTopic(id){
   const t=ALL.find(x=>x.id===id); if(!t) return;
   S.topic=t; S.tab='notes';
   LS.set('lastTopic',t.id);
+  // список недавних тем — для быстрого возврата через палитру
+  S.recent=[t.id].concat((S.recent||[]).filter(x=>x!==t.id)).slice(0,12);
+  LS.set('recent',S.recent);
   $('#t-title').textContent=t.title;
   $('#t-sub').textContent = t.ch ? `${t.section} · тема ${t.ch} · по Дж. Ориру, «Физика»` : `${t.section} · руководство`;
   $('#crumb').textContent=t.section;
@@ -655,7 +812,8 @@ function openSim(id){
   const sel=$('#simsel'); if([...sel.options].some(o=>o.value===id)) sel.value=id;
   $('#eventflag').classList.add('hidden');
   S.playing=true; setPlayIcon(); acc=0;
-  renderParams(); buildGraphs(); renderPresets();
+  S.probe=null; a.tracePts=[];
+  renderParams(); buildGraphs(); renderPresets(); renderSimTools();
   requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
 }
 function renderParams(){
@@ -682,16 +840,46 @@ function renderParams(){
       d.innerHTML=`<div class="name">${p.label}</div>
         <div class="numfield">
           <button class="dec" tabindex="-1">−</button>
-          <input type="number" step="${p.step}" min="${p.min}" max="${p.max}" value="${a.params[p.key]}">
+          <!-- text, а не number: браузер отбрасывает у number всё нечисловое,
+               и выражения вида «2*9.8» просто не доходили бы до обработчика.
+               inputmode="decimal" всё равно поднимает числовую клавиатуру. -->
+          <input type="text" inputmode="decimal" data-num="1"
+                 step="${p.step}" min="${p.min}" max="${p.max}" value="${a.params[p.key]}">
           <button class="inc" tabindex="-1">+</button>
         </div><div class="unit">${p.unit||''}</div>`;
       const inp=d.querySelector('input');
       const put=v=>{ if(Number.isNaN(v)) v=p.default; v=clamp(round(v,p.step),p.min,p.max); inp.value=v; commit(p.key,v); };
-      inp.onchange=()=>put(parseFloat(String(inp.value).replace(',','.')));
-      inp.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); };
+      /* Поле принимает не только число, но и выражение: «2*9.8», «1/3», «5+2».
+         Так работают числовые поля в Blender и CAD — считать в уме не нужно. */
+      const evalNum=str=>{
+        const s=String(str).replace(',','.').trim();
+        if(/^[-+]?[\d.]+(e[-+]?\d+)?$/i.test(s)) return parseFloat(s);
+        if(!/^[-+*/().\d\s eE]+$/.test(s)) return NaN;      // только арифметика
+        try{ const r=Function('"use strict";return('+s+')')(); return typeof r==='number'&&isFinite(r)?r:NaN; }
+        catch(_){ return NaN; }
+      };
+      inp.onchange=()=>put(evalNum(inp.value));
+      inp.onkeydown=e=>{
+        e.stopPropagation();
+        if(e.key==='Enter'){ inp.blur(); return; }
+        // стрелки меняют значение шагами, с Shift — в десять раз крупнее
+        if(e.key==='ArrowUp'||e.key==='ArrowDown'){
+          e.preventDefault();
+          const st=p.step*(e.shiftKey?10:1)*(e.key==='ArrowUp'?1:-1);
+          put((evalNum(inp.value)||0)+st);
+        }
+      };
+      // колесо над полем тоже меняет значение — привычно по CAD
+      inp.addEventListener('wheel',e=>{
+        if(document.activeElement!==inp) return;
+        e.preventDefault();
+        put((evalNum(inp.value)||0)+p.step*(e.shiftKey?10:1)*(e.deltaY<0?1:-1));
+      },{passive:false});
       d.querySelector('.dec').onclick=()=>put(+inp.value-p.step);
       d.querySelector('.inc').onclick=()=>put(+inp.value+p.step);
-      d.title=`допустимый диапазон: ${p.min} … ${p.max}`;
+      // средняя кнопка по строке параметра — вернуть значение по умолчанию
+      d.addEventListener('auxclick',e=>{ if(e.button===1){ e.preventDefault(); put(p.default); toast(p.label+': по умолчанию'); } });
+      d.title=`допустимый диапазон: ${p.min} … ${p.max}\nможно вписать выражение (2*9.8), стрелки и колесо меняют шагами, средняя кнопка — сброс`;
     }
     box.append(d);
   }
@@ -780,9 +968,43 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   if(S.tool==='pan'){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
   const [sx,sy]=snapPt(wx,wy);
   if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]]}; drag={mode:'draw'}; }
-  else if(S.tool==='ruler'||S.tool==='vector'){ a.draft={type:S.tool,p:[sx,sy,sx,sy]}; drag={mode:'draw'}; }
+  else if(S.tool==='ruler'||S.tool==='vector'||S.tool==='dim'||S.tool==='circle'){
+    a.draft={type:S.tool,p:[sx,sy,sx,sy]}; drag={mode:'draw'};
+  }
   else if(S.tool==='eraser'){ annSnapshot(a); erase(wx,wy); drag={mode:'erase'}; }
+  else if(S.tool==='marquee'){ drag={mode:'marquee',x0:wx,y0:wy}; a.draft={type:'marquee',p:[wx,wy,wx,wy]}; }
+  else if(S.tool==='probe'){ probeAt(wx,wy); drag={mode:'probe'}; }
+  else if(S.tool==='guide'){
+    annSnapshot(a);
+    // ЛКМ — горизонтальная направляющая, с Alt — вертикальная
+    a.annos.push({type:'guide',p:[sx,sy],dir:e.altKey?'v':'h'});
+    toast(e.altKey?'Вертикальная направляющая':'Горизонтальная направляющая (Alt — вертикальная)');
+  }
+  else if(S.tool==='note'){
+    const txt=prompt('Текст заметки:');
+    if(txt&&txt.trim()){ annSnapshot(a); a.annos.push({type:'note',p:[sx,sy],text:txt.trim()}); }
+  }
+  else if(S.tool==='angle'||S.tool==='area'){
+    /* Многоточечные инструменты: копим вершины кликами, замыкаем двойным
+       кликом, клавишей Enter или (для угла) третьей точкой. */
+    if(!a.draft||a.draft.type!==S.tool) a.draft={type:S.tool,pts:[]};
+    a.draft.pts.push([sx,sy]);
+    if(S.tool==='angle'&&a.draft.pts.length===3){ annSnapshot(a); a.annos.push(a.draft); a.draft=null; }
+    else if(S.tool==='area'&&e.detail>=2&&a.draft.pts.length>=4){
+      a.draft.pts.pop(); annSnapshot(a); a.annos.push(a.draft); a.draft=null;
+    }
+  }
 });
+/* Пробник: показывает координаты точки и величины симуляции в ней */
+function probeAt(wx,wy){
+  const a=A(); if(!a) return;
+  const parts=[`x = ${wx.toFixed(3)} м`,`y = ${wy.toFixed(3)} м`];
+  if(a.def.probe){ try{ for(const [l,v,u] of a.def.probe(a.state,a.params,wx,wy)) parts.push(`${l} = ${fmt(v)} ${u||''}`.trim()); }catch(_){} }
+  const txt=parts.join('   ');
+  S.probe={x:wx,y:wy,text:txt};
+  copyText(txt.replace(/\s{2,}/g,'; '));
+  toast(txt+' — скопировано');
+}
 addEventListener('pointermove',e=>{
   const a=A(); if(!drag||!a) return;
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
@@ -800,6 +1022,7 @@ addEventListener('pointermove',e=>{
     if(a.draft.type==='pencil') a.draft.pts.push([wx,wy]);
     else { a.draft.p[2]=sx; a.draft.p[3]=sy; }
   } else if(drag.mode==='erase') erase(wx,wy);
+  else if(drag.mode==='marquee'&&a.draft){ a.draft.p[2]=wx; a.draft.p[3]=wy; }
 });
 /* pointercancel — отдельный случай: система может забрать жест себе
    (звонок, системный свайп, переключение окна), и тогда pointerup НЕ придёт.
@@ -817,6 +1040,16 @@ addEventListener('pointerup',()=>{
     const ok=d.type==='pencil'?d.pts.length>2:Math.hypot(d.p[2]-d.p[0],d.p[3]-d.p[1])>0.05;
     if(ok){ annSnapshot(a); a.annos.push(d); }
   }
+  // зум рамкой: вписываем обведённую область в кадр
+  if(a&&drag&&drag.mode==='marquee'&&a.draft){
+    const [x1,y1,x2,y2]=a.draft.p;
+    const w=Math.abs(x2-x1), h=Math.abs(y2-y1);
+    if(w>1e-6&&h>1e-6&&CW&&CH){
+      const sc=clamp(Math.min(CW/(w*PX_PER_M),CH/(h*PX_PER_M))*0.92,ZMIN,ZMAX);
+      a.view.scale=sc; a.view.x=(x1+x2)/2; a.view.y=(y1+y2)/2; setZoom();
+    }
+    a.draft=null;
+  }
   if(drag&&drag.mode==='dragpt'&&drag.wasPlaying){         // возобновляем время, если оно шло до перетаскивания
     S.playing=true; setPlayIcon(); acc=0;
   }
@@ -828,7 +1061,10 @@ addEventListener('pointerup',()=>{
     a.def.wireEnd(a.params, drag.handle);
     a.state=a.def.init(a.params);
   }
-  if(a) a.draft=null;
+  /* Черновик сбрасываем, КРОМЕ многоточечных инструментов (транспортир,
+     площадь): у них вершины копятся между кликами, а завершает набор
+     двойной клик или Enter. */
+  if(a&&!(a.draft&&(a.draft.type==='area'||a.draft.type==='angle'))) a.draft=null;
   drag=null;
 });
 /* ===== ИСТОРИЯ ПОМЕТОК: карандаш, линейка, вектор, резинка отменяются по Ctrl+Z ===== */
@@ -846,11 +1082,26 @@ function annUndo(){
 }
 function erase(x,y){
   const a=A(), r=12/ppm();
+  const nearSeg=(x1,y1,x2,y2)=>{
+    const dx=x2-x1, dy=y2-y1, L2=dx*dx+dy*dy||1e-9;
+    const t=clamp(((x-x1)*dx+(y-y1)*dy)/L2,0,1);
+    return Math.hypot(x1+t*dx-x,y1+t*dy-y)<=r;
+  };
   a.annos=a.annos.filter(an=>{
     if(an.type==='pencil') return !an.pts.some(q=>Math.hypot(q[0]-x,q[1]-y)<r);
-    const [x1,y1,x2,y2]=an.p, dx=x2-x1, dy=y2-y1, L2=dx*dx+dy*dy||1e-9;
-    const t=clamp(((x-x1)*dx+(y-y1)*dy)/L2,0,1);
-    return Math.hypot(x1+t*dx-x,y1+t*dy-y)>r;
+    if(an.type==='angle'||an.type==='area'){
+      const P=an.pts;
+      for(let i=0;i<P.length-1;i++) if(nearSeg(P[i][0],P[i][1],P[i+1][0],P[i+1][1])) return false;
+      if(an.type==='area'&&P.length>2&&nearSeg(P[P.length-1][0],P[P.length-1][1],P[0][0],P[0][1])) return false;
+      return true;
+    }
+    if(an.type==='note') return Math.hypot(an.p[0]-x,an.p[1]-y)>r;
+    if(an.type==='guide') return an.dir==='v'? Math.abs(an.p[0]-x)>r : Math.abs(an.p[1]-y)>r;
+    if(an.type==='circle'){
+      const R=Math.hypot(an.p[2]-an.p[0],an.p[3]-an.p[1]);
+      return Math.abs(Math.hypot(x-an.p[0],y-an.p[1])-R)>r;
+    }
+    return !nearSeg(an.p[0],an.p[1],an.p[2],an.p[3]);
   });
 }
 $('#cwrap').addEventListener('wheel',e=>{
@@ -885,8 +1136,15 @@ function dropTouch(e){
 }
 addEventListener('pointerup',dropTouch);
 addEventListener('pointercancel',dropTouch);
-const ZMIN=0.002, ZMAX=30;                     // 0.2% … 3000%
-function zoomLabel(v){ const p=v*100; return (p<10?p.toFixed(p<1?2:1):Math.round(p))+'%'; }
+/* Нижний предел зума опущен до 1e-7: иначе сцены планетарного масштаба
+   (пример «Экватор Земли», R = 6370 км) не помещались в кадр — fit упирался
+   в старый предел 0.002 и показывал пустое поле. */
+const ZMIN=1e-7, ZMAX=30;                      // 0.00001% … 3000%
+function zoomLabel(v){
+  const p=v*100;
+  if(p<0.01) return p.toExponential(1)+'%';    // планетарные масштабы
+  return (p<10?p.toFixed(p<1?2:1):Math.round(p))+'%';
+}
 function setZoom(){ $('#zoomval').value=zoomLabel(A()?A().view.scale:1); }
 const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZMIN,ZMAX); setZoom(); };
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,a.def.fit(a.params,{W:CW,H:CH})); setZoom(); }
@@ -900,14 +1158,87 @@ $('#btn-fit').onclick=fitView;
 /* ================================== UI ================================= */
 document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 function setTool(t){
+  const a=A(); if(a&&a.draft&&a.draft.type!==t) a.draft=null;   // бросаем недорисованное
   S.tool=t;
   document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
-  $('#cwrap').style.cursor=t==='pan'?'grab':(t==='eraser'?'cell':'crosshair');
+  const CUR={pan:'grab',eraser:'cell',note:'text',marquee:'crosshair',probe:'crosshair'};
+  $('#cwrap').style.cursor=CUR[t]||'crosshair';
+  // подсказка, как завершить многоточечный инструмент
+  if(t==='area') toast('Площадь: кликайте вершины, двойной клик — замкнуть');
+  else if(t==='angle') toast('Транспортир: три точки — луч, вершина, луч');
+  else if(t==='guide') toast('Направляющая: клик — горизонтальная, Alt+клик — вертикальная');
+  else if(t==='marquee') toast('Зум рамкой: обведите область');
+  else if(t==='probe') toast('Пробник: клик по сцене — координаты в буфер обмена');
+}
+/* Копирование в буфер: clipboard API работает только в защищённом контексте,
+   поэтому для http-адресов локальной сети оставлен запасной путь. */
+function copyText(t){
+  try{
+    if(navigator.clipboard&&window.isSecureContext) { navigator.clipboard.writeText(t); return true; }
+  }catch(_){}
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=t; ta.style.cssText='position:fixed;opacity:0;left:-9999px';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); return true;
+  }catch(_){ return false; }
 }
 $('#btn-snap').onclick=()=>{ S.snap=!S.snap; LS.set('snap',S.snap);
   $('#btn-snap').classList.toggle('on',S.snap); toast('Привязка: '+(S.snap?'вкл':'выкл')); };
 $('#btn-snap').classList.toggle('on',S.snap);
-$('#btn-clear').onclick=()=>{ const a=A(); if(a){ annSnapshot(a); a.annos=[]; toast('Пометки стёрты (Ctrl+Z вернёт)'); } };
+$('#btn-clear').onclick=()=>{ const a=A(); if(a){ annSnapshot(a); a.annos=[]; S.probe=null; toast('Пометки стёрты (Ctrl+Z вернёт)'); } };
+/* След за телами: рисует путь якорных точек симуляции поверх сцены. */
+$('#btn-trace').onclick=()=>{
+  S.trace=!S.trace; LS.set('trace',S.trace);
+  $('#btn-trace').classList.toggle('on',S.trace);
+  const a=A(); if(a) a.tracePts=[];
+  toast('След за телами: '+(S.trace?'вкл':'выкл'));
+};
+$('#btn-trace').classList.toggle('on',S.trace);
+
+/* ===== Инструменты конкретной симуляции в левой панели =====
+   Раньше ctxTools жили только в меню по правой кнопке — на телефоне туда
+   вообще не попасть. Теперь они рисуются кнопками в общей панели. */
+function renderSimTools(){
+  const box=$('#simtools'), sep=$('#simtools-sep'); if(!box) return;
+  const a=A();
+  const items=(a&&a.def.ctxTools)? a.def.ctxTools(a.params) : [];
+  box.innerHTML=''; sep.style.display=items.length?'':'none';
+  items.forEach((it,i)=>{
+    const b=document.createElement('button');
+    b.className='iconbtn simtool';
+    // «● » в начале подписи означает выбранный инструмент симуляции
+    const on=/^●/.test(it.label);
+    b.classList.toggle('on',on);
+    b.title=it.label.replace(/^[●○]\s*/,'');
+    b.textContent=simToolGlyph(it.label,i);
+    b.onclick=()=>{
+      const cur=A(); if(!cur) return;
+      it.on(cur.params); cur.state=cur.def.init(cur.params);
+      renderSimTools();
+    };
+    box.appendChild(b);
+  });
+}
+/* Короткий значок для кнопки: берём осмысленную букву из подписи. */
+function simToolGlyph(label,i){
+  const t=label.replace(/^[●○]\s*/,'').toLowerCase();
+  if(/провод|wire/.test(t)) return '╱';
+  if(/резистор/.test(t))    return 'R';
+  if(/конденсатор/.test(t)) return 'C';
+  if(/катушк|индуктив/.test(t)) return 'L';
+  if(/лампа|нагруз/.test(t)) return '⊗';
+  if(/батаре|источник|эдс/.test(t)) return '⎓';
+  if(/ключ|выключ/.test(t)) return '⌁';
+  if(/стереть|удал|ласт/.test(t)) return '⌫';
+  if(/отменить|назад/.test(t)) return '↶';
+  if(/вывод|выход/.test(t))  return 'B';
+  if(/груз|масса/.test(t))   return 'm';
+  if(/блок/.test(t))         return '◎';
+  if(/опор|закреп/.test(t))  return '⊥';
+  if(/нить|верёвк/.test(t))  return '│';
+  return String(i+1);
+}
 $('#btn-rail').onclick=()=>{ const sb=$('#sidebar'); sb.classList.toggle('hidden');
   $('#btn-rail').setAttribute('aria-pressed',String(!sb.classList.contains('hidden'))); };
 /* в полноэкранном режиме накладная панель тем закрывается сразу после выбора темы */
@@ -1021,6 +1352,10 @@ function popup(btn,pop){
 }
 popup($('#btn-simmenu'),$('#pop-simmenu'));
 $('#btn-settings').onclick=()=>openPrefs();
+$('#btn-cmdk').onclick=()=>cmdkOpen('');
+$('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(''); };
+$('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
+$('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
 popup($('#btn-help'),$('#pop-help'));
 addEventListener('click',()=>document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden')));
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
@@ -1133,7 +1468,7 @@ const PREF_CATS=[
 ];
 const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   quality:'high',bgPause:true,fps:0,videoQ:'med',
-  nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,
+  nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
   serifNotes:false,toasts:true,dockSize:'norm',
@@ -1191,6 +1526,8 @@ const PREFS=[
    options:[[1,'1 знак'],[2,'2 знака'],[3,'3 знака']]},
   {cat:'scene',key:'clockShow',type:'toggle',def:true,
    name:'Часы t в шапке',desc:'Текущее время симуляции над сценой (на компьютере).'},
+  {cat:'scene',key:'labelFix',type:'toggle',def:true,
+   name:'Разводить подписи на сцене',desc:'Автоматически сдвигает наехавшие друг на друга подписи и возвращает в кадр уехавшие за край. Выключите, если хотите видеть их строго там, где они рассчитаны.'},
 
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
@@ -1453,6 +1790,7 @@ $('#m-play').onclick=()=>$('#btn-play').click();
 $('#m-slow').onclick=()=>stepSpeed(-1);
 $('#m-fast').onclick=()=>stepSpeed(1);
 $('#m-settings').onclick=()=>openPrefs();
+$('#m-cmdk').onclick=()=>cmdkOpen('');
 popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
 
 /* Поворот экрана и любое изменение размера окна. */
@@ -1522,8 +1860,16 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{
 
 $('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtoggle').textContent=$('#pvbox').classList.contains('collapsed')?'▸':'▾'; };
 
-const KEYS=[['Ctrl + ,','Настройки'],['Space','Пуск / стоп'],['R','Сбросить симуляцию'],['Ctrl + Z','Параметры: назад'],['Ctrl + Y','Параметры: вперёд'],
- ['V / P / L / Y / E','Курсор / карандаш / линейка / вектор / резинка'],['A','Привязка к анкерам и узлам сетки'],
+const KEYS=[['Ctrl + P','Командная палитра: темы, симуляции, команды'],
+ ['Ctrl + Shift + P','Палитра: только команды'],
+ ['Ctrl + D','Снимок показаний для сравнения'],['S','Закладка на тему'],['F11','Во весь экран'],
+ ['Ctrl + ,','Настройки'],['Space','Пуск / стоп'],['R','Сбросить симуляцию'],['Ctrl + Z','Параметры: назад'],['Ctrl + Y','Параметры: вперёд'],
+ ['V / P / L / Y / E','Курсор / карандаш / линейка / вектор / резинка'],
+ ['Q / M','Пробник координат / зум рамкой'],
+ ['D / G / C','Размер / транспортир / окружность'],
+ ['Shift + A','Площадь многоугольника'],['N / U','Заметка / направляющая'],
+ ['Enter / Esc','Замкнуть / отменить построение'],
+ ['T','След за телами'],['A','Привязка к анкерам и узлам сетки'],
  ['F','Симуляция во весь экран'],['H','Скрыть симуляцию'],['Tab','Скрыть панель тем'],['Ctrl + K','Поиск'],
  ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама'],
  ['Два пальца','Зум и панорама на сенсоре'],['ПКМ','Меню симуляции']];
@@ -1536,10 +1882,16 @@ addEventListener('keydown',e=>{
   // пока открыт экран доступа — никакие горячие клавиши не работают
   const lk=document.getElementById('lock');
   if(lk && !lk.classList.contains('hidden')) return;
+  // палитра перехватывает клавиатуру целиком (её поле слушает отдельно)
+  const ck=document.getElementById('cmdk');
+  if(ck && !ck.classList.contains('hidden')) return;
   const t=e.target, typing=/INPUT|SELECT|TEXTAREA/.test(t.tagName)||t.isContentEditable;
   const C=e.code, mod=e.ctrlKey||e.metaKey;                 // e.code не зависит от раскладки
   // настройки открыты — гасим все прочие сочетания, чтобы не управлять сценой вслепую
   const prefsOpen=!$('#prefs').classList.contains('hidden');
+  // командная палитра: Ctrl+P — всё подряд, Ctrl+Shift+P — только команды
+  if(mod&&C==='KeyP'){ e.preventDefault(); cmdkOpen(e.shiftKey?'>':''); return; }
+  if(mod&&C==='KeyD'){ e.preventDefault(); takeSnapshot(); return; }
   if(mod&&C==='Comma'){ e.preventDefault(); prefsOpen? closePrefs() : openPrefs(); return; }
   if(prefsOpen){ if(e.key==='Escape'){ e.preventDefault(); closePrefs(); } return; }
   if(mod&&C==='KeyK'){ e.preventDefault(); $('#tab-search').click(); return; }
@@ -1551,10 +1903,29 @@ addEventListener('keydown',e=>{
   if(mod&&C==='KeyY'){ e.preventDefault(); redo(); return; }
   if(mod) return;
   if(typing){ if(C==='Escape') t.blur(); return; }
+  // многоточечные инструменты: Enter — замкнуть, Escape — отменить набор
+  {
+    const ad=A();
+    if(ad&&ad.draft&&(ad.draft.type==='area'||ad.draft.type==='angle')){
+      if(C==='Enter'||C==='NumpadEnter'){
+        e.preventDefault();
+        if(ad.draft.pts.length>=(ad.draft.type==='area'?3:2)){ annSnapshot(ad); ad.annos.push(ad.draft); }
+        ad.draft=null; return;
+      }
+      if(C==='Escape'){ e.preventDefault(); ad.draft=null; toast('Построение отменено'); return; }
+    }
+    if(ad&&C==='Escape'&&S.probe){ e.preventDefault(); S.probe=null; return; }
+  }
   const map={
     KeyV:()=>setTool('pan'), KeyP:()=>setTool('pencil'), KeyL:()=>setTool('ruler'),
     KeyY:()=>setTool('vector'), KeyE:()=>setTool('eraser'),
-    KeyA:()=>$('#btn-snap').click(), KeyR:()=>$('#btn-reset').click(),
+    KeyQ:()=>setTool('probe'), KeyM:()=>setTool('marquee'), KeyD:()=>setTool('dim'),
+    KeyG:()=>setTool('angle'), KeyC:()=>setTool('circle'), KeyN:()=>setTool('note'),
+    KeyU:()=>setTool('guide'), KeyT:()=>$('#btn-trace').click(),
+    KeyA:()=>e.shiftKey? setTool('area') : $('#btn-snap').click(),
+    KeyR:()=>$('#btn-reset').click(),
+    KeyS:()=>toggleMark(S.topic&&S.topic.id),      // закладка на текущую тему
+    F11:()=>toggleFullscreen(),
     KeyF:()=>$('#btn-simfull').click(), KeyH:()=>$('#btn-simhide').click(),
     Space:()=>$('#btn-play').click(), Tab:()=>$('#btn-rail').click(), KeyB:()=>$('#btn-rail').click(),
     Digit0:fitView, Numpad0:fitView,
@@ -1615,6 +1986,181 @@ function toast(m){
   if(prefGet('toasts')===false) return;     // подсказки можно выключить в настройках
   const t=$('#toast'); t.textContent=m; t.classList.add('show');
   clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ======================== КОМАНДНАЯ ПАЛИТРА (Ctrl+P) =====================
+   Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
+   Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
+const CMDS=[
+  {k:'Симуляция',t:'Пуск / пауза',       hint:'Space', run:()=>$('#btn-play').click()},
+  {k:'Симуляция',t:'Сбросить симуляцию', hint:'R',     run:()=>$('#btn-reset').click()},
+  {k:'Симуляция',t:'Вписать вид',        hint:'0',     run:fitView},
+  {k:'Симуляция',t:'Ускорить время',     hint:']',     run:()=>stepSpeed(1)},
+  {k:'Симуляция',t:'Замедлить время',    hint:'[',     run:()=>stepSpeed(-1)},
+  {k:'Симуляция',t:'Снимок кадра (PNG)', run:()=>$('#mi-png').click()},
+  {k:'Симуляция',t:'Записать видео (WebM)', run:()=>$('#mi-rec').click()},
+  {k:'Симуляция',t:'Сохранить параметры как набор', run:()=>$('#mi-save').click()},
+  {k:'Симуляция',t:'Снимок для сравнения', hint:'Ctrl+D', run:()=>takeSnapshot()},
+  {k:'Симуляция',t:'Скопировать все показания', run:()=>copyReadouts()},
+  {k:'Симуляция',t:'Скопировать параметры', run:()=>copyParams()},
+  {k:'Вид',t:'Во весь экран (браузер)', hint:'F11', run:()=>toggleFullscreen()},
+  {k:'Вид',t:'Симуляция во весь экран', hint:'F', run:()=>$('#btn-simfull').click()},
+  {k:'Вид',t:'Скрыть/показать симуляцию', hint:'H', run:()=>$('#btn-simhide').click()},
+  {k:'Вид',t:'Скрыть/показать панель тем', hint:'Tab', run:()=>$('#btn-rail').click()},
+  {k:'Вид',t:'Светлая тема',  run:()=>prefSet('theme','light')},
+  {k:'Вид',t:'Тёмная тема',   run:()=>prefSet('theme','dark')},
+  {k:'Вид',t:'Тема как в системе', run:()=>prefSet('theme','auto')},
+  {k:'Вид',t:'Спокойный режим: убрать числа со сцены', run:()=>prefSet('nums',!prefGet('nums'))},
+  {k:'Вид',t:'Показать/скрыть сетку', run:()=>prefSet('grid',!prefGet('grid'))},
+  {k:'Вид',t:'Показать/скрыть графики', run:()=>prefSet('graphs',!prefGet('graphs'))},
+  {k:'Инструмент',t:'Перемещение', hint:'V', run:()=>setTool('pan')},
+  {k:'Инструмент',t:'Пробник координат', hint:'Q', run:()=>setTool('probe')},
+  {k:'Инструмент',t:'Зум рамкой', hint:'M', run:()=>setTool('marquee')},
+  {k:'Инструмент',t:'Карандаш', hint:'P', run:()=>setTool('pencil')},
+  {k:'Инструмент',t:'Линейка', hint:'L', run:()=>setTool('ruler')},
+  {k:'Инструмент',t:'Размерная линия', hint:'D', run:()=>setTool('dim')},
+  {k:'Инструмент',t:'Транспортир', hint:'G', run:()=>setTool('angle')},
+  {k:'Инструмент',t:'Окружность', hint:'C', run:()=>setTool('circle')},
+  {k:'Инструмент',t:'Площадь многоугольника', hint:'Shift+A', run:()=>setTool('area')},
+  {k:'Инструмент',t:'Заметка на сцене', hint:'N', run:()=>setTool('note')},
+  {k:'Инструмент',t:'Направляющая', hint:'U', run:()=>setTool('guide')},
+  {k:'Инструмент',t:'След за телами', hint:'T', run:()=>$('#btn-trace').click()},
+  {k:'Инструмент',t:'Стереть все пометки', run:()=>$('#btn-clear').click()},
+  {k:'Прочее',t:'Настройки', hint:'Ctrl+,', run:()=>openPrefs()},
+  {k:'Прочее',t:'Горячие клавиши', run:()=>openPrefs('keys')},
+  {k:'Прочее',t:'Сохранить настройки в файл', run:()=>{ openPrefs('data'); setTimeout(()=>$('#pref-export')&&$('#pref-export').click(),120); }},
+  {k:'Прочее',t:'Закрыть доступ (выйти)', run:()=>{ openPrefs('data'); }}
+];
+let cmdkSel=0, cmdkItems=[];
+function cmdkOpen(prefix){
+  const el=$('#cmdk'); if(!el) return;
+  el.classList.remove('hidden');
+  const inp=$('#cmdk-inp');
+  inp.value=prefix||''; cmdkSel=0; cmdkRender();
+  setTimeout(()=>{ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length); },20);
+}
+function cmdkClose(){ $('#cmdk').classList.add('hidden'); }
+function cmdkSource(){
+  const q=($('#cmdk-inp').value||'');
+  const onlyCmd=q.startsWith('>');
+  const s=(onlyCmd?q.slice(1):q).trim().toLowerCase();
+  let list=[];
+  if(!onlyCmd){
+    // недавние темы — первыми при пустом запросе
+    if(!s){
+      for(const id of (S.recent||[]).slice(0,5)){
+        const t=ALL.find(x=>x.id===id);
+        if(t) list.push({k:'Недавнее',t:t.title,hint:t.section,run:()=>openTopic(t.id)});
+      }
+    }
+    for(const t of ALL)
+      list.push({k:'Тема',t:t.title,hint:t.section,sub:(t.theory||'').slice(0,400),run:()=>openTopic(t.id)});
+    for(const id of Object.keys(SIMS))
+      list.push({k:'Симуляция',t:SIMS[id].title,hint:'открыть',run:()=>openSim(id)});
+    for(const pr of PREFS)
+      list.push({k:'Настройка',t:pr.name,hint:(PREF_CATS.find(c=>c.id===pr.cat)||{}).name||'',
+                 sub:pr.desc,run:()=>openPrefs(pr.cat)});
+  }
+  list=list.concat(CMDS);
+  if(!s) return list.slice(0,40);
+  // нечёткий поиск: все буквы запроса встречаются по порядку
+  const score=(txt)=>{
+    const l=txt.toLowerCase();
+    const i=l.indexOf(s);
+    if(i>=0) return 100-i;
+    let pos=-1;
+    for(const ch of s){ pos=l.indexOf(ch,pos+1); if(pos<0) return -1; }
+    return 30;
+  };
+  return list.map(it=>{
+    let sc=score(it.t);
+    if(sc<0&&it.sub) sc=score(it.sub)>0?10:-1;
+    if(sc<0&&it.k) sc=score(it.k)>0?5:-1;
+    return {it,sc};
+  }).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc).slice(0,40).map(x=>x.it);
+}
+function cmdkRender(){
+  const box=$('#cmdk-list'); if(!box) return;
+  cmdkItems=cmdkSource();
+  if(!cmdkItems.length){ box.innerHTML='<div class="cmdk-empty">Ничего не найдено</div>'; return; }
+  cmdkSel=clamp(cmdkSel,0,cmdkItems.length-1);
+  box.innerHTML=cmdkItems.map((it,i)=>
+    `<button class="cmdk-item${i===cmdkSel?' sel':''}" data-i="${i}">
+       <span class="k">${it.k}</span><span class="t">${esc(it.t)}</span>
+       ${it.hint?`<span class="h">${esc(it.hint)}</span>`:''}</button>`).join('');
+  box.querySelectorAll('.cmdk-item').forEach(b=>{
+    b.onclick=()=>cmdkRun(+b.dataset.i);
+    b.onmousemove=()=>{ if(cmdkSel!==+b.dataset.i){ cmdkSel=+b.dataset.i;
+      box.querySelectorAll('.cmdk-item').forEach(x=>x.classList.toggle('sel',x===b)); } };
+  });
+  const sel=box.querySelector('.sel'); if(sel) sel.scrollIntoView({block:'nearest'});
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function cmdkRun(i){
+  const it=cmdkItems[i]; if(!it) return;
+  cmdkClose();
+  try{ it.run(); }catch(e){ toast('Не удалось выполнить: '+e.message); }
+}
+if($('#cmdk-inp')){
+  $('#cmdk-inp').addEventListener('input',()=>{ cmdkSel=0; cmdkRender(); });
+  $('#cmdk-inp').addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='ArrowDown'){ e.preventDefault(); cmdkSel++; cmdkRender(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); cmdkSel--; cmdkRender(); }
+    else if(e.key==='Enter'){ e.preventDefault(); cmdkRun(cmdkSel); }
+    else if(e.key==='Escape'){ e.preventDefault(); cmdkClose(); }
+  });
+  $('#cmdk').addEventListener('click',e=>{ if(e.target.id==='cmdk') cmdkClose(); });
+}
+
+/* ================= УДОБСТВА: снимок, копирование, полный экран ============ */
+function takeSnapshot(){
+  const a=A(); if(!a){ toast('Сначала откройте симуляцию'); return; }
+  S.snapshot={sim:S.active,t:a.state.t,
+    rows:a.def.readouts(a.state,a.params).filter(r=>typeof r[1]==='number'&&isFinite(r[1]))};
+  $('#cmpbox').classList.remove('hidden');
+  updateCompare();
+  toast('Снимок сделан: показания сравниваются с текущими');
+}
+function updateCompare(){
+  const box=$('#cmpbox'); if(!box||box.classList.contains('hidden')) return;
+  const a=A(), snap=S.snapshot;
+  if(!a||!snap||snap.sim!==S.active){
+    $('#cmp-body').innerHTML='<div style="color:var(--ink-3)">Снимок сделан в другой симуляции.</div>';
+    return;
+  }
+  const now=a.def.readouts(a.state,a.params);
+  const rows=snap.rows.map(([l,v0])=>{
+    const cur=now.find(r=>r[0]===l);
+    if(!cur||typeof cur[1]!=='number'||!isFinite(cur[1])) return '';
+    const d=cur[1]-v0;
+    const cls=Math.abs(d)<1e-9?'':(d>0?'up':'dn');
+    const sign=d>0?'+':'';
+    return `<div class="cmp-row"><span>${esc(l)}</span>
+      <span class="d ${cls}">${sign}${fmt(d)}</span></div>`;
+  }).join('');
+  $('#cmp-body').innerHTML=`<div class="cmp-row" style="color:var(--ink-3)">
+      <span>снимок при t</span><span>${snap.t.toFixed(2)} с</span></div>`+rows;
+}
+if($('#cmp-close')) $('#cmp-close').onclick=()=>{ $('#cmpbox').classList.add('hidden'); S.snapshot=null; };
+
+function copyReadouts(){
+  const a=A(); if(!a){ toast('Сначала откройте симуляцию'); return; }
+  const txt=a.def.title+'\n'+a.def.readouts(a.state,a.params)
+    .map(([l,v,u])=>`${l}\t${typeof v==='number'?fmt(v):v}\t${u||''}`).join('\n');
+  toast(copyText(txt)?'Показания скопированы':'Не удалось скопировать');
+}
+function copyParams(){
+  const a=A(); if(!a){ toast('Сначала откройте симуляцию'); return; }
+  const txt=a.def.params.filter(q=>q.type!=='group')
+    .map(q=>`${q.label}\t${a.params[q.key]}\t${q.unit||''}`).join('\n');
+  toast(copyText(a.def.title+'\n'+txt)?'Параметры скопированы':'Не удалось скопировать');
+}
+function toggleFullscreen(){
+  try{
+    if(document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  }catch(_){ toast('Полноэкранный режим недоступен'); }
+}
 
 /* ============================ ДОСТУП ПО ПАРОЛЮ ==========================
    В коде хранится ТОЛЬКО SHA-256-хэш пароля — самого пароля здесь нет.
