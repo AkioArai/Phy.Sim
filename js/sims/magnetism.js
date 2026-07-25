@@ -156,8 +156,10 @@ battery:{
     {key:'values',label:'Номиналы и напряжения',type:'check',default:true},
     {key:'reset', label:'Сбросить заряд',type:'check',default:false}
   ],
-  /* используем тот же MNA-решатель из circuit */
-  solveLinear(A,b){ return SIMS.circuit.solveLinear ? SIMS.circuit.solveLinear(A,b) : (()=>{
+  /* Собственный MNA-решатель (метод Гаусса с выбором главного элемента).
+     Раньше он брался из конструктора цепей; конструкторы удалены, поэтому
+     решатель теперь живёт здесь и ни от чего не зависит. */
+  solveLinear(A,b){ return (()=>{
     const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
     for(let col=0;col<n;col++){ let piv=col; for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>Math.abs(M[piv][col]))piv=r;
       if(Math.abs(M[piv][col])<1e-12)continue; [M[col],M[piv]]=[M[piv],M[col]];

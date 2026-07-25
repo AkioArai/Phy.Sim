@@ -192,7 +192,7 @@ compton:{
       ['энергия фотона после',this.Eout(p),'кэВ'],
       ['энергия электрона отдачи',this.Eelectron(p),'кэВ'],
       ['проверка сохранения энергии',this.Eout(p)+this.Eelectron(p),'кэВ'],
-      ['угол отдачи электрона',this.phiElectron(p),'°'],
+      ['угол отдачи электрона φ (по другую сторону оси)',Math.abs(this.phiElectron(p)),'°'],
       ['импульс фотона до p = h/λ',this.pIn(p)*1e24,'·10⁻²⁴ кг·м/с']];
   },
   graphs:[
@@ -211,67 +211,118 @@ compton:{
     const scale=clamp(Math.min((W-70)/(11*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
     return {x:0,y:0,scale};
   },
-  draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const th=p.ang*Math.PI/180, R=2.8, phi=this.phiElectron(p)*Math.PI/180;
-    // электрон-мишень
-    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,0.16,0,7); ctx.fill();
-    v.label(ctx,'покоящийся электрон',0,0,-52,20,ink3);
-    // падающий фотон — волна слева
-    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
-    for(let i=0;i<=120;i++){ const x=-4.6+i/120*4.4, k=18/p.lam*4;
-      const y=0.24*Math.sin(x*k+s.ph*4);
-      i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke();
-    v.arrow(ctx,-1.0,0,-0.35,0,dang);
-    v.label(ctx,`фотон λ = ${p.lam} пм (${this.Ein(p).toFixed(1)} кэВ)`,-4.6,0,0,-24,dang);
-    // рассеянный фотон
-    const ox=R*Math.cos(th), oy=R*Math.sin(th);
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
-    for(let i=0;i<=160;i++){ const t=i/160, d=0.3+t*(R-0.3);
-      const k=clamp(18/this.lamOut(p)*4,3,26);      // не даём волне «дребезжать»
-      const env=Math.min(1,t*6);                    // амплитуда нарастает от электрона
-      const w=0.17*env*Math.sin(d*k-s.ph*4);
-      const x=d*Math.cos(th)-w*Math.sin(th);
-      const y=d*Math.sin(th)+w*Math.cos(th);
-      i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke();
-    ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(ox,oy,v.lw(4),0,7); ctx.fill();
-    // подписи уводим наружу вдоль луча, чтобы не легли на саму волну
-    {
-      const outX=Math.cos(th)>=0? 10 : -104;
-      v.label(ctx,`λ′ = ${this.lamOut(p).toFixed(2)} пм`,ox,oy,outX,-9,sec);
-      v.label(ctx,`${this.Eout(p).toFixed(1)} кэВ`,ox,oy,outX,9,sec);
+  /* Одна и та же процедура рисует ОБЕ волны — падающую и рассеянную. Раньше
+     они рисовались разным кодом: у рассеянной амплитуда «нарастала» от
+     электрона, а её длина волны зажималась clamp'ом, из-за чего картинка
+     выходила несимметричной, а разница λ и λ′ пропадала. Теперь обе волны
+     одинаковы по стилю, длина волны честно пропорциональна λ, а фаза бежит
+     наружу от точки рассеяния. */
+  drawWave(ctx,v,x0,y0,dir,len,lamScene,amp,phase,color,lw){
+    const ux=Math.cos(dir), uy=Math.sin(dir);      // вдоль луча
+    const nx=-uy, ny=ux;                            // поперёк луча
+    const k=2*Math.PI/Math.max(lamScene,1e-6);
+    ctx.strokeStyle=color; ctx.lineWidth=v.lw(lw||1.7);
+    ctx.beginPath();
+    const N=200;
+    for(let i=0;i<=N;i++){
+      const d=len*i/N;
+      const w=amp*Math.sin(k*d-phase);
+      const x=x0+ux*d+nx*w, y=y0+uy*d+ny*w;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
     }
-    // электрон отдачи
-    const ex=2.2*Math.cos(phi), ey=2.2*Math.sin(phi);
-    ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(4),v.lw(3)]);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(ex,ey); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(ex,ey,v.lw(4),0,7); ctx.fill();
-    v.label(ctx,`электрон отдачи ${this.Eelectron(p).toFixed(2)} кэВ`,ex,ey,-36,ey<0?22:-16,meas);
-    /* Угол рисуем интерполяцией направлений: через ctx.arc он зеркалился,
-       потому что ось Y в сцене направлена вверх. */
-    {
-      const rad=0.85;
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1.2);
+    ctx.stroke();
+  },
+  /* Длина волны в единицах сцены: пропорциональна λ, но с мягкими границами,
+     чтобы и 1 пм, и 100 пм оставались читаемыми. */
+  lamScene(lamPm){ return clamp(0.03*lamPm, 0.22, 1.5); },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const th=p.ang*Math.PI/180, phi=this.phiElectron(p)*Math.PI/180;
+    const RIN=3.4, ROUT=3.0, REL=2.2;              // длины лучей
+    const AMP=0.20;                                 // общая амплитуда обеих волн
+    const ph=s.ph*4;
+
+    // ось: продолжение исходного направления — от неё отсчитывается θ
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.32; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(ROUT+0.7,0); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+
+    /* Угол рассеяния θ всегда в [0°,180°], поэтому рассеянный фотон уходит
+       ВВЕРХ от оси, а электрон отдачи — ВНИЗ. Значит подписи разводятся без
+       фокусов: у падающего фотона — под осью, у рассеянного — над лучом,
+       у электрона — под его лучом. Раньше все три жались к левому верхнему
+       углу и налезали друг на друга при больших θ. */
+    const norm=(a,up)=>{ let nx=-Math.sin(a), ny=Math.cos(a);     // нормаль к лучу
+                         if(up? ny<0 : ny>0){ nx=-nx; ny=-ny; }   // разворачиваем в нужную сторону
+                         return [nx,ny]; };
+
+    // ---- падающий фотон: волна приходит слева, к электрону в начале координат
+    this.drawWave(ctx,v,-RIN,0,0,RIN-0.28,this.lamScene(p.lam),AMP,ph,dang,1.8);
+    v.arrow(ctx,-0.95,0,-0.3,0,dang);
+    v.label(ctx,`падающий фотон`,-RIN,0,-4,16,dang);
+    v.label(ctx,`λ = ${p.lam} пм · ${this.Ein(p).toFixed(1)} кэВ`,-RIN,0,-4,30,dang);
+
+    // ---- рассеянный фотон: та же волна, но вдоль направления θ
+    this.drawWave(ctx,v,0.28*Math.cos(th),0.28*Math.sin(th),th,ROUT-0.28,
+                  this.lamScene(this.lamOut(p)),AMP,ph,sec,1.8);
+    const ox=ROUT*Math.cos(th), oy=ROUT*Math.sin(th);
+    v.arrow(ctx,ox-0.62*Math.cos(th),oy-0.62*Math.sin(th),ox-0.1*Math.cos(th),oy-0.1*Math.sin(th),sec);
+    ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(ox,oy,v.lw(3.6),0,7); ctx.fill();
+    {   /* подпись уводим ПОПЕРЁК луча и всегда ПРОЧЬ от оси (вверх), а по
+           горизонтали — в ту сторону, где ещё есть место в кадре. */
+      const [nx,ny]=norm(th,true);
+      const lx=ox+nx*0.45, ly=oy+ny*0.45;
+      const dx=Math.cos(th)<0? 6 : -38;
+      v.label(ctx,`рассеянный фотон`,lx,ly,dx,-13,sec);
+      v.label(ctx,`λ′ = ${this.lamOut(p).toFixed(2)} пм · ${this.Eout(p).toFixed(1)} кэВ`,lx,ly,dx,1,sec);
+    }
+
+    // ---- электрон отдачи: сплошная стрелка, угол φ из сохранения импульса
+    const ex=REL*Math.cos(phi), ey=REL*Math.sin(phi);
+    if(this.Eelectron(p)>1e-6){
+      v.arrow(ctx,0.3*Math.cos(phi),0.3*Math.sin(phi),ex,ey,meas);
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(ex,ey,v.lw(4),0,7); ctx.fill();
+      const [nx,ny]=norm(phi,false);                          // подпись ниже луча
+      const lx=ex+nx*0.45, ly=ey+ny*0.45;
+      v.label(ctx,`электрон отдачи`,lx,ly,6,2,meas);
+      v.label(ctx,`${this.Eelectron(p).toFixed(2)} кэВ · φ = ${Math.abs(this.phiElectron(p)).toFixed(1)}°`,
+        lx,ly,6,16,meas);
+    }
+
+    // ---- сам электрон-мишень поверх лучей
+    ctx.fillStyle=v.c('--panel'); ctx.beginPath(); ctx.arc(0,0,0.26,0,7); ctx.fill();
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.arc(0,0,0.26,0,7); ctx.stroke();
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,0.13,0,7); ctx.fill();
+    /* Подпись мишени уводим в левый нижний квадрант — единственный, куда при
+       θ∈[0°,180°] не заходит ни рассеянный фотон (он всегда вверх), ни электрон
+       отдачи (он всегда вниз-вправо). */
+    v.label(ctx,'электрон покоился',0,0,-120,52,ink3);
+
+    /* Дуги углов. Через ctx.arc они зеркалились бы: ось Y сцены смотрит
+       вверх, а флаг направления arc считает наоборот. Строим полилинией. */
+    const arc=(a0,a1,rad,col,lab)=>{
+      ctx.strokeStyle=col; ctx.globalAlpha=.65; ctx.lineWidth=v.lw(1.2);
       ctx.beginPath();
-      for(let i=0;i<=32;i++){ const a=th*i/32;
+      for(let i=0;i<=40;i++){ const a=a0+(a1-a0)*i/40;
         const x=rad*Math.cos(a), y=rad*Math.sin(a);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke(); ctx.globalAlpha=1;
-      v.label(ctx,`θ = ${p.ang}°`,rad*1.22*Math.cos(th/2),rad*1.22*Math.sin(th/2),-14,4,ink3);
-    }
-    // ось
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(R+0.6,0); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      const am=(a0+a1)/2;
+      v.label(ctx,lab,rad*1.25*Math.cos(am),rad*1.25*Math.sin(am),-12,4,col);
+    };
+    if(Math.abs(th)>1e-3) arc(0,th,0.95,sec,`θ = ${p.ang}°`);
+    /* φ показываем модулем: знак — лишь напоминание, что электрон уходит по
+       другую сторону оси, и это видно по картинке. Минус в подписи путал. */
+    if(this.Eelectron(p)>1e-6 && Math.abs(phi)>1e-3) arc(0,phi,1.35,meas,`φ = ${Math.abs(this.phiElectron(p)).toFixed(0)}°`);
 
-    // график Δλ(θ)
+    // ---- график Δλ(θ) в нижнем левом углу
     if(p.graph){
-      const gx=-4.9, gy=-3.5, gw=3.2, gh=1.5, mx=2*this.lamC();
+      const gx=-4.9, gy=-3.6, gw=3.2, gh=1.5, mx=2*this.lamC();
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
       ctx.globalAlpha=1;
-      v.label(ctx,'Δλ, пм',gx,gy+gh,-30,-2,ink3); v.label(ctx,'θ',gx+gw,gy,10,4,ink3);
+      v.label(ctx,'Δλ, пм',gx,gy+gh,0,-6,ink3);
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=120;i++){ const a=i/120*Math.PI;
         const d=this.lamC()*(1-Math.cos(a));
@@ -279,14 +330,15 @@ compton:{
         i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }
       ctx.stroke();
       ctx.fillStyle=meas; ctx.beginPath();
-      ctx.arc(gx+gw*(p.ang/180), gy+gh*(this.dLam(p)/mx), v.lw(3),0,7); ctx.fill();
-      v.label(ctx,'0°',gx,gy,-4,14,ink3); v.label(ctx,'180°',gx+gw,gy,-14,14,ink3);
+      ctx.arc(gx+gw*(p.ang/180), gy+gh*(this.dLam(p)/mx), v.lw(3.4),0,7); ctx.fill();
+      v.label(ctx,'0°',gx,gy,-4,14,ink3); v.label(ctx,'180°',gx+gw,gy,-16,14,ink3);
     }
-    // формулы — отдельной колонкой справа, вне поля графика и лучей
-    v.label(ctx,`Δλ = λC (1 − cos θ) = ${this.dLam(p).toFixed(3)} пм`,0.4,-2.9,0,0,ink3);
-    v.label(ctx,`комптоновская длина λC = ${this.lamC().toFixed(3)} пм`,0.4,-2.9,0,17,ink3);
-    v.label(ctx,'сдвиг не зависит от исходной длины волны —',0.4,-2.9,0,38,ink3);
-    v.label(ctx,'только от угла рассеяния',0.4,-2.9,0,54,ink3);
+
+    // ---- итог
+    v.label(ctx,`Δλ = λC (1 − cos θ) = ${this.dLam(p).toFixed(3)} пм`,0.5,-2.9,0,0,ink3);
+    v.label(ctx,`комптоновская длина λC = h/mc = ${this.lamC().toFixed(3)} пм`,0.5,-2.9,0,16,ink3);
+    v.label(ctx,'сдвиг не зависит от исходной длины волны —',0.5,-2.9,0,36,ink3);
+    v.label(ctx,'только от угла рассеяния',0.5,-2.9,0,52,ink3);
   }
 },
 

@@ -27,6 +27,7 @@ const scene=$('#scene'), overlay=$('#overlay');
 const sctx=scene.getContext('2d'), octx=overlay.getContext('2d');
 let CW=0,CH=0,DPR=1, gcanvas=[];
 function resize(){
+  if(typeof fpClampAll==='function') setTimeout(fpClampAll,0);   // панели держим внутри сцены
   const r=$('#cwrap').getBoundingClientRect();
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
   const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
@@ -391,6 +392,25 @@ function drawAll(){
       octx.stroke(); octx.globalAlpha=1;
     });
   }
+  /* Видимые ручки перетаскивания. Симуляции объявляют dragPoints, но раньше
+     эти точки никак не помечались — было не догадаться, что луч, заряд или
+     груз вообще можно тянуть. Рисуем кружок-манипулятор. */
+  if(a.def.dragPoints && (S.tool==='cursor'||S.tool==='pan')){
+    let pts=[]; try{ pts=a.def.dragPoints(a.params)||[]; }catch(_){}
+    for(const q of pts){
+      if(!isFinite(q.x)||!isFinite(q.y)) continue;
+      const rr=VIEW.lw(6.5);
+      octx.fillStyle=css('--accent'); octx.globalAlpha=.16;
+      octx.beginPath(); octx.arc(q.x,q.y,rr,0,7); octx.fill();
+      octx.globalAlpha=1;
+      octx.strokeStyle=css('--accent'); octx.lineWidth=VIEW.lw(1.6);
+      octx.beginPath(); octx.arc(q.x,q.y,rr,0,7); octx.stroke();
+      octx.beginPath();
+      octx.moveTo(q.x-rr*0.45,q.y); octx.lineTo(q.x+rr*0.45,q.y);
+      octx.moveTo(q.x,q.y-rr*0.45); octx.lineTo(q.x,q.y+rr*0.45);
+      octx.stroke();
+    }
+  }
   if(S.snap&&S.tool!=='pan'){
     octx.fillStyle=css('--measure'); octx.globalAlpha=.7;
     for(const an of (a.def.anchors?a.def.anchors(a.state,a.params):[])){
@@ -406,7 +426,7 @@ function drawAll(){
   const wb=$('#warnbar');
   const showW = w && S.settings.events!==false;
   if((showW?w:'')!==wb.dataset.msg){ wb.dataset.msg=showW?w:''; wb.textContent=showW?w:''; wb.classList.toggle('hidden',!showW); }
-  $('#hud').textContent=a.def.readouts(a.state,a.params)
+  $('#hud-body').textContent=a.def.readouts(a.state,a.params)
     .map(([l,v,u])=>`${l.padEnd(14)} ${fmt(v).padStart(9)} ${u}`).join('\n');
   $('#clock').textContent=`t = ${a.state.t.toFixed(2)} c`;
 }
@@ -612,8 +632,8 @@ function updateHistoBox(a){
   const M=a.def.measure(s,p), vr=M.vrms||1, bins=16, cnt=new Array(bins).fill(0), vmax=vr*2.6||1;
   for(const m of s.mol){ const sp=Math.hypot(m.vx,m.vy); const bi=Math.min(bins-1,Math.floor(sp/vmax*bins)); cnt[bi]++; }
   const maxC=Math.max(...cnt,1);
-  box.innerHTML=`<div class="htitle">распределение по скоростям (Максвелл)</div>`+
-    `<div class="hbars">`+cnt.map(c=>`<div class="hb" style="height:${(c/maxC*100).toFixed(0)}%"></div>`).join('')+`</div>`+
+  $('#histo-body').innerHTML=`<div class="hbars">`+
+    cnt.map(c=>`<div class="hb" style="height:${(c/maxC*100).toFixed(0)}%"></div>`).join('')+`</div>`+
     `<div class="hx">медленные ← v → быстрые</div>`;
   box.classList.remove('hidden');
 }
@@ -630,7 +650,7 @@ function updateEnergyBox(a){
   else if(Math.abs(E.Ep)>1e-9 || p.mode==='hill' || p.exp==='orbit' || p.kind==='pend' || p.kind==='phys')
     bars.push(['E_пот',E.Ep,'var(--second)']);
   const tot=Math.max(E.tot, a.state.E0||E.tot, 1e-6);
-  box.innerHTML=`<div class="tot">полная<br>${E.tot.toFixed(0)} Дж</div>`+
+  $('#energy-body').innerHTML=`<div class="tot">полная<br>${E.tot.toFixed(0)} Дж</div>`+
     bars.map(([lab,val,col])=>`<div class="ebar">
       <div class="val">${val.toFixed(0)}</div>
       <div class="track"><div class="fill" style="height:${(Math.abs(val)/tot*100).toFixed(1)}%;background:${col}"></div></div>
@@ -1073,7 +1093,14 @@ $('#cwrap').addEventListener('pointerdown',e=>{
       drag=null; startPinch(); return;
     }
   }
-  if(e.button===1||e.shiftKey){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
+  /* Панорама: средняя кнопка, Shift+ЛКМ и ПРАВАЯ кнопка (как в CAD).
+     Раньше правая кнопка не панорамировала вовсе, зато успевала схватить
+     точку симуляции и одновременно открыть контекстное меню. */
+  if(e.button===1||e.button===2||e.shiftKey){
+    drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y,rmb:e.button===2,moved:false};
+    try{ e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId); }catch(_){}
+    return;
+  }
   // КОНСТРУКТОР ЦЕПЕЙ: если симуляция умеет строиться мышью, ЛКМ отдаётся ей
   // ЦЕЛИКОМ — независимо от выбранного инструмента (перо, линейка и пр. не мешают).
   // Панорама остаётся на Shift, средней кнопке и протягивании пустого места.
@@ -1089,7 +1116,7 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   }
   // перетаскивание точек симуляции (заряды, пробы, гауссова поверхность) — приоритет над панорамой.
   // Работает в режимах курсора и панорамы: если кликнули близко к точке, хватаем её.
-  if(a.def.dragPoints && (S.tool==='cursor'||S.tool==='pan')){
+  if(a.def.dragPoints && e.button===0 && (S.tool==='cursor'||S.tool==='pan')){
     const pts=a.def.dragPoints(a.params);
     let best=-1, bestPx=22;                       // 22 px радиус попадания
     for(let i=0;i<pts.length;i++){
@@ -1147,7 +1174,10 @@ addEventListener('pointermove',e=>{
   const a=A(); if(!drag||!a) return;
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
   const [wx,wy]=toWorld(px,py);
-  if(drag.mode==='pan'){ a.view.x=drag.vx-(px-drag.px)/ppm(); a.view.y=drag.vy+(py-drag.py)/ppm(); }
+  if(drag.mode==='pan'){
+    if(Math.hypot(px-drag.px,py-drag.py)>3) drag.moved=true;
+    a.view.x=drag.vx-(px-drag.px)/ppm(); a.view.y=drag.vy+(py-drag.py)/ppm();
+  }
   else if(drag.mode==='simdraw'){ a.def.wireMove(a.params,drag.handle,wx,wy); }
   else if(drag.mode==='click'){
     if(Math.hypot(px-drag.px,py-drag.py)>6) drag.moved=true;
@@ -1171,8 +1201,14 @@ addEventListener('pointercancel',()=>{
   if(a) a.draft=null;
   drag=null;
 });
+let pendingMenu=null;        // отложенный запрос меню от правой кнопки
 addEventListener('pointerup',()=>{
   const a=A();
+  if(drag&&drag.mode==='pan'&&drag.rmb){
+    // кнопку не тащили — значит это был обычный правый клик, показываем меню
+    if(!drag.moved&&pendingMenu) openSimMenu(pendingMenu.x,pendingMenu.y);
+    pendingMenu=null;
+  }
   if(a&&a.draft&&drag&&drag.mode==='draw'){
     const d=a.draft;
     const ok=d.type==='pencil'?d.pts.length>2:Math.hypot(d.p[2]-d.p[0],d.p[3]-d.p[1])>0.05;
@@ -2101,10 +2137,14 @@ addEventListener('keydown',e=>{
 });
 
 /* ПКМ по симуляции → меню симуляции вместо меню браузера */
-$('#simpane').addEventListener('contextmenu',e=>{
-  e.preventDefault();
+/* Меню симуляции по правой кнопке.
+   ВАЖНО: в браузерах на Linux событие contextmenu приходит уже на НАЖАТИИ,
+   поэтому при панорамировании правой кнопкой меню успевало выскочить в
+   начале жеста. Поэтому меню не открывается сразу: запрос запоминается, а
+   показывается в pointerup — и только если кнопку не тащили. */
+function openSimMenu(clientX,clientY){
   const pop=$('#pop-simmenu');
-  // инструменты конструктора цепей (если симуляция их объявляет)
+  // инструменты конструктора (если симуляция их объявляет)
   let tl=$('#simmenu-tools');
   if(!tl){ tl=document.createElement('div'); tl.id='simmenu-tools'; pop.prepend(tl); }
   tl.innerHTML='';
@@ -2112,7 +2152,7 @@ $('#simpane').addEventListener('contextmenu',e=>{
   if(at&&at.def.ctxTools){
     for(const it of at.def.ctxTools(at.params)){
       const b=document.createElement('button'); b.className='item'; b.textContent=it.label;
-      b.onclick=()=>{ it.on(at.params); at.state=at.def.init(at.params); pop.classList.add('hidden'); };
+      b.onclick=()=>{ it.on(at.params); at.state=at.def.init(at.params); pop.classList.add('hidden'); renderSimTools(); };
       tl.appendChild(b);
     }
     const hr=document.createElement('div');
@@ -2122,9 +2162,15 @@ $('#simpane').addEventListener('contextmenu',e=>{
   document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden'));
   pop.style.visibility='hidden'; pop.classList.remove('hidden');
   const w=pop.offsetWidth, h=pop.offsetHeight;
-  pop.style.left=clamp(e.clientX,8,innerWidth-w-8)+'px';
-  pop.style.top=clamp(e.clientY,8,innerHeight-h-8)+'px';
+  pop.style.left=clamp(clientX,8,innerWidth-w-8)+'px';
+  pop.style.top=clamp(clientY,8,innerHeight-h-8)+'px';
   pop.style.visibility='visible';
+}
+$('#simpane').addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  // жест правой кнопкой ещё идёт — решим в pointerup, тащили её или нет
+  if(drag&&drag.mode==='pan'&&drag.rmb){ pendingMenu={x:e.clientX,y:e.clientY}; return; }
+  openSimMenu(e.clientX,e.clientY);
 });
 
 const SPEEDS=[0.05,0.1,0.25,0.5,1,2,4,8,16,32,64,100,200];
@@ -2150,6 +2196,124 @@ function toast(m){
   if(prefGet('toasts')===false) return;     // подсказки можно выключить в настройках
   const t=$('#toast'); t.textContent=m; t.classList.add('show');
   clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ==================== ПЛАВАЮЩИЕ ПАНЕЛИ НАД СЦЕНОЙ ====================
+   Показатели, энергия, PV-диаграмма, гистограмма и сравнение ведут себя как
+   окна в системе: их таскают за заголовок, размер меняют за уголок, двойной
+   клик по заголовку сворачивает в полоску. Геометрия каждой панели хранится
+   в localStorage, поэтому расстановка переживает перезагрузку.
+
+   Позиции задаются ТОЛЬКО через left/top: панели по умолчанию прижаты
+   правым или нижним краем (right/bottom), и если этого не снять, при
+   перетаскивании панель растягивалась бы вместо того, чтобы ехать. */
+const FPANELS=['hud','energybox','pvbox','histobox','cmpbox'];
+function fpLoad(){ return LS.get('panels',{}); }
+function fpSave(id,geom){
+  const all=fpLoad(); all[id]={...(all[id]||{}),...geom}; LS.set('panels',all);
+}
+function fpApply(el){
+  const g=fpLoad()[el.id];
+  if(!g) return;
+  if(g.x!==undefined){ el.style.left=g.x+'px'; el.style.right='auto'; }
+  if(g.y!==undefined){ el.style.top=g.y+'px';  el.style.bottom='auto'; }
+  if(g.w) el.style.width=g.w+'px';
+  if(g.h) el.style.height=g.h+'px';
+  if(g.rolled) el.classList.add('rolled');
+}
+function fpClampAll(){
+  const wrap=$('#cwrap'); if(!wrap) return;
+  const W=wrap.clientWidth, H=wrap.clientHeight;
+  for(const id of FPANELS){
+    const el=document.getElementById(id);
+    if(!el||el.classList.contains('hidden')||!el.style.left) continue;
+    const r=el.getBoundingClientRect();
+    const x=clamp(parseFloat(el.style.left)||0, 0, Math.max(0,W-Math.min(r.width,W)));
+    const y=clamp(parseFloat(el.style.top)||0,  0, Math.max(0,H-28));
+    el.style.left=x+'px'; el.style.top=y+'px';
+  }
+}
+function makeFloating(el){
+  if(!el||el.__fp) return; el.__fp=true;
+  const head=el.querySelector('.fp-head');
+  if(!head) return;
+  // уголок изменения размера
+  const grip=document.createElement('div');
+  grip.className='fp-grip'; grip.title='Потяните, чтобы изменить размер';
+  el.appendChild(grip);
+  fpApply(el);
+
+  // перевод из right/bottom в left/top перед первым перетаскиванием
+  const toLeftTop=()=>{
+    const wrap=$('#cwrap'), pr=wrap.getBoundingClientRect(), r=el.getBoundingClientRect();
+    el.style.left=(r.left-pr.left)+'px'; el.style.top=(r.top-pr.top)+'px';
+    el.style.right='auto'; el.style.bottom='auto';
+  };
+
+  let drag=null;
+  head.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button')) return;          // кнопки в шапке работают как обычно
+    e.preventDefault(); e.stopPropagation();
+    toLeftTop();
+    drag={sx:e.clientX, sy:e.clientY,
+          x0:parseFloat(el.style.left)||0, y0:parseFloat(el.style.top)||0, moved:false};
+    try{ head.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  head.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy;
+    if(!drag.moved && Math.hypot(dx,dy)<3) return;   // порог: короткий клик не считается перетаскиванием
+    drag.moved=true; el.classList.add('dragging');
+    const wrap=$('#cwrap'), W=wrap.clientWidth, H=wrap.clientHeight, r=el.getBoundingClientRect();
+    el.style.left=clamp(drag.x0+dx, 0, Math.max(0,W-r.width))+'px';
+    el.style.top =clamp(drag.y0+dy, 0, Math.max(0,H-28))+'px';
+  });
+  const endDrag=()=>{
+    if(!drag) return;
+    if(drag.moved) fpSave(el.id,{x:parseFloat(el.style.left)||0, y:parseFloat(el.style.top)||0});
+    drag=null; el.classList.remove('dragging');
+  };
+  head.addEventListener('pointerup',endDrag);
+  head.addEventListener('pointercancel',endDrag);
+  // двойной клик по шапке — свернуть/развернуть
+  head.addEventListener('dblclick',e=>{
+    if(e.target.closest('button')) return;
+    const rolled=el.classList.toggle('rolled');
+    fpSave(el.id,{rolled});
+  });
+
+  let rs=null;
+  grip.addEventListener('pointerdown',e=>{
+    e.preventDefault(); e.stopPropagation();
+    const r=el.getBoundingClientRect();
+    rs={sx:e.clientX, sy:e.clientY, w0:r.width, h0:r.height};
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  grip.addEventListener('pointermove',e=>{
+    if(!rs) return;
+    el.classList.remove('rolled');
+    const wrap=$('#cwrap');
+    const w=clamp(rs.w0+(e.clientX-rs.sx),120,wrap.clientWidth);
+    const h=clamp(rs.h0+(e.clientY-rs.sy),60,wrap.clientHeight);
+    el.style.width=w+'px'; el.style.height=h+'px';
+  });
+  const endRs=()=>{
+    if(!rs) return;
+    fpSave(el.id,{w:parseFloat(el.style.width)||undefined, h:parseFloat(el.style.height)||undefined, rolled:false});
+    rs=null;
+  };
+  grip.addEventListener('pointerup',endRs);
+  grip.addEventListener('pointercancel',endRs);
+}
+function initFloatingPanels(){ for(const id of FPANELS) makeFloating(document.getElementById(id)); }
+function resetPanels(){
+  LS.set('panels',{});
+  for(const id of FPANELS){
+    const el=document.getElementById(id); if(!el) continue;
+    el.classList.remove('rolled');
+    el.style.left=el.style.top=el.style.right=el.style.bottom=el.style.width=el.style.height='';
+  }
+  toast('Расположение панелей сброшено');
+}
 
 /* ======================== КОМАНДНАЯ ПАЛИТРА (Ctrl+P) =====================
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
@@ -2197,6 +2361,7 @@ const CMDS=[
   {k:'Время',t:'Шаг назад', hint:',', run:()=>$('#tl-prev').click()},
   {k:'Время',t:'Шаг вперёд', hint:'.', run:()=>$('#tl-next').click()},
   {k:'Время',t:'Вернуться к живому расчёту', hint:'`', run:()=>scrubLive()},
+  {k:'Вид',t:'Сбросить расположение панелей', run:()=>resetPanels()},
   {k:'Прочее',t:'Настройки', hint:'Ctrl+,', run:()=>openPrefs()},
   {k:'Прочее',t:'Горячие клавиши', run:()=>openPrefs('keys')},
   {k:'Прочее',t:'Сохранить настройки в файл', run:()=>{ openPrefs('data'); setTimeout(()=>$('#pref-export')&&$('#pref-export').click(),120); }},
@@ -2406,6 +2571,7 @@ function lockInit(){
   inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') attempt(); });
   setTimeout(()=>inp.focus(),60);
 }
+initFloatingPanels();
 lockInit();
 
 /* ================================= СТАРТ =============================== */

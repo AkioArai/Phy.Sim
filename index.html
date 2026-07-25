@@ -105,13 +105,29 @@
       <div class="warnbar hidden" id="warnbar"></div>
       <div class="canvas-wrap" id="cwrap">
         <canvas id="scene"></canvas><canvas id="overlay"></canvas>
-        <div class="hud" id="hud"></div>
-        <div class="histobox hidden" id="histobox"></div>
-        <div class="pvbox hidden" id="pvbox">
-          <div class="pvhead" id="pvhead"><b>PV-диаграмма</b><span class="pvtoggle" id="pvtoggle">▾</span></div>
+        <div class="hud fpanel" id="hud">
+          <div class="fp-head"><b>Показатели</b></div>
+          <div class="hud-body" id="hud-body"></div>
+        </div>
+        <div class="histobox fpanel hidden" id="histobox">
+          <div class="fp-head"><b>Распределение</b></div>
+          <div class="histo-body" id="histo-body"></div>
+        </div>
+        <div class="pvbox fpanel hidden" id="pvbox">
+          <div class="pvhead fp-head" id="pvhead"><b>PV-диаграмма</b><span class="pvtoggle" id="pvtoggle">▾</span></div>
           <div class="pvbody" id="pvbody"></div>
         </div>
-        <div class="energybox hidden" id="energybox"></div>
+        <div class="energybox fpanel hidden" id="energybox">
+          <div class="fp-head"><b>Энергия</b></div>
+          <div class="energy-body" id="energy-body"></div>
+        </div>
+        <!-- Панель сравнения: снимок состояния и разница с текущим -->
+        <div class="cmpbox fpanel hidden" id="cmpbox">
+          <div class="fp-head"><b>Сравнение со снимком</b>
+            <button class="iconbtn" id="cmp-close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+          <div class="cmp-body" id="cmp-body"></div>
+        </div>
         <div class="eventflag hidden" id="eventflag"></div>
         <div class="empty" id="nosim" style="position:absolute;inset:0;display:grid;place-items:center;background:var(--canvas)">
           Нажмите ▷ в углу формулы — здесь откроется её симуляция.</div>
@@ -241,12 +257,7 @@
   </div>
 </div>
 
-<!-- Панель сравнения: снимок состояния и разница с текущим -->
-<div class="cmpbox hidden" id="cmpbox">
-  <div class="cmp-head"><b>Сравнение со снимком</b>
-    <button class="iconbtn" id="cmp-close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-  </div>
-  <div class="cmp-body" id="cmp-body"></div>
+
 </div>
 
 <!-- Экран доступа: пособие открывается только по паролю. Проверка идёт по

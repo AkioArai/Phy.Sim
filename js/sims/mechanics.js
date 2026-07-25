@@ -3302,22 +3302,18 @@ buoyancy:{
       ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.stroke();
     }
     v.label(ctx,`ρт = ${p.rho} кг/м³`,0,yc,-30,-H*20-8,acc);
-    // силы
+    /* Силы — диаграммой свободного тела из ЦЕНТРА тела. Раньше F_A и N были
+       сдвинуты по горизонтали на 0.16 м, чтобы не совпасть с mg, и казалось,
+       что они приложены мимо тела. Противоположно направленные стрелки из
+       одной точки и так не накладываются. */
     if(p.forces){
       const m=this.mass(p), Wt=m*p.g, FA=this.FA(p,s.d);
-      const kF=1.0/Math.max(Wt,FA,1);
-      v.arrow(ctx,0,yc,0,yc-Wt*kF,dang);
-      v.label(ctx,`mg = ${Wt.toFixed(1)} Н`,0,yc-Wt*kF,8,4,dang);
-      if(FA>1e-6){
-        v.arrow(ctx,0.16,yc,0.16,yc+FA*kF,sec);
-        v.label(ctx,`F_A = ${FA.toFixed(1)} Н`,0.16,yc+FA*kF,8,-4,sec);
-      }
-      // если лежит на дне — реакция дна
-      if(!this.floats(p) && s.d>=Math.min(H,D)-1e-6){
-        const N=Math.max(0,Wt-FA);
-        v.arrow(ctx,-0.16,-D,-0.16,-D+N*kF,meas);
-        v.label(ctx,`N = ${N.toFixed(1)} Н`,-0.16,-D+N*kF,-46,-4,meas);
-      }
+      const F=[{fx:0, fy:-Wt, label:'mg', color:dang}];
+      if(FA>1e-6) F.push({fx:0, fy:FA, label:'F_A', color:sec});
+      // лежит на дне — добавляется реакция дна
+      if(!this.floats(p) && s.d>=Math.min(H,D)-1e-6)
+        F.push({fx:0, fy:Math.max(0,Wt-FA), label:'N', color:meas});
+      v.fbd(ctx,{x:0, y:yc, forces:F, len:1.0, resultant:false, units:'Н'});
     }
     // ватерлиния тела
     if(s.d>0.001 && s.d<H){
@@ -3342,158 +3338,5 @@ buoyancy:{
        Ω = M / (L·sinθ) = m·g·d / (I·ω),
    то есть чем быстрее раскручен волчок, тем МЕДЛЕННЕЕ он прецессирует.
    Условие «быстрого волчка» (гироскопическое приближение): L ≫ I·Ω.       */
-gyro:{
-  title:'Гироскоп: почему волчок не падает',
-  params:[
-    {key:'m',  label:'Масса маховика',unit:'кг',min:0.05,max:20,step:0.05,default:1},
-    {key:'R',  label:'Радиус маховика',unit:'м',min:0.02,max:0.6,step:0.01,default:0.12},
-    {key:'d',  label:'Плечо: опора → центр масс',unit:'м',min:0.02,max:1,step:0.01,default:0.2},
-    {key:'rpm',label:'Обороты маховика',unit:'об/мин',min:0,max:12000,step:50,default:3000},
-    {key:'th', label:'Наклон оси к вертикали θ',unit:'°',min:5,max:90,step:1,default:70},
-    {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
-    {type:'group',label:'Показывать'},
-    {key:'vecs', label:'Векторы L, M и ΔL',type:'check',default:true},
-    {key:'trail',label:'След конца оси',type:'check',default:true}
-  ],
-  /* Диск: I = mR²/2 относительно собственной оси */
-  I(p){ return 0.5*p.m*p.R*p.R; },
-  w(p){ return p.rpm*2*Math.PI/60; },
-  L(p){ return this.I(p)*this.w(p); },
-  torque(p){ return p.m*p.g*p.d*Math.sin(p.th*Math.PI/180); },
-  /* Ω = mgd/(Iω) — не зависит от угла наклона */
-  prec(p){ const L=this.L(p); return L>1e-9? p.m*p.g*p.d/L : Infinity; },
-  Tprec(p){ const O=this.prec(p); return isFinite(O)&&O>1e-9? 2*Math.PI/O : Infinity; },
-  /* Быстрый ли волчок: приближение верно, когда прецессия много медленнее вращения */
-  fast(p){ const O=this.prec(p); return isFinite(O) && O<0.1*Math.abs(this.w(p)); },
-  init(p){ return {t:0, phi:0, trail:[], event:null, __stop:null}; },
-  step(s,dt,p){
-    s.t+=dt;
-    const O=this.prec(p);
-    if(isFinite(O)) s.phi+=O*dt;
-    if(p.trail){
-      const th=p.th*Math.PI/180;
-      s.trail.push([p.d*Math.sin(th)*Math.cos(s.phi), p.d*Math.sin(th)*Math.sin(s.phi)*0.42+p.d*Math.cos(th)]);
-      if(s.trail.length>420) s.trail.shift();
-    }
-    if(this.w(p)<1e-9 && !s.event){
-      s.event={type:'fall',t:s.t};
-      s.__stop='Маховик не раскручен: момент импульса нулевой — волчок просто падает';
-    }
-  },
-  readouts(s,p){
-    const O=this.prec(p), w=this.w(p);
-    return [['t',s.t,'с'],
-      ['момент инерции I = mR²/2',this.I(p),'кг·м²'],
-      ['угловая скорость ω',w,'рад/с'],
-      ['обороты',p.rpm,'об/мин'],
-      ['момент импульса L = Iω',this.L(p),'кг·м²/с'],
-      ['момент силы тяжести M = mgd·sinθ',this.torque(p),'Н·м'],
-      ['скорость прецессии Ω = mgd/(Iω)',isFinite(O)?O:NaN, isFinite(O)?'рад/с':'маховик стоит — прецессии нет'],
-      ['период прецессии',isFinite(this.Tprec(p))?this.Tprec(p):NaN,
-        isFinite(this.Tprec(p))?'с':'прецессии нет — маховик не раскручен'],
-      ['повернулось на',s.phi*180/Math.PI,'°'],
-      ['отношение Ω/ω',isFinite(O)&&w>1e-9?O/w:NaN, (isFinite(O)&&w>1e-9)?'':'ω = 0: отношение не определено'],
-      ['режим',0, this.fast(p)?'быстрый волчок: формула точна':'медленный: появятся нутации, формула приближённая']];
-  },
-  graphs:[
-    {label:'Угол прецессии',unit:'°',series:['φ'],get(s,p){ return [s.phi*180/Math.PI,null]; }},
-    {label:'Скорость прецессии Ω',unit:'рад/с',series:['Ω'],
-     get(s,p){ const O=SIMS.gyro.prec(p); return [isFinite(O)?O:0,null]; }}
-  ],
-  presets:[
-    {name:'Классический волчок: медленная прецессия',values:{m:1,R:0.12,d:0.2,rpm:3000,th:70}},
-    {name:'Раскрутили вдвое — прецессия вдвое медленнее',values:{m:1,R:0.12,d:0.2,rpm:6000,th:70}},
-    {name:'Замедляется — прецессия ускоряется',values:{m:1,R:0.12,d:0.2,rpm:600,th:70}},
-    {name:'Ось почти горизонтальна',values:{m:1,R:0.12,d:0.2,rpm:3000,th:88}},
-    {name:'Маховик стоит: волчок падает',values:{m:1,R:0.12,d:0.2,rpm:0,th:70}}
-  ],
-  anchors(s,p){
-    const th=p.th*Math.PI/180;
-    return [{x:0,y:0},{x:p.d*Math.sin(th)*Math.cos(s.phi), y:p.d*Math.cos(th)}];
-  },
-  dragPoints(p){ return [{x:0,y:p.d}]; },
-  dragMove(p,idx,x,y){ p.d=clamp(Math.round(Math.hypot(x,y)*100)/100,0.02,1); },
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const span=Math.max(p.d*2.6+p.R*3,0.8);
-    const scale=clamp(Math.min((W-70)/(span*PX_PER_M),(H-70)/(span*PX_PER_M)),1e-7,30);
-    return {x:0,y:p.d*0.35,scale};
-  },
-  draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
-          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const th=p.th*Math.PI/180, ph=s.phi;
-    /* Косая проекция: круг прецессии рисуем эллипсом (сжатие по вертикали),
-       чтобы читалось как объём, оставаясь честным по горизонтали. */
-    const KY=0.42;
-    const tip=[p.d*Math.sin(th)*Math.cos(ph), p.d*Math.sin(th)*Math.sin(ph)*KY+p.d*Math.cos(th)];
-    // опора и вертикаль
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.2);
-    ctx.beginPath(); ctx.moveTo(-p.d*0.5,-p.d*0.28); ctx.lineTo(p.d*0.5,-p.d*0.28); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,-p.d*0.28); ctx.lineTo(0,0); ctx.stroke();
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,p.d*1.35); ctx.stroke();
-    ctx.setLineDash([]); ctx.globalAlpha=1;
-    v.label(ctx,'вертикаль',0,p.d*1.35,4,-6,ink3);
-    // окружность, по которой ходит конец оси
-    const rr=p.d*Math.sin(th);
-    ctx.strokeStyle=sec; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1.2);
-    ctx.beginPath();
-    for(let i=0;i<=64;i++){ const a=i/64*2*Math.PI;
-      const x=rr*Math.cos(a), y=rr*Math.sin(a)*KY+p.d*Math.cos(th);
-      i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke(); ctx.globalAlpha=1;
-    // след
-    if(p.trail&&s.trail.length>1){
-      ctx.strokeStyle=meas; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); s.trail.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
-      ctx.stroke(); ctx.globalAlpha=1;
-    }
-    // ось волчка
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(tip[0],tip[1]); ctx.stroke();
-    // маховик — эллипс, перпендикулярный оси
-    const ax=Math.atan2(tip[1],tip[0]);
-    ctx.save(); ctx.translate(tip[0],tip[1]); ctx.rotate(ax+Math.PI/2);
-    ctx.fillStyle=acc; ctx.globalAlpha=.25;
-    ctx.beginPath(); ctx.ellipse(0,0,p.R,p.R*0.34,0,0,7); ctx.fill(); ctx.globalAlpha=1;
-    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-    ctx.beginPath(); ctx.ellipse(0,0,p.R,p.R*0.34,0,0,7); ctx.stroke();
-    // спица показывает собственное вращение
-    const spin=this.w(p)*s.t;
-    ctx.beginPath(); ctx.moveTo(0,0);
-    ctx.lineTo(p.R*Math.cos(spin), p.R*0.34*Math.sin(spin)); ctx.stroke();
-    ctx.restore();
-    v.label(ctx,`маховик ${p.rpm} об/мин`,tip[0],tip[1],-26,-p.R*20-12,acc);
-    // векторы
-    if(p.vecs){
-      const kL=p.d*0.8/Math.max(this.L(p),1e-6);
-      const ux=tip[0]/Math.max(Math.hypot(tip[0],tip[1]),1e-9), uy=tip[1]/Math.max(Math.hypot(tip[0],tip[1]),1e-9);
-      // L вдоль оси
-      v.arrow(ctx,0,0, ux*p.d*0.9, uy*p.d*0.9, sec);
-      v.label(ctx,`L = ${this.L(p).toFixed(3)}`,ux*p.d*0.9,uy*p.d*0.9,8,-6,sec);
-      // вес в центре масс
-      const kF=p.d*0.5/Math.max(p.m*p.g,1e-6);
-      v.arrow(ctx,tip[0],tip[1],tip[0],tip[1]-p.m*p.g*kF,dang);
-      v.label(ctx,`mg`,tip[0],tip[1]-p.m*p.g*kF,6,6,dang);
-      // ΔL = M·dt — перпендикулярно оси и горизонтально: именно туда «уходит» ось
-      const dx=-uy, dy=ux;
-      v.arrow(ctx,tip[0],tip[1],tip[0]+dx*p.d*0.35,tip[1]+dy*p.d*0.35,meas);
-      v.label(ctx,'ΔL = M·Δt',tip[0]+dx*p.d*0.35,tip[1]+dy*p.d*0.35,6,-6,meas);
-    }
-    // подписи
-    const O=this.prec(p);
-    v.label(ctx,`θ = ${p.th}°`,0,p.d*0.5,10,0,ink3);
-    v.label(ctx, isFinite(O)
-      ? `Ω = mgd/(Iω) = ${O.toFixed(3)} рад/с, период ${this.Tprec(p).toFixed(2)} с`
-      : 'без вращения момента импульса нет — держаться нечему',
-      -p.d*1.25,-p.d*0.55,0,0, isFinite(O)?ink3:dang);
-    v.label(ctx,'момент тяжести не роняет ось, а поворачивает её: чем быстрее волчок, тем медленнее прецессия',
-      -p.d*1.25,-p.d*0.55,0,16,ink3);
-    if(!this.fast(p)&&isFinite(O))
-      v.label(ctx,'волчок раскручен слабо: в жизни добавятся нутации — ось будет подрагивать',
-        -p.d*1.25,-p.d*0.55,0,32,meas);
-  }
-}
 
 });
