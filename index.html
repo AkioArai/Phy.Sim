@@ -191,5 +191,19 @@
   <div style="margin-top:16px;text-align:right"><button class="btn primary" id="kb-close">Закрыть</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
+
+<!-- Экран доступа: пособие открывается только по паролю. Проверка идёт по
+     SHA-256-хэшу на устройстве; сам пароль нигде в коде не хранится. -->
+<div class="lock" id="lock">
+  <div class="lock-card" id="lock-card">
+    <div class="lock-brand">Phy<span>.</span>Sim</div>
+    <div class="lock-sub">интерактивный курс физики</div>
+    <label class="lock-lab" for="lock-pass">Пароль доступа</label>
+    <input class="lock-inp" id="lock-pass" type="password" autocomplete="current-password" placeholder="Введите пароль…">
+    <button class="btn primary lock-btn" id="lock-enter">Войти</button>
+    <div class="lock-err" id="lock-err"></div>
+    <div class="lock-note">Пароль выдаёт преподаватель. Вход запоминается на этом устройстве.</div>
+  </div>
+</div>
 </body>
 </html>

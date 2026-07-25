@@ -2430,8 +2430,16 @@ stability:{
       const th=a+s.phi;                            // текущий наклон тела
       const eps=p.m*g*r*Math.sin(th-(Math.PI/2-b))/I;
       s.om+=Math.max(eps,0)*dt; s.phi+=s.om*dt;
-      const lim=Math.PI/2-b+0.0;                   // легло на бок
-      if(s.phi>lim){ s.phi=lim; s.om=0; s.fallen=true; }
+      /* Тело «легло», когда его боковая грань коснулась склона. Грань
+         перпендикулярна основанию, поэтому это ровно поворот на 90° вокруг
+         ребра — независимо от пропорций тела. (Раньше стоял предел π/2−β —
+         это угол до положения равновесия на ребре, а не до лежания: тело
+         останавливалось повёрнутым на ~10–20° с текстом «легло».) */
+      const lim=Math.PI/2;
+      if(s.phi>=lim){
+        s.phi=lim; s.om=0;
+        if(!s.fallen){ s.fallen=true; s.event={type:'fell',t:s.t}; }
+      }
     } else if(verd==='скользит'){
       const acc=g*(Math.sin(a)-p.mu*Math.cos(a));
       s.vs+=Math.max(acc,0)*dt; s.slide+=s.vs*dt;

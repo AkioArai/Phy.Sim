@@ -347,6 +347,35 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+/* ======================= ЭКРАН ДОСТУПА (ПАРОЛЬ) ======================= */
+.lock{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:var(--bg);
+  padding:20px calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left))}
+.lock.hidden{display:none}
+.lock-card{width:min(360px,100%);background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:28px 26px 20px;box-shadow:0 14px 44px -18px #0006}
+.lock-brand{font-family:var(--mono);font-weight:650;font-size:22px;letter-spacing:-.02em}
+.lock-brand span{color:var(--accent)}
+.lock-sub{font-size:12px;color:var(--ink-3);margin:3px 0 22px;font-family:var(--mono);
+  letter-spacing:.06em;text-transform:uppercase}
+.lock-lab{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:6px}
+.lock-inp{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--panel-2);color:var(--ink);font:inherit;font-size:14px;letter-spacing:.06em}
+.lock-inp:focus{outline:none;border-color:var(--accent)}
+.lock-btn{width:100%;margin-top:12px;padding:9px;font-size:13.5px}
+.lock-err{min-height:18px;font-size:12.5px;color:var(--danger);margin-top:9px;text-align:center}
+.lock-note{font-size:11.5px;color:var(--ink-3);line-height:1.55;margin-top:8px;text-align:center;
+  border-top:1px solid var(--line-soft);padding-top:12px}
+.lock-card.shake{animation:lockShake .3s}
+@keyframes lockShake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}
+  60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+
+/* ---- Хуки новых настроек ---- */
+[data-serif="1"] article p,[data-serif="1"] article li,[data-serif="1"] .callout{
+  font-family:Georgia,'Times New Roman',serif}
+[data-hudside="right"] .hud{left:auto;right:8px}
+.hud{font-size:calc(11px*var(--hudk,1))}
+#clock.hidden,#fps.hidden{display:none}
+
 /* ---- Мобильные элементы управления: по умолчанию (десктоп) скрыты, включаются
    в медиазапросе узких экранов ниже. ---- */
 .mobile-only{display:none}
@@ -388,7 +417,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   #hsplit{display:none}
 
   /* компактный HUD, чтобы не заслонял сцену */
-  .hud{font-size:10px;padding:5px 8px 6px;left:6px;top:6px;
+  .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
     background:color-mix(in srgb,var(--panel) 82%,transparent)}
   .hud::before{font-size:8px;margin-bottom:3px}
 
@@ -427,6 +456,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   .mplay svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
   .mplay #ic-mplay{fill:currentColor}
+  /* настройка «крупный пульт»: цели больше — удобнее большим пальцам */
+  [data-dock="big"] .mdock .mdock-btn,[data-dock="big"] .mplay{width:46px;height:46px}
+  [data-dock="big"] .mplay svg{width:23px;height:23px}
+  [data-dock="big"] .mdock .mspeed{font-size:14px;min-width:42px}
 
   /* попапы (меню симуляции) должны быть выше полноэкранной сцены */
   .pop{z-index:200}
@@ -611,6 +644,20 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   <div style="margin-top:16px;text-align:right"><button class="btn primary" id="kb-close">Закрыть</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
+
+<!-- Экран доступа: пособие открывается только по паролю. Проверка идёт по
+     SHA-256-хэшу на устройстве; сам пароль нигде в коде не хранится. -->
+<div class="lock" id="lock">
+  <div class="lock-card" id="lock-card">
+    <div class="lock-brand">Phy<span>.</span>Sim</div>
+    <div class="lock-sub">интерактивный курс физики</div>
+    <label class="lock-lab" for="lock-pass">Пароль доступа</label>
+    <input class="lock-inp" id="lock-pass" type="password" autocomplete="current-password" placeholder="Введите пароль…">
+    <button class="btn primary lock-btn" id="lock-enter">Войти</button>
+    <div class="lock-err" id="lock-err"></div>
+    <div class="lock-note">Пароль выдаёт преподаватель. Вход запоминается на этом устройстве.</div>
+  </div>
+</div>
 <script>'use strict';
 /* =============================================================================
    PHY.SIM — ЯДРО. Контракт:
@@ -3074,8 +3121,16 @@ stability:{
       const th=a+s.phi;                            // текущий наклон тела
       const eps=p.m*g*r*Math.sin(th-(Math.PI/2-b))/I;
       s.om+=Math.max(eps,0)*dt; s.phi+=s.om*dt;
-      const lim=Math.PI/2-b+0.0;                   // легло на бок
-      if(s.phi>lim){ s.phi=lim; s.om=0; s.fallen=true; }
+      /* Тело «легло», когда его боковая грань коснулась склона. Грань
+         перпендикулярна основанию, поэтому это ровно поворот на 90° вокруг
+         ребра — независимо от пропорций тела. (Раньше стоял предел π/2−β —
+         это угол до положения равновесия на ребре, а не до лежания: тело
+         останавливалось повёрнутым на ~10–20° с текстом «легло».) */
+      const lim=Math.PI/2;
+      if(s.phi>=lim){
+        s.phi=lim; s.om=0;
+        if(!s.fallen){ s.fallen=true; s.event={type:'fell',t:s.t}; }
+      }
     } else if(verd==='скользит'){
       const acc=g*(Math.sin(a)-p.mu*Math.cos(a));
       s.vs+=Math.max(acc,0)*dt; s.slide+=s.vs*dt;
@@ -8193,8 +8248,14 @@ refraction:{
     return [{x:-R*Math.sin(a), y:R*Math.cos(a)}];
   },
   dragMove(p,idx,x,y){
-    const a=Math.atan2(Math.max(Math.abs(x),1e-6), Math.max(y,1e-6))*180/Math.PI;
-    p.ang=clamp(Math.round(a),0,89);
+    /* Луч падает из левой верхней четверти; угол отсчитывается от нормали.
+       Раньше знак x игнорировался (|x|), а y зажимался снизу микрозначением:
+       правее нормали ручка «зеркалилась», а ниже границы угол намертво
+       прыгал к 89° — луч не слушался пальца. Теперь ручка честно следует
+       за курсором внутри четверти, а за её пределами угол мягко упирается
+       в 0° (за нормалью) или 89° (за границей сред). */
+    const a=Math.atan2(-x, y)*180/Math.PI;      // левая верхняя четверть → 0…90°
+    p.ang=clamp(Math.round(a*2)/2, 0, 89);      // шаг 0.5° — плавнее слайдера
   },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
@@ -14840,6 +14901,7 @@ let CW=0,CH=0,DPR=1, gcanvas=[];
 function resize(){
   const r=$('#cwrap').getBoundingClientRect();
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
+  const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
   CW=r.width; CH=r.height;
   for(const c of [scene,overlay]){ c.width=Math.max(1,CW*DPR); c.height=Math.max(1,CH*DPR); }
   for(const c of gcanvas){ const b=c.getBoundingClientRect();
@@ -14930,20 +14992,36 @@ const VIEW={
     ctx.closePath(); ctx.fill();
   },
   /* Дуговая стрелка момента силы вокруг точки (cx,cy).
-     dir > 0 — против часовой, dir < 0 — по часовой. r — радиус дуги (в метрах). */
+     dir > 0 — против часовой, dir < 0 — по часовой. r — радиус дуги (в метрах).
+     Дуга рисуется полилинией с явной параметризацией, а не ctx.arc: мировая
+     система перевёрнута по y (setTransform ... −k), и флаг направления arc в ней
+     зеркалится — из-за этого дуга выходила короткой, а наконечник вставал
+     поперёк неё («кривые стрелки момента»). У полилинии направление хода и
+     касательная в конце известны точно. */
   torqueArc(ctx,cx,cy,r,dir,color){
     if(Math.abs(dir)<1e-9) return;
-    const ccw=dir>0;
-    const a0=ccw?-0.5:0.5, a1=ccw?3.9:-3.9;         // ~250° дуга
-    ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=this.lw(2.2);
-    ctx.beginPath(); ctx.arc(cx,cy,r,a0,a1,ccw); ctx.stroke();
-    // наконечник на конце дуги
-    const ea=a1, tx=cx+r*Math.cos(ea), ty=cy+r*Math.sin(ea);
-    const tang=ea+(ccw?Math.PI/2:-Math.PI/2);        // касательная (направление хода)
-    const h=this.lw(9);
-    ctx.beginPath(); ctx.moveTo(tx,ty);
-    ctx.lineTo(tx-h*Math.cos(tang-0.42),ty-h*Math.sin(tang-0.42));
-    ctx.lineTo(tx-h*Math.cos(tang+0.42),ty-h*Math.sin(tang+0.42));
+    const sgn=dir>0?1:-1;                    // +1 — против часовой (в мире y — вверх)
+    const span=4.2;                          // длина дуги ~240°
+    const gap=2*Math.PI-span;
+    const th0=-Math.PI/2+sgn*gap/2;          // разрыв дуги всегда смотрит вниз
+    ctx.strokeStyle=color; ctx.fillStyle=color;
+    ctx.lineWidth=this.lw(2.2); ctx.lineCap='round';
+    ctx.beginPath();
+    const N=42;
+    for(let i=0;i<=N;i++){
+      const th=th0+sgn*span*i/N;
+      const x=cx+r*Math.cos(th), y=cy+r*Math.sin(th);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+    // наконечник: касательная в конце дуги по направлению хода
+    const the=th0+sgn*span;
+    const tx=cx+r*Math.cos(the), ty=cy+r*Math.sin(the);
+    const tang=the+sgn*Math.PI/2;
+    const h=Math.min(this.lw(10),r*0.55);
+    ctx.beginPath(); ctx.moveTo(tx+h*0.3*Math.cos(tang),ty+h*0.3*Math.sin(tang));
+    ctx.lineTo(tx-h*Math.cos(tang-0.46),ty-h*Math.sin(tang-0.46));
+    ctx.lineTo(tx-h*Math.cos(tang+0.46),ty-h*Math.sin(tang+0.46));
     ctx.closePath(); ctx.fill();
   },
   /* Маркер вектора, перпендикулярного экрану:
@@ -14965,6 +15043,10 @@ function gridStep(){
   const k=ppm(); let s=1;
   while(s*k<42) s*=(String(s)[0]==='1'?2.5:2);
   while(s*k>130) s/=(String(s)[0]==='1'?2:2.5);
+  // настройка крупности: сдвигаем автоматический шаг на одну ступень
+  const m=S.settings.gridStepMode;
+  if(m==='coarse') s*=(String(s)[0]==='1'?2.5:2);
+  else if(m==='fine') s/=(String(s)[0]==='1'?2:2.5);
   return s;
 }
 function applyWorld(ctx){
@@ -14987,11 +15069,13 @@ function drawGrid(ctx){
     ctx.strokeStyle=maj?css('--grid-major'):css('--grid');
     ctx.beginPath(); ctx.moveTo(x0,j); ctx.lineTo(x1,j); ctx.stroke();
   }
-  VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
+  if(S.settings.gridLabels!==false)
+    VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
 }
 const fmt=v=>{
   if(!isFinite(v)) return '—';
-  return (Math.abs(v)>=1e4||(Math.abs(v)<0.01&&v!==0))?(+v).toExponential(2):(+v).toFixed(2);
+  const d=+S.settings.numPrec||2;                        // точность из настроек
+  return (Math.abs(v)>=1e4||(Math.abs(v)<0.01&&v!==0))?(+v).toExponential(d):(+v).toFixed(d);
 };
 
 function drawAll(){
@@ -15122,7 +15206,7 @@ function loop(now){
     let g=0;
     while(acc>=DT&&g++<budget&&S.playing){
       a.def.step(a.state,DT,a.params); acc-=DT;
-      if(++a.tick%6===0) record(a);
+      if(++a.tick%(+S.settings.graphEvery||6)===0) record(a);
       if(a.state.__stop){
         const ty=a.state.event&&a.state.event.type;
         a.state.done=a.state.done||{};
@@ -15273,7 +15357,8 @@ function record(a){
 }
 function stopEvent(a){
   const msg=a.state.__stop; a.state.__stop=null; acc=0;
-  S.playing=false; setPlayIcon();
+  // по настройке событие может лишь помечаться плашкой, не останавливая время
+  if(prefGet('eventPause')!==false){ S.playing=false; setPlayIcon(); }
   const f=$('#eventflag'); f.textContent=msg; f.classList.remove('hidden');
   toast(msg);
 }
@@ -15336,7 +15421,15 @@ function openTopic(id){
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
   sel.style.display=sims.length?'block':'none';
   sel.onchange=e=>openSim(e.target.value);
-  if(sims.length && !sims.includes(S.active)) openSim(sims[0]);          // симуляция темы открывается сама
+  // симуляция темы открывается сама; на телефоне это поведение настраивается
+  if(sims.length && !sims.includes(S.active)){
+    if(isNarrow() && prefGet('mAutoOpen')===false){
+      // готовим симуляцию (панели, параметры), но конспект не перекрываем
+      S.active=sims[0]; rt(S.active); sel.value=sims[0];
+      renderParams(); buildGraphs(); renderPresets();
+      closeSimMobile();
+    } else openSim(sims[0]);
+  }
   else if(sims.length) sel.value=S.active;
 }
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
@@ -15640,7 +15733,8 @@ $('#cwrap').addEventListener('wheel',e=>{
   e.preventDefault();
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
   const [wx,wy]=toWorld(px,py);
-  const k=Math.exp(-e.deltaY*0.006);                 // усиленный зум колесом
+  // чувствительность и направление настраиваются пользователем
+  const k=Math.exp(-e.deltaY*0.006*(+prefGet('zoomSens')||1)*(prefGet('zoomInvert')?-1:1));
   a.view.scale=clamp(a.view.scale*clamp(k,0.35,2.9),ZMIN,ZMAX); setZoom();
   const [nx,ny]=toWorld(px,py); a.view.x+=wx-nx; a.view.y+=wy-ny;
 },{passive:false});
@@ -15671,8 +15765,9 @@ function zoomLabel(v){ const p=v*100; return (p<10?p.toFixed(p<1?2:1):Math.round
 function setZoom(){ $('#zoomval').value=zoomLabel(A()?A().view.scale:1); }
 const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZMIN,ZMAX); setZoom(); };
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,a.def.fit(a.params,{W:CW,H:CH})); setZoom(); }
-$('#btn-zin').onclick=()=>zoom(1.8);
-$('#btn-zout').onclick=()=>zoom(1/1.8);
+const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
+$('#btn-zin').onclick=()=>zoom(kzs());
+$('#btn-zout').onclick=()=>zoom(1/kzs());
 $('#zoomval').onchange=e=>{ const a=A(), v=parseFloat(String(e.target.value).replace(',','.')); if(a&&v) a.view.scale=clamp(v/100,ZMIN,ZMAX); setZoom(); };
 $('#zoomval').onkeydown=e=>e.stopPropagation();
 $('#btn-fit').onclick=fitView;
@@ -15745,7 +15840,9 @@ function setPlayIcon(){
   const mp=$('#ic-mplay'), mq=$('#ic-mpause');       // дублируем на мобильный док
   if(mp&&mq){ mp.style.display=pl?'none':'block'; mq.style.display=pl?'block':'none'; }
 }
-$('#btn-reset').onclick=()=>{ const a=A(); if(!a) return; restart(a); toast('Симуляция сброшена'); };
+$('#btn-reset').onclick=()=>{ const a=A(); if(!a) return;
+  if(prefGet('confirmReset') && !confirm('Сбросить симуляцию к начальному состоянию?')) return;
+  restart(a); toast('Симуляция сброшена'); };
 $('#btn-undo').onclick=undo; $('#btn-redo').onclick=redo;
 $('#btn-makeout').onclick=()=>{
   const a=A(); if(!a||!a.def.makeOutput) return;
@@ -15912,11 +16009,18 @@ const PREF_CATS=[
 const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   quality:'high',bgPause:true,fps:0,videoQ:'med',
   nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,
-  autoplay:false,restore:true,confirmReset:false};
+  autoplay:false,restore:true,confirmReset:false,
+  // новая волна настроек
+  serifNotes:false,toasts:true,dockSize:'norm',
+  gridStepMode:'auto',gridLabels:true,hudSide:'left',hudScale:1,numPrec:2,
+  clockShow:true,fpsShow:true,
+  eventPause:true,zoomInvert:false,zoomSens:1,keyZoomStep:1.8,defSpeed:1,
+  autoFit:true,mAutoOpen:true,
+  dprCap:0,graphEvery:6};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
-   name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе.',
-   options:[['light','Светлая'],['dark','Тёмная']]},
+   name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
+   options:[['light','Светлая'],['dark','Тёмная'],['auto','Как в системе']]},
   {cat:'look',key:'accent',type:'select',def:'violet',
    name:'Акцентный цвет',desc:'Цвет выделения, активных кнопок и первого ряда на графиках.',
    options:[['violet','Фиолетовый'],['blue','Синий'],['teal','Бирюзовый'],['amber','Янтарный'],['rose','Красный']]},
@@ -15925,6 +16029,13 @@ const PREFS=[
   {cat:'look',key:'density',type:'select',def:'cozy',
    name:'Плотность интерфейса',desc:'Компактная умещает больше на экран, просторная удобнее для сенсорного экрана и проектора.',
    options:[['compact','Компактная'],['cozy','Обычная'],['roomy','Просторная']]},
+  {cat:'look',key:'serifNotes',type:'toggle',def:false,
+   name:'Конспект с засечками',desc:'Текст конспектов набирается шрифтом с засечками — ближе к бумажному учебнику.'},
+  {cat:'look',key:'toasts',type:'toggle',def:true,
+   name:'Всплывающие подсказки',desc:'Короткие сообщения внизу экрана: «симуляция сброшена», «привязка: вкл» и подобные.'},
+  {cat:'look',key:'dockSize',type:'select',def:'norm',
+   name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
+   options:[['norm','Обычный'],['big','Крупный']]},
 
   {cat:'scene',key:'nums',type:'toggle',def:true,
    name:'Числа на сцене',desc:'Подписи величин прямо у тел и векторов. Выключите, если хотите, чтобы ученики считали сами.'},
@@ -15940,11 +16051,43 @@ const PREFS=[
    name:'Графики под сценой',desc:'Зависимости величин от времени. Отключение немного разгружает слабые машины.'},
   {cat:'scene',key:'lineW',type:'range',def:1,min:0.6,max:2,step:0.1,unit:'×',
    name:'Толщина линий',desc:'Общий множитель для всех штрихов на сцене. Увеличьте при показе через проектор из дальнего ряда.'},
+  {cat:'scene',key:'gridStepMode',type:'select',def:'auto',
+   name:'Крупность сетки',desc:'Автоматика подбирает шаг под текущий зум; крупная и мелкая сдвигают его на один шаг в свою сторону.',
+   options:[['auto','Автоматически'],['coarse','Крупнее'],['fine','Мельче']]},
+  {cat:'scene',key:'gridLabels',type:'toggle',def:true,
+   name:'Подпись шага сетки',desc:'Надпись «сетка N м» в углу сцены.'},
+  {cat:'scene',key:'hudSide',type:'select',def:'left',
+   name:'Сторона панели показаний',desc:'Слева — классика; справа может мешать PV-диаграмме и панели энергии.',
+   options:[['left','Слева'],['right','Справа']]},
+  {cat:'scene',key:'hudScale',type:'range',def:1,min:0.8,max:1.6,step:0.1,unit:'×',
+   name:'Размер панели показаний',desc:'Множитель шрифта в панели показаний. Крупнее — виднее с задних парт.'},
+  {cat:'scene',key:'numPrec',type:'select',def:2,
+   name:'Точность чисел в показаниях',desc:'Сколько знаков после запятой выводить в панели показаний.',
+   options:[[1,'1 знак'],[2,'2 знака'],[3,'3 знака']]},
+  {cat:'scene',key:'clockShow',type:'toggle',def:true,
+   name:'Часы t в шапке',desc:'Текущее время симуляции над сценой (на компьютере).'},
 
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
   {cat:'behav',key:'restore',type:'toggle',def:true,
    name:'Открывать последнюю тему',desc:'При следующем запуске приложение вернётся туда, где вы остановились.'},
+  {cat:'behav',key:'eventPause',type:'toggle',def:true,
+   name:'Останавливать время на событиях',desc:'Падение, столкновение, срыв — таймер встаёт, чтобы рассмотреть момент. Выключите, и события будут лишь помечаться плашкой.'},
+  {cat:'behav',key:'confirmReset',type:'toggle',def:false,
+   name:'Подтверждать сброс симуляции',desc:'Перед сбросом по кнопке или клавише R появится вопрос — защита от случайного нажатия.'},
+  {cat:'behav',key:'defSpeed',type:'select',def:1,
+   name:'Скорость времени при запуске',desc:'С каким множителем времени открывается приложение.',
+   options:[[0.5,'0.5× — замедленно'],[1,'1× — обычная'],[2,'2×'],[4,'4×']]},
+  {cat:'behav',key:'zoomInvert',type:'toggle',def:false,
+   name:'Инвертировать зум колесом',desc:'Поменять направление: колесо от себя будет отдалять, а не приближать.'},
+  {cat:'behav',key:'zoomSens',type:'range',def:1,min:0.4,max:2.5,step:0.1,unit:'×',
+   name:'Чувствительность зума колесом',desc:'Насколько быстро колесо мыши и тачпад меняют масштаб. Жест двумя пальцами не масштабируется — он следует прямо за пальцами.'},
+  {cat:'behav',key:'keyZoomStep',type:'range',def:1.8,min:1.2,max:2.6,step:0.1,unit:'×',
+   name:'Шаг зума кнопками',desc:'Во сколько раз меняется масштаб по кнопкам «+/−» и клавишам.'},
+  {cat:'behav',key:'autoFit',type:'toggle',def:true,
+   name:'Вписывать сцену при повороте',desc:'При повороте телефона или изменении окна вид заново подгоняется под сцену. Выключите, чтобы зум и панорама не сбрасывались.'},
+  {cat:'behav',key:'mAutoOpen',type:'toggle',def:true,
+   name:'Телефон: открывать симуляцию сразу',desc:'При выборе темы на телефоне симуляция разворачивается сама. Выключите, чтобы начинать с конспекта и открывать её кнопкой ▷.'},
 
   {cat:'perf',key:'quality',type:'select',def:'high',
    name:'Качество отрисовки',desc:'На высоком включены следы тел, чёткость под плотные экраны и мелкая сетка.',
@@ -15954,6 +16097,14 @@ const PREFS=[
   {cat:'perf',key:'fps',type:'select',def:0,
    name:'Ограничение частоты кадров',desc:'Реже перерисовывать сцену. Точность расчёта не меняется — шаг физики остаётся прежним.',
    options:[[0,'Без ограничения'],[60,'60 кадров в секунду'],[30,'30 кадров'],[24,'24 кадра — самый экономный']]},
+  {cat:'perf',key:'dprCap',type:'select',def:0,
+   name:'Чёткость на плотных экранах',desc:'Предел разрешения холста. 1× заметно разгружает слабые устройства с retina-экраном ценой лёгкой нечёткости.',
+   options:[[0,'Автоматически'],[1,'1× — экономно'],[2,'2× — максимум']]},
+  {cat:'perf',key:'graphEvery',type:'select',def:6,
+   name:'Плотность точек графиков',desc:'Как часто запоминать точку для графиков под сценой. Реже — легче для памяти на длинных прогонах.',
+   options:[[3,'Часто — плавные кривые'],[6,'Обычно'],[12,'Редко — экономно']]},
+  {cat:'perf',key:'fpsShow',type:'toggle',def:true,
+   name:'Счётчик кадров',desc:'Показатель fps в правом нижнем углу (на компьютере).'},
 
   {cat:'rec',key:'videoQ',type:'select',def:'med',
    name:'Качество записи',desc:'Чем выше, тем крупнее файл. Для показа в классе обычно хватает среднего.',
@@ -16038,7 +16189,17 @@ function renderPrefs(){
         <div class="pset-c"><button class="btn" id="pref-clear-presets">Удалить</button></div></div>
       <div class="pset"><div class="pset-l"><div class="pset-name">Очистить всё хранилище</div>
         <div class="pset-desc">Удаляет настройки, наборы и пометки. Отменить это будет нельзя.</div></div>
-        <div class="pset-c"><button class="btn" id="pref-clear-all">Очистить</button></div></div>`;
+        <div class="pset-c"><button class="btn" id="pref-clear-all">Очистить</button></div></div>
+      <div class="pset"><div class="pset-l"><div class="pset-name">Сохранить настройки в файл</div>
+        <div class="pset-desc">Скачивает файл с настройками, наборами и закладками — чтобы перенести их на другой компьютер.</div></div>
+        <div class="pset-c"><button class="btn" id="pref-export">Скачать</button></div></div>
+      <div class="pset"><div class="pset-l"><div class="pset-name">Загрузить настройки из файла</div>
+        <div class="pset-desc">Восстанавливает настройки, наборы и закладки из ранее сохранённого файла.</div></div>
+        <div class="pset-c"><button class="btn" id="pref-import">Выбрать файл</button>
+          <input type="file" id="pref-import-file" accept="application/json" style="display:none"></div></div>
+      <div class="pset"><div class="pset-l"><div class="pset-name">Закрыть доступ</div>
+        <div class="pset-desc">Выход из пособия: при следующем открытии снова спросит пароль.</div></div>
+        <div class="pset-c"><button class="btn" id="pref-logout">Выйти</button></div></div>`;
     $('#pref-reset-all').onclick=()=>{
       if(!confirm('Вернуть все настройки к исходным значениям?')) return;
       S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Настройки сброшены');
@@ -16052,6 +16213,36 @@ function renderPrefs(){
       try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
         if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
       S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Хранилище очищено');
+    };
+    $('#pref-export').onclick=()=>{
+      const data=JSON.stringify({app:'physim',v:1,settings:S.settings,
+        presets:LS.get('presets',{}),marks:S.marks},null,1);
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+      a.download='physim-настройки.json'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+      toast('Файл настроек сохранён');
+    };
+    $('#pref-import').onclick=()=>$('#pref-import-file').click();
+    $('#pref-import-file').onchange=e=>{
+      const f=e.target.files&&e.target.files[0]; if(!f) return;
+      const rd=new FileReader();
+      rd.onload=()=>{
+        try{
+          const j=JSON.parse(rd.result);
+          if(j.app!=='physim') throw 0;
+          if(j.settings) S.settings={...PREF_DEFAULTS,...j.settings};
+          if(j.presets)  LS.set('presets',j.presets);
+          if(j.marks){ S.marks=j.marks; LS.set('marks',S.marks); }
+          applySettings(); renderPrefs(); renderTree(); toast('Настройки загружены');
+        }catch(_){ toast('Это не файл настроек Phy.Sim'); }
+      };
+      rd.readAsText(f);
+    };
+    $('#pref-logout').onclick=()=>{
+      if(!confirm('Выйти? При следующем открытии пособие снова спросит пароль.')) return;
+      try{ localStorage.removeItem('physim.authv1'); }catch(_){}
+      location.reload();
     };
   } else if(prefCat==='about'){
     const nSim=Object.keys(SIMS).length;
@@ -16161,9 +16352,10 @@ function onViewportChange(){
     }
   }
   resize();
-  // вписываем сцену заново: при повороте пропорции меняются сильно
+  // вписываем сцену заново: при повороте пропорции меняются сильно.
+  // Отключается настройкой «вписывать сцену при повороте».
   const a=A();
-  if(a && a.def.fit && !$('#simpane').classList.contains('hidden')){
+  if(prefGet('autoFit')!==false && a && a.def.fit && !$('#simpane').classList.contains('hidden')){
     const f=a.def.fit(a.params,{W:CW,H:CH});
     a.view.scale=f.scale; a.view.x=f.x; a.view.y=f.y;
   }
@@ -16176,9 +16368,15 @@ function applySettings(){
   const s=S.settings;
   if(s.fs>16) s.fs=12;                                  // миграция со старой px-шкалы
   const root=document.documentElement;
-  root.dataset.theme=s.theme;
+  // «как в системе»: слушаем текущее значение prefers-color-scheme
+  root.dataset.theme = s.theme==='auto'
+    ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : s.theme;
   root.dataset.density=s.density||'cozy';
+  root.dataset.serif = prefGet('serifNotes') ? '1' : '0';
+  root.dataset.dock  = prefGet('dockSize')==='big' ? 'big' : 'norm';
+  root.dataset.hudside = prefGet('hudSide')==='right' ? 'right' : 'left';
   root.style.setProperty('--fs',s.fs+'pt');
+  root.style.setProperty('--hudk',String(prefGet('hudScale')||1));
   // акцентный цвет: подкрашиваем и полупрозрачную заливку под ним
   const ACC={blue:'#3b82f6',teal:'#0d9488',violet:'#7c5cff',amber:'#d97706',rose:'#e11d48'};
   if(s.accent && ACC[s.accent]){
@@ -16186,10 +16384,16 @@ function applySettings(){
     root.style.setProperty('--accent-soft',ACC[s.accent]+'22');
   } else { root.style.removeProperty('--accent'); root.style.removeProperty('--accent-soft'); }
   $('#hud').classList.toggle('hidden',s.hud===false);
+  $('#clock').classList.toggle('hidden',prefGet('clockShow')===false);
+  $('#fps').classList.toggle('hidden',prefGet('fpsShow')===false);
   // графики можно выключить целиком — это заметно разгружает слабые машины
   const gp=$('#gbox'); if(gp) gp.classList.toggle('hidden',s.graphs===false);
   LS.set('settings',s); resize();
 }
+// тема «как в системе» реагирует на смену темы устройства на лету
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{
+  if(S.settings.theme==='auto') applySettings();
+});
 
 $('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtoggle').textContent=$('#pvbox').classList.contains('collapsed')?'▸':'▾'; };
 
@@ -16204,6 +16408,9 @@ $('#kb-close').onclick=()=>$('#modal-kb').classList.add('hidden');
 $('#modal-kb').onclick=e=>{ if(e.target.id==='modal-kb') $('#modal-kb').classList.add('hidden'); };
 
 addEventListener('keydown',e=>{
+  // пока открыт экран доступа — никакие горячие клавиши не работают
+  const lk=document.getElementById('lock');
+  if(lk && !lk.classList.contains('hidden')) return;
   const t=e.target, typing=/INPUT|SELECT|TEXTAREA/.test(t.tagName)||t.isContentEditable;
   const C=e.code, mod=e.ctrlKey||e.metaKey;                 // e.code не зависит от раскладки
   // настройки открыты — гасим все прочие сочетания, чтобы не управлять сценой вслепую
@@ -16227,8 +16434,8 @@ addEventListener('keydown',e=>{
     Space:()=>$('#btn-play').click(), Tab:()=>$('#btn-rail').click(), KeyB:()=>$('#btn-rail').click(),
     Digit0:fitView, Numpad0:fitView,
     BracketLeft:()=>stepSpeed(-1), BracketRight:()=>stepSpeed(1),
-    Equal:()=>zoom(1.8), NumpadAdd:()=>zoom(1.8),
-    Minus:()=>zoom(1/1.8), NumpadSubtract:()=>zoom(1/1.8)
+    Equal:()=>zoom(kzs()), NumpadAdd:()=>zoom(kzs()),
+    Minus:()=>zoom(1/kzs()), NumpadSubtract:()=>zoom(1/kzs())
   };
   if(map[C]){ e.preventDefault(); map[C](); }
 });
@@ -16276,11 +16483,82 @@ $('#btn-sup').onclick=()=>stepSpeed(1);
 $('#btn-sdn').onclick=()=>stepSpeed(-1);
 $('#speedval').onchange=e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); setSpeed(v||1); };
 $('#speedval').onkeydown=e=>e.stopPropagation();
-setSpeed(1);
+setSpeed(+prefGet('defSpeed')||1);          // стартовая скорость времени — из настроек
 
 let tt;
-function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show');
+function toast(m){
+  if(prefGet('toasts')===false) return;     // подсказки можно выключить в настройках
+  const t=$('#toast'); t.textContent=m; t.classList.add('show');
   clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ============================ ДОСТУП ПО ПАРОЛЮ ==========================
+   В коде хранится ТОЛЬКО SHA-256-хэш пароля — самого пароля здесь нет.
+   Это защита уровня «пособие не открыть без пароля от преподавателя», а не
+   криптография: код выполняется на устройстве ученика и в принципе вскрываем.
+   SHA-256 реализован на чистом JS, потому что crypto.subtle недоступен на
+   http-адресах локальной сети (телефон, открывающий пособие с ноутбука). */
+const AUTH_HASH='7fce9a9a82c9dad39f8a98a2c8a5bd37a5fb2c207af75ee40e4f39bf989b6239';
+function sha256hex(msg){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const b=new TextEncoder().encode(msg);
+  const L=b.length;
+  // выравнивание: 1-бит, нули, 64-битная длина сообщения
+  const total=(((L+8)>>6)+1)<<6;
+  const m=new Uint8Array(total);
+  m.set(b); m[L]=0x80;
+  const dv=new DataView(m.buffer);
+  dv.setUint32(total-8, Math.floor(L/536870912), false);   // старшие биты длины (L*8 / 2^32)
+  dv.setUint32(total-4, (L<<3)>>>0, false);
+  const rr=(x,n)=>(x>>>n)|(x<<(32-n));
+  const w=new Uint32Array(64);
+  for(let off=0; off<total; off+=64){
+    for(let i=0;i<16;i++) w[i]=dv.getUint32(off+i*4,false);
+    for(let i=16;i<64;i++){
+      const s0=rr(w[i-15],7)^rr(w[i-15],18)^(w[i-15]>>>3);
+      const s1=rr(w[i-2],17)^rr(w[i-2],19)^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)>>>0;
+    }
+    let[a,bb,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){
+      const S1=rr(e,6)^rr(e,11)^rr(e,25);
+      const ch=(e&f)^(~e&g);
+      const t1=(h+S1+ch+K[i]+w[i])>>>0;
+      const S0=rr(a,2)^rr(a,13)^rr(a,22);
+      const mj=(a&bb)^(a&c)^(bb&c);
+      const t2=(S0+mj)>>>0;
+      h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=bb; bb=a; a=(t1+t2)>>>0;
+    }
+    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+bb)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+  }
+  return H.map(x=>x.toString(16).padStart(8,'0')).join('');
+}
+function lockInit(){
+  const lk=$('#lock'); if(!lk) return;
+  if(LS.get('authv1',null)===AUTH_HASH){ lk.classList.add('hidden'); return; }
+  const inp=$('#lock-pass'), err=$('#lock-err'), card=$('#lock-card');
+  const attempt=()=>{
+    if(sha256hex(inp.value.trim())===AUTH_HASH){
+      LS.set('authv1',AUTH_HASH);
+      lk.classList.add('hidden'); resize(); toast('Доступ открыт');
+    } else {
+      err.textContent='Неверный пароль'; inp.select();
+      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+    }
+  };
+  $('#lock-enter').onclick=attempt;
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') attempt(); });
+  setTimeout(()=>inp.focus(),60);
+}
+lockInit();
 
 /* ================================= СТАРТ =============================== */
 applySettings(); setTool('pan'); renderTree(); renderParams();
