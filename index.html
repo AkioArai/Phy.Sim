@@ -18,6 +18,7 @@
 <script defer src="js/sims/waves-optics.js"></script>
 <script defer src="js/sims/quantum.js"></script>
 <script defer src="js/sims/matter-nuclear.js"></script>
+<script defer src="js/sims/sound.js"></script>
 <script defer src="js/topics.js"></script>
 <script defer src="js/app.js"></script>
 </head>
@@ -93,7 +94,11 @@
     </div>
 
     <aside class="sidebar" id="sidebar">
-      <div class="search"><input id="search" type="search" placeholder="Поиск по темам и формулам…"></div>
+      <div class="search">
+        <input id="search" type="search" placeholder="Поиск по темам и формулам…">
+        <button class="iconbtn side-close" id="side-close" title="Скрыть список тем (Tab)">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
       <div class="tree" id="tree"></div>
       <!-- подвал ящика: на телефоне отсюда попадают в помощь и настройки -->
       <div class="drawer-foot mobile-only">
