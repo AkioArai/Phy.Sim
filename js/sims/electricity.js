@@ -733,5 +733,545 @@ capacitor:{
 }
 ,
 
+/* ========== КОНСТРУКТОР ЦЕПЕЙ: ЗАКОН ОМА И ЗАКОНЫ КИРХГОФА ==========
+   Схему рисует сам ученик: провода и резисторы тянутся мышью по сетке.
+   Считается она не «правилами для последовательного и параллельного», а
+   узловым методом — то есть ровно законами Кирхгофа:
+
+     • ПЕРВЫЙ закон (узловой): сумма токов, сходящихся в узле, равна нулю.
+       Каждая строка матрицы проводимостей — это и есть такое уравнение
+       для одного узла.
+     • ВТОРОЙ закон (контурный): выполняется тождественно, потому что ток
+       через элемент считается по РАЗНОСТИ ПОТЕНЦИАЛОВ его концов, а
+       потенциал — однозначная функция узла. Обойдя контур, разности
+       потенциалов телескопически сокращаются: сумма падений по контуру
+       равна нулю сама собой.
+
+   Поэтому работает ЛЮБАЯ топология — в том числе мост Уитстона, который
+   через «последовательно/параллельно» не раскладывается в принципе.
+
+   Провода — не абстрактные «слияния узлов», а элементы с крошечным
+   сопротивлением Rw. Это даёт два важных следствия: у каждого отрезка
+   схемы появляется определённый ток (значит, движение тока рисуется в
+   правильную сторону и правильной густотой), а первый закон Кирхгофа
+   можно проверить численно в каждом узле. */
+resistors:{
+  title:'Конструктор цепей: закон Ома и законы Кирхгофа',
+  A:{x:-6,y:0},                      // клемма «+» источника, φ = U
+  Rw:1e-4,                           // сопротивление куска идеального провода, Ом
+  SUB:'₀₁₂₃₄₅₆₇₈₉',
+  params:[
+    {key:'demo',label:'Готовая схема',type:'select',default:'series',
+     options:[{v:'series',  t:'Последовательное: R₁ + R₂'},
+              {v:'parallel',t:'Параллельное: R₁ ∥ R₂'},
+              {v:'mixed',   t:'Смешанное: R₁ + (R₂ ∥ R₃)'},
+              {v:'bridge',  t:'Мост Уитстона (5 резисторов)'},
+              {v:'blank',   t:'Пустая сетка — рисовать самому'}]},
+    {key:'tool',label:'Инструмент (или ПКМ по сцене)',type:'select',default:'wire',
+     options:[{v:'wire',t:'Провод (тянуть от узла)'},
+              {v:'R',   t:'Резистор (тянуть от узла)'}]},
+    {key:'U',   label:'Напряжение источника U (A→B)',unit:'В',min:1,max:50,step:1,default:12},
+
+    {type:'group',label:'Номиналы резисторов (в порядке появления в схеме)'},
+    {key:'R1',label:'R₁',unit:'Ом',min:1,max:2000,step:1,default:100},
+    {key:'R2',label:'R₂',unit:'Ом',min:1,max:2000,step:1,default:200},
+    {key:'R3',label:'R₃',unit:'Ом',min:1,max:2000,step:1,default:150},
+    {key:'R4',label:'R₄',unit:'Ом',min:1,max:2000,step:1,default:300},
+    {key:'R5',label:'R₅',unit:'Ом',min:1,max:2000,step:1,default:470},
+    {key:'Rnew',label:'Номинал шестого и следующих',unit:'Ом',min:1,max:2000,step:1,default:100},
+
+    {type:'group',label:'Показывать'},
+    {key:'flow',  label:'Движение тока',type:'check',default:true},
+    {key:'values',label:'Номиналы, токи и падения',type:'check',default:true},
+    {key:'phi',   label:'Потенциалы узлов φ',type:'check',default:true},
+    {key:'src',   label:'Источник и замыкающий контур',type:'check',default:true},
+    {key:'clear', label:'Очистить схему',type:'check',default:false}
+  ],
+
+  /* --- схема: отрезки между узлами целочисленной сетки --- */
+  key(x,y){ return (x+0)+','+(y+0); },        // +0 убирает «-0» в ключе
+  sub(n){ return String(n).split('').map(d=>this.SUB[+d]).join(''); },
+  /* Номинал k-го резистора: первые пять берутся из ползунков — их можно
+     крутить и смотреть, как перераспределяются токи; дальше — из значения,
+     с которым резистор был нарисован. */
+  Rval(p,idx,seg){
+    const v=p['R'+idx];
+    if(idx<=5 && typeof v==='number' && isFinite(v) && v>0) return v;
+    return (seg&&seg.value)||p.Rnew||100;
+  },
+  demoNet(name){
+    const segs=[], B={x:0,y:0};
+    const w=(x1,y1,x2,y2)=>segs.push({x1,y1,x2,y2,type:'wire',value:0});
+    const r=(x1,y1,x2,y2)=>segs.push({x1,y1,x2,y2,type:'R',value:100});
+    /* Схемы нарочно растянуты: подписи «R₁ = 100 Ом» и «41.2 мА · 4.12 В»
+       живут под своими резисторами, и если поставить элементы вплотную, эти
+       строки налезают друг на друга. */
+    if(name==='series'){
+      w(-6,0,-5,0); r(-5,0,-3,0); w(-3,0,1,0); r(1,0,3,0); w(3,0,4,0);
+      B.x=4; B.y=0;
+    } else if(name==='parallel'){
+      w(-6,0,-6,3); w(-6,0,-6,-3);
+      r(-6,3,0,3); r(-6,-3,0,-3);
+      w(0,3,0,0); w(0,-3,0,0); w(0,0,3,0);
+      B.x=3; B.y=0;
+    } else if(name==='mixed'){
+      w(-6,0,-5,0); r(-5,0,-3,0);
+      w(-3,0,-3,3); w(-3,0,-3,-3);
+      r(-3,3,2,3); r(-3,-3,2,-3);
+      w(2,3,2,0); w(2,-3,2,0); w(2,0,4,0);
+      B.x=4; B.y=0;
+    } else if(name==='bridge'){
+      w(-6,0,-6,3); w(-6,0,-6,-3);
+      r(-6,3,-1,3);     // R₁ — верхнее левое плечо
+      r(-1,3,4,3);      // R₂ — верхнее правое плечо
+      r(-6,-3,-1,-3);   // R₃ — нижнее левое плечо
+      r(-1,-3,4,-3);    // R₄ — нижнее правое плечо
+      r(-1,3,-1,-3);    // R₅ — сам мост (диагональ)
+      w(4,3,4,0); w(4,-3,4,0);
+      B.x=4; B.y=0;
+    } else return {segs:[],B:null,demo:name};
+    return {segs,B,demo:name};
+  },
+  netOf(p){
+    if(!p._net) p._net=this.demoNet(p.demo||'series');
+    if(p.clear){ p._net={segs:[],B:null,demo:p.demo}; p.clear=false; }
+    /* смена «готовой схемы» пересобирает сетку; пока выбор не меняется,
+       нарисованное руками остаётся нетронутым */
+    if(p._net.demo!==p.demo) p._net=this.demoNet(p.demo);
+    return p._net;
+  },
+
+  /* Все элементы схемы. Резисторы — как нарисованы. Провода разрезаются
+     узлами, которые на них попали: без этого тройник, упёршийся в середину
+     готового провода, выглядел бы соединённым, а считался разомкнутым. */
+  elements(p){
+    const net=this.netOf(p);
+    const nodes=[{x:this.A.x,y:this.A.y}];
+    if(net.B) nodes.push({x:net.B.x,y:net.B.y});
+    for(const g of net.segs) nodes.push({x:g.x1,y:g.y1},{x:g.x2,y:g.y2});
+    const els=[]; let rIdx=0;
+    for(const g of net.segs){
+      if(g.type==='R'){
+        rIdx++;
+        els.push({type:'R',idx:rIdx,seg:g,R:Math.max(this.Rval(p,rIdx,g),1e-6),
+                  a:this.key(g.x1,g.y1),b:this.key(g.x2,g.y2),
+                  x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2});
+        continue;
+      }
+      const dx=g.x2-g.x1, dy=g.y2-g.y1, L2=dx*dx+dy*dy;
+      const cuts=[{t:0,x:g.x1,y:g.y1},{t:1,x:g.x2,y:g.y2}];
+      if(L2>1e-12) for(const q of nodes){
+        const t=((q.x-g.x1)*dx+(q.y-g.y1)*dy)/L2;
+        if(t<=1e-9||t>=1-1e-9) continue;
+        if(Math.hypot(g.x1+dx*t-q.x, g.y1+dy*t-q.y)>1e-9) continue;
+        if(cuts.some(c=>Math.abs(c.t-t)<1e-9)) continue;
+        cuts.push({t,x:q.x,y:q.y});
+      }
+      cuts.sort((u,v)=>u.t-v.t);
+      for(let i=0;i+1<cuts.length;i++){
+        const c1=cuts[i], c2=cuts[i+1];
+        els.push({type:'wire',seg:g,R:this.Rw,
+                  a:this.key(c1.x,c1.y),b:this.key(c2.x,c2.y),
+                  x1:c1.x,y1:c1.y,x2:c2.x,y2:c2.y});
+      }
+    }
+    return els;
+  },
+
+  /* Гаусс с выбором главного элемента. Вырожденные строки (висящий кусок
+     схемы, ни к чему не подключённый) дают нулевой потенциал, а не NaN. */
+  solveLinear(A,b){
+    const n=b.length, M=A.map((r,i)=>[...r,b[i]]);
+    for(let col=0;col<n;col++){
+      let piv=col; for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>Math.abs(M[piv][col])) piv=r;
+      if(Math.abs(M[piv][col])<1e-14) continue;
+      [M[col],M[piv]]=[M[piv],M[col]];
+      for(let r=0;r<n;r++){ if(r===col) continue; const f=M[r][col]/M[col][col];
+        for(let c=col;c<=n;c++) M[r][c]-=f*M[col][c]; }
+    }
+    return M.map((row,i)=>Math.abs(M[i][i])<1e-14?0:row[n]/M[i][i]);
+  },
+
+  calc(p){
+    const net=this.netOf(p), els=this.elements(p);
+    const kA=this.key(this.A.x,this.A.y);
+    const nR=els.filter(e=>e.type==='R').length;
+    if(!net.B) return {status:'noB',els,nR};
+    const kB=this.key(net.B.x,net.B.y);
+    if(kA===kB) return {status:'short',els,nR,Req:0};
+
+    // что вообще связано с клеммой A
+    const adj={};
+    for(const e of els){ (adj[e.a]=adj[e.a]||[]).push(e.b); (adj[e.b]=adj[e.b]||[]).push(e.a); }
+    const seen=new Set([kA]), q=[kA];
+    while(q.length){ const x=q.pop(); for(const y of adj[x]||[]) if(!seen.has(y)){ seen.add(y); q.push(y); } }
+    if(!seen.has(kB)) return {status:'open',els,nR};
+    const live=els.filter(e=>seen.has(e.a)&&seen.has(e.b)&&e.a!==e.b);
+
+    /* Узловой метод. Земля — клемма B (φ = 0), источник задаёт φ(A) = U.
+       Неизвестные: потенциалы всех прочих узлов + ток через источник. */
+    const ids=new Map();
+    const idOf=k=>{ if(k===kB) return -1; if(!ids.has(k)) ids.set(k,ids.size); return ids.get(k); };
+    idOf(kA); for(const e of live){ idOf(e.a); idOf(e.b); }
+    const n=ids.size, sz=n+1;
+    const G=Array.from({length:sz},()=>new Array(sz).fill(0)), Iv=new Array(sz).fill(0);
+    for(const e of live){
+      const g=1/e.R, ia=idOf(e.a), ib=idOf(e.b);
+      if(ia>=0) G[ia][ia]+=g;
+      if(ib>=0) G[ib][ib]+=g;
+      if(ia>=0&&ib>=0){ G[ia][ib]-=g; G[ib][ia]-=g; }
+    }
+    const iA=idOf(kA), row=n;
+    G[iA][row]+=1; G[row][iA]+=1; Iv[row]=p.U;
+    const x=this.solveLinear(G,Iv);
+    const I=-x[row];                                  // ток, отдаваемый источником в узел A
+
+    const phi={}; phi[kB]=0;
+    for(const [k,i] of ids) phi[k]=x[i];
+    // ток каждого элемента — по разности потенциалов его концов (закон Ома)
+    for(const e of els){
+      const ok=seen.has(e.a)&&seen.has(e.b)&&e.a!==e.b;
+      e.I = ok ? (phi[e.a]-phi[e.b])/e.R : 0;
+    }
+    const Req = Math.abs(I)>1e-12 ? p.U/I : Infinity;
+    if(!(Req>0.01)) return {status:'short',els,nR,Req,I,phi,seen};
+
+    /* ПРОВЕРКА ПЕРВОГО ЗАКОНА: в каждом узле сумма втекающих токов должна
+       обратиться в ноль. Это не украшение — это независимая проверка того,
+       что линейная система решена верно, и считается она по «сырым» токам,
+       до всякого округления. */
+    const bal={};
+    for(const e of live){ bal[e.a]=(bal[e.a]||0)-e.I; bal[e.b]=(bal[e.b]||0)+e.I; }
+    bal[kA]=(bal[kA]||0)+I; bal[kB]=(bal[kB]||0)-I;
+    let kcl=0; for(const k in bal) kcl=Math.max(kcl,Math.abs(bal[k]));
+
+    // баланс мощностей: источник отдаёт ровно то, что рассеивают резисторы
+    let Psum=0; for(const e of live) Psum+=e.I*e.I*e.R;
+
+    /* Шумовой порог. Провода в модели имеют крошечное, но НЕ нулевое
+       сопротивление Rw, поэтому идеально сбалансированный мост оказывается
+       разбалансирован на ~10⁻⁷ В, и «нулевой» ток через мост показывался бы
+       как 7·10⁻⁷ мА. Всё, что на шесть порядков меньше тока источника, — это
+       шум модели, а не физика: обнуляем его для показаний и анимации. */
+    const eps=Math.abs(I)*1e-6;
+    for(const e of els){
+      if(Math.abs(e.I)<eps) e.I=0;
+      e.dU=e.I*e.R;
+      e.P =e.I*e.I*e.R;
+    }
+    // число независимых контуров: рёбра − узлы + 1 (формула Эйлера)
+    const loops=Math.max(0, live.length - seen.size + 1);
+
+    return {status:'ok',els,live,nR,I,Req,phi,seen,kcl,Psum,Psrc:p.U*I,loops};
+  },
+
+  /* --- рисование схемы мышью --- */
+  nodesList(p){
+    const net=this.netOf(p), pts=[{x:this.A.x,y:this.A.y}];
+    if(net.B) pts.push({x:net.B.x,y:net.B.y});
+    for(const g of net.segs) pts.push({x:g.x1,y:g.y1},{x:g.x2,y:g.y2});
+    return pts;
+  },
+  wireStart(p,x,y){
+    let best=null,bd=0.55;
+    for(const q of this.nodesList(p)){ const d=Math.hypot(q.x-x,q.y-y); if(d<bd){ bd=d; best=q; } }
+    return best?{sx:best.x,sy:best.y}:null;
+  },
+  wireMove(p,h,x,y){
+    const dx=x-h.sx, dy=y-h.sy;
+    let ex,ey;
+    if(Math.abs(dx)>=Math.abs(dy)){ ex=Math.round(h.sx+dx); ey=h.sy; }   // горизонталь
+    else { ex=h.sx; ey=Math.round(h.sy+dy); }                            // вертикаль
+    ex=clamp(ex,-7,7); ey=clamp(ey,-4,4);
+    p._preview={x1:h.sx,y1:h.sy,x2:ex,y2:ey};
+  },
+  wireEnd(p,h){
+    const pv=p._preview; p._preview=null;
+    if(!pv) return;
+    if(Math.abs(pv.x2-pv.x1)+Math.abs(pv.y2-pv.y1)<1) return;
+    this.netOf(p).segs.push({x1:pv.x1,y1:pv.y1,x2:pv.x2,y2:pv.y2,
+                             type:p.tool==='R'?'R':'wire',value:p.Rnew});
+  },
+  /* развилки образуются сами: сегменты, сошедшиеся в одном узле сетки,
+     оказываются подключены к одному и тому же потенциалу */
+  undoAction(p){
+    const net=this.netOf(p);
+    if(net.segs.length){ net.segs.pop(); return true; }
+    return false;
+  },
+  makeOutput(p){
+    const net=this.netOf(p);
+    if(!net.segs.length) return;
+    const l=net.segs[net.segs.length-1];
+    net.B={x:l.x2,y:l.y2};
+  },
+  ctxTools(p){
+    const m=t=>(p.tool===t?'● ':'○ ');
+    return [
+      {label:m('wire')+'Инструмент: провод',                on:q=>{ q.tool='wire'; }},
+      {label:m('R')+`Инструмент: резистор (${p.Rnew} Ом)`,  on:q=>{ q.tool='R'; }},
+      {label:'Создать вывод B (конец цепи)',                on:q=>{ SIMS.resistors.makeOutput(q); }},
+      {label:'Отменить последний отрезок (Ctrl+Z)',         on:q=>{ SIMS.resistors.undoAction(q); }},
+      {label:'Пересобрать выбранную готовую схему',         on:q=>{ if(q._net) q._net.demo=null; }},
+      {label:'Очистить схему',                              on:q=>{ q.clear=true; }}
+    ];
+  },
+
+  init(p){ this.netOf(p); return {t:0,flow:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    s.t+=dt;
+    const c=this.calc(p);
+    // фаза бегущих точек: скорость пропорциональна току, но с потолком
+    const I=(c.status==='ok')?Math.abs(c.I):0;
+    s.flow+=clamp(I*8,0.15,3)*dt;
+    s.I=I;
+  },
+  anchors(s,p){
+    const net=this.netOf(p), out=[{x:this.A.x,y:this.A.y}];
+    if(net.B) out.push({x:net.B.x,y:net.B.y});
+    return out;
+  },
+  /* пробник: подносим к узлу — читаем его потенциал, как вольтметром
+     относительно клеммы B */
+  probe(s,p,x,y){
+    const c=this.calc(p);
+    if(!c.phi) return [];
+    let best=null,bd=0.6;
+    for(const q of this.nodesList(p)){ const d=Math.hypot(q.x-x,q.y-y); if(d<bd){ bd=d; best=q; } }
+    if(!best) return [];
+    const k=this.key(best.x,best.y);
+    if(!(k in c.phi)) return [];
+    return [['φ узла',c.phi[k],'В']];
+  },
+  readouts(s,p){
+    const net=this.netOf(p), c=this.calc(p);
+    const deg={}; const bump=k=>deg[k]=(deg[k]||0)+1;
+    for(const g of net.segs){ bump(this.key(g.x1,g.y1)); bump(this.key(g.x2,g.y2)); }
+    const forks=Object.values(deg).filter(d=>d>=3).length;
+    const out=[['t',s.t,'с'],
+      ['напряжение источника U',p.U,'В'],
+      ['резисторов в схеме',c.nR,''],
+      ['отрезков нарисовано',net.segs.length,''],
+      ['развилок (узлов со степенью ≥ 3)',forks,'']];
+
+    if(c.status==='noB'){ out.push(['состояние',NaN,'нет вывода B — кнопка «вывод B»']); return out; }
+    if(c.status==='open'){ out.push(['состояние',NaN,'цепь разомкнута: A и B не соединены']); return out; }
+    if(c.status==='short'){ out.push(['состояние',NaN,'КОРОТКОЕ ЗАМЫКАНИЕ: путь A→B без резисторов']); return out; }
+
+    out.push(['эквивалентное R_экв',c.Req,'Ом'],
+             ['ток источника I = U/R_экв',c.I*1000,'мА'],
+             ['мощность источника P = U·I',c.Psrc,'Вт'],
+             ['потенциал клеммы A',p.U,'В'],
+             ['потенциал клеммы B (земля)',0,'В']);
+
+    // каждый резистор: закон Ома в чистом виде
+    const rs=c.els.filter(e=>e.type==='R').slice(0,8);
+    for(const e of rs){
+      const i=this.sub(e.idx);
+      out.push([`R${i} = ${e.R.toFixed(0)} Ом · ток I${i}`, Math.abs(e.I)*1000,'мА'],
+               [`      падение U${i} = I${i}·R${i}`, Math.abs(e.dU),'В'],
+               [`      мощность P${i} = I${i}²·R${i}`, e.P,'Вт']);
+    }
+    out.push(['независимых контуров (II закон)',c.loops,''],
+             ['I закон Кирхгофа: макс. невязка ΣI в узле',c.kcl,'А'],
+             ['баланс мощностей: ΣI²R − U·I',c.Psum-c.Psrc,'Вт']);
+    return out;
+  },
+  graphs:[
+    {label:'Ток источника I',unit:'мА',series:['I'],
+     get(s,p){ const c=SIMS.resistors.calc(p); return [c.status==='ok'?c.I*1000:0,null]; }},
+    {label:'Эквивалентное сопротивление',unit:'Ом',series:['R'],
+     get(s,p){ const c=SIMS.resistors.calc(p); return [c.status==='ok'?c.Req:0,null]; }},
+    {label:'Ток через R₁ и R₂',unit:'мА',series:['I₁','I₂'],
+     get(s,p){ const c=SIMS.resistors.calc(p);
+       if(c.status!=='ok') return [0,0];
+       const rs=c.els.filter(e=>e.type==='R');
+       return [rs[0]?rs[0].I*1000:0, rs[1]?rs[1].I*1000:0]; }}
+  ],
+  presets:[
+    {name:'Последовательно: R складываются',
+     values:{demo:'series',R1:100,R2:200,U:12,phi:true,values:true}},
+    {name:'Делитель напряжения: φ середины = 9 В',
+     values:{demo:'series',R1:100,R2:300,U:12,phi:true,values:true}},
+    {name:'Параллельно: R меньше меньшего',
+     values:{demo:'parallel',R1:100,R2:200,U:12,phi:true,values:true}},
+    {name:'Смешанное: R₁ + (R₂ ∥ R₃)',
+     values:{demo:'mixed',R1:100,R2:200,R3:300,U:12,phi:true,values:true}},
+    {name:'Мост Уитстона сбалансирован: через мост тока нет',
+     values:{demo:'bridge',R1:100,R2:200,R3:150,R4:300,R5:470,U:12,phi:true,values:true}},
+    {name:'Мост Уитстона разбалансирован: ток пошёл',
+     values:{demo:'bridge',R1:100,R2:200,R3:150,R4:200,R5:470,U:12,phi:true,values:true}},
+    {name:'Пустая сетка — собрать схему самому',
+     values:{demo:'blank',U:12,phi:true,values:true}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-60)/(15.5*PX_PER_M),(H-60)/(12.6*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.5,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const net=this.netOf(p), c=this.calc(p);
+    /* Подписи в схеме центрируем по своей точке: VIEW.label выравнивает текст
+       по левому краю, поэтому половину ширины (моноширинный 11px ≈ 6,1 px на
+       знак) вычитаем вручную. Без этого длинные подписи уползали влево и
+       ложились на соседний элемент. */
+    const mid=t=>-Math.round(String(t).length*3.05);
+
+    // ---- узлы сетки, куда можно вести провод
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.3;
+    for(let gx=-7;gx<=7;gx++) for(let gy=-4;gy<=4;gy++){
+      ctx.beginPath(); ctx.moveTo(gx-0.12,gy); ctx.lineTo(gx+0.12,gy);
+      ctx.moveTo(gx,gy-0.12); ctx.lineTo(gx,gy+0.12); ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+
+    // ---- замыкающий контур источника: чтобы цепь читалась как замкнутая
+    if(p.src && net.B){
+      const yb=-5.4;
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1.6);
+      ctx.setLineDash([v.lw(5),v.lw(4)]);
+      ctx.beginPath();
+      ctx.moveTo(this.A.x,this.A.y); ctx.lineTo(this.A.x,yb);
+      ctx.lineTo(net.B.x,yb); ctx.lineTo(net.B.x,net.B.y);
+      ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      // батарейка посередине нижней перемычки
+      const mx=(this.A.x+net.B.x)/2;
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(3);
+      ctx.beginPath(); ctx.moveTo(mx-0.18,yb-0.45); ctx.lineTo(mx-0.18,yb+0.45); ctx.stroke();
+      ctx.lineWidth=v.lw(1.6);
+      ctx.beginPath(); ctx.moveTo(mx+0.18,yb-0.24); ctx.lineTo(mx+0.18,yb+0.24); ctx.stroke();
+      v.label(ctx,`источник U = ${p.U} В`,mx,yb,mid(`источник U = ${p.U} В`),-16,dang);
+    }
+
+    // ---- провода и резисторы
+    for(const g of net.segs){
+      ctx.strokeStyle=ink; ctx.lineWidth=v.lw(g.type==='R'?2.2:2.2);
+      ctx.beginPath(); ctx.moveTo(g.x1,g.y1); ctx.lineTo(g.x2,g.y2); ctx.stroke();
+    }
+    const rEls=c.els.filter(e=>e.type==='R');
+    for(const e of rEls){
+      const cx=(e.x1+e.x2)/2, cy=(e.y1+e.y2)/2, horiz=e.y1===e.y2;
+      ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
+      ctx.beginPath();
+      if(horiz) ctx.rect(cx-0.6,cy-0.24,1.2,0.48); else ctx.rect(cx-0.24,cy-0.6,0.48,1.2);
+      ctx.fill(); ctx.stroke();
+      if(p.values){
+        const i=this.sub(e.idx);
+        const mA=Math.abs(e.I)*1000;
+        const t1=`R${i} = ${e.R.toFixed(0)} Ом`;
+        const t2=`${mA>=10?mA.toFixed(1):mA.toFixed(2)} мА · ${Math.abs(e.dU).toFixed(2)} В`;
+        /* Горизонтальный резистор подписываем ПОД собой, вертикальный — справа.
+           Сверху над узлами идут потенциалы, поэтому верх мы не занимаем. */
+        v.label(ctx,t1,cx,cy,horiz?mid(t1):16,horiz?18:-8,acc);
+        if(c.status==='ok') v.label(ctx,t2,cx,cy,horiz?mid(t2):16,horiz?32:7,ink3);
+      }
+    }
+
+    // ---- предпросмотр рисуемого отрезка
+    if(p._preview){
+      const pv=p._preview;
+      ctx.strokeStyle=p.tool==='R'?acc:sec; ctx.lineWidth=v.lw(2);
+      ctx.setLineDash([v.lw(5),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(pv.x1,pv.y1); ctx.lineTo(pv.x2,pv.y2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // ---- развилки
+    const deg={}; const bump=k=>deg[k]=(deg[k]||0)+1;
+    for(const g of net.segs){ bump(this.key(g.x1,g.y1)); bump(this.key(g.x2,g.y2)); }
+    ctx.fillStyle=ink;
+    for(const k in deg) if(deg[k]>=3){
+      const [x,y]=k.split(',').map(Number);
+      ctx.beginPath(); ctx.arc(x,y,v.lw(4),0,7); ctx.fill();
+    }
+
+    /* Кружки клемм рисуем ДО подписей: иначе окружность прочерчивается прямо
+       поверх текста «A(+) · φ = 12,00 В» и съедает из него пару знаков. */
+    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2.4);
+    ctx.beginPath(); ctx.arc(this.A.x,this.A.y,0.3,0,7); ctx.stroke();
+    if(net.B){
+      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.4);
+      ctx.beginPath(); ctx.arc(net.B.x,net.B.y,0.3,0,7); ctx.stroke();
+    }
+
+    /* ---- ПОТЕНЦИАЛЫ. Именно разности φ и дают токи, поэтому подписываем
+       концы резисторов и клеммы. Но точки, соединённые ТОЛЬКО проводами, —
+       это один и тот же электрический узел с одним потенциалом: подписываем
+       его один раз, иначе «φ = 12,00 В» дублируется через каждую клетку и
+       подписи наезжают друг на друга. */
+    if(p.phi && c.status==='ok'){
+      const par={};
+      const find=k=>{ if(!(k in par)) par[k]=k; while(par[k]!==k){ par[k]=par[par[k]]; k=par[k]; } return k; };
+      const uni=(a,b)=>{ const x=find(a),y=find(b); if(x!==y) par[x]=y; };
+      for(const e of c.els) if(e.type==='wire') uni(e.a,e.b);
+      const done=new Set();
+      const mark=(x,y,col,pre)=>{
+        const k=this.key(x,y);
+        if(!(k in c.phi)) return;
+        const root=find(k);
+        if(done.has(root)) return;
+        done.add(root);
+        if(!pre){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,v.lw(3),0,7); ctx.fill(); }
+        const t=(pre||'')+`φ = ${c.phi[k].toFixed(2)} В`;
+        /* Клеммы стоят у самого края кадра, поэтому их длинные подписи
+           поднимаем на отдельную строку: иначе кадр отжимает их внутрь схемы,
+           прямо на потенциалы соседних узлов. */
+        v.label(ctx,t,x,y,mid(t),pre?-32:-17,col);
+      };
+      // у клемм потенциал пишем вместе с именем — два ярлыка на одном узле лишние
+      mark(this.A.x,this.A.y,dang,'A(+) · ');
+      if(net.B) mark(net.B.x,net.B.y,sec,'B(−, земля) · ');
+      for(const e of rEls){ mark(e.x1,e.y1,meas); mark(e.x2,e.y2,meas); }
+    }
+
+    /* ---- ДВИЖЕНИЕ ТОКА. Точки бегут по КАЖДОМУ элементу в направлении его
+       собственного тока и тем гуще, чем ток больше. Раньше они одинаково
+       бежали всюду — даже по ветвям, где тока нет вовсе (в сбалансированном
+       мосте это прямо вводило в заблуждение). */
+    if(p.flow && c.status==='ok'){
+      const Imax=Math.max(1e-12,...c.els.map(e=>Math.abs(e.I||0)));
+      ctx.fillStyle=dang;
+      for(const e of c.els){
+        const rel=Math.abs(e.I||0)/Imax;
+        if(rel<0.02) continue;                    // ветвь без тока — и точек нет
+        const L=Math.hypot(e.x2-e.x1,e.y2-e.y1);
+        const nd=Math.max(1,Math.round(L*1.6));
+        const dir=Math.sign(e.I||0);
+        for(let k=0;k<nd;k++){
+          const t=(((s.flow*dir+k/nd)%1)+1)%1;
+          ctx.globalAlpha=0.35+0.65*rel;
+          ctx.beginPath();
+          ctx.arc(e.x1+(e.x2-e.x1)*t, e.y1+(e.y2-e.y1)*t, v.lw(1.6+2*rel),0,7);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha=1;
+    }
+
+    // ---- имена клемм: отдельной подписью только когда потенциалы выключены
+    if(!(p.phi&&c.status==='ok')){
+      v.label(ctx,'A (+)',this.A.x,this.A.y,mid('A (+)'),-17,dang);
+      if(net.B) v.label(ctx,'B (−, земля)',net.B.x,net.B.y,mid('B (−, земля)'),-17,sec);
+    }
+
+    // ---- строка состояния
+    let st,col=ink3;
+    if(c.status==='noB'){ st='нарисуйте цепь от A и нажмите «вывод B»'; }
+    else if(c.status==='open'){ st='цепь разомкнута: A и B не соединены'; col=meas; }
+    else if(c.status==='short'){ st='КОРОТКОЕ ЗАМЫКАНИЕ: путь A→B без резисторов'; col=dang; }
+    else st=`R_экв = ${c.Req.toFixed(2)} Ом · I = ${(c.I*1000).toFixed(2)} мА · P = ${c.Psrc.toFixed(3)} Вт`;
+    v.label(ctx,st,0,5.1,mid(st),0,col);
+    if(c.status==='ok'){
+      const t=`ΣI в узле = ${c.kcl.toExponential(1)} А · независимых контуров: ${c.loops}`;
+      v.label(ctx,t,0,5.1,mid(t),14,ink3);
+    }
+    const hint='ЛКМ от узла — вести провод · ПКМ — инструменты · Ctrl+Z — отменить отрезок';
+    v.label(ctx,hint,0,-6.5,mid(hint),0,ink3);
+  }
+}
+,
+
 
 });
