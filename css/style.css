@@ -178,6 +178,55 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .formula{position:relative;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin:10px 0;background:var(--panel-2)}
 .formula .note{font-size:12.5px;color:var(--ink-2);margin-top:8px;line-height:1.5}
 
+/* ==================== ТИПИЧНЫЕ ОШИБКИ ====================
+   Две строки-близнеца: неверная мысль и верная. Цвет несёт смысл, но не он
+   один — метки подписаны словами, чтобы работало и при дальтонизме, и в ч/б. */
+.pitfall{border:1px solid var(--line);border-radius:var(--radius);margin:10px 0;overflow:hidden}
+.pf-row{display:flex;gap:10px;align-items:flex-start;padding:10px 13px;font-size:.95em;line-height:1.6}
+.pf-row.bad{background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-2)}
+.pf-row.good{background:color-mix(in srgb,var(--ok) 8%,transparent);border-top:1px solid var(--line-soft)}
+.pf-tag{flex:0 0 auto;width:94px;font-family:var(--mono);font-size:10px;text-transform:uppercase;
+  letter-spacing:.06em;padding-top:3px}
+.pf-row.bad .pf-tag{color:var(--danger)}
+.pf-row.good .pf-tag{color:var(--ok)}
+.pf-why{padding:9px 13px 11px 117px;font-size:12.5px;line-height:1.55;color:var(--ink-3);
+  border-top:1px solid var(--line-soft)}
+
+/* ==================== СКВОЗНЫЕ СВЯЗИ ====================
+   Кнопка ведёт в другую главу: физика — не список независимых разделов. */
+.xlinks{display:flex;flex-direction:column;gap:6px}
+.xlink{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:var(--radius);
+  padding:10px 13px;background:transparent;transition:.12s}
+.xlink:hover{border-color:var(--accent);background:var(--accent-soft)}
+.xlink:active{transform:scale(.99)}
+.xl-h{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:550;color:var(--accent);margin-bottom:3px}
+.xl-sec{font-family:var(--mono);font-size:10px;font-weight:400;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.xl-t{display:block;font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+
+/* ==================== ИТОГ РАЗДЕЛА ==================== */
+.topic-item.recap .ch{color:var(--ok)}
+.topic-item.recap{font-style:italic}
+.recap-lead{font-size:13px;color:var(--ink-3);line-height:1.6;padding:11px 14px;margin-bottom:4px;
+  border-radius:var(--radius);background:var(--panel-2)}
+.thread{border-left:2px solid var(--second);padding:2px 0 2px 13px;margin:14px 0}
+.th-h{font-weight:600;font-size:.95em;margin-bottom:5px;color:var(--second)}
+.th-b{line-height:1.65;font-size:.95em;color:var(--ink-2)}
+.qa-lead{font-size:12.5px;color:var(--ink-3);margin-bottom:12px;line-height:1.55}
+.qa{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px}
+.qa-q{display:flex;gap:10px;align-items:flex-start;line-height:1.6;margin-bottom:9px}
+.qa-n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--panel-2);color:var(--ink-3);
+  font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.qa-btn{font-size:12px;padding:5px 10px}
+.qa-a{display:none;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line);
+  line-height:1.65;font-size:.95em;color:var(--ink-2)}
+.qa.open .qa-a{display:block}
+.fsheet{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;overflow:hidden}
+.fs-h{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;
+  padding:8px 13px;background:var(--panel-2);font-size:12.5px;font-weight:550;color:var(--ink-2);text-align:left}
+.fs-h:hover{color:var(--accent)}
+.fs-h span{color:var(--ink-3);font-family:var(--mono)}
+.fs-f{padding:2px 13px;border-top:1px solid var(--line-soft);overflow-x:auto}
+
 .problem{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
 .problem .head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
 .dots{display:flex;gap:2px}.dots i{width:5px;height:5px;border-radius:50%;background:var(--line)}.dots i.f{background:var(--measure)}
@@ -590,11 +639,18 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .content.wide{flex:1}
 /* «весь текст без „конспекта“ и прочего верхнего UI» — оставляем только сам текст */
 [data-ui="mobile"] .chead .sub,
-[data-ui="mobile"] .chead .tabs,
-[data-ui="mobile"] .pane .sect{display:none}
+[data-ui="mobile"] .chead .tabs{display:none}
+/* прячем только подпись «Конспект» над самим текстом; остальные заголовки
+   («Основные формулы», «Типичные ошибки», …) нужны — без них разделы конспекта
+   сливаются в одну ленту и непонятно, что за красно-зелёные блоки внизу */
+[data-ui="mobile"] .pane article h2.sect:first-of-type{display:none}
 [data-ui="mobile"] .chead{padding-bottom:0;border-bottom:none}
 [data-ui="mobile"] .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
 [data-ui="mobile"] .pane{padding-bottom:96px}
+/* узкий экран: метка ошибки уходит на свою строку, отступы не съедают текст */
+[data-ui="mobile"] .pf-row{flex-direction:column;gap:3px}
+[data-ui="mobile"] .pf-tag{width:auto}
+[data-ui="mobile"] .pf-why{padding-left:13px}
 /* чтобы панель не накрывала последний абзац */
 [data-ui="mobile"] .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
     background:var(--bg);box-shadow:none;

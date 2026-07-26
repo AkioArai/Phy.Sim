@@ -917,7 +917,10 @@ function renderTree(q=''){
     const kids=sec.topics.filter(t=>{
       if(S.markMode&&!S.marks.includes(t.id)) return false;
       if(!q) return true;
-      const hay=(t.title+' '+t.theory+' '+t.formulas.map(f=>f.tex+f.note).join(' ')).toLowerCase();
+      const hay=(t.title+' '+t.theory
+        +' '+t.formulas.map(f=>f.tex+f.note).join(' ')
+        +' '+(t.mistakes||[]).map(m=>m.wrong+m.right+(m.why||'')).join(' ')
+        +' '+(t.quiz||[]).map(x=>x.q+x.a).join(' ')).toLowerCase();
       return hay.includes(q)||sec.title.toLowerCase().includes(q);
     });
     if(!kids.length) continue;
@@ -935,11 +938,13 @@ function renderTree(q=''){
     for(const t of kids){
       const ready=!!(t.theory||t.formulas.length);
       const b=document.createElement('button');
-      b.className='topic-item'+(S.topic&&S.topic.id===t.id?' active':'')+(ready?'':' wip')+(sec.hard?' hard':'');
+      b.className='topic-item'+(S.topic&&S.topic.id===t.id?' active':'')+(ready?'':' wip')
+        +(sec.hard?' hard':'')+(t.kind==='recap'?' recap':'');
       const st=document.createElement('span');
       st.className='star'+(S.marks.includes(t.id)?' on':''); st.textContent='★';
       st.onclick=e=>{ e.stopPropagation(); toggleMark(t.id); };
-      const ch=document.createElement('span'); ch.className='ch'; ch.textContent=t.ch?t.ch+'.':'§';
+      const ch=document.createElement('span'); ch.className='ch';
+      ch.textContent=t.kind==='recap'?'✓':(t.ch?t.ch+'.':'§');
       const tx=document.createElement('span'); tx.textContent=t.title; tx.style.flex='1';
       b.append(st,ch,tx);
       b.onclick=()=>{ openTopic(t.id); autoCloseRail(); };
@@ -959,7 +964,8 @@ function openTopic(id){
   S.recent=[t.id].concat((S.recent||[]).filter(x=>x!==t.id)).slice(0,12);
   LS.set('recent',S.recent);
   $('#t-title').textContent=t.title;
-  $('#t-sub').textContent = t.ch ? `${t.section} · тема ${t.ch} · по Дж. Ориру, «Физика»` : `${t.section} · руководство`;
+  $('#t-sub').textContent = t.kind==='recap' ? `${t.section} · итог раздела`
+    : t.ch ? `${t.section} · тема ${t.ch} · по Дж. Ориру, «Физика»` : `${t.section} · руководство`;
   $('#crumb').textContent=t.section;
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab==='notes'));
   renderPane(); renderTree($('#search').value); $('#pane').scrollTop=0;
@@ -985,9 +991,74 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   renderPane();
 });
 
+/* ---------- Типичные ошибки ----------
+   Конспект показывает только правильный путь, и ученик не узнаёт своей ошибки
+   в лицо. Здесь ошибка названа вслух: сначала соблазнительная неверная мысль,
+   потом верная, потом объяснение, откуда берётся соблазн. */
+function mistakesHTML(t){
+  if(!t.mistakes||!t.mistakes.length) return '';
+  return `<h2 class="sect">Типичные ошибки</h2>
+    ${t.mistakes.map(m=>`<div class="pitfall">
+      <div class="pf-row bad"><span class="pf-tag">так думают</span><span>${m.wrong}</span></div>
+      <div class="pf-row good"><span class="pf-tag">на самом деле</span><span>${m.right}</span></div>
+      ${m.why?`<div class="pf-why">${m.why}</div>`:''}
+    </div>`).join('')}`;
+}
+/* ---------- Сквозные связи ----------
+   Одна и та же идея (сохранение энергии, поток, потенциал, резонанс) живёт
+   в разных разделах. Ссылки внизу темы соединяют их в одну сеть. */
+function linksHTML(t){
+  if(!t.links||!t.links.length) return '';
+  const items=t.links.map(l=>{
+    const d=ALL.find(x=>x.id===l.to); if(!d) return '';
+    return `<button class="xlink" data-to="${l.to}">
+      <span class="xl-h">${d.ch?d.ch+'. ':''}${d.title}<span class="xl-sec">${d.section}</span></span>
+      <span class="xl-t">${l.text}</span></button>`;
+  }).filter(Boolean).join('');
+  return items?`<h2 class="sect">Та же идея в других главах</h2><div class="xlinks">${items}</div>`:'';
+}
+function wireLinks(pane){
+  pane.querySelectorAll('.xlink').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.to); autoCloseRail(); });
+}
+/* ---------- Итог раздела ----------
+   Псевдо-тема в конце каждого раздела: главное, сквозные идеи, лист формул
+   и качественные вопросы на понимание (без чисел — только смысл). */
+function renderRecap(t,pane){
+  const sec=SECTIONS.find(s=>s.id===t.secId)||{topics:[]};
+  const kids=sec.topics.filter(x=>x.kind!=='recap'&&x.formulas&&x.formulas.length);
+  const sheet=kids.map(k=>`<div class="fsheet">
+      <button class="fs-h" data-to="${k.id}">${k.ch?k.ch+'. ':''}${k.title} <span>→</span></button>
+      ${k.formulas.map(f=>`<div class="fs-f">$$${f.tex}$$</div>`).join('')}
+    </div>`).join('');
+  pane.innerHTML=`<article>
+    <div class="recap-lead">Раздел пройден. Ниже — то, что должно остаться в голове,
+      когда подробности забудутся.</div>
+    <h2 class="sect">Главное</h2>${t.theory}
+    ${t.threads&&t.threads.length?`<h2 class="sect">Сквозные идеи</h2>
+      ${t.threads.map(x=>`<div class="thread"><div class="th-h">${x.title}</div>
+        <div class="th-b">${x.text}</div></div>`).join('')}`:''}
+    ${t.quiz&&t.quiz.length?`<h2 class="sect">Проверьте себя</h2>
+      <p class="qa-lead">Вопросы без вычислений: если можете ответить своими словами — раздел усвоен.</p>
+      ${t.quiz.map((q,i)=>`<div class="qa" data-i="${i}">
+        <div class="qa-q"><span class="qa-n">${i+1}</span><span>${q.q}</span></div>
+        <button class="btn qa-btn">Показать ответ</button>
+        <div class="qa-a">${q.a}</div>
+      </div>`).join('')}`:''}
+    ${sheet?`<h2 class="sect">Все формулы раздела</h2>${sheet}`:''}
+    ${linksHTML(t)}
+  </article>`;
+  pane.querySelectorAll('.qa').forEach(el=>{
+    const b=el.querySelector('.qa-btn');
+    b.onclick=()=>{ const on=el.classList.toggle('open'); b.textContent=on?'Скрыть ответ':'Показать ответ'; };
+  });
+  pane.querySelectorAll('.fs-h').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.to); autoCloseRail(); });
+  wireLinks(pane);
+}
+
 function renderPane(){
   const t=S.topic, pane=$('#pane');
   if(S.tab==='notes'){
+    if(t.kind==='recap'){ renderRecap(t,pane); typeset(pane); return; }
     if(!t.theory&&!t.formulas.length){
       pane.innerHTML=`<div class="empty">Конспект этой главы ещё не добавлен.<br>
         Пришлите ключевые моменты — тема появится здесь целиком, со своей симуляцией.</div>`;
@@ -1009,7 +1080,10 @@ function renderPane(){
           <div>$$${f.tex}$$</div>
           ${f.note?`<div class="note">${f.note}</div>`:''}
         </div>`).join('')}
+      ${mistakesHTML(t)}
+      ${linksHTML(t)}
     </article>`;
+    wireLinks(pane);
   } else {
     if(!t.problems.length){ pane.innerHTML='<div class="empty">Задач по этой главе пока нет.</div>'; return; }
     const dots=n=>`<span class="dots">${'<i class="f"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
