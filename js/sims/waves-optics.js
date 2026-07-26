@@ -890,6 +890,274 @@ tir:{
   }
 },
 
+/* ============ КОНСТРУКТОР ОПТИЧЕСКОЙ СКАМЬИ ============
+   Одна линза — это отдельная симуляция; здесь их можно поставить в ряд и
+   собрать настоящий прибор: лупу, микроскоп, телескоп Кеплера и Галилея.
+
+   Считаем двумя способами сразу, и они должны сходиться:
+     1) ХОД ЛУЧЕЙ. Луч задаётся высотой y и наклоном u = dy/dx. На свободном
+        промежутке длиной d: y += u·d. Тонкая линза меняет только наклон:
+        u −= y/f. Это и есть матричная оптика, только без матриц.
+     2) ФОРМУЛА ТОНКОЙ ЛИНЗЫ, применённая по очереди: изображение от одной
+        линзы служит предметом для следующей. Для линзы с предметом на
+        расстоянии a слева: 1/b = 1/f − 1/a, увеличение m = −b/a.
+        Отрицательное a означает мнимый предмет (пучок уже сходился), и
+        формула это спокойно переваривает.
+   Полное увеличение — произведение увеличений ступеней.                    */
+bench:{
+  title:'Конструктор оптической скамьи: лупа, микроскоп, телескоп',
+  params:[
+    {key:'demo',label:'Готовый прибор',type:'select',default:'micro',
+     options:[{v:'single',t:'Одна линза'},
+              {v:'loupe', t:'Лупа: предмет ближе фокуса'},
+              {v:'micro', t:'Микроскоп: объектив + окуляр'},
+              {v:'kepler',t:'Телескоп Кеплера: две собирающие'},
+              {v:'galileo',t:'Телескоп Галилея: рассеивающий окуляр'}]},
+    {key:'n',  label:'Сколько линз',min:1,max:3,step:1,default:2},
+    {key:'x0', label:'Положение предмета',unit:'см',min:-14,max:6,step:0.1,default:-7},
+    {key:'h',  label:'Высота предмета',unit:'см',min:0.2,max:3,step:0.1,default:1},
+
+    {type:'group',label:'Линзы (слева направо)'},
+    {key:'x1',label:'Линза 1: положение',unit:'см',min:-12,max:12,step:0.1,default:-4},
+    {key:'f1',label:'Линза 1: фокусное F₁',unit:'см',min:-12,max:12,step:0.1,default:2},
+    {key:'x2',label:'Линза 2: положение',unit:'см',min:-12,max:12,step:0.1,default:6},
+    {key:'f2',label:'Линза 2: фокусное F₂',unit:'см',min:-12,max:12,step:0.1,default:3},
+    {key:'x3',label:'Линза 3: положение',unit:'см',min:-12,max:12,step:0.1,default:10},
+    {key:'f3',label:'Линза 3: фокусное F₃',unit:'см',min:-12,max:12,step:0.1,default:4},
+
+    {type:'group',label:'Показывать'},
+    {key:'rays', label:'Лучей от вершины предмета',min:3,max:15,step:2,default:7},
+    {key:'foci', label:'Фокусы линз',type:'check',default:true},
+    {key:'img',  label:'Промежуточные изображения',type:'check',default:true},
+    {key:'axis', label:'Оптическую ось и шкалу',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  /* Готовые схемы: меняют сразу число линз, их положения и фокусы. */
+  DEMOS:{
+    single: {n:1,x0:-7, h:1,  x1:-4,f1:2},
+    loupe:  {n:1,x0:-5.4,h:1, x1:-4,f1:2},
+    micro:  {n:2,x0:-5.1,h:0.6,x1:-4,f1:1, x2:6,f2:3},
+    kepler: {n:2,x0:-13,h:1,  x1:-4,f1:6, x2:4,f2:1.4},
+    galileo:{n:2,x0:-13,h:1,  x1:-4,f1:6, x2:3.4,f2:-1.4}
+  },
+  lensAt(p,i){ return {x:p['x'+i], f:p['f'+i]}; },
+  lenses(p){
+    const out=[];
+    for(let i=1;i<=Math.max(1,Math.min(3,Math.round(p.n)));i++){
+      const L=this.lensAt(p,i);
+      if(isFinite(L.x)&&isFinite(L.f)&&Math.abs(L.f)>1e-6) out.push(L);
+    }
+    return out.sort((a,b)=>a.x-b.x);            // всегда слева направо
+  },
+  /* Последовательное применение формулы тонкой линзы. */
+  chain(p){
+    const Ls=this.lenses(p);
+    let ox=p.x0, oh=p.h, mtot=1, steps=[];
+    for(const L of Ls){
+      const a=L.x-ox;                            // расстояние от предмета до линзы
+      let b, m;
+      if(Math.abs(a)<1e-9){ b=0; m=1; }          // предмет в самой линзе
+      else {
+        const inv=1/L.f-1/a;
+        b = Math.abs(inv)<1e-12 ? Infinity : 1/inv;
+        m = isFinite(b) ? -b/a : Infinity;
+      }
+      const ix = isFinite(b) ? L.x+b : Infinity;
+      const ih = isFinite(m) ? m*oh : Infinity;
+      steps.push({L,a,b,m,ix,ih,real:isFinite(b)&&b>0});
+      mtot*= isFinite(m)?m:1;
+      ox=ix; oh=ih;
+    }
+    return {Ls,steps,mtot,x:ox,h:oh};
+  },
+  /* Трассировка одного луча через все линзы: список изломов. */
+  trace(p,y0,u0,xEnd){
+    const Ls=this.lenses(p);
+    const pts=[[p.x0,y0]];
+    let x=p.x0, y=y0, u=u0;
+    for(const L of Ls){
+      if(L.x<=x) continue;
+      y+=u*(L.x-x); x=L.x;
+      pts.push([x,y]);
+      u-=y/L.f;                                  // тонкая линза меняет только наклон
+    }
+    y+=u*(xEnd-x); pts.push([xEnd,y]);
+    return pts;
+  },
+  init(p){ return {t:0,event:null,__stop:null,demo:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+    // выбор готового прибора применяется один раз, дальше всё крутится руками
+    if(s.demo!==p.demo){ s.demo=p.demo; Object.assign(p,this.DEMOS[p.demo]||{}); }
+  },
+  anchors(s,p){
+    const out=[{x:p.x0,y:0},{x:p.x0,y:p.h}];
+    for(const L of this.lenses(p)) out.push({x:L.x,y:0});
+    return out;
+  },
+  /* Предмет и линзы двигаются мышью прямо по скамье. */
+  dragPoints(p){
+    const out=[{x:p.x0,y:p.h}];
+    for(let i=1;i<=Math.round(p.n);i++) out.push({x:p['x'+i],y:0});
+    return out;
+  },
+  dragMove(p,idx,x,y){
+    if(idx===0){ p.x0=clamp(+x.toFixed(1),-14,6); p.h=clamp(+Math.abs(y).toFixed(1),0.2,3); return; }
+    p['x'+idx]=clamp(+x.toFixed(1),-12,12);
+  },
+  readouts(s,p){
+    const c=this.chain(p);
+    const out=[['t',s.t,'с'],['линз в схеме',c.Ls.length,''],
+      ['предмет: положение',p.x0,'см'],['предмет: высота',p.h,'см']];
+    c.steps.forEach((q,i)=>{
+      const n=i+1;
+      out.push([`линза ${n}: F`,q.L.f,'см']);
+      out.push([`      расстояние до предмета a`,q.a,'см']);
+      out.push([`      до изображения b (1/b = 1/F − 1/a)`,q.b,'см']);
+      out.push([`      увеличение m = −b/a`,q.m,'']);
+      out.push([`      изображение`,NaN,q.real?'действительное':'мнимое']);
+    });
+    out.push(['ПОЛНОЕ увеличение',c.mtot,'×'],
+             ['по модулю',Math.abs(c.mtot),'×'],
+             ['ориентация',NaN,c.mtot<0?'перевёрнутое':'прямое'],
+             ['итоговое изображение: положение',c.x,'см'],
+             ['итоговое изображение: высота',c.h,'см']);
+    return out;
+  },
+  graphs:[
+    {label:'Полное увеличение',unit:'×',series:['m'],
+     get(s,p){ return [SIMS.bench.chain(p).mtot,null]; }},
+    {label:'Положение итогового изображения',unit:'см',series:['x'],
+     get(s,p){ const c=SIMS.bench.chain(p); return [isFinite(c.x)?c.x:null,null]; }}
+  ],
+  presets:[
+    {name:'Лупа: мнимое прямое увеличенное',values:{demo:'loupe',rays:7}},
+    {name:'Микроскоп: объектив даёт действительное, окуляр — лупа',values:{demo:'micro',rays:7}},
+    {name:'Телескоп Кеплера: перевёрнутое, увеличение F₁/F₂',values:{demo:'kepler',rays:7}},
+    {name:'Телескоп Галилея: прямое, окуляр рассеивающий',values:{demo:'galileo',rays:7}},
+    {name:'Одна линза: проверка формулы',values:{demo:'single',rays:9}}
+  ],
+  ctxTools(p){
+    return [
+      {label:'Добавить линзу',   on:q=>{ if(q.n<3){ q.n=Math.round(q.n)+1;
+        const i=q.n; q['x'+i]=clamp((q['x'+(i-1)]||0)+4,-12,12); q['f'+i]=2.5; } }},
+      {label:'Убрать последнюю', on:q=>{ if(q.n>1) q.n=Math.round(q.n)-1; }},
+      {label:'Все линзы собирающие', on:q=>{ for(let i=1;i<=3;i++) q['f'+i]=Math.abs(q['f'+i]); }},
+      {label:'Развернуть последнюю линзу (собирающая ↔ рассеивающая)',
+       on:q=>{ const i=Math.round(q.n); q['f'+i]=-q['f'+i]; }}
+    ];
+  },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-60)/(26*PX_PER_M),(H-60)/(14.2*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.9,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
+          dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const mid=t=>-Math.round(String(t).length*3.05);
+    const c=this.chain(p), X0=-15, X1=15;
+
+    // ---- оптическая ось и шкала
+    if(p.axis){
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X1,0); ctx.stroke();
+      for(let x=-14;x<=14;x+=2){
+        ctx.beginPath(); ctx.moveTo(x,-0.16); ctx.lineTo(x,0.16); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+      v.label(ctx,'оптическая ось, см',12.4,0,-96,16,ink3);
+    }
+
+    /* ---- лучи. Целим их в АПЕРТУРУ первой линзы, а не разбрасываем веером
+       наклонов: иначе большая часть лучей пролетала мимо стекла и картинка
+       превращалась в пучок случайных прямых. */
+    const HL=3.0;                                  // полувысота линзы на рисунке
+    const nr=Math.max(3,Math.round(p.rays));
+    const first=c.Ls[0];
+    ctx.strokeStyle=acc; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.2);
+    for(let i=0;i<nr;i++){
+      const yt=(i/(nr-1)*2-1)*HL*0.86;             // точка входа на первой линзе
+      let u;
+      if(first && Math.abs(first.x-p.x0)>1e-6) u=(yt-p.h)/(first.x-p.x0);
+      else u=(i/(nr-1)-0.5)*1.1;
+      const pts=this.trace(p,p.h,u,X1);
+      ctx.beginPath();
+      pts.forEach((q,j)=>j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+      ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+
+    // ---- линзы
+    c.Ls.forEach((L,i)=>{
+      const conv=L.f>0, Hh=3.0;
+      ctx.strokeStyle=conv?acc:sec; ctx.lineWidth=v.lw(2.2);
+      ctx.beginPath(); ctx.moveTo(L.x,-Hh); ctx.lineTo(L.x,Hh); ctx.stroke();
+      // наконечники: у собирающей наружу, у рассеивающей внутрь
+      const d=0.34;
+      ctx.beginPath();
+      if(conv){
+        ctx.moveTo(L.x-d,-Hh+d); ctx.lineTo(L.x,-Hh); ctx.lineTo(L.x+d,-Hh+d);
+        ctx.moveTo(L.x-d, Hh-d); ctx.lineTo(L.x, Hh); ctx.lineTo(L.x+d, Hh-d);
+      } else {
+        ctx.moveTo(L.x-d,-Hh); ctx.lineTo(L.x,-Hh+d); ctx.lineTo(L.x+d,-Hh);
+        ctx.moveTo(L.x-d, Hh); ctx.lineTo(L.x, Hh-d); ctx.lineTo(L.x+d, Hh);
+      }
+      ctx.stroke();
+      const nl=`${i+1}: F = ${L.f} см`;
+      v.label(ctx,nl,L.x,Hh,mid(nl),-12,conv?acc:sec);
+      if(p.foci){
+        ctx.fillStyle=ink3;
+        for(const fx of [L.x-Math.abs(L.f),L.x+Math.abs(L.f)]){
+          ctx.beginPath(); ctx.arc(fx,0,v.lw(2.6),0,7); ctx.fill();
+        }
+        v.label(ctx,'F',L.x+Math.abs(L.f),0,-3,15,ink3);
+      }
+    });
+
+    // ---- предмет
+    v.arrow(ctx,p.x0,0,p.x0,p.h,dang);
+    v.label(ctx,'предмет',p.x0,p.h,-26,-12,dang);
+
+    // ---- промежуточные и итоговое изображения
+    /* Промежуточное изображение микроскопа бывает в разы выше кадра, поэтому
+       стрелку подрезаем по краю сцены и честно помечаем обрез. Точная высота
+       всё равно есть в показаниях. */
+    const HY=4.0;
+    c.steps.forEach((q,i)=>{
+      if(!isFinite(q.ix)||!isFinite(q.ih)) return;
+      const last=(i===c.steps.length-1);
+      if(!last && !p.img) return;
+      const col = last ? ok : meas;
+      const cut=Math.abs(q.ih)>HY, yv=clamp(q.ih,-HY,HY);
+      ctx.save();
+      if(!q.real) ctx.setLineDash([v.lw(4),v.lw(3)]);   // мнимое — пунктиром
+      v.arrow(ctx,q.ix,0,q.ix,yv,col);
+      ctx.restore();
+      const nm = last ? 'итоговое' : `изобр. ${i+1}`;
+      const t=`${nm}: ${q.real?'действ.':'мнимое'}, ${q.ih.toFixed(2)} см${cut?' ↓':''}`;
+      v.label(ctx,t,q.ix,yv,mid(t),q.ih>=0?-12:14,col);
+    });
+
+    // ---- сводка
+    const m=c.mtot;
+    const t1 = isFinite(m)
+      ? `полное увеличение ${Math.abs(m).toFixed(2)}× · ${m<0?'изображение перевёрнутое':'изображение прямое'}`
+      : 'лучи выходят параллельным пучком — изображение в бесконечности (так работает телескоп)';
+    v.label(ctx,t1,0,-5.3,mid(t1),0,ink);
+    const t2='каждая линза меняет только наклон луча: u → u − y/F. Изображение одной становится предметом для следующей.';
+    v.label(ctx,t2,0,-5.3,mid(t2),16,ink3);
+    const t3='тяните предмет и линзы прямо по скамье · ПКМ — добавить или убрать линзу';
+    v.label(ctx,t3,0,-5.3,mid(t3),32,ink3);
+  }
+}
+,
 lens:{
   title:'Тонкая линза: построение изображения',
   params:[

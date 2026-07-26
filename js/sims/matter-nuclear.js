@@ -865,124 +865,404 @@ decay:{
 forces:{
   title:'Четыре взаимодействия и слабый распад',
   params:[
-    {key:'pick',label:'Взаимодействие',type:'select',default:'weak',
-     options:[{v:'strong',t:'Сильное'},{v:'em',t:'Электромагнитное'},
-              {v:'weak',t:'Слабое'},{v:'grav',t:'Гравитационное'}]},
+    {key:'mode',label:'Что показываем',type:'select',default:'decay',
+     options:[{v:'decay',t:'Слабый распад: живой ансамбль нейтронов'},
+              {v:'compare',t:'Четыре силы: кто побеждает на каком расстоянии'}]},
 
-    {type:'group',label:'Показывать'},
-    {key:'scale',label:'Шкала относительной силы',type:'check',default:true},
-    {key:'decay',label:'Пример: распад нейтрона',type:'check',default:true}
+    {type:'group',label:'Распад нейтрона'},
+    {key:'N',    label:'Сколько нейтронов в начале',min:20,max:2000,step:20,default:400},
+    {key:'boost',label:'Ускорение времени распада',unit:'×',min:1,max:600,step:1,default:120},
+    {key:'spec', label:'Спектр энергий электрона',type:'check',default:true},
+    {key:'curve',label:'Кривая N(t) и теория',type:'check',default:true},
+    {key:'vec',  label:'Импульсы разлёта в последнем распаде',type:'check',default:true},
+
+    {type:'group',label:'Сравнение сил'},
+    {key:'logr', label:'Расстояние между двумя протонами: показатель степени',
+     unit:'(r = 10^x м)',min:-19,max:0,step:0.1,default:-18},
+    {key:'names',label:'Подписи кривых',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
-  /* относительная сила (условно, при сравнении двух протонов в ядре) и радиус действия */
-  data:{
-    strong:{name:'сильное',   rel:1,      range:'~10⁻¹⁵ м (размер ядра)', carrier:'глюоны',
-            acts:'кварки и нуклоны', role:'держит ядро от развала'},
-    em:    {name:'электромагнитное', rel:1/137, range:'бесконечный', carrier:'фотон',
-            acts:'все заряженные частицы', role:'держит атомы и молекулы'},
-    weak:  {name:'слабое',    rel:1e-6,   range:'~10⁻¹⁸ м', carrier:'W- и Z-бозоны',
-            acts:'все частицы, включая нейтрино', role:'отвечает за бета-распад'},
-    grav:  {name:'гравитационное', rel:1e-38, range:'бесконечный', carrier:'не обнаружен',
-            acts:'всё, что имеет энергию', role:'правит звёздами и галактиками'}
+
+  /* ---------- СЛАБЫЙ РАСПАД: n → p + e⁻ + ν̄ₑ ----------
+     Массы покоя в МэВ. Разность масс нейтрона и протона уходит на массу
+     электрона и на кинетическую энергию, которую делят между собой электрон и
+     антинейтрино. */
+  mn:939.56542, mp:938.27209, me:0.51099895,
+  halfLife:611,                                   // период полураспада свободного нейтрона, с
+  Q(){ return this.mn-this.mp-this.me; },         // 0.782 МэВ — вся доступная кинетическая энергия
+  /* Форма бета-спектра (Ферми, без кулоновской поправки):
+         S(T) ∝ p·E·(Q−T)²,   E = T + mₑ,  p = √(T² + 2Tmₑ).
+     Именно ЭТА непрерывность и заставила Паули в 1930 году придумать
+     нейтрино: в распаде на две частицы энергия электрона была бы одна и та
+     же, а опыт давал размазанный спектр. */
+  spec(T){
+    const Q=this.Q(); if(T<=0||T>=Q) return 0;
+    const E=T+this.me, pc=Math.sqrt(T*(T+2*this.me));
+    return pc*E*(Q-T)*(Q-T);
   },
-  /* распад свободного нейтрона: n → p + e⁻ + антинейтрино */
-  mn:939.56542, mp:938.27209, me:0.51099895,        // МэВ
-  dMass(){ return this.mn-this.mp; },                // разность масс нейтрона и протона
-  Q(){ return this.mn-this.mp-this.me; },            // энергия, уходящая в кинетическую
-  halfLife:611,                                       // с, период полураспада свободного нейтрона
-  init(p){ return {t:0,ph:0,event:null,__stop:null}; },
-  step(s,dt,p){ s.t+=dt; s.ph+=dt; },
+  specMax(){
+    if(this._sm) return this._sm;
+    let m=0; const Q=this.Q();
+    for(let i=1;i<400;i++) m=Math.max(m,this.spec(Q*i/400));
+    return this._sm=m;
+  },
+  /* Разыгрываем энергию электрона по спектру методом отбора. */
+  drawT(){
+    const Q=this.Q(), M=this.specMax();
+    for(let i=0;i<200;i++){
+      const T=Math.random()*Q;
+      if(Math.random()*M<=this.spec(T)) return T;
+    }
+    return Q/3;
+  },
+
+  /* ---------- ЧЕТЫРЕ СИЛЫ между двумя протонами ----------
+     Считаем настоящие силы в ньютонах, а не «условные единицы».
+       электромагнитная  F = k e²/r²                     — дальнодействующая;
+       гравитационная    F = G mₚ²/r²                    — дальнодействующая;
+       сильная (Юкава)   F ≈ A e^(−r/r₀)/r², r₀ ≈ 1.4 фм — обрывается за ядром;
+       слабая            F ≈ B e^(−r/r_w)/r², r_w ≈ 0.0025 фм — обрывается сразу.
+     Экспоненты — это и есть «конечный радиус действия»: переносчик массивный,
+     поэтому за своим комптоновским размером сила гаснет как e^(−r/r₀). */
+  KE2:2.307e-28,                                  // k·e², Н·м²
+  GM2:1.867e-64,                                  // G·mₚ², Н·м²
+  R0:1.4e-15, RW:2.5e-18,
+  A(){ return 100*this.KE2; },                    // сильное ≈ в 100 раз сильнее кулона на 1 фм
+  B(){ return 1e-6*this.A(); },                   // слабое ≈ 10⁻⁶ от сильного
+  F(kind,r){
+    if(!(r>0)) return NaN;
+    switch(kind){
+      case 'em':     return this.KE2/(r*r);
+      case 'grav':   return this.GM2/(r*r);
+      case 'strong': return this.A()*Math.exp(-r/this.R0)/(r*r);
+      case 'weak':   return this.B()*Math.exp(-r/this.RW)/(r*r);
+    }
+    return NaN;
+  },
+  KINDS:['strong','em','weak','grav'],
+  INFO:{
+    strong:{name:'сильное',        range:'≈10⁻¹⁵ м — размер ядра', carrier:'глюоны',
+            acts:'кварки и нуклоны',        role:'держит ядро от развала'},
+    em:    {name:'электромагнитное',range:'бесконечный',           carrier:'фотон',
+            acts:'все заряженные частицы',  role:'держит атомы и молекулы'},
+    weak:  {name:'слабое',          range:'≈10⁻¹⁸ м',              carrier:'W- и Z-бозоны',
+            acts:'все частицы, включая нейтрино', role:'отвечает за бета-распад'},
+    grav:  {name:'гравитационное',  range:'бесконечный',           carrier:'не обнаружен',
+            acts:'всё, что имеет энергию',  role:'правит звёздами и галактиками'}
+  },
+
+  init(p){
+    const nu=[];
+    for(let i=0;i<p.N;i++) nu.push({x:Math.random(),y:Math.random(),alive:true,tp:0});
+    return {t:0, nu, left:p.N, decayed:0, hist:new Array(40).fill(0),
+            sumT:0, last:null, flash:0, trace:[[0,p.N]], event:null, __stop:null};
+  },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+    if(p.mode!=='decay') return;
+    if(s.nu.length!==p.N){ Object.assign(s,this.init(p)); s.t=t; return; }
+    s.flash=Math.max(0,s.flash-dt*2.5);
+    /* Радиоактивный распад: за время dt каждый уцелевший нейтрон распадается с
+       вероятностью λ·dt, λ = ln2/T½. Никакого «расписания» — только случай,
+       и всё равно получается ровная экспонента. */
+    const lam=Math.LN2/this.halfLife*p.boost;
+    const pd=1-Math.exp(-lam*dt);
+    const Q=this.Q(), nb=s.hist.length;
+    for(const q of s.nu){
+      if(!q.alive||Math.random()>pd) continue;
+      q.alive=false; q.tp=s.t;
+      s.left--; s.decayed++;
+      const T=this.drawT();                       // кинетическая энергия электрона
+      s.sumT+=T;
+      s.hist[Math.min(nb-1,Math.floor(T/Q*nb))]++;
+      /* Импульсы. Отдачей протона (меньше килоэлектронвольта) пренебрегаем:
+         электрон и антинейтрино делят импульс, а протон забирает остаток. */
+      const pe=Math.sqrt(T*(T+2*this.me));         // МэВ/c
+      const pv=Q-T;                                // нейтрино безмассово: p = E
+      const ang=Math.random()*2*Math.PI, rel=Math.random()*2*Math.PI;
+      s.last={T,pe,pv,ang,rel,x:q.x,y:q.y,t:s.t};
+      s.flash=1;
+    }
+    /* След для кривой N(t): раньше рисовалась прямая от начала к текущей
+       точке, то есть вообще не кривая. Пишем реальные отсчёты. */
+    const tr=s.trace;
+    if(!tr.length || s.t-tr[tr.length-1][0]>0.03){
+      tr.push([s.t,s.left]);
+      if(tr.length>400) tr.splice(0,tr.length-400);
+    }
+  },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
-    const d=this.data[p.pick];
-    return [['t',s.t,'с'],
-      ['взаимодействие',0,d.name],
-      ['относительная сила',d.rel,'(сильное = 1)'],
-      ['радиус действия',0,d.range],
-      ['переносчик',0,d.carrier],
-      ['на что действует',0,d.acts],
-      ['роль в природе',0,d.role],
-      ['— распад нейтрона —',0,'n → p + e⁻ + антинейтрино'],
-      ['разность масс n и p',this.dMass(),'МэВ'],
+    if(p.mode==='compare'){
+      const r=Math.pow(10,p.logr);
+      const out=[['t',s.t,'с'],['расстояние между протонами r',r,'м'],
+                 ['оно же в фемтометрах',r*1e15,'фм']];
+      const Fem=this.F('em',r);
+      for(const k of this.KINDS){
+        const F=this.F(k,r);
+        out.push([this.INFO[k].name+': сила',F,'Н']);
+        out.push(['      во сколько раз меньше кулоновской',Fem/F,'']);
+      }
+      return out;
+    }
+    const Q=this.Q(), tot=s.decayed||1;
+    const theory=p.N*Math.exp(-Math.LN2*s.t*p.boost/this.halfLife);
+    return [['t (модельное)',s.t,'с'],
+      ['прошло времени в опыте',s.t*p.boost,'с'],
+      ['ускорение показа',p.boost,'×'],
+      ['нейтронов осталось',s.left,''],
+      ['распалось',s.decayed,''],
+      ['теория N₀·2^(−t/T½)',theory,''],
+      ['расхождение с теорией',s.left-theory,''],
+      ['период полураспада нейтрона',this.halfLife,'с'],
+      ['— энергия —',NaN,'n → p + e⁻ + ν̄ₑ'],
+      ['разность масс m_n − m_p',this.mn-this.mp,'МэВ'],
       ['масса покоя электрона',this.me,'МэВ'],
-      ['остаётся кинетической энергии',this.Q(),'МэВ'],
-      ['период полураспада нейтрона',this.halfLife/60,'мин']];
+      ['доступная энергия Q',Q,'МэВ'],
+      ['средняя энергия электрона',s.decayed?s.sumT/tot:NaN,'МэВ'],
+      ['она же в долях Q',s.decayed?s.sumT/tot/Q:NaN,''],
+      ['энергия последнего электрона',s.last?s.last.T:NaN,'МэВ'],
+      ['осталось антинейтрино',s.last?Q-s.last.T:NaN,'МэВ']];
   },
   graphs:[
-    {label:'Относительная сила (log)',unit:'',series:['сила'],
-     get(s,p){ return [Math.log10(SIMS.forces.data[p.pick].rel),null]; }}
+    {label:'Осталось нейтронов',unit:'шт',series:['опыт','теория'],
+     get(s,p){ if(p.mode!=='decay') return [null,null];
+       return [s.left, p.N*Math.exp(-Math.LN2*s.t*p.boost/SIMS.forces.halfLife)]; }},
+    {label:'Средняя энергия электрона',unit:'МэВ',series:['⟨T⟩','Q'],
+     get(s,p){ if(p.mode!=='decay'||!s.decayed) return [null,null];
+       return [s.sumT/s.decayed, SIMS.forces.Q()]; }}
   ],
   presets:[
-    {name:'Сильное: держит ядро',values:{pick:'strong'}},
-    {name:'Электромагнитное: держит атом',values:{pick:'em'}},
-    {name:'Слабое: бета-распад',values:{pick:'weak'}},
-    {name:'Гравитационное: самое слабое',values:{pick:'grav'}}
+    {name:'Распад: 400 нейтронов, показ ×120',values:{mode:'decay',N:400,boost:120,tStop:0}},
+    {name:'Мало нейтронов — виден чистый случай',values:{mode:'decay',N:40,boost:120,tStop:0}},
+    {name:'Много нейтронов — идеальная экспонента',values:{mode:'decay',N:2000,boost:200,tStop:0}},
+    {name:'Медленно: видно каждый распад',values:{mode:'decay',N:200,boost:20,tStop:0}},
+    {name:'Учебный порядок сил (r = 10⁻¹⁸ м)',values:{mode:'compare',logr:-18}},
+    {name:'Силы внутри ядра (r = 1 фм): слабое уже вымерло',values:{mode:'compare',logr:-15}},
+    {name:'Силы в атоме (r = 10⁻¹⁰ м): осталось два',values:{mode:'compare',logr:-10}},
+    {name:'Силы в быту (r = 1 м)',values:{mode:'compare',logr:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    // режимы очень разные по высоте: сравнение сил длиннее из-за пояснений
+    const spanY = (p.mode==='compare') ? 10.6 : 11.6;
+    const scale=clamp(Math.min((W-60)/(13.6*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
+    return {x:0, y:(p.mode==='compare')? 1.2 : -0.35, scale};
   },
+
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const d=this.data[p.pick];
-    // шкала относительной силы (логарифмическая)
-    if(p.scale){
-      const gx=-5.2, gy=2.6, gw=10.4;
-      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      const X=rel=>gx+gw*clamp((Math.log10(rel)+40)/40,0,1);
-      const cols={strong:dang,em:acc,weak:sec,grav:ink3};
-      for(const k of Object.keys(this.data)){
-        const dd=this.data[k], on=(k===p.pick), x=X(dd.rel);
-        ctx.fillStyle=cols[k]; ctx.globalAlpha=on?1:.45;
-        ctx.beginPath(); ctx.arc(x,gy,v.lw(on?6:3.6),0,7); ctx.fill(); ctx.globalAlpha=1;
-        v.label(ctx,dd.name,x,gy,-Math.round(dd.name.length*3),on?-16:-12,on?cols[k]:ink3);
-        const e=Math.log10(dd.rel);
-        v.label(ctx,e===0?'1':`10${this.supNum(Math.round(e))}`,x,gy,-10,20,ink3);
+    if(p.mode==='compare') return this.drawCompare(ctx,s,v,p);
+    return this.drawDecay(ctx,s,v,p);
+  },
+
+  /* ============ РЕЖИМ 1: ЖИВОЙ АНСАМБЛЬ НЕЙТРОНОВ ============ */
+  drawDecay(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const mid=t=>-Math.round(String(t).length*3.05);
+    const Q=this.Q();
+
+    /* Сцена поделена на четыре непересекающиеся полосы: ансамбль слева сверху,
+       кривая N(t) справа сверху, разлёт импульсов справа снизу, спектр во всю
+       ширину внизу. Раньше подписи трёх блоков сходились в одной точке. */
+
+    // ---------- ансамбль: нейтроны гаснут, протоны остаются ----------
+    const bx=-6.6, by=0.9, bw=5.9, bh=3.5;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6); ctx.strokeRect(bx,by,bw,bh);
+    const r=clamp(1.5/Math.sqrt(p.N),0.035,0.12);
+    for(const q of s.nu){
+      const x=bx+0.12+q.x*(bw-0.24), y=by+0.12+q.y*(bh-0.24);
+      ctx.fillStyle=q.alive?meas:dang; ctx.globalAlpha=q.alive?.95:.45;
+      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+      if(!q.alive && s.t-q.tp<0.35){                 // вспышка в момент распада
+        ctx.globalAlpha=1; ctx.strokeStyle=ok; ctx.lineWidth=v.lw(1.6);
+        ctx.beginPath(); ctx.arc(x,y,r+0.12+(s.t-q.tp)*0.9,0,7); ctx.stroke();
       }
-      v.label(ctx,'относительная сила (логарифмическая шкала)',gx,gy,0,38,ink3);
     }
-    // карточка взаимодействия
-    const cx=-5.2, cy=1.2;
-    v.label(ctx,d.name.toUpperCase()+' ВЗАИМОДЕЙСТВИЕ',cx,cy,0,0,acc);
-    const rows=[['радиус действия',d.range],['переносчик',d.carrier],
-                ['действует на',d.acts],['роль',d.role]];
-    rows.forEach((r,i)=>{
-      v.label(ctx,r[0]+':',cx,cy,0,26+i*30,ink3);
-      v.label(ctx,r[1],cx,cy,0,40+i*30,ink);
+    ctx.globalAlpha=1;
+    /* Счётчики разнесены по разным краям ящика: рядом они сталкивались и
+       автораскладка загоняла один из них внутрь рисунка. */
+    v.label(ctx,`нейтронов ${s.left}`,bx,by+bh,2,-10,meas);
+    const pl=`протонов ${s.decayed}`;
+    v.label(ctx,pl,bx+bw,by,-Math.round(pl.length*6.2)-2,15,dang);
+    v.label(ctx,`ускорено в ${p.boost}× · в опыте прошло ${(s.t*p.boost/60).toFixed(1)} мин`,
+      bx,by,4,15,ink3);
+
+    // ---------- кривая N(t): опыт против теории ----------
+    if(p.curve){
+      const gx=0.5, gy=2.7, gw=6.1, gh=1.7;
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy);
+      ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke(); ctx.globalAlpha=1;
+      const Tmax=Math.max(s.t,this.halfLife/p.boost*2.4);
+      const X=t=>gx+gw*clamp(t/Tmax,0,1), Y=n=>gy+gh*clamp(n/p.N,0,1);
+      ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.3);
+      ctx.beginPath();
+      for(let i=0;i<=60;i++){ const t=Tmax*i/60;
+        const n=p.N*Math.exp(-Math.LN2*t*p.boost/this.halfLife);
+        i?ctx.lineTo(X(t),Y(n)):ctx.moveTo(X(t),Y(n)); }
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2);
+      ctx.beginPath();
+      s.trace.forEach((q,i)=>{ const x=X(q[0]),y=Y(q[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      ctx.stroke();
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(X(s.t),Y(s.left),v.lw(3.2),0,7); ctx.fill();
+      const th=this.halfLife/p.boost;
+      if(th<=Tmax){
+        ctx.strokeStyle=ok; ctx.globalAlpha=.7; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
+        ctx.beginPath(); ctx.moveTo(X(th),gy); ctx.lineTo(X(th),Y(p.N/2)); ctx.lineTo(gx,Y(p.N/2));
+        ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+        v.label(ctx,'T½',X(th),gy,-7,14,ok);
+        v.label(ctx,'N₀/2',gx,Y(p.N/2),-32,0,ok);
+      }
+      v.label(ctx,'осталось нейтронов: опыт и теория',gx,gy+gh,2,-9,ink3);
+    }
+
+    // ---------- последний распад: сумма импульсов равна нулю ----------
+    if(p.vec && s.last){
+      const cx=3.5, cy=1.5, K=0.8/Math.max(Q,1e-6);
+      const a1=s.last.ang, a2=s.last.ang+s.last.rel;
+      const ex=Math.cos(a1)*s.last.pe*K, ey=Math.sin(a1)*s.last.pe*K;
+      const vx=Math.cos(a2)*s.last.pv*K, vy=Math.sin(a2)*s.last.pv*K;
+      const px=-(ex+vx), py=-(ey+vy);
+      ctx.globalAlpha=.4+0.6*s.flash;
+      v.arrow(ctx,cx,cy,cx+ex,cy+ey,acc);
+      v.arrow(ctx,cx,cy,cx+vx,cy+vy,ink3);
+      v.arrow(ctx,cx,cy,cx+px,cy+py,dang);
+      ctx.globalAlpha=1;
+      ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(cx,cy,v.lw(2.6),0,7); ctx.fill();
+      v.label(ctx,`e⁻ ${s.last.T.toFixed(3)}`,cx+ex,cy+ey,ex>=0?7:-62,ey>=0?-8:11,acc);
+      v.label(ctx,`ν̄ ${(Q-s.last.T).toFixed(3)}`,cx+vx,cy+vy,vx>=0?7:-58,vy>=0?-8:11,ink3);
+      v.label(ctx,'p',cx+px,cy+py,px>=0?7:-14,py>=0?-8:11,dang);
+      const cap='последний распад: Σp = 0';
+      v.label(ctx,cap,cx,0.5,mid(cap),0,ink3);
+    }
+
+    // ---------- спектр: главное доказательство существования нейтрино ----------
+    if(p.spec){
+      const gx=-6.6, gy=-4.3, gw=13.2, gh=2.6, nb=s.hist.length;
+      // заголовок НАД блоком: изнутри он ложился на столбики гистограммы
+      v.label(ctx,'спектр энергий электрона: непрерывный, а не одна линия',gx,gy+gh+0.28,2,0,ink3);
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
+      const mx=Math.max(1,...s.hist), bwid=gw/nb;
+      ctx.fillStyle=acc; ctx.globalAlpha=.5;
+      for(let i=0;i<nb;i++){ const h=gh*s.hist[i]/mx; if(h>0) ctx.fillRect(gx+i*bwid,gy,bwid*0.86,h); }
+      ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
+      ctx.beginPath();
+      const M=this.specMax();
+      for(let i=0;i<=120;i++){ const T=Q*i/120, y=gy+gh*this.spec(T)/M;
+        i?ctx.lineTo(gx+gw*i/120,y):ctx.moveTo(gx+gw*i/120,y); }
+      ctx.stroke();
+      // где была бы единственная линия, если бы нейтрино не существовало
+      ctx.strokeStyle=dang; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.8);
+      ctx.beginPath(); ctx.moveTo(gx+gw,gy); ctx.lineTo(gx+gw,gy+gh); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,'0',gx,gy,-2,14,ink3);
+      v.label(ctx,`${Q.toFixed(3)} МэВ`,gx+gw,gy,-54,14,ink3);
+      // вывод про красную черту — ПОД осью, чтобы не лежать на гистограмме
+      const nn=`красная черта: без нейтрино электрон всегда получал бы ровно ${Q.toFixed(3)} МэВ`;
+      v.label(ctx,nn,gx+gw,gy,-Math.round(nn.length*6.2),32,dang);
+      if(s.decayed>4){
+        const av=s.sumT/s.decayed, ax=gx+gw*av/Q;
+        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6);
+        ctx.beginPath(); ctx.moveTo(ax,gy); ctx.lineTo(ax,gy+gh*0.62); ctx.stroke();
+        v.label(ctx,`⟨T⟩ = ${av.toFixed(3)}`,ax,gy+gh*0.62,-28,-7,meas);
+      }
+    }
+
+    const fin='непрерывный спектр — прямое доказательство третьей частицы: именно поэтому Паули придумал нейтрино';
+    v.label(ctx,fin,0,-5.85,mid(fin),0,ink3);
+  },
+
+  /* ============ РЕЖИМ 2: КТО ПОБЕЖДАЕТ НА КАКОМ РАССТОЯНИИ ============ */
+  drawCompare(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
+          dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const COL={strong:dang, em:acc, weak:sec, grav:ink3};
+    const gx=-6.4, gy=-1.2, gw=12.8, gh=6.2;
+    const LR0=-19, LR1=0;                          // показатель степени расстояния, м
+    const LF0=-40, LF1=12;                         // показатель степени силы, Н
+    const X=lr=>gx+gw*(lr-LR0)/(LR1-LR0);
+    const Y=lf=>gy+gh*clamp((lf-LF0)/(LF1-LF0),0,1);
+
+    // сетка по десятичным порядкам
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.16; ctx.lineWidth=v.lw(1);
+    for(let lr=LR0+1;lr<=LR1;lr+=3){ ctx.beginPath(); ctx.moveTo(X(lr),gy); ctx.lineTo(X(lr),gy+gh); ctx.stroke(); }
+    for(let lf=LF0;lf<=LF1;lf+=10){ ctx.beginPath(); ctx.moveTo(gx,Y(lf)); ctx.lineTo(gx+gw,Y(lf)); ctx.stroke(); }
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4);
+    ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke();
+    for(let lr=LR0+1;lr<=LR1;lr+=3) v.label(ctx,`10${this.sup(lr)}`,X(lr),gy,-11,14,ink3);
+    v.label(ctx,'расстояние между двумя протонами, м',gx+gw/2,gy,-104,28,ink3);
+    for(let lf=LF0;lf<=LF1;lf+=20) v.label(ctx,`10${this.sup(lf)} Н`,gx,Y(lf),-40,0,ink3);
+
+    /* Кривые сил. Подпись ставим у ПРАВОГО конца каждой кривой: у кулона и
+       тяготения это правый край кадра, у сильного и слабого — их обрыв, и
+       подписи расходятся сами собой. Раньше все четыре лепились слева. */
+    for(const k of this.KINDS){
+      ctx.strokeStyle=COL[k]; ctx.lineWidth=v.lw(2.2);
+      ctx.beginPath();
+      let started=false, lastX=null, lastY=null;
+      for(let i=0;i<=240;i++){
+        const lr=LR0+(LR1-LR0)*i/240, F=this.F(k,Math.pow(10,lr));
+        if(!(F>0)){ started=false; continue; }
+        const lf=Math.log10(F);
+        if(lf<LF0||lf>LF1){ started=false; continue; }
+        const x=X(lr), y=Y(lf);
+        started?ctx.lineTo(x,y):ctx.moveTo(x,y); started=true; lastX=x; lastY=y;
+      }
+      ctx.stroke();
+      if(p.names&&lastX!=null){
+        const nm=this.INFO[k].name;
+        const right = lastX > gx+gw-1.5;
+        v.label(ctx,nm,lastX,lastY, right? -Math.round(nm.length*6.2)-6 : 7, -9, COL[k]);
+      }
+    }
+
+    // текущее расстояние
+    const lr=p.logr, r=Math.pow(10,lr);
+    ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(4),v.lw(4)]);
+    ctx.beginPath(); ctx.moveTo(X(lr),gy); ctx.lineTo(X(lr),gy+gh); ctx.stroke(); ctx.setLineDash([]);
+    for(const k of this.KINDS){
+      const F=this.F(k,r); if(!(F>0)) continue;
+      const lf=Math.log10(F); if(lf<LF0||lf>LF1) continue;
+      ctx.fillStyle=COL[k]; ctx.beginPath(); ctx.arc(X(lr),Y(lf),v.lw(4),0,7); ctx.fill();
+    }
+    const rt = r<1e-12 ? `${(r*1e15).toPrecision(3)} фм` : `${r.toExponential(1)} м`;
+    v.label(ctx,`r = ${rt}`,X(lr),gy+gh,-Math.round(('r = '+rt).length*3.05),-10,meas);
+
+    /* Расстановка сил — в ПРАВОМ ВЕРХНЕМ углу самого графика: кривые падают
+       слева направо, поэтому там всегда пусто, а под графиком места нет. */
+    const rows=this.KINDS.map(k=>({k,F:this.F(k,r)})).sort((a,b)=>b.F-a.F);
+    const lx=gx+gw-4.9, ly=gy+gh-0.15;
+    v.label(ctx,'на этом расстоянии по убыванию:',lx,ly,0,0,ink3);
+    rows.forEach((q,i)=>{
+      const t=`${i+1}. ${this.INFO[q.k].name} — ${q.F>1e-99?q.F.toExponential(2):'≈ 0'} Н`;
+      v.label(ctx,t,lx,ly,8,15+i*14,COL[q.k]);
     });
 
-    // распад нейтрона
-    if(p.decay){
-      const bx=1.4, by=0.4;
-      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(bx,by,0.42,0,7); ctx.fill();
-      v.label(ctx,'n',bx,by,-4,4,'#fff');
-      v.label(ctx,`${this.mn.toFixed(2)} МэВ`,bx,by,-24,26,ink3);
-      v.arrow(ctx,bx+0.6,by,bx+1.3,by,ink3);
-      // протон
-      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(bx+1.9,by+0.7,0.36,0,7); ctx.fill();
-      v.label(ctx,'p',bx+1.9,by+0.7,-3,4,'#fff');
-      v.label(ctx,`${this.mp.toFixed(2)} МэВ`,bx+1.9,by+0.7,-24,-20,ink3);
-      // электрон
-      ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(bx+2.2,by-0.3,0.18,0,7); ctx.fill();
-      v.label(ctx,'e⁻',bx+2.2,by-0.3,10,4,acc);
-      // антинейтрино
-      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.6);
-      ctx.beginPath();
-      for(let i=0;i<=30;i++){ const x=bx+2.1+i*0.045, y=by-1.0+0.1*Math.sin(i*0.8-s.ph*3);
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-      ctx.stroke();
-      v.label(ctx,'антинейтрино',bx+3.5,by-1.0,4,4,ink3);
-      v.label(ctx,'n → p + e⁻ + ν̄',bx,by,-8,-34,ink);
-      v.label(ctx,`разность масс ${this.dMass().toFixed(3)} МэВ, из них ${this.me.toFixed(3)} уходит на массу электрона`,
-        bx,by,-8,-64,ink3);
-      v.label(ctx,`остаётся ${this.Q().toFixed(3)} МэВ кинетической энергии`,bx,by,-8,-48,dang);
-      v.label(ctx,`свободный нейтрон живёт около ${(this.halfLife/60).toFixed(0)} минут`,bx,by-1.6,0,10,ink3);
-    }
-    v.label(ctx,'нейтрино участвует только в слабом взаимодействии — потому и проходит сквозь Землю насквозь',
-      -5.2,-3.4,0,0,ink3);
+    // ---- вывод
+    v.label(ctx,'у сильного и слабого конечный радиус: за ним сила гаснет как e^(−r/r₀) — на графике это обрыв',
+      gx,gy,0,46,ink3);
+    /* Порядок «сильное > ЭМ > слабое > тяготение» из учебника верен НЕ везде:
+       это сравнение на радиусе слабого, около 10⁻¹⁸ м. Уже на фемтометре
+       слабое вымерло и оказывается слабее тяготения — и это видно на графике,
+       а не спрятано за словом «условно». */
+    v.label(ctx,'привычный порядок сильное > ЭМ > слабое > тяготение верен на 10⁻¹⁸ м; на 1 фм слабое уже вымерло',
+      gx,gy,0,60,ink3);
+    v.label(ctx,'ЭМ в 10³⁶ раз сильнее тяготения, но заряды двух знаков экранируют друг друга, а масса — одного:',
+      gx,gy,0,74,ink3);
+    v.label(ctx,'поэтому звёздами и галактиками правит самая слабая из четырёх сил.',
+      gx,gy,0,88,ink3);
   },
-  supNum(e){
+  sup(e){
     const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
     return String(e).split('').map(c=>m[c]||c).join('');
   }

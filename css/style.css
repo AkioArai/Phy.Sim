@@ -27,8 +27,10 @@ input,select{font:inherit;color:inherit}
   padding-top:env(safe-area-inset-top)}
 .topbar{display:flex;align-items:center;gap:6px;height:44px;padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-left));border-bottom:1px solid var(--line);flex:0 0 auto}
 .spacer{flex:1}
-/* Телефонные элементы по умолчанию выключены; включаются в медиазапросе. */
-.mtop,.drawer-bg,.drawer-foot{display:none}
+/* Телефонные элементы по умолчанию выключены и включаются только в режиме
+   [data-ui="mobile"]. Раньше .mbar тут не было, и на компьютере она
+   разворачивалась обычным блоком прямо посреди сцены. */
+.mtop,.drawer-bg,.drawer-foot,.mbar,.mdock{display:none}
 .mtop{align-items:center;gap:4px;flex:0 0 auto;height:46px;
   padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
   border-bottom:1px solid var(--line);background:var(--panel)}
@@ -527,133 +529,140 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    симуляция открывается поверх него целиком. Управление симуляцией вынесено в
    плавающий док и выезжающую снизу шторку — верхняя и нижняя панели десктопа
    на узком экране перекрыты полноэкранной сценой и недоступны. */
-@media (max-width:900px){
-  /* ================= РАСКЛАДКА ТЕЛЕФОНА =================
+/* ==================== ТЕЛЕФОННАЯ РАСКЛАДКА ====================
+   Включается НЕ по ширине окна, а по режиму интерфейса на <html>: узкое окно
+   на компьютере — это всё ещё компьютер, и телефонные панели там только
+   мешают. Режим определяет uiMode() в app.js (сенсор без мыши + узкий кадр
+   либо явный выбор в настройках). */
+/* ================= РАСКЛАДКА ТЕЛЕФОНА =================
      Экран делится на три слоя: тонкая шапка сверху, содержимое во всю
      оставшуюся высоту и плавающая панель управления снизу. Высоту берём из
      --vh: адресная строка браузера то появляется, то исчезает, и обычные
      100vh на телефоне врут (в Safari — на высоту всей панели). */
-  #app{height:var(--appvh,100dvh);min-height:0}
-  .topbar,.statusbar{display:none}          /* весь верхний и нижний UI компьютера убран */
-  .mtop{display:flex}
-  .body{min-height:0}
-
-  .sidebar{position:fixed;z-index:120;top:0;bottom:0;left:0;width:min(78vw,320px);
+[data-ui="mobile"] #app{height:var(--appvh,100dvh);min-height:0}
+[data-ui="mobile"] .topbar,
+[data-ui="mobile"] .statusbar{display:none}
+/* весь верхний и нижний UI компьютера убран */
+[data-ui="mobile"] .mtop{display:flex}
+[data-ui="mobile"] .body{min-height:0}
+[data-ui="mobile"] .sidebar{position:fixed;z-index:120;top:0;bottom:0;left:0;width:min(78vw,320px);
     height:auto;display:flex;flex-direction:column;
     background:var(--panel);border-right:1px solid var(--line);
     box-shadow:8px 0 34px -14px #0009;
     padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
     transform:translateX(-102%);transition:transform .26s cubic-bezier(.4,0,.2,1)}
-  .sidebar.open{transform:none}
-  .sidebar .tree{flex:1;min-height:0;overflow:auto}
-  .drawer-foot{display:flex;align-items:center;gap:4px;padding:8px 10px;
+[data-ui="mobile"] .sidebar.open{transform:none}
+[data-ui="mobile"] .sidebar .tree{flex:1;min-height:0;overflow:auto}
+[data-ui="mobile"] .drawer-foot{display:flex;align-items:center;gap:4px;padding:8px 10px;
     border-top:1px solid var(--line-soft)}
-  .drawer-foot .brand{font-family:var(--mono);font-weight:700;letter-spacing:.02em}
-  .drawer-foot .brand span{color:var(--accent)}
-  .drawer-bg{display:block;position:fixed;inset:0;z-index:119;background:#0007;
+[data-ui="mobile"] .drawer-foot .brand{font-family:var(--mono);font-weight:700;letter-spacing:.02em}
+[data-ui="mobile"] .drawer-foot .brand span{color:var(--accent)}
+[data-ui="mobile"] .drawer-bg{display:block;position:fixed;inset:0;z-index:119;background:#0007;
     opacity:0;pointer-events:none;transition:opacity .26s}
-  .drawer-bg.show{opacity:1;pointer-events:auto}
-
-  .splitter{display:none}
-  .rail{display:none}                        /* инструменты — через кнопку в панели */
-  .content.wide{flex:1}
-  /* «весь текст без „конспекта“ и прочего верхнего UI» — оставляем только сам текст */
-  .chead .sub,.chead .tabs,.pane .sect{display:none}
-  .chead{padding-bottom:0;border-bottom:none}
-  .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
-  .pane{padding-bottom:96px}                 /* чтобы панель не накрывала последний абзац */
-
-  .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
+[data-ui="mobile"] .drawer-bg.show{opacity:1;pointer-events:auto}
+[data-ui="mobile"] .splitter{display:none}
+[data-ui="mobile"] .rail{display:none}
+/* инструменты — через кнопку в панели */
+[data-ui="mobile"] .content.wide{flex:1}
+/* «весь текст без „конспекта“ и прочего верхнего UI» — оставляем только сам текст */
+[data-ui="mobile"] .chead .sub,
+[data-ui="mobile"] .chead .tabs,
+[data-ui="mobile"] .pane .sect{display:none}
+[data-ui="mobile"] .chead{padding-bottom:0;border-bottom:none}
+[data-ui="mobile"] .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
+[data-ui="mobile"] .pane{padding-bottom:96px}
+/* чтобы панель не накрывала последний абзац */
+[data-ui="mobile"] .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
     background:var(--bg);box-shadow:none;
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom)}
-  .simpane.hidden{display:none}
-  #btn-simfull,#btn-cmdk{display:none}
-  .cmdk{padding:8vh 10px 10px}
-  .cmdk-item{padding:11px 10px}
-  .iconbtn{width:40px;height:40px}
-
-  /* ---- Шапка симуляции: [‹] Название ▾ [⚙] [⋯] ---- */
-  .simhead{padding:6px 6px;gap:2px;font-size:13px;text-transform:none;letter-spacing:0;
+[data-ui="mobile"] .simpane.hidden{display:none}
+[data-ui="mobile"] #btn-simfull,
+[data-ui="mobile"] #btn-cmdk{display:none}
+[data-ui="mobile"] .cmdk{padding:8vh 10px 10px}
+[data-ui="mobile"] .cmdk-item{padding:11px 10px}
+[data-ui="mobile"] .iconbtn{width:40px;height:40px}
+/* ---- Шапка симуляции: [‹] Название ▾ [⚙] [⋯] ---- */
+[data-ui="mobile"] .simhead{padding:6px 6px;gap:2px;font-size:13px;text-transform:none;letter-spacing:0;
     border-bottom:1px solid var(--line)}
-  .simhead-lbl,#clock,#btn-graph,#btn-makeout{display:none}
-  #btn-simback{display:inline-flex}
-  .mobile-only{display:inline-flex}
-  #simsel{flex:1;min-width:0;max-width:none;font-size:15px;font-weight:600;color:var(--ink);
+[data-ui="mobile"] .simhead-lbl,
+[data-ui="mobile"] #clock,
+[data-ui="mobile"] #btn-graph,
+[data-ui="mobile"] #btn-makeout{display:none}
+[data-ui="mobile"] #btn-simback{display:inline-flex}
+[data-ui="mobile"] .mobile-only{display:inline-flex}
+[data-ui="mobile"] #simsel{flex:1;min-width:0;max-width:none;font-size:15px;font-weight:600;color:var(--ink);
     border:none;background:none;padding:6px 2px;text-transform:none;letter-spacing:0}
-
-  .canvas-wrap{flex:1}
-  #hsplit{display:none}
-  /* Шкала времени на телефоне не нужна отдельной строкой: шаг назад и вперёд
+[data-ui="mobile"] .canvas-wrap{flex:1}
+[data-ui="mobile"] #hsplit{display:none}
+/* Шкала времени на телефоне не нужна отдельной строкой: шаг назад и вперёд
      переехали в плавающую панель, а полоса только отъедала высоту сцены и
      лезла под саму панель. */
-  .timeline{display:none}
-
-  /* Панель показаний не должна съедать пол-экрана телефона. */
-  .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
+[data-ui="mobile"] .timeline{display:none}
+/* Панель показаний не должна съедать пол-экрана телефона. */
+[data-ui="mobile"] .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
     max-width:62vw;max-height:34dvh;
     background:color-mix(in srgb,var(--panel) 82%,transparent)}
-  .hud::before{font-size:8px;margin-bottom:3px}
-  .fpanel .fp-head{font-size:8px;padding:3px 6px 2px}
-  .fp-grip{display:none}                      /* размер тянут пальцем неудобно — только перетаскивание */
-
-  /* ---- Шторка параметров снизу ---- */
-  #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:126;height:auto!important;
+[data-ui="mobile"] .hud::before{font-size:8px;margin-bottom:3px}
+[data-ui="mobile"] .fpanel .fp-head{font-size:8px;padding:3px 6px 2px}
+[data-ui="mobile"] .fp-grip{display:none}
+/* размер тянут пальцем неудобно — только перетаскивание *//* ---- Шторка параметров снизу ---- */
+[data-ui="mobile"] #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:126;height:auto!important;
     max-height:min(74dvh,74vh);
     background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
     box-shadow:0 -12px 34px -14px #0009;overflow-y:auto;
     transform:translateY(110%);transition:transform .26s cubic-bezier(.4,0,.2,1);
     padding-bottom:calc(16px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
-  #simbottom.msheet-open{transform:none}
-  #simbottom.collapsed{height:auto!important}
-  .gbox.off{display:none}
-  .msheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;position:sticky;top:0;
+[data-ui="mobile"] #simbottom.msheet-open{transform:none}
+[data-ui="mobile"] #simbottom.collapsed{height:auto!important}
+[data-ui="mobile"] .gbox.off{display:none}
+[data-ui="mobile"] .msheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;position:sticky;top:0;
     background:var(--panel);border-bottom:1px solid var(--line-soft);z-index:1}
-  .msheet-head b{font-size:14px;flex:1}
-  .msheet-head .iconbtn{width:34px;height:34px}
-  .msheet-grip{position:absolute;top:6px;left:50%;transform:translateX(-50%);
+[data-ui="mobile"] .msheet-head b{font-size:14px;flex:1}
+[data-ui="mobile"] .msheet-head .iconbtn{width:34px;height:34px}
+[data-ui="mobile"] .msheet-grip{position:absolute;top:6px;left:50%;transform:translateX(-50%);
     width:38px;height:4px;border-radius:2px;background:var(--line)}
-  .msheet-bg{display:block;position:fixed;inset:0;z-index:125;background:#0006;opacity:0;
+[data-ui="mobile"] .msheet-bg{display:block;position:fixed;inset:0;z-index:125;background:#0006;opacity:0;
     pointer-events:none;transition:opacity .26s}
-  .msheet-bg.show{opacity:1;pointer-events:auto}
-
-  /* ---- Плавающая панель управления ----
+[data-ui="mobile"] .msheet-bg.show{opacity:1;pointer-events:auto}
+/* ---- Плавающая панель управления ----
      Держится над нижним краем ВИДИМОЙ области: --vvbottom — это высота того,
      что браузер (адресная строка, клавиатура) отъел снизу. Без этой поправки
      панель на телефоне регулярно оказывалась наполовину под поисковой строкой. */
-  .mbar{display:none;align-items:center;gap:2px;position:fixed;z-index:124;
+[data-ui="mobile"] .mbar{display:none;align-items:center;gap:2px;position:fixed;z-index:124;
     left:50%;transform:translateX(-50%);
     bottom:calc(10px + env(safe-area-inset-bottom) + var(--vvbottom,0px));
     padding:5px;border-radius:999px;background:var(--panel);
     border:1px solid var(--line);box-shadow:0 8px 26px -12px #000a;
     transition:opacity .18s ease, transform .18s ease}
-  .mbar.show{display:flex}
-  .mbar.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(10px)}
-  .mbar .mb-btn{width:40px;height:40px;border-radius:999px}
-  .mbar .mb-sep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
-  .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
+[data-ui="mobile"] .mbar.show{display:flex}
+[data-ui="mobile"] .mbar.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(10px)}
+[data-ui="mobile"] .mbar .mb-btn{width:40px;height:40px;border-radius:999px}
+[data-ui="mobile"] .mbar .mb-sep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
+[data-ui="mobile"] .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
     color:var(--ink-2);font-variant-numeric:tabular-nums}
-  .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
+[data-ui="mobile"] .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
     background:var(--accent);color:#fff;border:none;cursor:pointer;margin:0 2px}
-  .mbplay:active{filter:brightness(.94)}
-  .mbplay svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
+[data-ui="mobile"] .mbplay:active{filter:brightness(.94)}
+[data-ui="mobile"] .mbplay svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
-  .mbplay #ic-mbplay{fill:currentColor}
-  [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
-  [data-dock="big"] .mbplay{width:52px;height:52px}
-  [data-dock="big"] .mbplay svg{width:24px;height:24px}
-  .mdock{display:none}                       /* старый док заменён панелью .mbar */
+[data-ui="mobile"] .mbplay #ic-mbplay{fill:currentColor}
+[data-ui="mobile"] [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
+[data-ui="mobile"] [data-dock="big"] .mbplay{width:52px;height:52px}
+[data-ui="mobile"] [data-dock="big"] .mbplay svg{width:24px;height:24px}
+[data-ui="mobile"] .mdock{display:none}
+/* старый док заменён панелью .mbar */
+[data-ui="mobile"] .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
+[data-ui="mobile"] .pop .item{padding:11px 10px;font-size:14px}
+[data-ui="mobile"] .crumb{display:none}
 
-  .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
-  .pop .item{padding:11px 10px;font-size:14px}
-  .crumb{display:none}
-}
 /* Телефон в альбомной ориентации: экономим высоту. */
-@media (max-width:900px) and (orientation:landscape){
-  .simhead{padding:4px 8px}
-  .mtop{height:40px}
-  .mbar{bottom:calc(8px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
-  .mbar .mb-btn{width:36px;height:36px}
-  .mbplay{width:40px;height:40px}
-  #simbottom{max-height:min(92dvh,92vh)}
+@media (orientation:landscape){
+[data-ui="mobile"] .simhead{padding:4px 8px}
+[data-ui="mobile"] .mtop{height:40px}
+[data-ui="mobile"] .mbar{bottom:calc(8px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
+[data-ui="mobile"] .mbar .mb-btn{width:36px;height:36px}
+[data-ui="mobile"] .mbplay{width:40px;height:40px}
+[data-ui="mobile"] #simbottom{max-height:min(92dvh,92vh)}
 }
+
