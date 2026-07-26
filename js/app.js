@@ -60,7 +60,18 @@ const VIEW={
           свободного места (несколько попыток вверх/вниз).
      Список занятых прямоугольников обнуляется каждый кадр (labelFrame). */
   _lbl:[],
-  labelFrame(){ this._lbl.length=0; },
+  /* Память раскладки. Без неё каждый кадр решался с нуля: стоило сцене
+     сдвинуться на пиксель, как подпись перескакивала на соседний ряд и тут же
+     обратно — на панорамировании это выглядело как дрожь. Теперь для каждой
+     подписи запоминается её вертикальная поправка, она переиспользуется, пока
+     не мешает, а меняется — плавно, по несколько пикселей за кадр. */
+  _lblMem:new Map(), _lblSeq:0, _lblFrame:0,
+  labelFrame(){
+    this._lbl.length=0; this._lblSeq=0; this._lblFrame++;
+    if(this._lblFrame%600===0){                      // изредка чистим память
+      for(const [k,m] of this._lblMem) if(this._lblFrame-m.f>600) this._lblMem.delete(k);
+    }
+  },
   label(ctx,text,wx,wy,dx=0,dy=0,color){
     if(S.settings.nums===false){                       // режим «без чисел»
       text=String(text).replace(/=\s*[-+]?[\d.,]+(?:e[-+]?\d+)?\s*[^\s,;]*/gi,'')
@@ -87,16 +98,38 @@ const VIEW={
       // 2) развести с уже нарисованными
       const hit=(yy)=>this._lbl.some(r=>
         x < r.x+r.w+3 && x+w+3 > r.x && yy-h/2 < r.y+r.h && yy+h/2 > r.y-0);
-      if(hit(y)){
-        const step=13;
-        let placed=false;
-        for(let i=1;i<=6&&!placed;i++){
-          for(const cand of [y+step*i, y-step*i]){
-            if(cand<8||cand>CH-6) continue;
-            if(!hit(cand)){ y=cand; placed=true; break; }
+      /* Ключ подписи: текст с выкинутыми числами (значения меняются каждый
+         кадр, а надпись — та же) плюс её номер по порядку отрисовки. */
+      const key=String(text).replace(/[-+0-9.,]+/g,'#')+'|'+(this._lblSeq++);
+      const mem=this._lblMem.get(key);
+      let tgt = mem ? mem.tgt : 0;
+      if(hit(y+tgt)){                                // прошлая поправка больше не годится
+        tgt=0;
+        if(hit(y)){
+          const step=13;
+          for(let i=1;i<=6;i++){
+            let done=false;
+            for(const d of [step*i, -step*i]){
+              const cand=y+d;
+              if(cand<8||cand>CH-6) continue;
+              if(!hit(cand)){ tgt=d; done=true; break; }
+            }
+            if(done) break;
           }
         }
-      }
+      } else if(tgt!==0 && !hit(y)){
+        /* Место под подписью освободилось — возвращаемся, но не сразу:
+           иначе на границе она принялась бы мигать туда-сюда. */
+        const free=(mem.free||0)+1;
+        if(free>25){ tgt=0; mem.free=0; } else mem.free=free;
+      } else if(mem) mem.free=0;
+      // плавный переход к целевой поправке — вместо скачка на целый ряд
+      let cur = mem ? mem.cur : tgt;
+      const d=tgt-cur;
+      cur += Math.max(-2.5,Math.min(2.5,d));
+      if(Math.abs(tgt-cur)<0.5) cur=tgt;
+      this._lblMem.set(key,{tgt,cur,free:mem?mem.free:0,f:this._lblFrame});
+      y+=cur;
       this._lbl.push({x,y:y-h/2,w,h});
       if(this._lbl.length>400) this._lbl.shift();      // страховка от разрастания
     }
@@ -392,13 +425,24 @@ function drawAll(){
       octx.stroke(); octx.globalAlpha=1;
     });
   }
-  /* Видимые ручки перетаскивания. Симуляции объявляют dragPoints, но раньше
-     эти точки никак не помечались — было не догадаться, что луч, заряд или
-     груз вообще можно тянуть. Рисуем кружок-манипулятор. */
-  if(a.def.dragPoints && (S.tool==='cursor'||S.tool==='pan')){
+  /* Ручки перетаскивания. Постоянные кружки засоряли рисунок, поэтому по
+     умолчанию их видно только под курсором: подвели мышь к точке — ручка
+     появилась, увели — исчезла. Режим задаётся настройкой «Ручки
+     перетаскивания»: под курсором / всегда / никогда. */
+  const hMode=prefGet('handles');
+  if(a.def.dragPoints && hMode!=='never' && (S.tool==='cursor'||S.tool==='pan')){
     let pts=[]; try{ pts=a.def.dragPoints(a.params)||[]; }catch(_){}
     for(const q of pts){
       if(!isFinite(q.x)||!isFinite(q.y)) continue;
+      if(hMode!=='always'){
+        const held=drag&&drag.mode==='dragpt';           // пока тянем — ручка видна
+        let near=held;
+        if(!near&&S.ptr){
+          const sp=toScreen(q.x,q.y);
+          near=Math.hypot(sp[0]-S.ptr.px,sp[1]-S.ptr.py)<26;
+        }
+        if(!near) continue;
+      }
       const rr=VIEW.lw(6.5);
       octx.fillStyle=css('--accent'); octx.globalAlpha=.16;
       octx.beginPath(); octx.arc(q.x,q.y,rr,0,7); octx.fill();
@@ -426,9 +470,27 @@ function drawAll(){
   const wb=$('#warnbar');
   const showW = w && S.settings.events!==false;
   if((showW?w:'')!==wb.dataset.msg){ wb.dataset.msg=showW?w:''; wb.textContent=showW?w:''; wb.classList.toggle('hidden',!showW); }
-  $('#hud-body').textContent=a.def.readouts(a.state,a.params)
-    .map(([l,v,u])=>`${l.padEnd(14)} ${fmt(v).padStart(9)} ${u}`).join('\n');
+  updateHud(a);
   $('#clock').textContent=`t = ${a.state.t.toFixed(2)} c`;
+}
+
+/* Панель показаний. Уменьшая её, пользователь раньше получал полосу прокрутки
+   внутри крошечного окошка — прокручивать её мышью на сцене неудобно, да и
+   выглядит чужеродно. Теперь полосы нет: сколько строк влезло, столько и
+   показано, а про остальные честно сказано в последней строке. */
+function updateHud(a){
+  const body=$('#hud-body'); if(!body) return;
+  const rows=a.def.readouts(a.state,a.params)
+    .map(([l,v,u])=>`${l.padEnd(14)} ${fmt(v).padStart(9)} ${u}`);
+  const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
+  const avail=body.clientHeight-12;                  // за вычетом полей
+  let n=rows.length;
+  if(avail>0 && lh>0){
+    const fits=Math.floor(avail/lh);
+    if(fits<rows.length) n=Math.max(1,fits-1);       // строка «ещё N» тоже место занимает
+  }
+  body.textContent = n>=rows.length ? rows.join('\n')
+    : rows.slice(0,n).concat([`… ещё ${rows.length-n} — растяните панель`]).join('\n');
 }
 
 /* ------------------------------- ГРАФИКИ -------------------------------- */
@@ -452,7 +514,11 @@ function drawGraphs(){
   const a=A(); if(!a||!S.graphOn||!gcanvas.length) return;
   if(S.settings.graphs===false) return;
   const H=a.hist; if(H.length<2) return;
-  const tMax=Math.max(H[H.length-1].t,1e-3);
+  /* Ось времени строится по РЕАЛЬНОМУ диапазону истории, а не от нуля.
+     Раньше начало оси было жёстко привязано к t = 0, и стоило первой точке
+     истории уехать вперёд, как кривая переставала доставать до левого края. */
+  const t0=H[0].t, tMax=Math.max(H[H.length-1].t,t0+1e-3);
+  const span=Math.max(tMax-t0,1e-3);
   a.def.graphs.forEach((g,gi)=>{
     const cv=gcanvas[gi], ctx=cv.getContext('2d');
     const W=cv.width/DPR, Hh=cv.height/DPR;
@@ -462,7 +528,7 @@ function drawGraphs(){
     if(!isFinite(lo)) return;
     if(hi-lo<1e-6){ hi+=1; lo-=1; }
     const pad=(hi-lo)*0.15; lo-=pad; hi+=pad;
-    const X=t=>t/tMax*(W-4)+2, Y=y=>Hh-4-(y-lo)/(hi-lo)*(Hh-8);
+    const X=t=>(t-t0)/span*(W-4)+2, Y=y=>Hh-4-(y-lo)/(hi-lo)*(Hh-8);
     if(lo<0&&hi>0){ ctx.strokeStyle=css('--line'); ctx.lineWidth=1;
       ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(W,Y(0)); ctx.stroke(); }
     for(let s=0;s<2;s++){
@@ -485,7 +551,9 @@ function drawGraphs(){
     }
     ctx.fillStyle=css('--ink-3'); ctx.font='9px ui-monospace,monospace';
     ctx.fillText(fmt(hi),3,9); ctx.fillText(fmt(lo),3,Hh-3);
-    ctx.fillText(`t=${tMax.toFixed(1)} c`,W-52,Hh-3);
+    // если начало истории уже не в нуле, честно показываем видимый интервал
+    const tlab = t0>0.05 ? `${t0.toFixed(1)}…${tMax.toFixed(1)} c` : `t=${tMax.toFixed(1)} c`;
+    ctx.fillText(tlab,W-6-ctx.measureText(tlab).width,Hh-3);
   });
 }
 
@@ -660,7 +728,16 @@ function updateEnergyBox(a){
 function record(a){
   if(a.def.graphs){
     a.hist.push({t:a.state.t, v:a.def.graphs.map(g=>g.get(a.state,a.params))});
-    if(a.hist.length>4000) a.hist.shift();
+    /* Переполнение истории раньше выбрасывало САМЫЕ СТАРЫЕ точки: на длинном
+       прогоне начало кривой пропадало, а сама кривая уползала вправо, потому
+       что ось по-прежнему начиналась от нуля. Теперь вместо выбрасывания мы
+       ПРОРЕЖИВАЕМ старшую половину — весь прогон остаётся на экране, просто в
+       старой части шаг по времени вдвое крупнее (так делают самописцы). */
+    if(a.hist.length>4000){
+      const half=a.hist.length>>1, kept=[];
+      for(let i=0;i<half;i+=2) kept.push(a.hist[i]);
+      a.hist=kept.concat(a.hist.slice(half));
+    }
   }
   /* Лента состояний для шкалы времени: храним снимки самого state, чтобы
      можно было отмотать расчёт назад и рассмотреть момент. Снимки берём
@@ -1081,6 +1158,25 @@ function startPinch(){
   const [p1,p2]=[...touches.values()];
   pinch={dist:Math.max(1,Math.hypot(p1.x-p2.x,p1.y-p2.y)),cx:(p1.x+p2.x)/2,cy:(p1.y+p2.y)/2};
 }
+/* Ни выделения, ни нативного перетаскивания в области сцены: браузер иначе
+   принимает движение мыши по панели за протягивание выделенного текста и
+   тащит его как файл. CSS user-select это уже запрещает, но два обработчика
+   нужны для случаев, когда выделение началось ВНЕ сцены и дотянулось до неё. */
+$('#cwrap').addEventListener('dragstart',e=>e.preventDefault());
+$('#cwrap').addEventListener('selectstart',e=>{
+  if(e.target.closest('input,textarea,[contenteditable]')) return;   // поля ввода не трогаем
+  e.preventDefault();
+});
+
+/* Любой клик мимо текстового поля снимает случайное выделение. Раньше оно
+   снималось только кликом по конспекту (там выделение начинается заново), а
+   ткнув в сцену, панель или кнопку, убрать подсветку было нечем. */
+document.addEventListener('pointerdown',e=>{
+  if(e.target.closest&&e.target.closest('input,textarea,[contenteditable]')) return;
+  const sel=window.getSelection&&window.getSelection();
+  if(sel&&!sel.isCollapsed) sel.removeAllRanges();
+},true);
+
 $('#cwrap').addEventListener('pointerdown',e=>{
   const a=A(); if(!a) return;
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
@@ -1378,13 +1474,16 @@ $('#btn-coords').onclick=()=>{
 };
 $('#btn-coords').classList.toggle('on',S.coords);
 $('#cwrap').addEventListener('pointermove',e=>{
-  if(!S.coords) return;
   const r=scene.getBoundingClientRect();
   const px=e.clientX-r.left, py=e.clientY-r.top;
-  if(px<0||py<0||px>r.width||py>r.height){ S.mouse=null; return; }
+  const out=px<0||py<0||px>r.width||py>r.height;
+  /* S.ptr нужен всегда — по нему всплывают ручки перетаскивания под курсором;
+     S.mouse наполняем только когда включены координаты под курсором. */
+  S.ptr = out ? null : {px,py};
+  if(!S.coords||out){ S.mouse=null; return; }
   const [wx,wy]=toWorld(px,py); S.mouse={x:wx,y:wy};
 });
-$('#cwrap').addEventListener('pointerleave',()=>{ S.mouse=null; });
+$('#cwrap').addEventListener('pointerleave',()=>{ S.mouse=null; S.ptr=null; });
 
 /* ===== Инструменты конкретной симуляции в левой панели =====
    Раньше ctxTools жили только в меню по правой кнопке — на телефоне туда
