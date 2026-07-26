@@ -18,7 +18,23 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{font-family:var(--sans);font-size:var(--fs);color:var(--ink);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased}
+/* ==================== НАЖАТИЯ ====================
+   1) Мобильные браузеры подсвечивают любое нажатие синим прямоугольником, как
+      будто открыли ссылку. Убираем — у нас своя обратная связь.
+   2) На сенсорном экране :hover не срабатывает вовсе, поэтому кнопки никак не
+      отзывались на палец. Отклик даём через :active — он работает и мышью,
+      и пальцем.
+   3) touch-action:manipulation снимает задержку 300 мс и двойной тап-зум. */
+button,a,input,select,label,.topic-item,.sec>.hd,.pop .item,.iconbtn,.tagsim{
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+  touch-action:manipulation}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.iconbtn:active{background:var(--panel-2);color:var(--ink);transform:scale(.92)}
+.iconbtn.on:active,.iconbtn[aria-pressed="true"]:active{
+  background:color-mix(in srgb,var(--accent) 28%,transparent)}
+.topic-item:active,.sec>.hd:active,.pop .item:active{background:var(--accent-soft);color:var(--accent)}
+.tagsim:active{filter:brightness(.92)}
 input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
 
@@ -41,7 +57,11 @@ input,select{font:inherit;color:inherit}
 .iconbtn.on,.iconbtn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
 .iconbtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .sep{width:1px;height:20px;background:var(--line);margin:0 2px}
-.body{flex:1;display:flex;min-height:0}
+/* position:relative обязателен: в полноэкранном режиме список тем ложится
+   поверх сцены через position:absolute, и без опорного блока он отсчитывался
+   от окна — то есть накрывал собой верхнюю панель вместе с кнопкой, которой
+   его же и закрывают. */
+.body{flex:1;display:flex;min-height:0;position:relative}
 
 .rail{width:44px;flex:0 0 44px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0}
 .rail .sep-h{width:24px;height:1px;background:var(--line);margin:4px 0}
@@ -95,7 +115,8 @@ input,select{font:inherit;color:inherit}
 
 .sidebar{width:280px;flex:0 0 280px;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .sidebar.hidden{display:none}
-.search{padding:8px;border-bottom:1px solid var(--line-soft)}
+.search{padding:8px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:6px}
+.search input{flex:1;min-width:0}
 .search input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2);font-size:13px}
 .tree{overflow-y:auto;padding:6px;flex:1}
 .sec>.hd{display:flex;align-items:center;gap:8px;width:100%;padding:9px 8px;border-radius:var(--radius);font-size:13px;font-weight:550;text-align:left}
@@ -178,6 +199,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 /* в полноэкранном режиме список тем не пропадает, а ложится поверх симуляции */
 #app.simfull .sidebar{position:absolute;left:0;top:0;bottom:0;z-index:60;height:auto;
   background:var(--panel);border-right:1px solid var(--line);box-shadow:6px 0 28px -14px #0007}
+/* и своя кнопка закрытия внутри списка — на случай, когда он лежит поверх */
+.side-close{display:none}
+#app.simfull .side-close{display:grid;flex:0 0 auto}
 #app.simfull .sidebar.hidden{display:none}
 #app.simfull .simpane{padding-left:0}
 #app.simfull .simpane{flex:1 1 auto;width:auto}
@@ -638,12 +662,14 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .mbar.show{display:flex}
 [data-ui="mobile"] .mbar.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(10px)}
 [data-ui="mobile"] .mbar .mb-btn{width:40px;height:40px;border-radius:999px}
+[data-ui="mobile"] .mbar .mb-btn:active{background:var(--accent-soft);color:var(--accent);transform:scale(.9)}
+[data-ui="mobile"] .mtop .iconbtn:active{background:var(--panel-2);transform:scale(.9)}
 [data-ui="mobile"] .mbar .mb-sep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
 [data-ui="mobile"] .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
     color:var(--ink-2);font-variant-numeric:tabular-nums}
 [data-ui="mobile"] .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
     background:var(--accent);color:#fff;border:none;cursor:pointer;margin:0 2px}
-[data-ui="mobile"] .mbplay:active{filter:brightness(.94)}
+[data-ui="mobile"] .mbplay:active{filter:brightness(.9);transform:scale(.93)}
 [data-ui="mobile"] .mbplay svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
 [data-ui="mobile"] .mbplay #ic-mbplay{fill:currentColor}

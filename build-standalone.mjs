@@ -10,11 +10,16 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(root, p), 'utf8');
 
-const JS_FILES = [
-  'js/core.js', 'js/sims/mechanics.js', 'js/sims/oscillations.js', 'js/sims/thermo.js',
-  'js/sims/electricity.js', 'js/sims/magnetism.js', 'js/sims/waves-optics.js',
-  'js/sims/quantum.js', 'js/sims/matter-nuclear.js', 'js/topics.js', 'js/app.js',
-];
+/* Список файлов берём ПРЯМО из index.html и в том же порядке. Раньше он был
+   выписан здесь руками, и новый файл симуляций попадал в обычную версию, но
+   не в сборку — расхождение обнаруживалось только по числу симуляций. */
+function jsFilesFromHtml(html){
+  const out=[]; const re=/<script[^>]*\ssrc="((?:js\/)[^"]+)"/gi; let m;
+  while((m=re.exec(html))) out.push(m[1]);
+  if(!out.length) throw new Error('в index.html не найдено ни одного <script src="js/...">');
+  return out;
+}
+const JS_FILES = jsFilesFromHtml(read('index.html'));
 const bundle = JS_FILES.map((f) => read(f)).join('\n;\n').replace(/<\/script>/gi, '<\\/script>');
 const css = read('css/style.css');
 
