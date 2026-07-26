@@ -144,7 +144,13 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   background:color-mix(in srgb,var(--measure) 12%,var(--panel));
   border-bottom:1px solid color-mix(in srgb,var(--measure) 30%,var(--line))}
 .warnbar.hidden{display:none}
-.canvas-wrap{position:relative;flex:1;min-height:170px;background:var(--canvas);overflow:hidden}
+/* Вся область сцены — не текст. Без этого ЛКМ по панели показаний начинала
+   нативное выделение, а следующий же ход мыши превращал выделение в перетас-
+   кивание «файла» через всю страницу, после чего работать было невозможно.
+   Выделять и копировать по-прежнему можно в конспекте и в полях ввода. */
+.canvas-wrap{position:relative;flex:1;min-height:170px;background:var(--canvas);overflow:hidden;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.canvas-wrap *{-webkit-user-drag:none}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%;
   /* без этого на планшете и телефоне перетаскивание тел прокручивало бы страницу */
   touch-action:none; -ms-touch-action:none}
@@ -156,7 +162,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;
   box-shadow:0 3px 12px -6px rgba(0,0,0,.45)}
 /* заголовок HUD теперь настоящий элемент .fp-head — за него панель таскают */
-.hud-body{padding:6px 10px 7px;white-space:pre;font-family:var(--mono)}
+/* без полосы прокрутки: лишние строки не прячутся под скролл, а честно
+   сворачиваются в «… ещё N» (см. updateHud) */
+.hud-body{padding:6px 10px 7px;white-space:pre;font-family:var(--mono);overflow:hidden!important}
 .pvbox{position:absolute;right:8px;top:8px;width:320px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
   border:1px solid var(--line-soft);border-radius:8px;pointer-events:auto;overflow:hidden;
   transition:width .18s ease,height .18s ease;font-family:var(--sans)}
