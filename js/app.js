@@ -968,6 +968,10 @@ function openTopic(id){
     : t.ch ? `${t.section} · тема ${t.ch} · по Дж. Ориру, «Физика»` : `${t.section} · руководство`;
   $('#crumb').textContent=t.section;
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab==='notes'));
+  // счётчик задач на вкладке: сразу видно, есть ли по теме практика
+  const np=$('#nprob'), pb=document.querySelector('#tabs button[data-tab="problems"]');
+  if(np) np.textContent=t.problems.length||'';
+  if(pb) pb.classList.toggle('empty-tab',!t.problems.length);
   renderPane(); renderTree($('#search').value); $('#pane').scrollTop=0;
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
@@ -1087,14 +1091,24 @@ function renderPane(){
   } else {
     if(!t.problems.length){ pane.innerHTML='<div class="empty">Задач по этой главе пока нет.</div>'; return; }
     const dots=n=>`<span class="dots">${'<i class="f"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
+    /* Задачи сгруппированы по симуляциям: в главе их бывает до семи, и сплошной
+       список из тридцати пяти условий читать невозможно. Порядок групп — как
+       в формулах темы, внутри группы — по возрастанию сложности. */
+    const order=[...new Set(t.problems.map(p=>p.sim||''))];
     pane.innerHTML=`
-      <p style="color:var(--ink-3);font-size:13px;margin-bottom:14px;line-height:1.6">
-        Условия привязаны к симуляции: ответ пересчитывается под текущие параметры. Допуск 1,5 %.</p>
-      ${t.problems.map((pr,i)=>`
+      <p class="pr-lead">Условия привязаны к симуляции: ответ пересчитывается под текущие параметры,
+      поэтому у соседа он другой. Допуск 1,5 %. Первая задача в каждой группе — на знакомство
+      с моделью, пятая — олимпиадного уровня.</p>
+      ${order.map(sid=>{
+        const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid);
+        const head=sid&&SIMS[sid]
+          ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>открыть ▷</span></button>`
+          : '<div class="pr-grp static">Без симуляции</div>';
+        return head+grp.map(({p:pr,i},k)=>`
         <div class="problem" data-i="${i}">
           <div class="head">${dots(pr.level)}
-            <span style="font-family:var(--mono);font-size:11px;color:var(--ink-3)">задача ${i+1}</span>
-            ${pr.sim?`<button class="tagsim">${SIMS[pr.sim].title} ▷</button>`:''}
+            <span class="pr-n">задача ${k+1}</span>
+            ${pr.level>=5?'<span class="pr-hard">олимпиадная</span>':''}
           </div>
           <div class="st">${pr.statement}</div>
           <div class="answer">
@@ -1104,7 +1118,10 @@ function renderPane(){
             <button class="btn reveal">Показать ответ</button>
             <span class="verdict"></span>
           </div>
-        </div>`).join('')}`;
+        </div>`).join('');
+      }).join('')}`;
+    pane.querySelectorAll('.pr-grp[data-sim]').forEach(b=>
+      b.onclick=()=>{ openSim(b.dataset.sim); autoCloseRail(); });
     pane.querySelectorAll('.problem').forEach(el=>{
       const pr=t.problems[+el.dataset.i];
       const out=el.querySelector('.verdict'), inp=el.querySelector('input');
@@ -1123,7 +1140,6 @@ function renderPane(){
         out.textContent=isFinite(ans)?`${fmt(ans)} ${pr.unit}`:'события не происходит';
       };
       const h=el.querySelector('.hint'); if(h) h.onclick=()=>toast(pr.hint);
-      const ts=el.querySelector('.tagsim'); if(ts) ts.onclick=()=>openSim(pr.sim);
     });
   }
   typeset(pane);

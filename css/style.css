@@ -227,6 +227,25 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .fs-h span{color:var(--ink-3);font-family:var(--mono)}
 .fs-f{padding:2px 13px;border-top:1px solid var(--line-soft);overflow-x:auto}
 
+.tabs button .nprob{margin-left:6px;font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  background:var(--panel-2);border-radius:9px;padding:1px 6px}
+.tabs button.on .nprob{background:var(--accent-soft);color:var(--accent)}
+.tabs button.empty-tab{opacity:.5}
+
+.pr-lead{color:var(--ink-3);font-size:13px;margin-bottom:16px;line-height:1.6}
+/* заголовок группы задач = кнопка, открывающая нужную симуляцию */
+.pr-grp{display:flex;width:100%;justify-content:space-between;align-items:center;gap:10px;
+  margin:20px 0 9px;padding:9px 13px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--panel-2);font-size:13px;font-weight:600;color:var(--ink);text-align:left}
+.pr-grp:first-child{margin-top:0}
+.pr-grp span{font-family:var(--mono);font-size:10px;font-weight:400;color:var(--accent);flex:0 0 auto}
+.pr-grp:not(.static):hover{border-color:var(--accent)}
+.pr-grp.static{color:var(--ink-3)}
+.pr-n{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.pr-hard{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 45%,transparent);
+  border-radius:4px;padding:1px 5px;margin-left:auto}
+
 .problem{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
 .problem .head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
 .dots{display:flex;gap:2px}.dots i{width:5px;height:5px;border-radius:50%;background:var(--line)}.dots i.f{background:var(--measure)}
@@ -638,8 +657,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 /* инструменты — через кнопку в панели */
 [data-ui="mobile"] .content.wide{flex:1}
 /* «весь текст без „конспекта“ и прочего верхнего UI» — оставляем только сам текст */
-[data-ui="mobile"] .chead .sub,
-[data-ui="mobile"] .chead .tabs{display:none}
+[data-ui="mobile"] .chead .sub{display:none}
+/* вкладки на телефоне нужны — иначе до задач не добраться; делаем их компактнее */
+[data-ui="mobile"] .chead .tabs{margin-top:10px}
+[data-ui="mobile"] .tabs button{padding:8px 12px;font-size:14px}
 /* прячем только подпись «Конспект» над самим текстом; остальные заголовки
    («Основные формулы», «Типичные ошибки», …) нужны — без них разделы конспекта
    сливаются в одну ленту и непонятно, что за красно-зелёные блоки внизу */
