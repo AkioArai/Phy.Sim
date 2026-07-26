@@ -56,7 +56,7 @@ input,select{font:inherit;color:inherit}
 /* Телефонные элементы по умолчанию выключены и включаются только в режиме
    [data-ui="mobile"]. Раньше .mbar тут не было, и на компьютере она
    разворачивалась обычным блоком прямо посреди сцены. */
-.mtop,.drawer-bg,.drawer-foot,.mbar,.mdock{display:none}
+.mtop,.drawer-bg,.drawer-foot,.mbar,.mbar2{display:none}
 .mtop{align-items:center;gap:4px;flex:0 0 auto;height:46px;
   padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
   border-bottom:1px solid var(--line);background:var(--panel)}
@@ -634,7 +634,6 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 /* ---- Мобильные элементы управления: по умолчанию (десктоп) скрыты, включаются
    в медиазапросе узких экранов ниже. ---- */
 .mobile-only{display:none}
-.mdock{display:none}
 .msheet-bg{display:none}
 .msheet-head{display:none}
 
@@ -727,8 +726,17 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
     max-width:62vw;max-height:34dvh;
     background:color-mix(in srgb,var(--panel) 82%,transparent)}
 [data-ui="mobile"] .hud::before{font-size:8px;margin-bottom:3px}
-[data-ui="mobile"] .fpanel .fp-head{font-size:8px;padding:3px 6px 2px}
+[data-ui="mobile"] .fpanel .fp-head{font-size:8px;padding:4px 6px 3px}
 [data-ui="mobile"] .fp-grip{display:none}
+/* Свёрнутая панель: остаётся только заголовок-полоска. На телефоне панель
+   показаний закрывала до 60 % ширины сцены — теперь её убирают одним касанием
+   и так же возвращают. Состояние запоминается между запусками. */
+.fpanel.fold .hud-body,.fpanel.fold .histo-body,.fpanel.fold .graphs{display:none}
+.fpanel.fold{min-height:0!important;height:auto!important;resize:none}
+.fp-head .fp-fold{margin-left:auto;flex:0 0 auto;font-family:var(--mono);font-size:11px;
+  line-height:1;color:var(--ink-3);padding:2px 5px;border-radius:4px}
+.fp-head .fp-fold:active{background:var(--panel-2);color:var(--ink)}
+[data-ui="mobile"] .fp-head .fp-fold{font-size:13px;padding:3px 8px}
 /* размер тянут пальцем неудобно — только перетаскивание *//* ---- Шторка параметров снизу ---- */
 [data-ui="mobile"] #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:126;height:auto!important;
     max-height:min(74dvh,74vh);
@@ -764,6 +772,29 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .mbar .mb-btn:active{background:var(--accent-soft);color:var(--accent);transform:scale(.9)}
 [data-ui="mobile"] .mtop .iconbtn:active{background:var(--panel-2);transform:scale(.9)}
 [data-ui="mobile"] .mbar .mb-sep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
+/* ---- Вторая панель: полноширинная строка состояния ----
+     Не «пилюля», а полоса от края до края, как нижняя панель на компьютере.
+     Два ряда: время и отмена сверху, масштаб и служебные кнопки снизу. */
+[data-ui="mobile"] .mbar2{display:none;position:fixed;z-index:124;left:0;right:0;
+    bottom:calc(var(--vvbottom,0px));
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    background:var(--panel);border-top:1px solid var(--line);
+    box-shadow:0 -8px 26px -16px #000a;
+    transition:opacity .18s ease, transform .18s ease}
+[data-ui="mobile"] .mbar2.show{display:block}
+[data-ui="mobile"] .mbar2.hide{opacity:0;pointer-events:none;transform:translateY(12px)}
+[data-ui="mobile"] .m2row{display:flex;align-items:center;gap:2px;width:100%}
+[data-ui="mobile"] .m2row+.m2row{margin-top:4px;padding-top:4px;border-top:1px solid var(--line-soft)}
+[data-ui="mobile"] .mbar2 .mb-btn{width:auto;flex:1 1 0;min-width:0;height:42px;border-radius:9px}
+[data-ui="mobile"] .mbar2 .mb-btn:active{background:var(--accent-soft);color:var(--accent);transform:scale(.94)}
+[data-ui="mobile"] .mbar2 .mb-sep{width:1px;height:22px;background:var(--line);margin:0 4px;flex:0 0 auto}
+/* редактируемые поля скорости и масштаба — как на компьютере */
+[data-ui="mobile"] .m2val{flex:1.6 1 0;min-width:52px;height:34px;text-align:center;
+    font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}
+[data-ui="mobile"] .m2val:focus{outline:none;border-color:var(--accent)}
+[data-ui="mobile"] .m2fps{flex:0 0 auto;min-width:40px;text-align:right;padding-right:2px;
+    font-family:var(--mono);font-size:10px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 [data-ui="mobile"] .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
     color:var(--ink-2);font-variant-numeric:tabular-nums}
 [data-ui="mobile"] .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
@@ -775,8 +806,6 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
 [data-ui="mobile"] [data-dock="big"] .mbplay{width:52px;height:52px}
 [data-ui="mobile"] [data-dock="big"] .mbplay svg{width:24px;height:24px}
-[data-ui="mobile"] .mdock{display:none}
-/* старый док заменён панелью .mbar */
 [data-ui="mobile"] .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
 [data-ui="mobile"] .pop .item{padding:11px 10px;font-size:14px}
 [data-ui="mobile"] .crumb{display:none}
@@ -787,6 +816,14 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .mtop{height:40px}
 [data-ui="mobile"] .mbar{bottom:calc(8px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
 [data-ui="mobile"] .mbar .mb-btn{width:36px;height:36px}
+/* в альбомной ориентации высоты мало: вторая панель складывается в один ряд */
+[data-ui="mobile"] .mbar2{padding:3px 8px calc(3px + env(safe-area-inset-bottom))}
+[data-ui="mobile"] .mbar2 .m2row{display:contents}
+[data-ui="mobile"] .mbar2{display:none}
+[data-ui="mobile"] .mbar2.show{display:flex;align-items:center;gap:2px;flex-wrap:nowrap}
+[data-ui="mobile"] .mbar2 .mb-btn{height:34px}
+[data-ui="mobile"] .m2val{height:28px;font-size:12px;min-width:44px}
+[data-ui="mobile"] .m2fps{display:none}
 [data-ui="mobile"] .mbplay{width:40px;height:40px}
 [data-ui="mobile"] #simbottom{max-height:min(92dvh,92vh)}
 }
@@ -973,7 +1010,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 
       <!-- Мобильное управление: выезжающая шторка перекрывается фоном, а плавающий
            док даёт доступ к пуску/паузе/сбросу/скорости прямо поверх сцены.
-           На десктопе оба элемента скрыты (см. .mdock/.msheet-bg display:none). -->
+           На десктопе оба элемента скрыты (см. .msheet-bg display:none). -->
       <div class="msheet-bg" id="msheet-bg"></div>
 
       <!-- ============ ТЕЛЕФОН: нижняя плавающая панель ============
@@ -997,37 +1034,44 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
           <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       </div>
 
-      <!-- второй ряд: то, что на компьютере живёт в нижней строке состояния -->
-      <div class="mbar mbar2" id="mbar2">
-        <button class="iconbtn mb-btn" id="mb-reset" title="Сбросить симуляцию">
-          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
-        <span class="mb-sep"></span>
-        <button class="iconbtn mb-btn" id="mb-zout" title="Отдалить"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
-        <button class="iconbtn mb-btn" id="mb-fit" title="Вписать сцену">
-          <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
-        <button class="iconbtn mb-btn" id="mb-zin" title="Приблизить"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-        <span class="mb-sep"></span>
-        <button class="iconbtn mb-btn" id="mb-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
-        <div class="mb-speed" id="mb-speed">1×</div>
-        <button class="iconbtn mb-btn" id="mb-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
-        <span class="mb-sep"></span>
-        <button class="iconbtn mb-btn" id="mb-back2" title="Вернуть основную панель">
-          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <!-- ============ ТЕЛЕФОН: вторая панель ============
+           Полная строка состояния во всю ширину экрана — тот же набор, что
+           в нижней панели компьютера: отмена/повтор, сброс, время, масштаб,
+           вписать, настройки, помощь и меню симуляции. Поля скорости и
+           масштаба редактируемые, как на компьютере. -->
+      <div class="mbar2" id="mbar2">
+        <div class="m2row">
+          <button class="iconbtn mb-btn" id="mb-undo" title="Параметры назад">
+            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
+            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h3"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-reset" title="Сбросить симуляцию">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+          <span class="mb-sep"></span>
+          <button class="iconbtn mb-btn" id="mb-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
+          <input class="m2val" id="mb-speed" value="1×" title="Скорость времени (можно вписать своё)" inputmode="decimal">
+          <button class="iconbtn mb-btn" id="mb-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
+          <span class="mb-sep"></span>
+          <button class="iconbtn mb-btn" id="mb-back2" title="Вернуть основную панель">
+            <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+        </div>
+        <div class="m2row">
+          <button class="iconbtn mb-btn" id="mb-zout" title="Отдалить"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+          <input class="m2val" id="mb-zoom" value="100%" title="Масштаб (можно вписать своё)" inputmode="decimal">
+          <button class="iconbtn mb-btn" id="mb-zin" title="Приблизить"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-fit" title="Вписать сцену">
+            <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
+          <span class="mb-sep"></span>
+          <button class="iconbtn mb-btn" id="mb-menu" title="Меню симуляции: запись, снимки, пресеты">
+            <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-settings" title="Настройки">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-help" title="Помощник и горячие клавиши">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
+          <div class="m2fps" id="mb-fps">—</div>
+        </div>
       </div>
 
-      <div class="mdock" id="mdock">
-        <button class="iconbtn mdock-btn" id="m-reset" title="Сбросить"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
-        <span class="msep"></span>
-        <button class="iconbtn mdock-btn" id="m-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
-        <div class="mspeed" id="m-speed">1×</div>
-        <button class="iconbtn mdock-btn" id="m-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
-        <span class="msep"></span>
-        <button class="mplay" id="m-play" title="Пуск / пауза">
-          <svg viewBox="0 0 24 24" id="ic-mplay"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
-          <svg viewBox="0 0 24 24" id="ic-mpause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.6"/></svg></button>
-        <span class="msep"></span>
-        <button class="iconbtn mdock-btn" id="m-params" title="Параметры и графики"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-      </div>
     </section>
   </div>
 
@@ -23367,7 +23411,10 @@ function loop(now){
   }
   if(a&&!idle){ drawAll(); drawGraphs(); updateCompare(); updateTimeline(); }
   frames++;
-  if(now-fpsT>800){ $('#fps').textContent=Math.round(frames/((now-fpsT)/1000))+' fps'; frames=0; fpsT=now; }
+  if(now-fpsT>800){ const s=Math.round(frames/((now-fpsT)/1000))+' fps';
+    $('#fps').textContent=s;
+    const m2=$('#mb-fps'); if(m2) m2.textContent=s;   // тот же счётчик на телефоне
+    frames=0; fpsT=now; }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -24316,7 +24363,11 @@ function zoomLabel(v){
   if(p<0.01) return p.toExponential(1)+'%';    // планетарные масштабы
   return (p<10?p.toFixed(p<1?2:1):Math.round(p))+'%';
 }
-function setZoom(){ $('#zoomval').value=zoomLabel(A()?A().view.scale:1); }
+function setZoom(){
+  const lbl=zoomLabel(A()?A().view.scale:1);
+  $('#zoomval').value=lbl;
+  const m2=$('#mb-zoom'); if(m2 && document.activeElement!==m2) m2.value=lbl;   // то же поле на телефоне
+}
 const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZMIN,ZMAX); setZoom(); };
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,a.def.fit(a.params,{W:CW,H:CH})); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
@@ -24638,8 +24689,12 @@ $('#btn-play').onclick=()=>{
 function setPlayIcon(){
   const pl=S.playing;
   $('#ic-play').style.display=pl?'none':'block'; $('#ic-pause').style.display=pl?'block':'none';
-  const mp=$('#ic-mplay'), mq=$('#ic-mpause');       // дублируем на мобильный док
-  if(mp&&mq){ mp.style.display=pl?'none':'block'; mq.style.display=pl?'block':'none'; }
+  /* Та же пара иконок на нижней панели телефона. Раньше её здесь не было,
+     и кнопка «пуск» на телефоне не переключалась визуально, хотя симуляция шла. */
+  for(const [a,b] of [['#ic-mbplay','#ic-mbpause']]){
+    const p=$(a), q=$(b);
+    if(p&&q){ p.style.display=pl?'none':'block'; q.style.display=pl?'block':'none'; }
+  }
 }
 $('#btn-reset').onclick=()=>{ const a=A(); if(!a) return;
   if(prefGet('confirmReset') && !confirm('Сбросить симуляцию к начальному состоянию?')) return;
@@ -25163,7 +25218,13 @@ function uiMode(){
   if(forced==='mobile'||forced==='desktop') return forced;
   const coarse = matchMedia('(pointer:coarse)').matches;   // палец, а не мышь
   const noHover= matchMedia('(hover:none)').matches;       // навести курсор нечем
-  const narrow = matchMedia('(max-width:900px)').matches;
+  /* Узкий экран — как было. Плюс низкий: телефон, повёрнутый в альбомную
+     ориентацию, имеет ширину под 900 пикселей и раньше переключался в режим
+     компьютера — с крошечными кнопками на 412 пикселях высоты. Порог 560 по
+     высоте разделяет телефон на боку и планшет (у самого маленького iPad
+     короткая сторона 744). */
+  const narrow = matchMedia('(max-width:900px)').matches
+              || matchMedia('(max-height:560px)').matches;
   const uaMob  = /Android|iPhone|iPad|iPod|IEMobile|Mobile Safari|Silk/i.test(navigator.userAgent||'');
   return (((coarse&&noHover)||uaMob) && narrow) ? 'mobile' : 'desktop';
 }
@@ -25226,13 +25287,8 @@ function mSheet(open){
   $('#msheet-bg').classList.toggle('show', now);
   if(now) requestAnimationFrame(resize);   // графики в раскрытой шторке получают размер
 }
-$('#m-params').onclick=()=>mSheet();
 $('#msheet-close').onclick=()=>mSheet(false);
 $('#msheet-bg').onclick=()=>mSheet(false);
-$('#m-reset').onclick=()=>$('#btn-reset').click();
-$('#m-play').onclick=()=>$('#btn-play').click();
-$('#m-slow').onclick=()=>stepSpeed(-1);
-$('#m-fast').onclick=()=>stepSpeed(1);
 $('#m-settings').onclick=()=>openPrefs();
 $('#m-cmdk').onclick=()=>cmdkOpen('');
 popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
@@ -25313,6 +25369,23 @@ $('#mb-zout').onclick=()=>$('#btn-zout').click();
 $('#mb-fit').onclick=()=>{ if(!$('#simpane').classList.contains('hidden')) fitView(); else { openSimMobile(); requestAnimationFrame(fitView); } };
 $('#mb-slow').onclick=()=>stepSpeed(-1);
 $('#mb-fast').onclick=()=>stepSpeed(1);
+/* Остальное из нижней панели компьютера — чтобы с телефона было доступно
+   ровно то же самое. Кнопки проксируют на существующие обработчики. */
+$('#mb-undo').onclick=()=>$('#btn-undo').click();
+$('#mb-redo').onclick=()=>$('#btn-redo').click();
+$('#mb-settings').onclick=()=>$('#btn-settings').click();
+$('#mb-help').onclick=()=>$('#btn-help').click();
+$('#mb-menu').onclick=e=>{ const r=e.currentTarget.getBoundingClientRect();
+  openSimMenu(r.left+r.width/2, r.top); };
+/* Поля скорости и масштаба редактируются пальцем так же, как мышью. */
+for(const [id,apply] of [['#mb-speed',v=>setSpeed(v||1)],
+                         ['#mb-zoom', v=>{ const a=A(); if(a&&v) a.view.scale=clamp(v/100,ZMIN,ZMAX); setZoom(); }]]){
+  const el=$(id); if(!el) continue;
+  el.onchange=e=>{ apply(parseFloat(String(e.target.value).replace(',','.').replace(/[×%\s]/g,'')));
+                   e.target.blur(); setSpeed(S.speed); setZoom(); };   // вернуть подпись с единицей
+  el.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter') e.target.blur(); };
+  el.onfocus=e=>e.target.select();
+}
 /* Инструменты сцены: на телефоне левой панели нет, поэтому открываем их
    списком — и сразу переключаемся на сцену, иначе рисовать будет негде. */
 popup($('#mb-tools'),$('#pop-tools'));
@@ -25527,7 +25600,7 @@ function setSpeed(v){
   S.speed=clamp(v,0.05,200);
   const lbl=(S.speed>=1?(Number.isInteger(S.speed)?S.speed:S.speed.toFixed(1)):S.speed)+'×';
   $('#speedval').value=lbl;
-  const m=$('#m-speed'); if(m) m.textContent=lbl;     // дублируем на мобильный док
+  const m2=$('#mb-speed'); if(m2 && document.activeElement!==m2) m2.value=lbl;
 }
 function stepSpeed(dir){
   const i=SPEEDS.findIndex(x=>x>=S.speed-1e-9);
@@ -25585,6 +25658,22 @@ function makeFloating(el){
   if(!el||el.__fp) return; el.__fp=true;
   const head=el.querySelector('.fp-head');
   if(!head) return;
+  /* Кнопка сворачивания. На телефоне панель показаний закрывала до 60 % ширины
+     сцены; теперь её убирают одним касанием, оставляя только заголовок.
+     Состояние хранится по id панели, поэтому переживает перезапуск. */
+  const fold=document.createElement('button');
+  fold.className='fp-fold'; fold.type='button';
+  fold.title='Свернуть или развернуть панель';
+  const key='fold.'+(el.id||'panel');
+  const paint=()=>{ const f=el.classList.contains('fold'); fold.textContent=f?'▸':'▾';
+                    fold.setAttribute('aria-expanded',String(!f)); };
+  if(LS.get(key,false)) el.classList.add('fold');
+  paint();
+  fold.onclick=e=>{ e.stopPropagation();
+    el.classList.toggle('fold'); LS.set(key,el.classList.contains('fold')); paint();
+    requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
+  fold.onpointerdown=e=>e.stopPropagation();     // чтобы не начиналось перетаскивание
+  head.appendChild(fold);
   // уголок изменения размера
   const grip=document.createElement('div');
   grip.className='fp-grip'; grip.title='Потяните, чтобы изменить размер';

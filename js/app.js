@@ -727,7 +727,10 @@ function loop(now){
   }
   if(a&&!idle){ drawAll(); drawGraphs(); updateCompare(); updateTimeline(); }
   frames++;
-  if(now-fpsT>800){ $('#fps').textContent=Math.round(frames/((now-fpsT)/1000))+' fps'; frames=0; fpsT=now; }
+  if(now-fpsT>800){ const s=Math.round(frames/((now-fpsT)/1000))+' fps';
+    $('#fps').textContent=s;
+    const m2=$('#mb-fps'); if(m2) m2.textContent=s;   // тот же счётчик на телефоне
+    frames=0; fpsT=now; }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -1676,7 +1679,11 @@ function zoomLabel(v){
   if(p<0.01) return p.toExponential(1)+'%';    // планетарные масштабы
   return (p<10?p.toFixed(p<1?2:1):Math.round(p))+'%';
 }
-function setZoom(){ $('#zoomval').value=zoomLabel(A()?A().view.scale:1); }
+function setZoom(){
+  const lbl=zoomLabel(A()?A().view.scale:1);
+  $('#zoomval').value=lbl;
+  const m2=$('#mb-zoom'); if(m2 && document.activeElement!==m2) m2.value=lbl;   // то же поле на телефоне
+}
 const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZMIN,ZMAX); setZoom(); };
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,a.def.fit(a.params,{W:CW,H:CH})); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
@@ -1998,8 +2005,12 @@ $('#btn-play').onclick=()=>{
 function setPlayIcon(){
   const pl=S.playing;
   $('#ic-play').style.display=pl?'none':'block'; $('#ic-pause').style.display=pl?'block':'none';
-  const mp=$('#ic-mplay'), mq=$('#ic-mpause');       // дублируем на мобильный док
-  if(mp&&mq){ mp.style.display=pl?'none':'block'; mq.style.display=pl?'block':'none'; }
+  /* Та же пара иконок на нижней панели телефона. Раньше её здесь не было,
+     и кнопка «пуск» на телефоне не переключалась визуально, хотя симуляция шла. */
+  for(const [a,b] of [['#ic-mbplay','#ic-mbpause']]){
+    const p=$(a), q=$(b);
+    if(p&&q){ p.style.display=pl?'none':'block'; q.style.display=pl?'block':'none'; }
+  }
 }
 $('#btn-reset').onclick=()=>{ const a=A(); if(!a) return;
   if(prefGet('confirmReset') && !confirm('Сбросить симуляцию к начальному состоянию?')) return;
@@ -2523,7 +2534,13 @@ function uiMode(){
   if(forced==='mobile'||forced==='desktop') return forced;
   const coarse = matchMedia('(pointer:coarse)').matches;   // палец, а не мышь
   const noHover= matchMedia('(hover:none)').matches;       // навести курсор нечем
-  const narrow = matchMedia('(max-width:900px)').matches;
+  /* Узкий экран — как было. Плюс низкий: телефон, повёрнутый в альбомную
+     ориентацию, имеет ширину под 900 пикселей и раньше переключался в режим
+     компьютера — с крошечными кнопками на 412 пикселях высоты. Порог 560 по
+     высоте разделяет телефон на боку и планшет (у самого маленького iPad
+     короткая сторона 744). */
+  const narrow = matchMedia('(max-width:900px)').matches
+              || matchMedia('(max-height:560px)').matches;
   const uaMob  = /Android|iPhone|iPad|iPod|IEMobile|Mobile Safari|Silk/i.test(navigator.userAgent||'');
   return (((coarse&&noHover)||uaMob) && narrow) ? 'mobile' : 'desktop';
 }
@@ -2586,13 +2603,8 @@ function mSheet(open){
   $('#msheet-bg').classList.toggle('show', now);
   if(now) requestAnimationFrame(resize);   // графики в раскрытой шторке получают размер
 }
-$('#m-params').onclick=()=>mSheet();
 $('#msheet-close').onclick=()=>mSheet(false);
 $('#msheet-bg').onclick=()=>mSheet(false);
-$('#m-reset').onclick=()=>$('#btn-reset').click();
-$('#m-play').onclick=()=>$('#btn-play').click();
-$('#m-slow').onclick=()=>stepSpeed(-1);
-$('#m-fast').onclick=()=>stepSpeed(1);
 $('#m-settings').onclick=()=>openPrefs();
 $('#m-cmdk').onclick=()=>cmdkOpen('');
 popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
@@ -2673,6 +2685,23 @@ $('#mb-zout').onclick=()=>$('#btn-zout').click();
 $('#mb-fit').onclick=()=>{ if(!$('#simpane').classList.contains('hidden')) fitView(); else { openSimMobile(); requestAnimationFrame(fitView); } };
 $('#mb-slow').onclick=()=>stepSpeed(-1);
 $('#mb-fast').onclick=()=>stepSpeed(1);
+/* Остальное из нижней панели компьютера — чтобы с телефона было доступно
+   ровно то же самое. Кнопки проксируют на существующие обработчики. */
+$('#mb-undo').onclick=()=>$('#btn-undo').click();
+$('#mb-redo').onclick=()=>$('#btn-redo').click();
+$('#mb-settings').onclick=()=>$('#btn-settings').click();
+$('#mb-help').onclick=()=>$('#btn-help').click();
+$('#mb-menu').onclick=e=>{ const r=e.currentTarget.getBoundingClientRect();
+  openSimMenu(r.left+r.width/2, r.top); };
+/* Поля скорости и масштаба редактируются пальцем так же, как мышью. */
+for(const [id,apply] of [['#mb-speed',v=>setSpeed(v||1)],
+                         ['#mb-zoom', v=>{ const a=A(); if(a&&v) a.view.scale=clamp(v/100,ZMIN,ZMAX); setZoom(); }]]){
+  const el=$(id); if(!el) continue;
+  el.onchange=e=>{ apply(parseFloat(String(e.target.value).replace(',','.').replace(/[×%\s]/g,'')));
+                   e.target.blur(); setSpeed(S.speed); setZoom(); };   // вернуть подпись с единицей
+  el.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter') e.target.blur(); };
+  el.onfocus=e=>e.target.select();
+}
 /* Инструменты сцены: на телефоне левой панели нет, поэтому открываем их
    списком — и сразу переключаемся на сцену, иначе рисовать будет негде. */
 popup($('#mb-tools'),$('#pop-tools'));
@@ -2887,7 +2916,7 @@ function setSpeed(v){
   S.speed=clamp(v,0.05,200);
   const lbl=(S.speed>=1?(Number.isInteger(S.speed)?S.speed:S.speed.toFixed(1)):S.speed)+'×';
   $('#speedval').value=lbl;
-  const m=$('#m-speed'); if(m) m.textContent=lbl;     // дублируем на мобильный док
+  const m2=$('#mb-speed'); if(m2 && document.activeElement!==m2) m2.value=lbl;
 }
 function stepSpeed(dir){
   const i=SPEEDS.findIndex(x=>x>=S.speed-1e-9);
@@ -2945,6 +2974,22 @@ function makeFloating(el){
   if(!el||el.__fp) return; el.__fp=true;
   const head=el.querySelector('.fp-head');
   if(!head) return;
+  /* Кнопка сворачивания. На телефоне панель показаний закрывала до 60 % ширины
+     сцены; теперь её убирают одним касанием, оставляя только заголовок.
+     Состояние хранится по id панели, поэтому переживает перезапуск. */
+  const fold=document.createElement('button');
+  fold.className='fp-fold'; fold.type='button';
+  fold.title='Свернуть или развернуть панель';
+  const key='fold.'+(el.id||'panel');
+  const paint=()=>{ const f=el.classList.contains('fold'); fold.textContent=f?'▸':'▾';
+                    fold.setAttribute('aria-expanded',String(!f)); };
+  if(LS.get(key,false)) el.classList.add('fold');
+  paint();
+  fold.onclick=e=>{ e.stopPropagation();
+    el.classList.toggle('fold'); LS.set(key,el.classList.contains('fold')); paint();
+    requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
+  fold.onpointerdown=e=>e.stopPropagation();     // чтобы не начиналось перетаскивание
+  head.appendChild(fold);
   // уголок изменения размера
   const grip=document.createElement('div');
   grip.className='fp-grip'; grip.title='Потяните, чтобы изменить размер';
