@@ -232,7 +232,19 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .tabs button.on .nprob{background:var(--accent-soft);color:var(--accent)}
 .tabs button.empty-tab{opacity:.5}
 
-.pr-lead{color:var(--ink-3);font-size:13px;margin-bottom:16px;line-height:1.6}
+.pr-lead{color:var(--ink-3);font-size:13px;margin-bottom:12px;line-height:1.6}
+/* полоса прогресса по задачам темы: при 380 задачах без неё не понять, докуда дошёл */
+.pr-prog{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.pp-bar{flex:1;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.pp-bar i{display:block;height:100%;background:var(--ok);border-radius:3px;transition:width .25s}
+.pp-txt{font-family:var(--mono);font-size:11px;color:var(--ink-3);flex:0 0 auto}
+.pp-reset{font-family:var(--mono);font-size:10px;color:var(--ink-3);border:1px solid var(--line);
+  border-radius:4px;padding:2px 7px;flex:0 0 auto}
+.pp-reset:hover{border-color:var(--danger);color:var(--danger)}
+.pr-done{display:none;margin-left:auto;color:var(--ok);font-size:13px;font-weight:700}
+.problem.done{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.problem.done .pr-done{display:inline}
+.problem.done .head .pr-hard{margin-left:0}
 /* заголовок группы задач = кнопка, открывающая нужную симуляцию */
 .pr-grp{display:flex;width:100%;justify-content:space-between;align-items:center;gap:10px;
   margin:20px 0 9px;padding:9px 13px;border:1px solid var(--line);border-radius:var(--radius);

@@ -19,7 +19,33 @@ function jsFilesFromHtml(html){
   if(!out.length) throw new Error('в index.html не найдено ни одного <script src="js/...">');
   return out;
 }
+/* ---------------- Проверка учебного контента перед сборкой ----------------
+   Символ «<» внутри формулы браузер принимает за начало тега и проглатывает
+   ближайший закрывающий тег — из-за этого половина главы однажды уехала
+   внутрь <div class="callout"> и стала серой. Ошибка не видна ни в syntax
+   check, ни в тестах физики, поэтому проверяем её здесь и роняем сборку. */
+function checkContentEscaping(topicsSrc){
+  const TAGS='div|p|ul|ol|li|strong|em|h2|h3|span|br|sup|sub|code|kbd|b|i|article|table|tr|td|th';
+  const bad=new RegExp('<(?!\\/?(?:'+TAGS+')[\\s>/])','g');
+  const hits=[];
+  // все $...$ в topics.js — формулы KaTeX
+  const re=/\$([^$\n]*)\$/g; let m;
+  while((m=re.exec(topicsSrc))){
+    if(m[1].includes('<'))
+      hits.push('неэкранированный «<» в формуле: ' + m[0].slice(0,60));
+  }
+  if(hits.length){
+    console.error('\nСБОРКА ОСТАНОВЛЕНА — в учебном контенте есть «<», ломающий разметку:');
+    hits.slice(0,10).forEach(h=>console.error('  • '+h));
+    if(hits.length>10) console.error('  … и ещё '+(hits.length-10));
+    console.error('Замените «<» на «&lt;» — KaTeX получит его обратно как «<».\n');
+    process.exit(1);
+  }
+  void bad;
+}
+
 const JS_FILES = jsFilesFromHtml(read('index.html'));
+checkContentEscaping(read('js/topics.js'));
 const bundle = JS_FILES.map((f) => read(f)).join('\n;\n').replace(/<\/script>/gi, '<\\/script>');
 const css = read('css/style.css');
 
