@@ -39,6 +39,20 @@
     <button class="iconbtn" id="btn-simfull" title="Симуляция во весь экран (F)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5"/></svg></button>
   </div>
 
+  <!-- ================= ТЕЛЕФОН: тонкая шапка =================
+       Слева — ящик с темами, логотипом и настройками; справа — открыть
+       симуляцию и то же меню «⋮», что на компьютере. Больше в шапке нет
+       ничего: весь верхний UI макет требует убрать. На десктопе скрыта. -->
+  <div class="mtop" id="mtop">
+    <button class="iconbtn" id="m-drawer" title="Темы, поиск и настройки">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="m-opensim" title="Открыть симуляцию">
+      <svg viewBox="0 0 24 24"><path d="M12 21c0-5 2-8 7-9-5-1-7-4-7-8-0 4-2 7-7 8 5 1 7 4 7 9z"/></svg></button>
+    <button class="iconbtn" id="m-more" title="Меню симуляции">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></button>
+  </div>
+
   <div class="body">
     <div class="rail" id="rail">
       <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z"/></svg></button>
@@ -81,7 +95,16 @@
     <aside class="sidebar" id="sidebar">
       <div class="search"><input id="search" type="search" placeholder="Поиск по темам и формулам…"></div>
       <div class="tree" id="tree"></div>
+      <!-- подвал ящика: на телефоне отсюда попадают в помощь и настройки -->
+      <div class="drawer-foot mobile-only">
+        <div class="brand">Phy<span>.</span>Sim</div>
+        <div class="spacer"></div>
+        <button class="iconbtn" id="d-help" title="Помощник"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
+        <button class="iconbtn" id="d-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      </div>
     </aside>
+    <!-- затемнение под ящиком: тап по нему возвращает к чтению -->
+    <div class="drawer-bg" id="drawer-bg"></div>
 
     <main class="content" id="content">
       <div class="chead">
@@ -175,6 +198,46 @@
            док даёт доступ к пуску/паузе/сбросу/скорости прямо поверх сцены.
            На десктопе оба элемента скрыты (см. .mdock/.msheet-bg display:none). -->
       <div class="msheet-bg" id="msheet-bg"></div>
+
+      <!-- ============ ТЕЛЕФОН: нижняя плавающая панель ============
+           Основной ряд по макету: инструменты · шаг назад · пуск/стоп ·
+           шаг вперёд · параметры · «ещё». Последняя кнопка ПРЯЧЕТ этот ряд и
+           открывает второй — с зумом, вписыванием и скоростью; вернуться
+           обратно можно такой же кнопкой справа. -->
+      <div class="mbar" id="mbar">
+        <button class="iconbtn mb-btn" id="mb-tools" title="Инструменты сцены">
+          <svg viewBox="0 0 24 24"><path d="M14 6.5a3.5 3.5 0 1 0-4.6 3.3L4 15.2V20h4.8l5.4-5.4A3.5 3.5 0 0 0 14 6.5z"/></svg></button>
+        <button class="iconbtn mb-btn" id="mb-back" title="Шаг назад по записи">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14 8l-4 4 4 4"/></svg></button>
+        <button class="mbplay" id="mb-play" title="Пуск / пауза">
+          <svg viewBox="0 0 24 24" id="ic-mbplay"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+          <svg viewBox="0 0 24 24" id="ic-mbpause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.6"/></svg></button>
+        <button class="iconbtn mb-btn" id="mb-fwd" title="Шаг вперёд по записи">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8l4 4-4 4"/></svg></button>
+        <button class="iconbtn mb-btn" id="mb-params" title="Параметры и графики">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 13 4-4 4 4"/></svg></button>
+        <button class="iconbtn mb-btn" id="mb-more" title="Ещё: зум, вписать, скорость">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+
+      <!-- второй ряд: то, что на компьютере живёт в нижней строке состояния -->
+      <div class="mbar mbar2" id="mbar2">
+        <button class="iconbtn mb-btn" id="mb-reset" title="Сбросить симуляцию">
+          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <span class="mb-sep"></span>
+        <button class="iconbtn mb-btn" id="mb-zout" title="Отдалить"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <button class="iconbtn mb-btn" id="mb-fit" title="Вписать сцену">
+          <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
+        <button class="iconbtn mb-btn" id="mb-zin" title="Приблизить"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <span class="mb-sep"></span>
+        <button class="iconbtn mb-btn" id="mb-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
+        <div class="mb-speed" id="mb-speed">1×</div>
+        <button class="iconbtn mb-btn" id="mb-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
+        <span class="mb-sep"></span>
+        <button class="iconbtn mb-btn" id="mb-back2" title="Вернуть основную панель">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+
       <div class="mdock" id="mdock">
         <button class="iconbtn mdock-btn" id="m-reset" title="Сбросить"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
         <span class="msep"></span>
@@ -229,6 +292,11 @@
   <button class="item" id="mi-cmdk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg>Командная палитра</button>
   <button class="item" id="mi-reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Всё сбросить</button>
   <div class="ttl">Сохранённые параметры</div><div id="presets"></div>
+</div>
+<!-- Инструменты сцены на телефоне: тот же попап, что и меню симуляции -->
+<div class="pop hidden" id="pop-tools">
+  <div class="ttl">Инструменты сцены</div>
+  <div id="pop-tools-body"></div>
 </div>
 <div class="pop hidden" id="pop-help">
   <div class="ttl">Помощник</div>

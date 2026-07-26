@@ -27,6 +27,12 @@ input,select{font:inherit;color:inherit}
   padding-top:env(safe-area-inset-top)}
 .topbar{display:flex;align-items:center;gap:6px;height:44px;padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-left));border-bottom:1px solid var(--line);flex:0 0 auto}
 .spacer{flex:1}
+/* Телефонные элементы по умолчанию выключены; включаются в медиазапросе. */
+.mtop,.drawer-bg,.drawer-foot{display:none}
+.mtop{align-items:center;gap:4px;flex:0 0 auto;height:46px;
+  padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
+  border-bottom:1px solid var(--line);background:var(--panel)}
+.mtop .iconbtn{width:40px;height:40px}
 .crumb{font-size:12px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono)}
 .iconbtn{width:32px;height:32px;display:grid;place-items:center;border-radius:var(--radius);border:1px solid transparent;color:var(--ink-2);transition:.12s}
 .iconbtn:hover{background:var(--panel-2);color:var(--ink)}
@@ -522,53 +528,84 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    плавающий док и выезжающую снизу шторку — верхняя и нижняя панели десктопа
    на узком экране перекрыты полноэкранной сценой и недоступны. */
 @media (max-width:900px){
-  .sidebar{position:absolute;z-index:40;height:calc(100% - 84px);
-    box-shadow:4px 0 24px -12px #0006;background:var(--panel)}
+  /* ================= РАСКЛАДКА ТЕЛЕФОНА =================
+     Экран делится на три слоя: тонкая шапка сверху, содержимое во всю
+     оставшуюся высоту и плавающая панель управления снизу. Высоту берём из
+     --vh: адресная строка браузера то появляется, то исчезает, и обычные
+     100vh на телефоне врут (в Safari — на высоту всей панели). */
+  #app{height:var(--appvh,100dvh);min-height:0}
+  .topbar,.statusbar{display:none}          /* весь верхний и нижний UI компьютера убран */
+  .mtop{display:flex}
+  .body{min-height:0}
+
+  .sidebar{position:fixed;z-index:120;top:0;bottom:0;left:0;width:min(78vw,320px);
+    height:auto;display:flex;flex-direction:column;
+    background:var(--panel);border-right:1px solid var(--line);
+    box-shadow:8px 0 34px -14px #0009;
+    padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
+    transform:translateX(-102%);transition:transform .26s cubic-bezier(.4,0,.2,1)}
+  .sidebar.open{transform:none}
+  .sidebar .tree{flex:1;min-height:0;overflow:auto}
+  .drawer-foot{display:flex;align-items:center;gap:4px;padding:8px 10px;
+    border-top:1px solid var(--line-soft)}
+  .drawer-foot .brand{font-family:var(--mono);font-weight:700;letter-spacing:.02em}
+  .drawer-foot .brand span{color:var(--accent)}
+  .drawer-bg{display:block;position:fixed;inset:0;z-index:119;background:#0007;
+    opacity:0;pointer-events:none;transition:opacity .26s}
+  .drawer-bg.show{opacity:1;pointer-events:auto}
+
   .splitter{display:none}
+  .rail{display:none}                        /* инструменты — через кнопку в панели */
+  .content.wide{flex:1}
+  /* «весь текст без „конспекта“ и прочего верхнего UI» — оставляем только сам текст */
+  .chead .sub,.chead .tabs,.pane .sect{display:none}
+  .chead{padding-bottom:0;border-bottom:none}
+  .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
+  .pane{padding-bottom:96px}                 /* чтобы панель не накрывала последний абзац */
+
   .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
     background:var(--bg);box-shadow:none;
-    /* на телефонах с вырезом шапка (и кнопка «назад») не должна уезжать под статусбар */
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom)}
   .simpane.hidden{display:none}
-  #btn-simfull,#btn-cmdk{display:none}   /* палитра на телефоне — в шапке симуляции */
-  .content.wide{flex:1}
-  /* палитра под палец */
+  #btn-simfull,#btn-cmdk{display:none}
   .cmdk{padding:8vh 10px 10px}
   .cmdk-item{padding:11px 10px}
-  .rail{width:40px;flex:0 0 40px}
   .iconbtn{width:40px;height:40px}
 
-  /* ---- Слим-шапка симуляции: [‹]  Название ▾  [⚙] [⋯] ---- */
+  /* ---- Шапка симуляции: [‹] Название ▾ [⚙] [⋯] ---- */
   .simhead{padding:6px 6px;gap:2px;font-size:13px;text-transform:none;letter-spacing:0;
     border-bottom:1px solid var(--line)}
-  .simhead-lbl,#clock,#btn-graph,#btn-makeout{display:none}   /* лишнее из шапки убираем */
+  .simhead-lbl,#clock,#btn-graph,#btn-makeout{display:none}
   #btn-simback{display:inline-flex}
   .mobile-only{display:inline-flex}
   #simsel{flex:1;min-width:0;max-width:none;font-size:15px;font-weight:600;color:var(--ink);
     border:none;background:none;padding:6px 2px;text-transform:none;letter-spacing:0}
 
-  /* сцена занимает всё оставшееся место */
   .canvas-wrap{flex:1}
   #hsplit{display:none}
-  /* шкала времени на телефоне компактнее и без подписи-времени */
-  .timeline{padding:3px 6px;gap:3px}
-  .timeline .tl-btn{width:32px;height:30px}
-  .tl-time{min-width:0;font-size:10px}
+  /* Шкала времени на телефоне не нужна отдельной строкой: шаг назад и вперёд
+     переехали в плавающую панель, а полоса только отъедала высоту сцены и
+     лезла под саму панель. */
+  .timeline{display:none}
 
-  /* компактный HUD, чтобы не заслонял сцену */
+  /* Панель показаний не должна съедать пол-экрана телефона. */
   .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
+    max-width:62vw;max-height:34dvh;
     background:color-mix(in srgb,var(--panel) 82%,transparent)}
   .hud::before{font-size:8px;margin-bottom:3px}
+  .fpanel .fp-head{font-size:8px;padding:3px 6px 2px}
+  .fp-grip{display:none}                      /* размер тянут пальцем неудобно — только перетаскивание */
 
-  /* ---- Нижняя панель превращается в выезжающую шторку ---- */
-  #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:78;height:auto!important;max-height:74vh;
+  /* ---- Шторка параметров снизу ---- */
+  #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:126;height:auto!important;
+    max-height:min(74dvh,74vh);
     background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
     box-shadow:0 -12px 34px -14px #0009;overflow-y:auto;
     transform:translateY(110%);transition:transform .26s cubic-bezier(.4,0,.2,1);
-    padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+    padding-bottom:calc(16px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
   #simbottom.msheet-open{transform:none}
-  #simbottom.collapsed{height:auto!important}     /* десктопное «свернуть» на мобильном не действует */
+  #simbottom.collapsed{height:auto!important}
   .gbox.off{display:none}
   .msheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;position:sticky;top:0;
     background:var(--panel);border-bottom:1px solid var(--line-soft);z-index:1}
@@ -576,39 +613,47 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   .msheet-head .iconbtn{width:34px;height:34px}
   .msheet-grip{position:absolute;top:6px;left:50%;transform:translateX(-50%);
     width:38px;height:4px;border-radius:2px;background:var(--line)}
-  .msheet-bg{display:block;position:fixed;inset:0;z-index:77;background:#0006;opacity:0;
+  .msheet-bg{display:block;position:fixed;inset:0;z-index:125;background:#0006;opacity:0;
     pointer-events:none;transition:opacity .26s}
   .msheet-bg.show{opacity:1;pointer-events:auto}
 
-  /* ---- Плавающий док управления: строгий, в стиле статусбара десктопа —
-     плоская панель, тонкая рамка, малый радиус, разделители, без блюра ---- */
-  .mdock{display:flex;align-items:center;gap:1px;position:fixed;z-index:76;
-    left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));
-    padding:4px;border-radius:var(--radius);background:var(--panel);
-    border:1px solid var(--line);box-shadow:0 6px 20px -10px #0008}
-  .mdock .mdock-btn{width:38px;height:38px;border-radius:5px}
-  .mdock .msep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
-  .mdock .mspeed{min-width:36px;text-align:center;font-family:var(--mono);font-size:12px;
-    color:var(--ink-2);font-variant-numeric:tabular-nums;padding:0 2px}
-  .mplay{width:38px;height:38px;border-radius:5px;display:grid;place-items:center;flex:0 0 auto;
-    background:var(--accent);color:#fff;border:none;cursor:pointer}
-  .mplay:active{filter:brightness(.94)}
-  .mplay svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;
+  /* ---- Плавающая панель управления ----
+     Держится над нижним краем ВИДИМОЙ области: --vvbottom — это высота того,
+     что браузер (адресная строка, клавиатура) отъел снизу. Без этой поправки
+     панель на телефоне регулярно оказывалась наполовину под поисковой строкой. */
+  .mbar{display:none;align-items:center;gap:2px;position:fixed;z-index:124;
+    left:50%;transform:translateX(-50%);
+    bottom:calc(10px + env(safe-area-inset-bottom) + var(--vvbottom,0px));
+    padding:5px;border-radius:999px;background:var(--panel);
+    border:1px solid var(--line);box-shadow:0 8px 26px -12px #000a;
+    transition:opacity .18s ease, transform .18s ease}
+  .mbar.show{display:flex}
+  .mbar.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(10px)}
+  .mbar .mb-btn{width:40px;height:40px;border-radius:999px}
+  .mbar .mb-sep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
+  .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
+    color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
+    background:var(--accent);color:#fff;border:none;cursor:pointer;margin:0 2px}
+  .mbplay:active{filter:brightness(.94)}
+  .mbplay svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
-  .mplay #ic-mplay{fill:currentColor}
-  /* настройка «крупный пульт»: цели больше — удобнее большим пальцам */
-  [data-dock="big"] .mdock .mdock-btn,[data-dock="big"] .mplay{width:46px;height:46px}
-  [data-dock="big"] .mplay svg{width:23px;height:23px}
-  [data-dock="big"] .mdock .mspeed{font-size:14px;min-width:42px}
+  .mbplay #ic-mbplay{fill:currentColor}
+  [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
+  [data-dock="big"] .mbplay{width:52px;height:52px}
+  [data-dock="big"] .mbplay svg{width:24px;height:24px}
+  .mdock{display:none}                       /* старый док заменён панелью .mbar */
 
-  /* попапы (меню симуляции) должны быть выше полноэкранной сцены */
-  .pop{z-index:200}
+  .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
+  .pop .item{padding:11px 10px;font-size:14px}
   .crumb{display:none}
 }
 /* Телефон в альбомной ориентации: экономим высоту. */
 @media (max-width:900px) and (orientation:landscape){
   .simhead{padding:4px 8px}
-  .mdock{bottom:calc(8px + env(safe-area-inset-bottom))}
-  .mdock .mdock-btn,.mplay{width:36px;height:36px}
-  #simbottom{max-height:90vh}
+  .mtop{height:40px}
+  .mbar{bottom:calc(8px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
+  .mbar .mb-btn{width:36px;height:36px}
+  .mbplay{width:40px;height:40px}
+  #simbottom{max-height:min(92dvh,92vh)}
 }

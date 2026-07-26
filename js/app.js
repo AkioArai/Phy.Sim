@@ -602,17 +602,19 @@ function updateHud(a){
   const rows=a.def.readouts(a.state,a.params)
     .map(([l,v,u])=>`${l.padEnd(14)} ${fmt(v).padStart(9)} ${u}`);
   const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
-  /* Свободную высоту меряем по САМОЙ ПАНЕЛИ, а не по содержимому: высота
-     содержимого зависит от того, сколько строк мы уже показали, и получалась
-     самоподдерживающаяся петля — обрезали до одной строки и на ней застревали. */
+  /* Обрезаем строки, только если размер панели чем-то ОГРАНИЧЕН: явной высотой
+     (пользователь потянул за уголок) или max-height из темы (на телефоне).
+     Мерить при этом надо по самому ограничению, а не по фактической высоте:
+     содержимое влияет на высоту, высота — на число строк, и получилась бы
+     петля, в которой панель ужимается до одной строки. И не по положению:
+     перетащив панель вниз, пользователь просил её подвинуть, а не сократить. */
   const head=panel.querySelector('.fp-head');
   const headH=head?head.offsetHeight:0;
-  let avail;
-  if(panel.style.height){                            // пользователь задал размер сам
-    avail=panel.clientHeight-headH-13;
-  } else {                                           // иначе не даём вылезти за нижний край сцены
-    const wrapH=($('#cwrap')||{}).clientHeight||0;
-    avail = wrapH ? wrapH-panel.offsetTop-headH-24 : Infinity;
+  let avail=Infinity;
+  if(panel.style.height) avail=parseFloat(panel.style.height)-headH-13;
+  else {
+    const mh=parseFloat(getComputedStyle(panel).maxHeight);
+    if(isFinite(mh)) avail=mh-headH-13;
   }
   let n=rows.length;
   if(isFinite(avail) && avail>0 && lh>0){
@@ -1077,6 +1079,7 @@ function openSim(id){
   S.playing=true; setPlayIcon(); acc=0;
   S.probe=null; a.tracePts=[];
   renderParams(); buildGraphs(); renderPresets(); renderSimTools(); renderSectTools();
+  try{ syncMbar(); }catch(_){}
   requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
 }
 function renderParams(){
@@ -2381,7 +2384,39 @@ function closeSimMobile(){
   $('#app').classList.remove('simfull');
   resize();
 }
-$('#btn-simback').onclick=closeSimMobile;
+$('#btn-simback').onclick=()=>{ closeSimMobile(); syncMbar(); };
+/* Открыть сцену поверх конспекта (кнопка «открыть симуляцию» в шапке). */
+function openSimMobile(){
+  if(!S.active) return;
+  $('#simpane').classList.remove('hidden');
+  $('#splitter').classList.add('hidden');
+  $('#content').classList.add('wide');
+  requestAnimationFrame(()=>{ resize(); });
+}
+
+/* ===== Инструменты сцены на телефоне =====
+   Левой панели на узком экране нет, поэтому её содержимое показываем списком
+   в таком же попапе, как меню симуляции: те же кнопки, те же обработчики. */
+function fillToolsPop(){
+  const box=$('#pop-tools-body'); if(!box) return;
+  box.innerHTML='';
+  const add=(label,on,active)=>{
+    if(!label) return;
+    const b=document.createElement('button');
+    b.className='item'+(active?' on':'');
+    b.textContent=label;
+    b.onclick=()=>{ on(); $('#pop-tools').classList.add('hidden'); };
+    box.appendChild(b);
+  };
+  const clean=t=>String(t||'').replace(/\s*\([^)]*\)$/,'');
+  document.querySelectorAll('#rail .tool').forEach(t=>
+    add(clean(t.title),()=>setTool(t.dataset.tool),t.classList.contains('on')));
+  for(const id of ['btn-snap','btn-coords','btn-trace','btn-clear']){
+    const t=$('#'+id); if(t) add(clean(t.title),()=>t.click(),t.classList.contains('on'));
+  }
+  document.querySelectorAll('#secttools button,#simtools button').forEach(t=>
+    add(t.title,()=>t.click(),t.classList.contains('on')));
+}
 
 /* ===== МОБИЛЬНОЕ УПРАВЛЕНИЕ: плавающий док + шторка параметров/графиков =====
    Кнопки дока проксируют на существующие обработчики — логика не дублируется. */
@@ -2403,10 +2438,96 @@ $('#m-settings').onclick=()=>openPrefs();
 $('#m-cmdk').onclick=()=>cmdkOpen('');
 popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
 
+/* ================= РЕАЛЬНЫЙ ВИДИМЫЙ ЭКРАН ТЕЛЕФОНА =================
+   Адресная строка браузера то выезжает, то прячется, и на телефоне это
+   съедает заметную полосу сверху или снизу. Обычные 100vh про неё не знают:
+   в Safari они считаются по экрану БЕЗ панелей, поэтому нижняя панель
+   управления регулярно оказывалась наполовину под поисковой строкой.
+
+   Поэтому берём размеры у visualViewport — это ровно та область, которую
+   пользователь видит: --appvh идёт в высоту приложения, --vvbottom — сколько
+   отъедено снизу (панель браузера или экранная клавиатура), и на эту величину
+   приподнимается всё плавающее. */
+function syncViewport(){
+  const vv=window.visualViewport;
+  const root=document.documentElement;
+  const h = vv ? vv.height : window.innerHeight;
+  root.style.setProperty('--appvh', h+'px');
+  const hidden = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+  root.style.setProperty('--vvbottom', Math.round(hidden)+'px');
+}
+syncViewport();
+addEventListener('resize',syncViewport);
+addEventListener('orientationchange',()=>setTimeout(syncViewport,120));
+if(window.visualViewport){
+  visualViewport.addEventListener('resize',syncViewport);
+  visualViewport.addEventListener('scroll',syncViewport);
+}
+
+/* ================= ТЕЛЕФОН: ЯЩИК С ТЕМАМИ =================
+   Дерево тем уезжает за левый край и выдвигается поверх текста с затемнением;
+   тап по затемнению возвращает к чтению. */
+function drawer(open){
+  const sb=$('#sidebar'), bg=$('#drawer-bg'); if(!sb||!bg) return;
+  const now = open===undefined ? !sb.classList.contains('open') : open;
+  sb.classList.remove('hidden');
+  sb.classList.toggle('open', now);
+  bg.classList.toggle('show', now);
+}
+$('#m-drawer').onclick=()=>drawer();
+$('#drawer-bg').onclick=()=>drawer(false);
+$('#d-help').onclick=()=>{ drawer(false); $('#btn-help').click(); };
+$('#d-settings').onclick=()=>{ drawer(false); openPrefs(); };
+// выбрал тему — ящик закрывается сам, иначе он загораживает то, что открыл
+$('#tree').addEventListener('click',e=>{
+  if(isNarrow()&&e.target.closest('.topic-item')) drawer(false);
+});
+$('#m-more').onclick=null;
+popup($('#m-more'),$('#pop-simmenu'));
+$('#m-opensim').onclick=()=>{ const a=A(); if(a) openSimMobile(); else toast('Сначала выберите тему с симуляцией'); };
+
+/* ================= ТЕЛЕФОН: НИЖНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ =================
+   Основной ряд по макету и второй ряд «ещё» (зум, вписать, скорость).
+   Кнопки проксируют на уже существующие обработчики — логика не двоится. */
+function mbarRow(second){
+  $('#mbar').classList.toggle('hide', !!second);
+  $('#mbar2').classList.toggle('show', !!second);
+  $('#mbar2').classList.toggle('hide', !second);
+}
+function syncMbar(){
+  /* Панель нужна только на телефоне и только когда есть что запускать.
+     На экране конспекта она тоже видна: симуляция под ним продолжает идти,
+     и останавливать её, не уходя с текста, — ровно то, что нужно. */
+  const show = isNarrow() && !!A();
+  $('#mbar').classList.toggle('show', show);
+  if(!show){ $('#mbar2').classList.remove('show'); $('#mbar').classList.remove('hide'); }
+}
+$('#mb-play').onclick=()=>$('#btn-play').click();
+$('#mb-back').onclick=()=>$('#tl-prev').click();
+$('#mb-fwd').onclick=()=>$('#tl-next').click();
+$('#mb-params').onclick=()=>mSheet();
+$('#mb-more').onclick=()=>mbarRow(true);
+$('#mb-back2').onclick=()=>mbarRow(false);
+$('#mb-reset').onclick=()=>$('#btn-reset').click();
+$('#mb-zin').onclick=()=>$('#btn-zin').click();
+$('#mb-zout').onclick=()=>$('#btn-zout').click();
+$('#mb-fit').onclick=()=>{ if(!$('#simpane').classList.contains('hidden')) fitView(); else { openSimMobile(); requestAnimationFrame(fitView); } };
+$('#mb-slow').onclick=()=>stepSpeed(-1);
+$('#mb-fast').onclick=()=>stepSpeed(1);
+/* Инструменты сцены: на телефоне левой панели нет, поэтому открываем их
+   списком — и сразу переключаемся на сцену, иначе рисовать будет негде. */
+popup($('#mb-tools'),$('#pop-tools'));
+{ // перед показом наполняем список актуальными инструментами
+  const btn=$('#mb-tools'), base=btn.onclick;
+  btn.onclick=e=>{ if($('#simpane').classList.contains('hidden')) openSimMobile();
+                   fillToolsPop(); base(e); };
+}
+
 /* Поворот экрана и любое изменение размера окна. */
 let lastNarrow=isNarrow();
 function onViewportChange(){
   const now=isNarrow();
+  syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
     lastNarrow=now;
     if(now){
@@ -2691,8 +2812,11 @@ function makeFloating(el){
     if(!drag.moved && Math.hypot(dx,dy)<3) return;   // порог: короткий клик не считается перетаскиванием
     drag.moved=true; el.classList.add('dragging');
     const wrap=$('#cwrap'), W=wrap.clientWidth, H=wrap.clientHeight, r=el.getBoundingClientRect();
+    /* Панель не уезжает за нижний край: раньше вниз можно было утащить так,
+       что от неё оставалась одна шапка, а уголок изменения размера просто
+       обрезался сценой и становился недосягаем. */
     el.style.left=clamp(drag.x0+dx, 0, Math.max(0,W-r.width))+'px';
-    el.style.top =clamp(drag.y0+dy, 0, Math.max(0,H-28))+'px';
+    el.style.top =clamp(drag.y0+dy, 0, Math.max(0,H-r.height))+'px';
   });
   const endDrag=()=>{
     if(!drag) return;
