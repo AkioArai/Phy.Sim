@@ -37,8 +37,10 @@ input,select{font:inherit;color:inherit}
   padding-top:env(safe-area-inset-top)}
 .topbar{display:flex;align-items:center;gap:6px;height:44px;padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-left));border-bottom:1px solid var(--line);flex:0 0 auto}
 .spacer{flex:1}
-/* Телефонные элементы по умолчанию выключены; включаются в медиазапросе. */
-.mtop,.drawer-bg,.drawer-foot{display:none}
+/* Телефонные элементы по умолчанию выключены и включаются только в режиме
+   [data-ui="mobile"]. Раньше .mbar тут не было, и на компьютере она
+   разворачивалась обычным блоком прямо посреди сцены. */
+.mtop,.drawer-bg,.drawer-foot,.mbar,.mdock{display:none}
 .mtop{align-items:center;gap:4px;flex:0 0 auto;height:46px;
   padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
   border-bottom:1px solid var(--line);background:var(--panel)}
@@ -537,136 +539,143 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    симуляция открывается поверх него целиком. Управление симуляцией вынесено в
    плавающий док и выезжающую снизу шторку — верхняя и нижняя панели десктопа
    на узком экране перекрыты полноэкранной сценой и недоступны. */
-@media (max-width:900px){
-  /* ================= РАСКЛАДКА ТЕЛЕФОНА =================
+/* ==================== ТЕЛЕФОННАЯ РАСКЛАДКА ====================
+   Включается НЕ по ширине окна, а по режиму интерфейса на <html>: узкое окно
+   на компьютере — это всё ещё компьютер, и телефонные панели там только
+   мешают. Режим определяет uiMode() в app.js (сенсор без мыши + узкий кадр
+   либо явный выбор в настройках). */
+/* ================= РАСКЛАДКА ТЕЛЕФОНА =================
      Экран делится на три слоя: тонкая шапка сверху, содержимое во всю
      оставшуюся высоту и плавающая панель управления снизу. Высоту берём из
      --vh: адресная строка браузера то появляется, то исчезает, и обычные
      100vh на телефоне врут (в Safari — на высоту всей панели). */
-  #app{height:var(--appvh,100dvh);min-height:0}
-  .topbar,.statusbar{display:none}          /* весь верхний и нижний UI компьютера убран */
-  .mtop{display:flex}
-  .body{min-height:0}
-
-  .sidebar{position:fixed;z-index:120;top:0;bottom:0;left:0;width:min(78vw,320px);
+[data-ui="mobile"] #app{height:var(--appvh,100dvh);min-height:0}
+[data-ui="mobile"] .topbar,
+[data-ui="mobile"] .statusbar{display:none}
+/* весь верхний и нижний UI компьютера убран */
+[data-ui="mobile"] .mtop{display:flex}
+[data-ui="mobile"] .body{min-height:0}
+[data-ui="mobile"] .sidebar{position:fixed;z-index:120;top:0;bottom:0;left:0;width:min(78vw,320px);
     height:auto;display:flex;flex-direction:column;
     background:var(--panel);border-right:1px solid var(--line);
     box-shadow:8px 0 34px -14px #0009;
     padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
     transform:translateX(-102%);transition:transform .26s cubic-bezier(.4,0,.2,1)}
-  .sidebar.open{transform:none}
-  .sidebar .tree{flex:1;min-height:0;overflow:auto}
-  .drawer-foot{display:flex;align-items:center;gap:4px;padding:8px 10px;
+[data-ui="mobile"] .sidebar.open{transform:none}
+[data-ui="mobile"] .sidebar .tree{flex:1;min-height:0;overflow:auto}
+[data-ui="mobile"] .drawer-foot{display:flex;align-items:center;gap:4px;padding:8px 10px;
     border-top:1px solid var(--line-soft)}
-  .drawer-foot .brand{font-family:var(--mono);font-weight:700;letter-spacing:.02em}
-  .drawer-foot .brand span{color:var(--accent)}
-  .drawer-bg{display:block;position:fixed;inset:0;z-index:119;background:#0007;
+[data-ui="mobile"] .drawer-foot .brand{font-family:var(--mono);font-weight:700;letter-spacing:.02em}
+[data-ui="mobile"] .drawer-foot .brand span{color:var(--accent)}
+[data-ui="mobile"] .drawer-bg{display:block;position:fixed;inset:0;z-index:119;background:#0007;
     opacity:0;pointer-events:none;transition:opacity .26s}
-  .drawer-bg.show{opacity:1;pointer-events:auto}
-
-  .splitter{display:none}
-  .rail{display:none}                        /* инструменты — через кнопку в панели */
-  .content.wide{flex:1}
-  /* «весь текст без „конспекта“ и прочего верхнего UI» — оставляем только сам текст */
-  .chead .sub,.chead .tabs,.pane .sect{display:none}
-  .chead{padding-bottom:0;border-bottom:none}
-  .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
-  .pane{padding-bottom:96px}                 /* чтобы панель не накрывала последний абзац */
-
-  .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
+[data-ui="mobile"] .drawer-bg.show{opacity:1;pointer-events:auto}
+[data-ui="mobile"] .splitter{display:none}
+[data-ui="mobile"] .rail{display:none}
+/* инструменты — через кнопку в панели */
+[data-ui="mobile"] .content.wide{flex:1}
+/* «весь текст без „конспекта“ и прочего верхнего UI» — оставляем только сам текст */
+[data-ui="mobile"] .chead .sub,
+[data-ui="mobile"] .chead .tabs,
+[data-ui="mobile"] .pane .sect{display:none}
+[data-ui="mobile"] .chead{padding-bottom:0;border-bottom:none}
+[data-ui="mobile"] .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
+[data-ui="mobile"] .pane{padding-bottom:96px}
+/* чтобы панель не накрывала последний абзац */
+[data-ui="mobile"] .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
     background:var(--bg);box-shadow:none;
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom)}
-  .simpane.hidden{display:none}
-  #btn-simfull,#btn-cmdk{display:none}
-  .cmdk{padding:8vh 10px 10px}
-  .cmdk-item{padding:11px 10px}
-  .iconbtn{width:40px;height:40px}
-
-  /* ---- Шапка симуляции: [‹] Название ▾ [⚙] [⋯] ---- */
-  .simhead{padding:6px 6px;gap:2px;font-size:13px;text-transform:none;letter-spacing:0;
+[data-ui="mobile"] .simpane.hidden{display:none}
+[data-ui="mobile"] #btn-simfull,
+[data-ui="mobile"] #btn-cmdk{display:none}
+[data-ui="mobile"] .cmdk{padding:8vh 10px 10px}
+[data-ui="mobile"] .cmdk-item{padding:11px 10px}
+[data-ui="mobile"] .iconbtn{width:40px;height:40px}
+/* ---- Шапка симуляции: [‹] Название ▾ [⚙] [⋯] ---- */
+[data-ui="mobile"] .simhead{padding:6px 6px;gap:2px;font-size:13px;text-transform:none;letter-spacing:0;
     border-bottom:1px solid var(--line)}
-  .simhead-lbl,#clock,#btn-graph,#btn-makeout{display:none}
-  #btn-simback{display:inline-flex}
-  .mobile-only{display:inline-flex}
-  #simsel{flex:1;min-width:0;max-width:none;font-size:15px;font-weight:600;color:var(--ink);
+[data-ui="mobile"] .simhead-lbl,
+[data-ui="mobile"] #clock,
+[data-ui="mobile"] #btn-graph,
+[data-ui="mobile"] #btn-makeout{display:none}
+[data-ui="mobile"] #btn-simback{display:inline-flex}
+[data-ui="mobile"] .mobile-only{display:inline-flex}
+[data-ui="mobile"] #simsel{flex:1;min-width:0;max-width:none;font-size:15px;font-weight:600;color:var(--ink);
     border:none;background:none;padding:6px 2px;text-transform:none;letter-spacing:0}
-
-  .canvas-wrap{flex:1}
-  #hsplit{display:none}
-  /* Шкала времени на телефоне не нужна отдельной строкой: шаг назад и вперёд
+[data-ui="mobile"] .canvas-wrap{flex:1}
+[data-ui="mobile"] #hsplit{display:none}
+/* Шкала времени на телефоне не нужна отдельной строкой: шаг назад и вперёд
      переехали в плавающую панель, а полоса только отъедала высоту сцены и
      лезла под саму панель. */
-  .timeline{display:none}
-
-  /* Панель показаний не должна съедать пол-экрана телефона. */
-  .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
+[data-ui="mobile"] .timeline{display:none}
+/* Панель показаний не должна съедать пол-экрана телефона. */
+[data-ui="mobile"] .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
     max-width:62vw;max-height:34dvh;
     background:color-mix(in srgb,var(--panel) 82%,transparent)}
-  .hud::before{font-size:8px;margin-bottom:3px}
-  .fpanel .fp-head{font-size:8px;padding:3px 6px 2px}
-  .fp-grip{display:none}                      /* размер тянут пальцем неудобно — только перетаскивание */
-
-  /* ---- Шторка параметров снизу ---- */
-  #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:126;height:auto!important;
+[data-ui="mobile"] .hud::before{font-size:8px;margin-bottom:3px}
+[data-ui="mobile"] .fpanel .fp-head{font-size:8px;padding:3px 6px 2px}
+[data-ui="mobile"] .fp-grip{display:none}
+/* размер тянут пальцем неудобно — только перетаскивание *//* ---- Шторка параметров снизу ---- */
+[data-ui="mobile"] #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:126;height:auto!important;
     max-height:min(74dvh,74vh);
     background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
     box-shadow:0 -12px 34px -14px #0009;overflow-y:auto;
     transform:translateY(110%);transition:transform .26s cubic-bezier(.4,0,.2,1);
     padding-bottom:calc(16px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
-  #simbottom.msheet-open{transform:none}
-  #simbottom.collapsed{height:auto!important}
-  .gbox.off{display:none}
-  .msheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;position:sticky;top:0;
+[data-ui="mobile"] #simbottom.msheet-open{transform:none}
+[data-ui="mobile"] #simbottom.collapsed{height:auto!important}
+[data-ui="mobile"] .gbox.off{display:none}
+[data-ui="mobile"] .msheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;position:sticky;top:0;
     background:var(--panel);border-bottom:1px solid var(--line-soft);z-index:1}
-  .msheet-head b{font-size:14px;flex:1}
-  .msheet-head .iconbtn{width:34px;height:34px}
-  .msheet-grip{position:absolute;top:6px;left:50%;transform:translateX(-50%);
+[data-ui="mobile"] .msheet-head b{font-size:14px;flex:1}
+[data-ui="mobile"] .msheet-head .iconbtn{width:34px;height:34px}
+[data-ui="mobile"] .msheet-grip{position:absolute;top:6px;left:50%;transform:translateX(-50%);
     width:38px;height:4px;border-radius:2px;background:var(--line)}
-  .msheet-bg{display:block;position:fixed;inset:0;z-index:125;background:#0006;opacity:0;
+[data-ui="mobile"] .msheet-bg{display:block;position:fixed;inset:0;z-index:125;background:#0006;opacity:0;
     pointer-events:none;transition:opacity .26s}
-  .msheet-bg.show{opacity:1;pointer-events:auto}
-
-  /* ---- Плавающая панель управления ----
+[data-ui="mobile"] .msheet-bg.show{opacity:1;pointer-events:auto}
+/* ---- Плавающая панель управления ----
      Держится над нижним краем ВИДИМОЙ области: --vvbottom — это высота того,
      что браузер (адресная строка, клавиатура) отъел снизу. Без этой поправки
      панель на телефоне регулярно оказывалась наполовину под поисковой строкой. */
-  .mbar{display:none;align-items:center;gap:2px;position:fixed;z-index:124;
+[data-ui="mobile"] .mbar{display:none;align-items:center;gap:2px;position:fixed;z-index:124;
     left:50%;transform:translateX(-50%);
     bottom:calc(10px + env(safe-area-inset-bottom) + var(--vvbottom,0px));
     padding:5px;border-radius:999px;background:var(--panel);
     border:1px solid var(--line);box-shadow:0 8px 26px -12px #000a;
     transition:opacity .18s ease, transform .18s ease}
-  .mbar.show{display:flex}
-  .mbar.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(10px)}
-  .mbar .mb-btn{width:40px;height:40px;border-radius:999px}
-  .mbar .mb-sep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
-  .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
+[data-ui="mobile"] .mbar.show{display:flex}
+[data-ui="mobile"] .mbar.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(10px)}
+[data-ui="mobile"] .mbar .mb-btn{width:40px;height:40px;border-radius:999px}
+[data-ui="mobile"] .mbar .mb-sep{width:1px;height:20px;background:var(--line);margin:0 3px;flex:0 0 auto}
+[data-ui="mobile"] .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
     color:var(--ink-2);font-variant-numeric:tabular-nums}
-  .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
+[data-ui="mobile"] .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
     background:var(--accent);color:#fff;border:none;cursor:pointer;margin:0 2px}
-  .mbplay:active{filter:brightness(.94)}
-  .mbplay svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
+[data-ui="mobile"] .mbplay:active{filter:brightness(.94)}
+[data-ui="mobile"] .mbplay svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
-  .mbplay #ic-mbplay{fill:currentColor}
-  [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
-  [data-dock="big"] .mbplay{width:52px;height:52px}
-  [data-dock="big"] .mbplay svg{width:24px;height:24px}
-  .mdock{display:none}                       /* старый док заменён панелью .mbar */
+[data-ui="mobile"] .mbplay #ic-mbplay{fill:currentColor}
+[data-ui="mobile"] [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
+[data-ui="mobile"] [data-dock="big"] .mbplay{width:52px;height:52px}
+[data-ui="mobile"] [data-dock="big"] .mbplay svg{width:24px;height:24px}
+[data-ui="mobile"] .mdock{display:none}
+/* старый док заменён панелью .mbar */
+[data-ui="mobile"] .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
+[data-ui="mobile"] .pop .item{padding:11px 10px;font-size:14px}
+[data-ui="mobile"] .crumb{display:none}
 
-  .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
-  .pop .item{padding:11px 10px;font-size:14px}
-  .crumb{display:none}
-}
 /* Телефон в альбомной ориентации: экономим высоту. */
-@media (max-width:900px) and (orientation:landscape){
-  .simhead{padding:4px 8px}
-  .mtop{height:40px}
-  .mbar{bottom:calc(8px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
-  .mbar .mb-btn{width:36px;height:36px}
-  .mbplay{width:40px;height:40px}
-  #simbottom{max-height:min(92dvh,92vh)}
+@media (orientation:landscape){
+[data-ui="mobile"] .simhead{padding:4px 8px}
+[data-ui="mobile"] .mtop{height:40px}
+[data-ui="mobile"] .mbar{bottom:calc(8px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
+[data-ui="mobile"] .mbar .mb-btn{width:36px;height:36px}
+[data-ui="mobile"] .mbplay{width:40px;height:40px}
+[data-ui="mobile"] #simbottom{max-height:min(92dvh,92vh)}
 }
+
 </style>
 </head>
 <body>
@@ -9767,6 +9776,274 @@ tir:{
   }
 },
 
+/* ============ КОНСТРУКТОР ОПТИЧЕСКОЙ СКАМЬИ ============
+   Одна линза — это отдельная симуляция; здесь их можно поставить в ряд и
+   собрать настоящий прибор: лупу, микроскоп, телескоп Кеплера и Галилея.
+
+   Считаем двумя способами сразу, и они должны сходиться:
+     1) ХОД ЛУЧЕЙ. Луч задаётся высотой y и наклоном u = dy/dx. На свободном
+        промежутке длиной d: y += u·d. Тонкая линза меняет только наклон:
+        u −= y/f. Это и есть матричная оптика, только без матриц.
+     2) ФОРМУЛА ТОНКОЙ ЛИНЗЫ, применённая по очереди: изображение от одной
+        линзы служит предметом для следующей. Для линзы с предметом на
+        расстоянии a слева: 1/b = 1/f − 1/a, увеличение m = −b/a.
+        Отрицательное a означает мнимый предмет (пучок уже сходился), и
+        формула это спокойно переваривает.
+   Полное увеличение — произведение увеличений ступеней.                    */
+bench:{
+  title:'Конструктор оптической скамьи: лупа, микроскоп, телескоп',
+  params:[
+    {key:'demo',label:'Готовый прибор',type:'select',default:'micro',
+     options:[{v:'single',t:'Одна линза'},
+              {v:'loupe', t:'Лупа: предмет ближе фокуса'},
+              {v:'micro', t:'Микроскоп: объектив + окуляр'},
+              {v:'kepler',t:'Телескоп Кеплера: две собирающие'},
+              {v:'galileo',t:'Телескоп Галилея: рассеивающий окуляр'}]},
+    {key:'n',  label:'Сколько линз',min:1,max:3,step:1,default:2},
+    {key:'x0', label:'Положение предмета',unit:'см',min:-14,max:6,step:0.1,default:-7},
+    {key:'h',  label:'Высота предмета',unit:'см',min:0.2,max:3,step:0.1,default:1},
+
+    {type:'group',label:'Линзы (слева направо)'},
+    {key:'x1',label:'Линза 1: положение',unit:'см',min:-12,max:12,step:0.1,default:-4},
+    {key:'f1',label:'Линза 1: фокусное F₁',unit:'см',min:-12,max:12,step:0.1,default:2},
+    {key:'x2',label:'Линза 2: положение',unit:'см',min:-12,max:12,step:0.1,default:6},
+    {key:'f2',label:'Линза 2: фокусное F₂',unit:'см',min:-12,max:12,step:0.1,default:3},
+    {key:'x3',label:'Линза 3: положение',unit:'см',min:-12,max:12,step:0.1,default:10},
+    {key:'f3',label:'Линза 3: фокусное F₃',unit:'см',min:-12,max:12,step:0.1,default:4},
+
+    {type:'group',label:'Показывать'},
+    {key:'rays', label:'Лучей от вершины предмета',min:3,max:15,step:2,default:7},
+    {key:'foci', label:'Фокусы линз',type:'check',default:true},
+    {key:'img',  label:'Промежуточные изображения',type:'check',default:true},
+    {key:'axis', label:'Оптическую ось и шкалу',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  /* Готовые схемы: меняют сразу число линз, их положения и фокусы. */
+  DEMOS:{
+    single: {n:1,x0:-7, h:1,  x1:-4,f1:2},
+    loupe:  {n:1,x0:-5.4,h:1, x1:-4,f1:2},
+    micro:  {n:2,x0:-5.1,h:0.6,x1:-4,f1:1, x2:6,f2:3},
+    kepler: {n:2,x0:-13,h:1,  x1:-4,f1:6, x2:4,f2:1.4},
+    galileo:{n:2,x0:-13,h:1,  x1:-4,f1:6, x2:3.4,f2:-1.4}
+  },
+  lensAt(p,i){ return {x:p['x'+i], f:p['f'+i]}; },
+  lenses(p){
+    const out=[];
+    for(let i=1;i<=Math.max(1,Math.min(3,Math.round(p.n)));i++){
+      const L=this.lensAt(p,i);
+      if(isFinite(L.x)&&isFinite(L.f)&&Math.abs(L.f)>1e-6) out.push(L);
+    }
+    return out.sort((a,b)=>a.x-b.x);            // всегда слева направо
+  },
+  /* Последовательное применение формулы тонкой линзы. */
+  chain(p){
+    const Ls=this.lenses(p);
+    let ox=p.x0, oh=p.h, mtot=1, steps=[];
+    for(const L of Ls){
+      const a=L.x-ox;                            // расстояние от предмета до линзы
+      let b, m;
+      if(Math.abs(a)<1e-9){ b=0; m=1; }          // предмет в самой линзе
+      else {
+        const inv=1/L.f-1/a;
+        b = Math.abs(inv)<1e-12 ? Infinity : 1/inv;
+        m = isFinite(b) ? -b/a : Infinity;
+      }
+      const ix = isFinite(b) ? L.x+b : Infinity;
+      const ih = isFinite(m) ? m*oh : Infinity;
+      steps.push({L,a,b,m,ix,ih,real:isFinite(b)&&b>0});
+      mtot*= isFinite(m)?m:1;
+      ox=ix; oh=ih;
+    }
+    return {Ls,steps,mtot,x:ox,h:oh};
+  },
+  /* Трассировка одного луча через все линзы: список изломов. */
+  trace(p,y0,u0,xEnd){
+    const Ls=this.lenses(p);
+    const pts=[[p.x0,y0]];
+    let x=p.x0, y=y0, u=u0;
+    for(const L of Ls){
+      if(L.x<=x) continue;
+      y+=u*(L.x-x); x=L.x;
+      pts.push([x,y]);
+      u-=y/L.f;                                  // тонкая линза меняет только наклон
+    }
+    y+=u*(xEnd-x); pts.push([xEnd,y]);
+    return pts;
+  },
+  init(p){ return {t:0,event:null,__stop:null,demo:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+    // выбор готового прибора применяется один раз, дальше всё крутится руками
+    if(s.demo!==p.demo){ s.demo=p.demo; Object.assign(p,this.DEMOS[p.demo]||{}); }
+  },
+  anchors(s,p){
+    const out=[{x:p.x0,y:0},{x:p.x0,y:p.h}];
+    for(const L of this.lenses(p)) out.push({x:L.x,y:0});
+    return out;
+  },
+  /* Предмет и линзы двигаются мышью прямо по скамье. */
+  dragPoints(p){
+    const out=[{x:p.x0,y:p.h}];
+    for(let i=1;i<=Math.round(p.n);i++) out.push({x:p['x'+i],y:0});
+    return out;
+  },
+  dragMove(p,idx,x,y){
+    if(idx===0){ p.x0=clamp(+x.toFixed(1),-14,6); p.h=clamp(+Math.abs(y).toFixed(1),0.2,3); return; }
+    p['x'+idx]=clamp(+x.toFixed(1),-12,12);
+  },
+  readouts(s,p){
+    const c=this.chain(p);
+    const out=[['t',s.t,'с'],['линз в схеме',c.Ls.length,''],
+      ['предмет: положение',p.x0,'см'],['предмет: высота',p.h,'см']];
+    c.steps.forEach((q,i)=>{
+      const n=i+1;
+      out.push([`линза ${n}: F`,q.L.f,'см']);
+      out.push([`      расстояние до предмета a`,q.a,'см']);
+      out.push([`      до изображения b (1/b = 1/F − 1/a)`,q.b,'см']);
+      out.push([`      увеличение m = −b/a`,q.m,'']);
+      out.push([`      изображение`,NaN,q.real?'действительное':'мнимое']);
+    });
+    out.push(['ПОЛНОЕ увеличение',c.mtot,'×'],
+             ['по модулю',Math.abs(c.mtot),'×'],
+             ['ориентация',NaN,c.mtot<0?'перевёрнутое':'прямое'],
+             ['итоговое изображение: положение',c.x,'см'],
+             ['итоговое изображение: высота',c.h,'см']);
+    return out;
+  },
+  graphs:[
+    {label:'Полное увеличение',unit:'×',series:['m'],
+     get(s,p){ return [SIMS.bench.chain(p).mtot,null]; }},
+    {label:'Положение итогового изображения',unit:'см',series:['x'],
+     get(s,p){ const c=SIMS.bench.chain(p); return [isFinite(c.x)?c.x:null,null]; }}
+  ],
+  presets:[
+    {name:'Лупа: мнимое прямое увеличенное',values:{demo:'loupe',rays:7}},
+    {name:'Микроскоп: объектив даёт действительное, окуляр — лупа',values:{demo:'micro',rays:7}},
+    {name:'Телескоп Кеплера: перевёрнутое, увеличение F₁/F₂',values:{demo:'kepler',rays:7}},
+    {name:'Телескоп Галилея: прямое, окуляр рассеивающий',values:{demo:'galileo',rays:7}},
+    {name:'Одна линза: проверка формулы',values:{demo:'single',rays:9}}
+  ],
+  ctxTools(p){
+    return [
+      {label:'Добавить линзу',   on:q=>{ if(q.n<3){ q.n=Math.round(q.n)+1;
+        const i=q.n; q['x'+i]=clamp((q['x'+(i-1)]||0)+4,-12,12); q['f'+i]=2.5; } }},
+      {label:'Убрать последнюю', on:q=>{ if(q.n>1) q.n=Math.round(q.n)-1; }},
+      {label:'Все линзы собирающие', on:q=>{ for(let i=1;i<=3;i++) q['f'+i]=Math.abs(q['f'+i]); }},
+      {label:'Развернуть последнюю линзу (собирающая ↔ рассеивающая)',
+       on:q=>{ const i=Math.round(q.n); q['f'+i]=-q['f'+i]; }}
+    ];
+  },
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-60)/(26*PX_PER_M),(H-60)/(14.2*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.9,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
+          dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const mid=t=>-Math.round(String(t).length*3.05);
+    const c=this.chain(p), X0=-15, X1=15;
+
+    // ---- оптическая ось и шкала
+    if(p.axis){
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X1,0); ctx.stroke();
+      for(let x=-14;x<=14;x+=2){
+        ctx.beginPath(); ctx.moveTo(x,-0.16); ctx.lineTo(x,0.16); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+      v.label(ctx,'оптическая ось, см',12.4,0,-96,16,ink3);
+    }
+
+    /* ---- лучи. Целим их в АПЕРТУРУ первой линзы, а не разбрасываем веером
+       наклонов: иначе большая часть лучей пролетала мимо стекла и картинка
+       превращалась в пучок случайных прямых. */
+    const HL=3.0;                                  // полувысота линзы на рисунке
+    const nr=Math.max(3,Math.round(p.rays));
+    const first=c.Ls[0];
+    ctx.strokeStyle=acc; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.2);
+    for(let i=0;i<nr;i++){
+      const yt=(i/(nr-1)*2-1)*HL*0.86;             // точка входа на первой линзе
+      let u;
+      if(first && Math.abs(first.x-p.x0)>1e-6) u=(yt-p.h)/(first.x-p.x0);
+      else u=(i/(nr-1)-0.5)*1.1;
+      const pts=this.trace(p,p.h,u,X1);
+      ctx.beginPath();
+      pts.forEach((q,j)=>j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+      ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+
+    // ---- линзы
+    c.Ls.forEach((L,i)=>{
+      const conv=L.f>0, Hh=3.0;
+      ctx.strokeStyle=conv?acc:sec; ctx.lineWidth=v.lw(2.2);
+      ctx.beginPath(); ctx.moveTo(L.x,-Hh); ctx.lineTo(L.x,Hh); ctx.stroke();
+      // наконечники: у собирающей наружу, у рассеивающей внутрь
+      const d=0.34;
+      ctx.beginPath();
+      if(conv){
+        ctx.moveTo(L.x-d,-Hh+d); ctx.lineTo(L.x,-Hh); ctx.lineTo(L.x+d,-Hh+d);
+        ctx.moveTo(L.x-d, Hh-d); ctx.lineTo(L.x, Hh); ctx.lineTo(L.x+d, Hh-d);
+      } else {
+        ctx.moveTo(L.x-d,-Hh); ctx.lineTo(L.x,-Hh+d); ctx.lineTo(L.x+d,-Hh);
+        ctx.moveTo(L.x-d, Hh); ctx.lineTo(L.x, Hh-d); ctx.lineTo(L.x+d, Hh);
+      }
+      ctx.stroke();
+      const nl=`${i+1}: F = ${L.f} см`;
+      v.label(ctx,nl,L.x,Hh,mid(nl),-12,conv?acc:sec);
+      if(p.foci){
+        ctx.fillStyle=ink3;
+        for(const fx of [L.x-Math.abs(L.f),L.x+Math.abs(L.f)]){
+          ctx.beginPath(); ctx.arc(fx,0,v.lw(2.6),0,7); ctx.fill();
+        }
+        v.label(ctx,'F',L.x+Math.abs(L.f),0,-3,15,ink3);
+      }
+    });
+
+    // ---- предмет
+    v.arrow(ctx,p.x0,0,p.x0,p.h,dang);
+    v.label(ctx,'предмет',p.x0,p.h,-26,-12,dang);
+
+    // ---- промежуточные и итоговое изображения
+    /* Промежуточное изображение микроскопа бывает в разы выше кадра, поэтому
+       стрелку подрезаем по краю сцены и честно помечаем обрез. Точная высота
+       всё равно есть в показаниях. */
+    const HY=4.0;
+    c.steps.forEach((q,i)=>{
+      if(!isFinite(q.ix)||!isFinite(q.ih)) return;
+      const last=(i===c.steps.length-1);
+      if(!last && !p.img) return;
+      const col = last ? ok : meas;
+      const cut=Math.abs(q.ih)>HY, yv=clamp(q.ih,-HY,HY);
+      ctx.save();
+      if(!q.real) ctx.setLineDash([v.lw(4),v.lw(3)]);   // мнимое — пунктиром
+      v.arrow(ctx,q.ix,0,q.ix,yv,col);
+      ctx.restore();
+      const nm = last ? 'итоговое' : `изобр. ${i+1}`;
+      const t=`${nm}: ${q.real?'действ.':'мнимое'}, ${q.ih.toFixed(2)} см${cut?' ↓':''}`;
+      v.label(ctx,t,q.ix,yv,mid(t),q.ih>=0?-12:14,col);
+    });
+
+    // ---- сводка
+    const m=c.mtot;
+    const t1 = isFinite(m)
+      ? `полное увеличение ${Math.abs(m).toFixed(2)}× · ${m<0?'изображение перевёрнутое':'изображение прямое'}`
+      : 'лучи выходят параллельным пучком — изображение в бесконечности (так работает телескоп)';
+    v.label(ctx,t1,0,-5.3,mid(t1),0,ink);
+    const t2='каждая линза меняет только наклон луча: u → u − y/F. Изображение одной становится предметом для следующей.';
+    v.label(ctx,t2,0,-5.3,mid(t2),16,ink3);
+    const t3='тяните предмет и линзы прямо по скамье · ПКМ — добавить или убрать линзу';
+    v.label(ctx,t3,0,-5.3,mid(t3),32,ink3);
+  }
+}
+,
 lens:{
   title:'Тонкая линза: построение изображения',
   params:[
@@ -13742,124 +14019,404 @@ decay:{
 forces:{
   title:'Четыре взаимодействия и слабый распад',
   params:[
-    {key:'pick',label:'Взаимодействие',type:'select',default:'weak',
-     options:[{v:'strong',t:'Сильное'},{v:'em',t:'Электромагнитное'},
-              {v:'weak',t:'Слабое'},{v:'grav',t:'Гравитационное'}]},
+    {key:'mode',label:'Что показываем',type:'select',default:'decay',
+     options:[{v:'decay',t:'Слабый распад: живой ансамбль нейтронов'},
+              {v:'compare',t:'Четыре силы: кто побеждает на каком расстоянии'}]},
 
-    {type:'group',label:'Показывать'},
-    {key:'scale',label:'Шкала относительной силы',type:'check',default:true},
-    {key:'decay',label:'Пример: распад нейтрона',type:'check',default:true}
+    {type:'group',label:'Распад нейтрона'},
+    {key:'N',    label:'Сколько нейтронов в начале',min:20,max:2000,step:20,default:400},
+    {key:'boost',label:'Ускорение времени распада',unit:'×',min:1,max:600,step:1,default:120},
+    {key:'spec', label:'Спектр энергий электрона',type:'check',default:true},
+    {key:'curve',label:'Кривая N(t) и теория',type:'check',default:true},
+    {key:'vec',  label:'Импульсы разлёта в последнем распаде',type:'check',default:true},
+
+    {type:'group',label:'Сравнение сил'},
+    {key:'logr', label:'Расстояние между двумя протонами: показатель степени',
+     unit:'(r = 10^x м)',min:-19,max:0,step:0.1,default:-18},
+    {key:'names',label:'Подписи кривых',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
-  /* относительная сила (условно, при сравнении двух протонов в ядре) и радиус действия */
-  data:{
-    strong:{name:'сильное',   rel:1,      range:'~10⁻¹⁵ м (размер ядра)', carrier:'глюоны',
-            acts:'кварки и нуклоны', role:'держит ядро от развала'},
-    em:    {name:'электромагнитное', rel:1/137, range:'бесконечный', carrier:'фотон',
-            acts:'все заряженные частицы', role:'держит атомы и молекулы'},
-    weak:  {name:'слабое',    rel:1e-6,   range:'~10⁻¹⁸ м', carrier:'W- и Z-бозоны',
-            acts:'все частицы, включая нейтрино', role:'отвечает за бета-распад'},
-    grav:  {name:'гравитационное', rel:1e-38, range:'бесконечный', carrier:'не обнаружен',
-            acts:'всё, что имеет энергию', role:'правит звёздами и галактиками'}
+
+  /* ---------- СЛАБЫЙ РАСПАД: n → p + e⁻ + ν̄ₑ ----------
+     Массы покоя в МэВ. Разность масс нейтрона и протона уходит на массу
+     электрона и на кинетическую энергию, которую делят между собой электрон и
+     антинейтрино. */
+  mn:939.56542, mp:938.27209, me:0.51099895,
+  halfLife:611,                                   // период полураспада свободного нейтрона, с
+  Q(){ return this.mn-this.mp-this.me; },         // 0.782 МэВ — вся доступная кинетическая энергия
+  /* Форма бета-спектра (Ферми, без кулоновской поправки):
+         S(T) ∝ p·E·(Q−T)²,   E = T + mₑ,  p = √(T² + 2Tmₑ).
+     Именно ЭТА непрерывность и заставила Паули в 1930 году придумать
+     нейтрино: в распаде на две частицы энергия электрона была бы одна и та
+     же, а опыт давал размазанный спектр. */
+  spec(T){
+    const Q=this.Q(); if(T<=0||T>=Q) return 0;
+    const E=T+this.me, pc=Math.sqrt(T*(T+2*this.me));
+    return pc*E*(Q-T)*(Q-T);
   },
-  /* распад свободного нейтрона: n → p + e⁻ + антинейтрино */
-  mn:939.56542, mp:938.27209, me:0.51099895,        // МэВ
-  dMass(){ return this.mn-this.mp; },                // разность масс нейтрона и протона
-  Q(){ return this.mn-this.mp-this.me; },            // энергия, уходящая в кинетическую
-  halfLife:611,                                       // с, период полураспада свободного нейтрона
-  init(p){ return {t:0,ph:0,event:null,__stop:null}; },
-  step(s,dt,p){ s.t+=dt; s.ph+=dt; },
+  specMax(){
+    if(this._sm) return this._sm;
+    let m=0; const Q=this.Q();
+    for(let i=1;i<400;i++) m=Math.max(m,this.spec(Q*i/400));
+    return this._sm=m;
+  },
+  /* Разыгрываем энергию электрона по спектру методом отбора. */
+  drawT(){
+    const Q=this.Q(), M=this.specMax();
+    for(let i=0;i<200;i++){
+      const T=Math.random()*Q;
+      if(Math.random()*M<=this.spec(T)) return T;
+    }
+    return Q/3;
+  },
+
+  /* ---------- ЧЕТЫРЕ СИЛЫ между двумя протонами ----------
+     Считаем настоящие силы в ньютонах, а не «условные единицы».
+       электромагнитная  F = k e²/r²                     — дальнодействующая;
+       гравитационная    F = G mₚ²/r²                    — дальнодействующая;
+       сильная (Юкава)   F ≈ A e^(−r/r₀)/r², r₀ ≈ 1.4 фм — обрывается за ядром;
+       слабая            F ≈ B e^(−r/r_w)/r², r_w ≈ 0.0025 фм — обрывается сразу.
+     Экспоненты — это и есть «конечный радиус действия»: переносчик массивный,
+     поэтому за своим комптоновским размером сила гаснет как e^(−r/r₀). */
+  KE2:2.307e-28,                                  // k·e², Н·м²
+  GM2:1.867e-64,                                  // G·mₚ², Н·м²
+  R0:1.4e-15, RW:2.5e-18,
+  A(){ return 100*this.KE2; },                    // сильное ≈ в 100 раз сильнее кулона на 1 фм
+  B(){ return 1e-6*this.A(); },                   // слабое ≈ 10⁻⁶ от сильного
+  F(kind,r){
+    if(!(r>0)) return NaN;
+    switch(kind){
+      case 'em':     return this.KE2/(r*r);
+      case 'grav':   return this.GM2/(r*r);
+      case 'strong': return this.A()*Math.exp(-r/this.R0)/(r*r);
+      case 'weak':   return this.B()*Math.exp(-r/this.RW)/(r*r);
+    }
+    return NaN;
+  },
+  KINDS:['strong','em','weak','grav'],
+  INFO:{
+    strong:{name:'сильное',        range:'≈10⁻¹⁵ м — размер ядра', carrier:'глюоны',
+            acts:'кварки и нуклоны',        role:'держит ядро от развала'},
+    em:    {name:'электромагнитное',range:'бесконечный',           carrier:'фотон',
+            acts:'все заряженные частицы',  role:'держит атомы и молекулы'},
+    weak:  {name:'слабое',          range:'≈10⁻¹⁸ м',              carrier:'W- и Z-бозоны',
+            acts:'все частицы, включая нейтрино', role:'отвечает за бета-распад'},
+    grav:  {name:'гравитационное',  range:'бесконечный',           carrier:'не обнаружен',
+            acts:'всё, что имеет энергию',  role:'правит звёздами и галактиками'}
+  },
+
+  init(p){
+    const nu=[];
+    for(let i=0;i<p.N;i++) nu.push({x:Math.random(),y:Math.random(),alive:true,tp:0});
+    return {t:0, nu, left:p.N, decayed:0, hist:new Array(40).fill(0),
+            sumT:0, last:null, flash:0, trace:[[0,p.N]], event:null, __stop:null};
+  },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+    if(p.mode!=='decay') return;
+    if(s.nu.length!==p.N){ Object.assign(s,this.init(p)); s.t=t; return; }
+    s.flash=Math.max(0,s.flash-dt*2.5);
+    /* Радиоактивный распад: за время dt каждый уцелевший нейтрон распадается с
+       вероятностью λ·dt, λ = ln2/T½. Никакого «расписания» — только случай,
+       и всё равно получается ровная экспонента. */
+    const lam=Math.LN2/this.halfLife*p.boost;
+    const pd=1-Math.exp(-lam*dt);
+    const Q=this.Q(), nb=s.hist.length;
+    for(const q of s.nu){
+      if(!q.alive||Math.random()>pd) continue;
+      q.alive=false; q.tp=s.t;
+      s.left--; s.decayed++;
+      const T=this.drawT();                       // кинетическая энергия электрона
+      s.sumT+=T;
+      s.hist[Math.min(nb-1,Math.floor(T/Q*nb))]++;
+      /* Импульсы. Отдачей протона (меньше килоэлектронвольта) пренебрегаем:
+         электрон и антинейтрино делят импульс, а протон забирает остаток. */
+      const pe=Math.sqrt(T*(T+2*this.me));         // МэВ/c
+      const pv=Q-T;                                // нейтрино безмассово: p = E
+      const ang=Math.random()*2*Math.PI, rel=Math.random()*2*Math.PI;
+      s.last={T,pe,pv,ang,rel,x:q.x,y:q.y,t:s.t};
+      s.flash=1;
+    }
+    /* След для кривой N(t): раньше рисовалась прямая от начала к текущей
+       точке, то есть вообще не кривая. Пишем реальные отсчёты. */
+    const tr=s.trace;
+    if(!tr.length || s.t-tr[tr.length-1][0]>0.03){
+      tr.push([s.t,s.left]);
+      if(tr.length>400) tr.splice(0,tr.length-400);
+    }
+  },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
-    const d=this.data[p.pick];
-    return [['t',s.t,'с'],
-      ['взаимодействие',0,d.name],
-      ['относительная сила',d.rel,'(сильное = 1)'],
-      ['радиус действия',0,d.range],
-      ['переносчик',0,d.carrier],
-      ['на что действует',0,d.acts],
-      ['роль в природе',0,d.role],
-      ['— распад нейтрона —',0,'n → p + e⁻ + антинейтрино'],
-      ['разность масс n и p',this.dMass(),'МэВ'],
+    if(p.mode==='compare'){
+      const r=Math.pow(10,p.logr);
+      const out=[['t',s.t,'с'],['расстояние между протонами r',r,'м'],
+                 ['оно же в фемтометрах',r*1e15,'фм']];
+      const Fem=this.F('em',r);
+      for(const k of this.KINDS){
+        const F=this.F(k,r);
+        out.push([this.INFO[k].name+': сила',F,'Н']);
+        out.push(['      во сколько раз меньше кулоновской',Fem/F,'']);
+      }
+      return out;
+    }
+    const Q=this.Q(), tot=s.decayed||1;
+    const theory=p.N*Math.exp(-Math.LN2*s.t*p.boost/this.halfLife);
+    return [['t (модельное)',s.t,'с'],
+      ['прошло времени в опыте',s.t*p.boost,'с'],
+      ['ускорение показа',p.boost,'×'],
+      ['нейтронов осталось',s.left,''],
+      ['распалось',s.decayed,''],
+      ['теория N₀·2^(−t/T½)',theory,''],
+      ['расхождение с теорией',s.left-theory,''],
+      ['период полураспада нейтрона',this.halfLife,'с'],
+      ['— энергия —',NaN,'n → p + e⁻ + ν̄ₑ'],
+      ['разность масс m_n − m_p',this.mn-this.mp,'МэВ'],
       ['масса покоя электрона',this.me,'МэВ'],
-      ['остаётся кинетической энергии',this.Q(),'МэВ'],
-      ['период полураспада нейтрона',this.halfLife/60,'мин']];
+      ['доступная энергия Q',Q,'МэВ'],
+      ['средняя энергия электрона',s.decayed?s.sumT/tot:NaN,'МэВ'],
+      ['она же в долях Q',s.decayed?s.sumT/tot/Q:NaN,''],
+      ['энергия последнего электрона',s.last?s.last.T:NaN,'МэВ'],
+      ['осталось антинейтрино',s.last?Q-s.last.T:NaN,'МэВ']];
   },
   graphs:[
-    {label:'Относительная сила (log)',unit:'',series:['сила'],
-     get(s,p){ return [Math.log10(SIMS.forces.data[p.pick].rel),null]; }}
+    {label:'Осталось нейтронов',unit:'шт',series:['опыт','теория'],
+     get(s,p){ if(p.mode!=='decay') return [null,null];
+       return [s.left, p.N*Math.exp(-Math.LN2*s.t*p.boost/SIMS.forces.halfLife)]; }},
+    {label:'Средняя энергия электрона',unit:'МэВ',series:['⟨T⟩','Q'],
+     get(s,p){ if(p.mode!=='decay'||!s.decayed) return [null,null];
+       return [s.sumT/s.decayed, SIMS.forces.Q()]; }}
   ],
   presets:[
-    {name:'Сильное: держит ядро',values:{pick:'strong'}},
-    {name:'Электромагнитное: держит атом',values:{pick:'em'}},
-    {name:'Слабое: бета-распад',values:{pick:'weak'}},
-    {name:'Гравитационное: самое слабое',values:{pick:'grav'}}
+    {name:'Распад: 400 нейтронов, показ ×120',values:{mode:'decay',N:400,boost:120,tStop:0}},
+    {name:'Мало нейтронов — виден чистый случай',values:{mode:'decay',N:40,boost:120,tStop:0}},
+    {name:'Много нейтронов — идеальная экспонента',values:{mode:'decay',N:2000,boost:200,tStop:0}},
+    {name:'Медленно: видно каждый распад',values:{mode:'decay',N:200,boost:20,tStop:0}},
+    {name:'Учебный порядок сил (r = 10⁻¹⁸ м)',values:{mode:'compare',logr:-18}},
+    {name:'Силы внутри ядра (r = 1 фм): слабое уже вымерло',values:{mode:'compare',logr:-15}},
+    {name:'Силы в атоме (r = 10⁻¹⁰ м): осталось два',values:{mode:'compare',logr:-10}},
+    {name:'Силы в быту (r = 1 м)',values:{mode:'compare',logr:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    // режимы очень разные по высоте: сравнение сил длиннее из-за пояснений
+    const spanY = (p.mode==='compare') ? 10.6 : 11.6;
+    const scale=clamp(Math.min((W-60)/(13.6*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
+    return {x:0, y:(p.mode==='compare')? 1.2 : -0.35, scale};
   },
+
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const d=this.data[p.pick];
-    // шкала относительной силы (логарифмическая)
-    if(p.scale){
-      const gx=-5.2, gy=2.6, gw=10.4;
-      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      const X=rel=>gx+gw*clamp((Math.log10(rel)+40)/40,0,1);
-      const cols={strong:dang,em:acc,weak:sec,grav:ink3};
-      for(const k of Object.keys(this.data)){
-        const dd=this.data[k], on=(k===p.pick), x=X(dd.rel);
-        ctx.fillStyle=cols[k]; ctx.globalAlpha=on?1:.45;
-        ctx.beginPath(); ctx.arc(x,gy,v.lw(on?6:3.6),0,7); ctx.fill(); ctx.globalAlpha=1;
-        v.label(ctx,dd.name,x,gy,-Math.round(dd.name.length*3),on?-16:-12,on?cols[k]:ink3);
-        const e=Math.log10(dd.rel);
-        v.label(ctx,e===0?'1':`10${this.supNum(Math.round(e))}`,x,gy,-10,20,ink3);
+    if(p.mode==='compare') return this.drawCompare(ctx,s,v,p);
+    return this.drawDecay(ctx,s,v,p);
+  },
+
+  /* ============ РЕЖИМ 1: ЖИВОЙ АНСАМБЛЬ НЕЙТРОНОВ ============ */
+  drawDecay(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const mid=t=>-Math.round(String(t).length*3.05);
+    const Q=this.Q();
+
+    /* Сцена поделена на четыре непересекающиеся полосы: ансамбль слева сверху,
+       кривая N(t) справа сверху, разлёт импульсов справа снизу, спектр во всю
+       ширину внизу. Раньше подписи трёх блоков сходились в одной точке. */
+
+    // ---------- ансамбль: нейтроны гаснут, протоны остаются ----------
+    const bx=-6.6, by=0.9, bw=5.9, bh=3.5;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6); ctx.strokeRect(bx,by,bw,bh);
+    const r=clamp(1.5/Math.sqrt(p.N),0.035,0.12);
+    for(const q of s.nu){
+      const x=bx+0.12+q.x*(bw-0.24), y=by+0.12+q.y*(bh-0.24);
+      ctx.fillStyle=q.alive?meas:dang; ctx.globalAlpha=q.alive?.95:.45;
+      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+      if(!q.alive && s.t-q.tp<0.35){                 // вспышка в момент распада
+        ctx.globalAlpha=1; ctx.strokeStyle=ok; ctx.lineWidth=v.lw(1.6);
+        ctx.beginPath(); ctx.arc(x,y,r+0.12+(s.t-q.tp)*0.9,0,7); ctx.stroke();
       }
-      v.label(ctx,'относительная сила (логарифмическая шкала)',gx,gy,0,38,ink3);
     }
-    // карточка взаимодействия
-    const cx=-5.2, cy=1.2;
-    v.label(ctx,d.name.toUpperCase()+' ВЗАИМОДЕЙСТВИЕ',cx,cy,0,0,acc);
-    const rows=[['радиус действия',d.range],['переносчик',d.carrier],
-                ['действует на',d.acts],['роль',d.role]];
-    rows.forEach((r,i)=>{
-      v.label(ctx,r[0]+':',cx,cy,0,26+i*30,ink3);
-      v.label(ctx,r[1],cx,cy,0,40+i*30,ink);
+    ctx.globalAlpha=1;
+    /* Счётчики разнесены по разным краям ящика: рядом они сталкивались и
+       автораскладка загоняла один из них внутрь рисунка. */
+    v.label(ctx,`нейтронов ${s.left}`,bx,by+bh,2,-10,meas);
+    const pl=`протонов ${s.decayed}`;
+    v.label(ctx,pl,bx+bw,by,-Math.round(pl.length*6.2)-2,15,dang);
+    v.label(ctx,`ускорено в ${p.boost}× · в опыте прошло ${(s.t*p.boost/60).toFixed(1)} мин`,
+      bx,by,4,15,ink3);
+
+    // ---------- кривая N(t): опыт против теории ----------
+    if(p.curve){
+      const gx=0.5, gy=2.7, gw=6.1, gh=1.7;
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy);
+      ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke(); ctx.globalAlpha=1;
+      const Tmax=Math.max(s.t,this.halfLife/p.boost*2.4);
+      const X=t=>gx+gw*clamp(t/Tmax,0,1), Y=n=>gy+gh*clamp(n/p.N,0,1);
+      ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.3);
+      ctx.beginPath();
+      for(let i=0;i<=60;i++){ const t=Tmax*i/60;
+        const n=p.N*Math.exp(-Math.LN2*t*p.boost/this.halfLife);
+        i?ctx.lineTo(X(t),Y(n)):ctx.moveTo(X(t),Y(n)); }
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2);
+      ctx.beginPath();
+      s.trace.forEach((q,i)=>{ const x=X(q[0]),y=Y(q[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      ctx.stroke();
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(X(s.t),Y(s.left),v.lw(3.2),0,7); ctx.fill();
+      const th=this.halfLife/p.boost;
+      if(th<=Tmax){
+        ctx.strokeStyle=ok; ctx.globalAlpha=.7; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
+        ctx.beginPath(); ctx.moveTo(X(th),gy); ctx.lineTo(X(th),Y(p.N/2)); ctx.lineTo(gx,Y(p.N/2));
+        ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+        v.label(ctx,'T½',X(th),gy,-7,14,ok);
+        v.label(ctx,'N₀/2',gx,Y(p.N/2),-32,0,ok);
+      }
+      v.label(ctx,'осталось нейтронов: опыт и теория',gx,gy+gh,2,-9,ink3);
+    }
+
+    // ---------- последний распад: сумма импульсов равна нулю ----------
+    if(p.vec && s.last){
+      const cx=3.5, cy=1.5, K=0.8/Math.max(Q,1e-6);
+      const a1=s.last.ang, a2=s.last.ang+s.last.rel;
+      const ex=Math.cos(a1)*s.last.pe*K, ey=Math.sin(a1)*s.last.pe*K;
+      const vx=Math.cos(a2)*s.last.pv*K, vy=Math.sin(a2)*s.last.pv*K;
+      const px=-(ex+vx), py=-(ey+vy);
+      ctx.globalAlpha=.4+0.6*s.flash;
+      v.arrow(ctx,cx,cy,cx+ex,cy+ey,acc);
+      v.arrow(ctx,cx,cy,cx+vx,cy+vy,ink3);
+      v.arrow(ctx,cx,cy,cx+px,cy+py,dang);
+      ctx.globalAlpha=1;
+      ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(cx,cy,v.lw(2.6),0,7); ctx.fill();
+      v.label(ctx,`e⁻ ${s.last.T.toFixed(3)}`,cx+ex,cy+ey,ex>=0?7:-62,ey>=0?-8:11,acc);
+      v.label(ctx,`ν̄ ${(Q-s.last.T).toFixed(3)}`,cx+vx,cy+vy,vx>=0?7:-58,vy>=0?-8:11,ink3);
+      v.label(ctx,'p',cx+px,cy+py,px>=0?7:-14,py>=0?-8:11,dang);
+      const cap='последний распад: Σp = 0';
+      v.label(ctx,cap,cx,0.5,mid(cap),0,ink3);
+    }
+
+    // ---------- спектр: главное доказательство существования нейтрино ----------
+    if(p.spec){
+      const gx=-6.6, gy=-4.3, gw=13.2, gh=2.6, nb=s.hist.length;
+      // заголовок НАД блоком: изнутри он ложился на столбики гистограммы
+      v.label(ctx,'спектр энергий электрона: непрерывный, а не одна линия',gx,gy+gh+0.28,2,0,ink3);
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
+      const mx=Math.max(1,...s.hist), bwid=gw/nb;
+      ctx.fillStyle=acc; ctx.globalAlpha=.5;
+      for(let i=0;i<nb;i++){ const h=gh*s.hist[i]/mx; if(h>0) ctx.fillRect(gx+i*bwid,gy,bwid*0.86,h); }
+      ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
+      ctx.beginPath();
+      const M=this.specMax();
+      for(let i=0;i<=120;i++){ const T=Q*i/120, y=gy+gh*this.spec(T)/M;
+        i?ctx.lineTo(gx+gw*i/120,y):ctx.moveTo(gx+gw*i/120,y); }
+      ctx.stroke();
+      // где была бы единственная линия, если бы нейтрино не существовало
+      ctx.strokeStyle=dang; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.8);
+      ctx.beginPath(); ctx.moveTo(gx+gw,gy); ctx.lineTo(gx+gw,gy+gh); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,'0',gx,gy,-2,14,ink3);
+      v.label(ctx,`${Q.toFixed(3)} МэВ`,gx+gw,gy,-54,14,ink3);
+      // вывод про красную черту — ПОД осью, чтобы не лежать на гистограмме
+      const nn=`красная черта: без нейтрино электрон всегда получал бы ровно ${Q.toFixed(3)} МэВ`;
+      v.label(ctx,nn,gx+gw,gy,-Math.round(nn.length*6.2),32,dang);
+      if(s.decayed>4){
+        const av=s.sumT/s.decayed, ax=gx+gw*av/Q;
+        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6);
+        ctx.beginPath(); ctx.moveTo(ax,gy); ctx.lineTo(ax,gy+gh*0.62); ctx.stroke();
+        v.label(ctx,`⟨T⟩ = ${av.toFixed(3)}`,ax,gy+gh*0.62,-28,-7,meas);
+      }
+    }
+
+    const fin='непрерывный спектр — прямое доказательство третьей частицы: именно поэтому Паули придумал нейтрино';
+    v.label(ctx,fin,0,-5.85,mid(fin),0,ink3);
+  },
+
+  /* ============ РЕЖИМ 2: КТО ПОБЕЖДАЕТ НА КАКОМ РАССТОЯНИИ ============ */
+  drawCompare(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
+          dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const COL={strong:dang, em:acc, weak:sec, grav:ink3};
+    const gx=-6.4, gy=-1.2, gw=12.8, gh=6.2;
+    const LR0=-19, LR1=0;                          // показатель степени расстояния, м
+    const LF0=-40, LF1=12;                         // показатель степени силы, Н
+    const X=lr=>gx+gw*(lr-LR0)/(LR1-LR0);
+    const Y=lf=>gy+gh*clamp((lf-LF0)/(LF1-LF0),0,1);
+
+    // сетка по десятичным порядкам
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.16; ctx.lineWidth=v.lw(1);
+    for(let lr=LR0+1;lr<=LR1;lr+=3){ ctx.beginPath(); ctx.moveTo(X(lr),gy); ctx.lineTo(X(lr),gy+gh); ctx.stroke(); }
+    for(let lf=LF0;lf<=LF1;lf+=10){ ctx.beginPath(); ctx.moveTo(gx,Y(lf)); ctx.lineTo(gx+gw,Y(lf)); ctx.stroke(); }
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4);
+    ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke();
+    for(let lr=LR0+1;lr<=LR1;lr+=3) v.label(ctx,`10${this.sup(lr)}`,X(lr),gy,-11,14,ink3);
+    v.label(ctx,'расстояние между двумя протонами, м',gx+gw/2,gy,-104,28,ink3);
+    for(let lf=LF0;lf<=LF1;lf+=20) v.label(ctx,`10${this.sup(lf)} Н`,gx,Y(lf),-40,0,ink3);
+
+    /* Кривые сил. Подпись ставим у ПРАВОГО конца каждой кривой: у кулона и
+       тяготения это правый край кадра, у сильного и слабого — их обрыв, и
+       подписи расходятся сами собой. Раньше все четыре лепились слева. */
+    for(const k of this.KINDS){
+      ctx.strokeStyle=COL[k]; ctx.lineWidth=v.lw(2.2);
+      ctx.beginPath();
+      let started=false, lastX=null, lastY=null;
+      for(let i=0;i<=240;i++){
+        const lr=LR0+(LR1-LR0)*i/240, F=this.F(k,Math.pow(10,lr));
+        if(!(F>0)){ started=false; continue; }
+        const lf=Math.log10(F);
+        if(lf<LF0||lf>LF1){ started=false; continue; }
+        const x=X(lr), y=Y(lf);
+        started?ctx.lineTo(x,y):ctx.moveTo(x,y); started=true; lastX=x; lastY=y;
+      }
+      ctx.stroke();
+      if(p.names&&lastX!=null){
+        const nm=this.INFO[k].name;
+        const right = lastX > gx+gw-1.5;
+        v.label(ctx,nm,lastX,lastY, right? -Math.round(nm.length*6.2)-6 : 7, -9, COL[k]);
+      }
+    }
+
+    // текущее расстояние
+    const lr=p.logr, r=Math.pow(10,lr);
+    ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(4),v.lw(4)]);
+    ctx.beginPath(); ctx.moveTo(X(lr),gy); ctx.lineTo(X(lr),gy+gh); ctx.stroke(); ctx.setLineDash([]);
+    for(const k of this.KINDS){
+      const F=this.F(k,r); if(!(F>0)) continue;
+      const lf=Math.log10(F); if(lf<LF0||lf>LF1) continue;
+      ctx.fillStyle=COL[k]; ctx.beginPath(); ctx.arc(X(lr),Y(lf),v.lw(4),0,7); ctx.fill();
+    }
+    const rt = r<1e-12 ? `${(r*1e15).toPrecision(3)} фм` : `${r.toExponential(1)} м`;
+    v.label(ctx,`r = ${rt}`,X(lr),gy+gh,-Math.round(('r = '+rt).length*3.05),-10,meas);
+
+    /* Расстановка сил — в ПРАВОМ ВЕРХНЕМ углу самого графика: кривые падают
+       слева направо, поэтому там всегда пусто, а под графиком места нет. */
+    const rows=this.KINDS.map(k=>({k,F:this.F(k,r)})).sort((a,b)=>b.F-a.F);
+    const lx=gx+gw-4.9, ly=gy+gh-0.15;
+    v.label(ctx,'на этом расстоянии по убыванию:',lx,ly,0,0,ink3);
+    rows.forEach((q,i)=>{
+      const t=`${i+1}. ${this.INFO[q.k].name} — ${q.F>1e-99?q.F.toExponential(2):'≈ 0'} Н`;
+      v.label(ctx,t,lx,ly,8,15+i*14,COL[q.k]);
     });
 
-    // распад нейтрона
-    if(p.decay){
-      const bx=1.4, by=0.4;
-      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(bx,by,0.42,0,7); ctx.fill();
-      v.label(ctx,'n',bx,by,-4,4,'#fff');
-      v.label(ctx,`${this.mn.toFixed(2)} МэВ`,bx,by,-24,26,ink3);
-      v.arrow(ctx,bx+0.6,by,bx+1.3,by,ink3);
-      // протон
-      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(bx+1.9,by+0.7,0.36,0,7); ctx.fill();
-      v.label(ctx,'p',bx+1.9,by+0.7,-3,4,'#fff');
-      v.label(ctx,`${this.mp.toFixed(2)} МэВ`,bx+1.9,by+0.7,-24,-20,ink3);
-      // электрон
-      ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(bx+2.2,by-0.3,0.18,0,7); ctx.fill();
-      v.label(ctx,'e⁻',bx+2.2,by-0.3,10,4,acc);
-      // антинейтрино
-      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.6);
-      ctx.beginPath();
-      for(let i=0;i<=30;i++){ const x=bx+2.1+i*0.045, y=by-1.0+0.1*Math.sin(i*0.8-s.ph*3);
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-      ctx.stroke();
-      v.label(ctx,'антинейтрино',bx+3.5,by-1.0,4,4,ink3);
-      v.label(ctx,'n → p + e⁻ + ν̄',bx,by,-8,-34,ink);
-      v.label(ctx,`разность масс ${this.dMass().toFixed(3)} МэВ, из них ${this.me.toFixed(3)} уходит на массу электрона`,
-        bx,by,-8,-64,ink3);
-      v.label(ctx,`остаётся ${this.Q().toFixed(3)} МэВ кинетической энергии`,bx,by,-8,-48,dang);
-      v.label(ctx,`свободный нейтрон живёт около ${(this.halfLife/60).toFixed(0)} минут`,bx,by-1.6,0,10,ink3);
-    }
-    v.label(ctx,'нейтрино участвует только в слабом взаимодействии — потому и проходит сквозь Землю насквозь',
-      -5.2,-3.4,0,0,ink3);
+    // ---- вывод
+    v.label(ctx,'у сильного и слабого конечный радиус: за ним сила гаснет как e^(−r/r₀) — на графике это обрыв',
+      gx,gy,0,46,ink3);
+    /* Порядок «сильное > ЭМ > слабое > тяготение» из учебника верен НЕ везде:
+       это сравнение на радиусе слабого, около 10⁻¹⁸ м. Уже на фемтометре
+       слабое вымерло и оказывается слабее тяготения — и это видно на графике,
+       а не спрятано за словом «условно». */
+    v.label(ctx,'привычный порядок сильное > ЭМ > слабое > тяготение верен на 10⁻¹⁸ м; на 1 фм слабое уже вымерло',
+      gx,gy,0,60,ink3);
+    v.label(ctx,'ЭМ в 10³⁶ раз сильнее тяготения, но заряды двух знаков экранируют друг друга, а масса — одного:',
+      gx,gy,0,74,ink3);
+    v.label(ctx,'поэтому звёздами и галактиками правит самая слабая из четырёх сил.',
+      gx,gy,0,88,ink3);
   },
-  supNum(e){
+  sup(e){
     const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
     return String(e).split('').map(c=>m[c]||c).join('');
   }
@@ -16308,6 +16865,12 @@ const T_optics={
      note:'Та же формула, решённая относительно расстояния до изображения.', sim:'lens'},
     {tex:'D=\\dfrac{1}{F}',
      note:'Оптическая сила в диоптриях. У собирающей линзы $D>0$, у рассеивающей $D<0$.', sim:'lens'},
+    {tex:'u\\;\\to\\;u-\\dfrac{y}{F}',
+     note:'Что делает тонкая линза с лучом: высоту не меняет, меняет только наклон. Из одного этого правила получается ход лучей в любой системе линз — так считает конструктор оптической скамьи.', sim:'bench'},
+    {tex:'\\Gamma=m_1m_2\\cdots',
+     note:'Увеличение системы линз — произведение увеличений ступеней: изображение одной линзы служит предметом для следующей. Так устроен микроскоп.', sim:'bench'},
+    {tex:'\\Gamma_{\\text{тел}}=\\dfrac{F_{\\text{об}}}{F_{\\text{ок}}}',
+     note:'Увеличение телескопа. У Кеплера окуляр собирающий и картинка перевёрнутая, у Галилея рассеивающий и прямая — соберите обе схемы и сравните.', sim:'bench'},
     {tex:'\\Gamma=\\dfrac{H}{h}=-\\dfrac{d\'}{d}',
      note:'Увеличение. Знак минус означает перевёрнутое изображение, $|\\Gamma|>1$ — увеличенное.', sim:'lens'},
     {tex:'H=\\Gamma\\,h',
@@ -19179,7 +19742,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,sectTools:true,
   handles:'hover',
   // кастомизация окружения
-  bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
   panelAlpha:93,railSide:'left',traceLen:900};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
@@ -19265,6 +19828,9 @@ const PREFS=[
    name:'Размер наконечников стрелок',desc:'Величина «оперения» у векторов сил, скоростей и полей.'},
   {cat:'look',key:'panelAlpha',type:'range',def:93,min:40,max:100,step:1,unit:' %',
    name:'Непрозрачность плавающих панелей',desc:'Насколько панели показаний и энергии перекрывают рисунок под собой.'},
+  {cat:'look',key:'uiMode',type:'select',def:'auto',
+   name:'Вид интерфейса',desc:'Телефонный вид — тонкая шапка, ящик тем и плавающая панель — включается сам, когда управление идёт пальцем на маленьком экране. Узкое окно на компьютере телефоном не считается. Здесь вид можно задать вручную.',
+   options:[['auto','Определять автоматически'],['desktop','Компьютерный'],['mobile','Телефонный']]},
   {cat:'look',key:'railSide',type:'select',def:'left',
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
@@ -19502,7 +20068,29 @@ $('#prefs').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagat
    Телефон: конспект занимает всю ширину, симуляция открывается поверх него
    целиком и закрывается кнопкой «назад». При повороте экрана раскладка
    пересчитывается, а вид симуляции заново вписывается в новые пропорции. */
-const isNarrow=()=>matchMedia('(max-width:900px)').matches;
+/* ================= РЕЖИМ ИНТЕРФЕЙСА =================
+   Раньше телефонная раскладка включалась просто по ширине окна. Но узкое окно
+   на компьютере — это всё ещё компьютер: там есть мышь, есть клавиатура, и
+   плавающая панель с ящиком только мешают. Поэтому решаем по СПОСОБУ ВВОДА:
+   телефон — это грубый указатель без наведения (палец) и узкий кадр. Плюс
+   явный выбор в настройках, если автоматика не угадала. */
+function uiMode(){
+  const forced=prefGet('uiMode');
+  if(forced==='mobile'||forced==='desktop') return forced;
+  const coarse = matchMedia('(pointer:coarse)').matches;   // палец, а не мышь
+  const noHover= matchMedia('(hover:none)').matches;       // навести курсор нечем
+  const narrow = matchMedia('(max-width:900px)').matches;
+  const uaMob  = /Android|iPhone|iPad|iPod|IEMobile|Mobile Safari|Silk/i.test(navigator.userAgent||'');
+  return (((coarse&&noHover)||uaMob) && narrow) ? 'mobile' : 'desktop';
+}
+function applyUiMode(){
+  const m=uiMode(), root=document.documentElement;
+  if(root.dataset.ui===m) return false;
+  root.dataset.ui=m;
+  return true;                                             // режим сменился
+}
+applyUiMode();
+const isNarrow=()=>document.documentElement.dataset.ui==='mobile';
 function closeSimMobile(){
   mSheet(false);                          // на всякий случай закрываем шторку параметров
   $('#simpane').classList.add('hidden');
@@ -19653,6 +20241,7 @@ popup($('#mb-tools'),$('#pop-tools'));
 /* Поворот экрана и любое изменение размера окна. */
 let lastNarrow=isNarrow();
 function onViewportChange(){
+  applyUiMode();                       // мышь подключили, окно растянули — режим мог смениться
   const now=isNarrow();
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
@@ -19716,7 +20305,8 @@ function applySettings(){
   $('#fps').classList.toggle('hidden',prefGet('fpsShow')===false);
   // графики можно выключить целиком — это заметно разгружает слабые машины
   const gp=$('#gbox'); if(gp) gp.classList.toggle('hidden',s.graphs===false);
-  // папка инструментов раздела включается/выключается настройкой
+  // вид интерфейса и папка инструментов раздела — сразу после смены настройки
+  try{ if(applyUiMode()){ syncViewport(); syncMbar(); } }catch(_){}
   try{ renderSectTools(); }catch(_){}
   LS.set('settings',s); resize();
 }

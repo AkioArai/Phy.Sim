@@ -2052,7 +2052,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,sectTools:true,
   handles:'hover',
   // кастомизация окружения
-  bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
   panelAlpha:93,railSide:'left',traceLen:900};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
@@ -2138,6 +2138,9 @@ const PREFS=[
    name:'Размер наконечников стрелок',desc:'Величина «оперения» у векторов сил, скоростей и полей.'},
   {cat:'look',key:'panelAlpha',type:'range',def:93,min:40,max:100,step:1,unit:' %',
    name:'Непрозрачность плавающих панелей',desc:'Насколько панели показаний и энергии перекрывают рисунок под собой.'},
+  {cat:'look',key:'uiMode',type:'select',def:'auto',
+   name:'Вид интерфейса',desc:'Телефонный вид — тонкая шапка, ящик тем и плавающая панель — включается сам, когда управление идёт пальцем на маленьком экране. Узкое окно на компьютере телефоном не считается. Здесь вид можно задать вручную.',
+   options:[['auto','Определять автоматически'],['desktop','Компьютерный'],['mobile','Телефонный']]},
   {cat:'look',key:'railSide',type:'select',def:'left',
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
@@ -2375,7 +2378,29 @@ $('#prefs').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagat
    Телефон: конспект занимает всю ширину, симуляция открывается поверх него
    целиком и закрывается кнопкой «назад». При повороте экрана раскладка
    пересчитывается, а вид симуляции заново вписывается в новые пропорции. */
-const isNarrow=()=>matchMedia('(max-width:900px)').matches;
+/* ================= РЕЖИМ ИНТЕРФЕЙСА =================
+   Раньше телефонная раскладка включалась просто по ширине окна. Но узкое окно
+   на компьютере — это всё ещё компьютер: там есть мышь, есть клавиатура, и
+   плавающая панель с ящиком только мешают. Поэтому решаем по СПОСОБУ ВВОДА:
+   телефон — это грубый указатель без наведения (палец) и узкий кадр. Плюс
+   явный выбор в настройках, если автоматика не угадала. */
+function uiMode(){
+  const forced=prefGet('uiMode');
+  if(forced==='mobile'||forced==='desktop') return forced;
+  const coarse = matchMedia('(pointer:coarse)').matches;   // палец, а не мышь
+  const noHover= matchMedia('(hover:none)').matches;       // навести курсор нечем
+  const narrow = matchMedia('(max-width:900px)').matches;
+  const uaMob  = /Android|iPhone|iPad|iPod|IEMobile|Mobile Safari|Silk/i.test(navigator.userAgent||'');
+  return (((coarse&&noHover)||uaMob) && narrow) ? 'mobile' : 'desktop';
+}
+function applyUiMode(){
+  const m=uiMode(), root=document.documentElement;
+  if(root.dataset.ui===m) return false;
+  root.dataset.ui=m;
+  return true;                                             // режим сменился
+}
+applyUiMode();
+const isNarrow=()=>document.documentElement.dataset.ui==='mobile';
 function closeSimMobile(){
   mSheet(false);                          // на всякий случай закрываем шторку параметров
   $('#simpane').classList.add('hidden');
@@ -2526,6 +2551,7 @@ popup($('#mb-tools'),$('#pop-tools'));
 /* Поворот экрана и любое изменение размера окна. */
 let lastNarrow=isNarrow();
 function onViewportChange(){
+  applyUiMode();                       // мышь подключили, окно растянули — режим мог смениться
   const now=isNarrow();
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
@@ -2589,7 +2615,8 @@ function applySettings(){
   $('#fps').classList.toggle('hidden',prefGet('fpsShow')===false);
   // графики можно выключить целиком — это заметно разгружает слабые машины
   const gp=$('#gbox'); if(gp) gp.classList.toggle('hidden',s.graphs===false);
-  // папка инструментов раздела включается/выключается настройкой
+  // вид интерфейса и папка инструментов раздела — сразу после смены настройки
+  try{ if(applyUiMode()){ syncViewport(); syncMbar(); } }catch(_){}
   try{ renderSectTools(); }catch(_){}
   LS.set('settings',s); resize();
 }
