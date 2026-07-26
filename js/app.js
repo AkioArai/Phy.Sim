@@ -8,6 +8,9 @@ const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:fa
   trace:LS.get('trace',false), probe:null, recent:LS.get('recent',[]),
   scrub:null, loop:LS.get('loop',false), favs:LS.get('favs',[]),
   coords:LS.get('coords',false), mouse:null,
+  /* Решённые задачи. Ключ — «тема#номер»; хранится между запусками, иначе при
+     380 задачах ученик не помнит, докуда дошёл. */
+  solved:LS.get('solved',{}),
   settings:LS.get('settings',{theme:'light',fs:12,quality:'high',bgPause:true,videoQ:'med',nums:true,hud:true,events:true,energy:true})};
 
 function rt(id){
@@ -920,7 +923,8 @@ function renderTree(q=''){
       const hay=(t.title+' '+t.theory
         +' '+t.formulas.map(f=>f.tex+f.note).join(' ')
         +' '+(t.mistakes||[]).map(m=>m.wrong+m.right+(m.why||'')).join(' ')
-        +' '+(t.quiz||[]).map(x=>x.q+x.a).join(' ')).toLowerCase();
+        +' '+(t.quiz||[]).map(x=>x.q+x.a).join(' ')
+        +' '+(t.problems||[]).map(x=>x.statement+(x.hint||'')).join(' ')).toLowerCase();
       return hay.includes(q)||sec.title.toLowerCase().includes(q);
     });
     if(!kids.length) continue;
@@ -1095,20 +1099,26 @@ function renderPane(){
        список из тридцати пяти условий читать невозможно. Порядок групп — как
        в формулах темы, внутри группы — по возрастанию сложности. */
     const order=[...new Set(t.problems.map(p=>p.sim||''))];
+    const nSolved=t.problems.filter((p,i)=>S.solved[t.id+'#'+i]).length;
     pane.innerHTML=`
       <p class="pr-lead">Условия привязаны к симуляции: ответ пересчитывается под текущие параметры,
       поэтому у соседа он другой. Допуск 1,5 %. Первая задача в каждой группе — на знакомство
       с моделью, пятая — олимпиадного уровня.</p>
+      <div class="pr-prog"><div class="pp-bar"><i style="width:${Math.round(100*nSolved/t.problems.length)}%"></i></div>
+        <span class="pp-txt">решено ${nSolved} из ${t.problems.length}</span>
+        ${nSolved?'<button class="pp-reset">сбросить</button>':''}</div>
       ${order.map(sid=>{
         const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid);
+        const done=grp.filter(x=>S.solved[t.id+'#'+x.i]).length;
         const head=sid&&SIMS[sid]
-          ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>открыть ▷</span></button>`
+          ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>${done}/${grp.length} · открыть ▷</span></button>`
           : '<div class="pr-grp static">Без симуляции</div>';
         return head+grp.map(({p:pr,i},k)=>`
-        <div class="problem" data-i="${i}">
+        <div class="problem${S.solved[t.id+'#'+i]?' done':''}" data-i="${i}">
           <div class="head">${dots(pr.level)}
             <span class="pr-n">задача ${k+1}</span>
             ${pr.level>=5?'<span class="pr-hard">олимпиадная</span>':''}
+            <span class="pr-done" title="решена">✓</span>
           </div>
           <div class="st">${pr.statement}</div>
           <div class="answer">
@@ -1122,11 +1132,16 @@ function renderPane(){
       }).join('')}`;
     pane.querySelectorAll('.pr-grp[data-sim]').forEach(b=>
       b.onclick=()=>{ openSim(b.dataset.sim); autoCloseRail(); });
+    const rs=pane.querySelector('.pp-reset');
+    if(rs) rs.onclick=()=>{
+      t.problems.forEach((p,i)=>{ delete S.solved[t.id+'#'+i]; });
+      LS.set('solved',S.solved); renderPane(); toast('Отметки о решении по этой теме сброшены');
+    };
     pane.querySelectorAll('.problem').forEach(el=>{
-      const pr=t.problems[+el.dataset.i];
+      const i=+el.dataset.i, pr=t.problems[i], key=t.id+'#'+i;
       const out=el.querySelector('.verdict'), inp=el.querySelector('input');
       const P=()=>pr.sim?rt(pr.sim).params:{};
-      el.querySelector('.check').onclick=()=>{
+      const check=()=>{
         const u=parseFloat(inp.value.replace(',','.'));
         if(Number.isNaN(u)){ out.className='verdict no'; out.textContent='введите число'; return; }
         const ans=pr.answer(P());
@@ -1134,13 +1149,36 @@ function renderPane(){
         const ok=Math.abs(u-ans)<=Math.max(Math.abs(ans)*0.015,1e-9);
         out.className='verdict '+(ok?'ok':'no');
         out.textContent=ok?'✓ верно':'✗ не сходится';
+        if(ok&&!S.solved[key]){
+          S.solved[key]=1; LS.set('solved',S.solved);
+          el.classList.add('done'); updateProgress();
+        }
       };
+      el.querySelector('.check').onclick=check;
+      // Enter в поле ответа = «Проверить»: с клавиатуры так быстрее
+      inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); check(); } };
       el.querySelector('.reveal').onclick=()=>{
         const ans=pr.answer(P()); out.className='verdict ok';
         out.textContent=isFinite(ans)?`${fmt(ans)} ${pr.unit}`:'события не происходит';
       };
       const h=el.querySelector('.hint'); if(h) h.onclick=()=>toast(pr.hint);
     });
+    /* пересчёт полосы прогресса без полной перерисовки — иначе теряется
+       введённый в другие задачи текст */
+    function updateProgress(){
+      const n=t.problems.filter((p,k)=>S.solved[t.id+'#'+k]).length;
+      const bar=pane.querySelector('.pp-bar i'), txt=pane.querySelector('.pp-txt');
+      if(bar) bar.style.width=Math.round(100*n/t.problems.length)+'%';
+      if(txt) txt.textContent=`решено ${n} из ${t.problems.length}`;
+      for(const sid of order){
+        const grp=t.problems.map((p,k)=>({p,k})).filter(x=>(x.p.sim||'')===sid);
+        const done=grp.filter(x=>S.solved[t.id+'#'+x.k]).length;
+        const hd=pane.querySelector(`.pr-grp[data-sim="${sid}"] span`);
+        if(hd) hd.textContent=`${done}/${grp.length} · открыть ▷`;
+      }
+      const nb=$('#nprob');
+      if(nb) nb.textContent=t.problems.length;
+    }
   }
   typeset(pane);
 }
