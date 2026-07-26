@@ -1335,13 +1335,6 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   // Панорама остаётся на Shift, средней кнопке и протягивании пустого места.
   // держим указатель за собой: жест не теряется, если увели за край сцены
   try{ e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId); }catch(_){}
-  /* Нажатие с удержанием: инструменту важно не «щёлкнуть», а держать ноту,
-     пока палец или кнопка мыши не отпущены. */
-  if(a.def.pressAt && e.button===0){
-    try{ a.def.pressAt(a.params,wx,wy,a.state); }catch(_){}
-    drag={mode:'press'};
-    return;
-  }
   if((a.def.clickAt || a.def.wireStart) && e.button===0){   // строит ТОЛЬКО левая кнопка; ПКМ — меню
     if(a.def.wireStart){
       const h=a.def.wireStart(a.params,wx,wy);       // попали в узел → тянем провод
@@ -1462,9 +1455,6 @@ addEventListener('pointerup',()=>{
   }
   if(drag&&drag.mode==='dragpt'&&drag.wasPlaying){         // возобновляем время, если оно шло до перетаскивания
     S.playing=true; setPlayIcon(); acc=0;
-  }
-  if(a&&drag&&drag.mode==='press'&&a.def.releaseAt){
-    try{ a.def.releaseAt(a.params,a.state); }catch(_){}
   }
   if(a&&drag&&drag.mode==='click'&&!drag.moved&&a.def.clickAt){   // клик по схеме конструктора
     a.def.clickAt(a.params, drag.wx, drag.wy);
