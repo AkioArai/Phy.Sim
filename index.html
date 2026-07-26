@@ -44,7 +44,9 @@
       <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z"/></svg></button>
       <button class="iconbtn tool" data-tool="probe" title="Пробник: координаты и величины в точке (Q)"><svg viewBox="0 0 24 24"><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/><circle cx="12" cy="12" r="2.2"/></svg></button>
       <button class="iconbtn tool" data-tool="marquee" title="Зум рамкой: обвести область (M)"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button>
-      <div class="sep-h"></div>
+      <div class="railgrp" id="grp-classic" data-grp="classic">
+        <button class="iconbtn grphead" title="Классические инструменты — чертёж и измерения"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8"/></svg><i class="chev"></i></button>
+        <div class="grpbody">
       <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg></button>
       <button class="iconbtn tool" data-tool="ruler" title="Линейка (L)"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1" transform="rotate(-20 12 12)"/><path d="M7 9.5v2M11 8v3M15 6.5v3"/></svg></button>
       <button class="iconbtn tool" data-tool="dim" title="Размерная линия с выносками (D)"><svg viewBox="0 0 24 24"><path d="M4 6v12M20 6v12M4 12h16M6 10l-2 2 2 2M18 10l2 2-2 2"/></svg></button>
@@ -55,6 +57,8 @@
       <button class="iconbtn tool" data-tool="note" title="Заметка на сцене (N)"><svg viewBox="0 0 24 24"><path d="M4 5h16v10l-4 4H4z"/><path d="M16 19v-4h4M7 9h10M7 13h6"/></svg></button>
       <button class="iconbtn tool" data-tool="guide" title="Направляющая линия (U)"><svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18" stroke-dasharray="3 3"/><path d="M6 4v16"/></svg></button>
       <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9zM12 10l4-4 6 6-4 4"/></svg></button>
+        </div>
+      </div>
       <div class="sep-h"></div>
       <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
       <button class="iconbtn" id="btn-coords" title="Координаты под курсором (K)"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m8 16 4-6 3 3 4-7" stroke-dasharray="2.5 2"/></svg></button>
@@ -64,8 +68,14 @@
       <!-- Инструменты конкретной симуляции (конструктор цепей, машины Атвуда
            и т.п.) добавляются сюда во время работы — раньше они прятались
            только в контекстном меню по правой кнопке. -->
-      <div class="sep-h simtools-sep" id="simtools-sep" style="display:none"></div>
-      <div class="simtools" id="simtools"></div>
+      <div class="railgrp" id="grp-sect" data-grp="sect" style="display:none">
+        <button class="iconbtn grphead" title="Инструменты раздела — меняют саму физику сцены"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M7 20V9M12 20V4M17 20v-7"/></svg><i class="chev"></i></button>
+        <div class="grpbody simtools" id="secttools"></div>
+      </div>
+      <div class="railgrp" id="grp-build" data-grp="build" style="display:none">
+        <button class="iconbtn grphead" title="Конструкторы — сборка схем и машин"><svg viewBox="0 0 24 24"><path d="M14 6.5a3.5 3.5 0 1 0-4.6 3.3L4 15.2V20h4.8l5.4-5.4A3.5 3.5 0 0 0 14 6.5z"/></svg><i class="chev"></i></button>
+        <div class="grpbody simtools" id="simtools"></div>
+      </div>
     </div>
 
     <aside class="sidebar" id="sidebar">

@@ -42,6 +42,47 @@ input,select{font:inherit;color:inherit}
 .rail::-webkit-scrollbar{display:none}
 /* инструменты конкретной симуляции: текстовые значки вместо svg */
 .simtools{display:flex;flex-direction:column;align-items:center;gap:4px}
+/* ---- Папки инструментов ----
+   Панель разрослась до двух десятков кнопок, поэтому родственные собраны в
+   сворачиваемые группы: чертёжные инструменты, инструменты раздела и
+   конструкторы. Состояние папок помнится между запусками. */
+.railgrp{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}
+.railgrp .grpbody{display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:3px 0 5px;border-left:2px solid var(--line-soft);margin-left:2px}
+.railgrp.closed .grpbody{display:none}
+.railgrp .grphead{position:relative;color:var(--ink-3)}
+.railgrp:not(.closed) .grphead{color:var(--accent);background:var(--accent-soft)}
+.railgrp .chev{position:absolute;right:2px;bottom:2px;width:0;height:0;
+  border-left:3px solid transparent;border-right:3px solid transparent;
+  border-top:4px solid currentColor;transition:transform .15s ease}
+.railgrp.closed .chev{transform:rotate(-90deg)}
+
+/* ==================== КАСТОМИЗАЦИЯ ОКРУЖЕНИЯ ====================
+   Стиль подложки сцены, сторона панели инструментов и прозрачность плавающих
+   панелей задаются настройками и живут на корневом элементе. */
+:root{--panel-a:93%}
+[data-bg="paper"]  .canvas-wrap{background-image:
+  linear-gradient(color-mix(in srgb,var(--accent) 9%,transparent) 1px,transparent 1px),
+  linear-gradient(90deg,color-mix(in srgb,var(--accent) 9%,transparent) 1px,transparent 1px);
+  background-size:22px 22px}
+[data-bg="mm"]     .canvas-wrap{background-image:
+  linear-gradient(color-mix(in srgb,var(--danger) 13%,transparent) 1px,transparent 1px),
+  linear-gradient(90deg,color-mix(in srgb,var(--danger) 13%,transparent) 1px,transparent 1px),
+  linear-gradient(color-mix(in srgb,var(--danger) 6%,transparent) 1px,transparent 1px),
+  linear-gradient(90deg,color-mix(in srgb,var(--danger) 6%,transparent) 1px,transparent 1px);
+  background-size:50px 50px,50px 50px,10px 10px,10px 10px}
+[data-bg="dots"]   .canvas-wrap{background-image:
+  radial-gradient(color-mix(in srgb,var(--ink-3) 34%,transparent) 1px,transparent 1px);
+  background-size:18px 18px}
+[data-bg="dark"]   .canvas-wrap{background:#161821}
+[data-bg="dark"]   .canvas-wrap .fpanel{color-scheme:dark}
+
+/* панель инструментов можно перекинуть направо */
+[data-rail="right"] .rail{order:9;border-right:none;border-left:1px solid var(--line)}
+
+/* прозрачность плавающих панелей */
+.hud{background:color-mix(in srgb,var(--panel) var(--panel-a),transparent)}
+.pvbox{background:color-mix(in srgb,var(--canvas) var(--panel-a),transparent)}
 .rail .simtool{font-family:var(--mono);font-size:14px;line-height:1;font-weight:600}
 
 .sidebar{width:280px;flex:0 0 280px;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
