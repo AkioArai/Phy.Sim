@@ -820,5 +820,257 @@ calorimetry:{
       x0,-3.4,0,16,ink3);
   }
 }
+,
+
+/* ============ ТЕЧЕНИЕ ЖИДКОСТИ: УРАВНЕНИЕ БЕРНУЛЛИ ============
+   Орир, т.1, глава о жидкостях. Два закона на одну картинку.
+
+   1) НЕРАЗРЫВНОСТЬ. Жидкость несжимаема, значит через любое сечение за
+      секунду проходит один и тот же объём:
+          Q = A₁v₁ = A₂v₂        ⇒   где у́же, там быстрее.
+
+   2) БЕРНУЛЛИ — это закон сохранения энергии для струйки жидкости. Разделив
+      энергию единицы объёма, получаем: вдоль линии тока постоянна сумма
+          p + ρv²/2 + ρgy = const.
+      Отсюда главный и совершенно неинтуитивный вывод: в узком месте, где
+      жидкость РАЗОГНАЛАСЬ, давление МЕНЬШЕ, а не больше. Именно поэтому
+      работают пульверизатор, карбюратор, крыло самолёта и расходомер Вентури.
+
+   Давления показываем избыточные, в метрах столба жидкости (напор H = p/ρg):
+   так их видно прямо на картинке — высотой воды в манометрических трубках. */
+bernoulli:{
+  title:'Течение жидкости: уравнение Бернулли и трубка Вентури',
+  params:[
+    {key:'Q',  label:'Расход Q',unit:'л/с',min:1,max:300,step:1,default:60},
+    {key:'A1', label:'Сечение широкой части A₁',unit:'см²',min:20,max:400,step:5,default:200},
+    {key:'A2', label:'Сечение узкой части A₂',unit:'см²',min:5,max:400,step:5,default:80},
+    {key:'H1', label:'Напор на входе H₁ = p₁/ρg',unit:'м',min:0.5,max:20,step:0.1,default:8},
+    {key:'dy', label:'Подъём узкой части',unit:'м',min:-2,max:2,step:0.1,default:0},
+    {key:'liq',label:'Жидкость',type:'select',default:'water',
+     options:[{v:'water',t:'Вода (1000 кг/м³)'},
+              {v:'oil',  t:'Масло (900 кг/м³)'},
+              {v:'gly',  t:'Глицерин (1260 кг/м³)'},
+              {v:'merc', t:'Ртуть (13600 кг/м³)'}]},
+    {key:'g',  label:'Ускорение свободного падения g',unit:'м/с²',min:1,max:20,step:0.1,default:9.8},
+
+    {type:'group',label:'Показывать'},
+    {key:'mano', label:'Манометрические трубки',type:'check',default:true},
+    {key:'lines',label:'Линии тока и частицы',type:'check',default:true},
+    {key:'plot', label:'Эпюру давления вдоль трубы',type:'check',default:true},
+    {key:'reyn', label:'Число Рейнольдса (проверка идеальности)',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  LIQ:{water:{rho:1000,mu:1.0e-3,name:'вода'}, oil:{rho:900,mu:8.0e-2,name:'масло'},
+       gly:{rho:1260,mu:1.4,name:'глицерин'},  merc:{rho:13600,mu:1.53e-3,name:'ртуть'}},
+  liq(p){ return this.LIQ[p.liq]||this.LIQ.water; },
+  /* геометрия трубы: x от −6 до 6, сечение задано кусочно и плавно сшито */
+  X0:-6, X1:6, XN0:-1.4, XN1:1.4,
+  areaAt(p,x){                                   // м²
+    const a1=p.A1*1e-4, a2=p.A2*1e-4;
+    const t=(u)=>u*u*(3-2*u);                    // сглаживание, чтобы труба не имела изломов
+    if(x<=-2.6) return a1;
+    if(x< this.XN0) return a1+(a2-a1)*t((x+2.6)/(this.XN0+2.6));
+    if(x<=this.XN1) return a2;
+    if(x< 2.6)      return a2+(a1-a2)*t((x-this.XN1)/(2.6-this.XN1));
+    return a1;
+  },
+  yAt(p,x){                                      // подъём оси трубы, м
+    const t=(u)=>u*u*(3-2*u);
+    if(x<=-2.6) return 0;
+    if(x< this.XN0) return p.dy*t((x+2.6)/(this.XN0+2.6));
+    if(x<=this.XN1) return p.dy;
+    if(x< 2.6)      return p.dy*(1-t((x-this.XN1)/(2.6-this.XN1)));
+    return 0;
+  },
+  vAt(p,x){ return (p.Q/1000)/Math.max(this.areaAt(p,x),1e-9); },   // м/с
+  /* напор (избыточное давление в метрах столба) из уравнения Бернулли:
+     H(x) = H₁ + (v₁² − v²)/2g − (y − y₁) */
+  headAt(p,x){
+    const v1=this.vAt(p,this.X0), v=this.vAt(p,x);
+    return p.H1 + (v1*v1-v*v)/(2*Math.max(p.g,1e-9)) - (this.yAt(p,x)-this.yAt(p,this.X0));
+  },
+  pAt(p,x){ return this.liq(p).rho*p.g*this.headAt(p,x); },          // Па, избыточное
+  /* Число Рейнольдса: идеальная жидкость — приближение, и полезно видеть,
+     когда оно перестаёт работать (Re ≳ 2300 — течение становится турбулентным). */
+  Re(p,x){
+    const L=this.liq(p), A=this.areaAt(p,x);
+    const D=2*Math.sqrt(A/Math.PI);              // эквивалентный диаметр круглой трубы
+    return L.rho*this.vAt(p,x)*D/L.mu;
+  },
+  init(p){
+    const parts=[];
+    for(let i=0;i<90;i++) parts.push({x:this.X0+Math.random()*(this.X1-this.X0),
+                                      s:Math.random()*2-1});
+    return {t:0,parts,event:null,__stop:null};
+  },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+    /* Частицы двигаются со СВОЕЙ местной скоростью: в горловине они заметно
+       ускоряются — это и есть уравнение неразрывности, видимое глазом. */
+    const k=0.5/Math.max(this.vAt(p,this.X0),1e-6);   // общий масштаб «в кадре»
+    for(const q of s.parts){
+      q.x+=this.vAt(p,q.x)*k*dt*3;
+      if(q.x>this.X1){ q.x=this.X0; q.s=Math.random()*2-1; }
+    }
+  },
+  anchors(s,p){ return [{x:0,y:p.dy}]; },
+  warn(p,s){
+    if(this.headAt(p,0)<0)
+      return 'Напор в горловине отрицательный: реальная жидкость здесь вскипела бы (кавитация). Уменьшите расход или расширьте узкую часть.';
+    if(p.reyn&&this.Re(p,0)>2300)
+      return `Re = ${Math.round(this.Re(p,0))} > 2300: настоящее течение стало бы турбулентным, и уравнение Бернулли для струйки перестаёт быть точным.`;
+    return null;
+  },
+  readouts(s,p){
+    const L=this.liq(p), v1=this.vAt(p,this.X0), v2=this.vAt(p,0);
+    const p1=this.pAt(p,this.X0), p2=this.pAt(p,0);
+    const rho=L.rho;
+    const e1=p1+rho*v1*v1/2+rho*p.g*this.yAt(p,this.X0);
+    const e2=p2+rho*v2*v2/2+rho*p.g*this.yAt(p,0);
+    return [['t',s.t,'с'],
+      ['жидкость: плотность ρ',rho,'кг/м³'],
+      ['расход Q',p.Q,'л/с'],
+      ['сечение широкой части A₁',p.A1,'см²'],
+      ['сечение узкой части A₂',p.A2,'см²'],
+      ['скорость в широкой v₁ = Q/A₁',v1,'м/с'],
+      ['скорость в узкой v₂ = Q/A₂',v2,'м/с'],
+      ['проверка неразрывности A₁v₁',p.A1*1e-4*v1*1000,'л/с'],
+      ['проверка неразрывности A₂v₂',p.A2*1e-4*v2*1000,'л/с'],
+      ['напор в широкой H₁',p.H1,'м'],
+      ['напор в узкой H₂',this.headAt(p,0),'м'],
+      ['избыточное давление p₁',p1/1000,'кПа'],
+      ['избыточное давление p₂',p2/1000,'кПа'],
+      ['перепад Δp = p₁ − p₂',(p1-p2)/1000,'кПа'],
+      ['скоростной напор ρv₂²/2',rho*v2*v2/2000,'кПа'],
+      ['сумма Бернулли в широкой',e1/1000,'кПа'],
+      ['сумма Бернулли в узкой',e2/1000,'кПа'],
+      ['расхождение сумм (должно быть 0)',(e1-e2)/1000,'кПа'],
+      ...(p.reyn?[['число Рейнольдса в узкой части',this.Re(p,0),'']]:[])];
+  },
+  graphs:[
+    {label:'Скорость в узкой части',unit:'м/с',series:['v₂','v₁'],
+     get(s,p){ return [SIMS.bernoulli.vAt(p,0), SIMS.bernoulli.vAt(p,SIMS.bernoulli.X0)]; }},
+    {label:'Избыточное давление в узкой части',unit:'кПа',series:['p₂','p₁'],
+     get(s,p){ return [SIMS.bernoulli.pAt(p,0)/1000, SIMS.bernoulli.pAt(p,SIMS.bernoulli.X0)/1000]; }}
+  ],
+  presets:[
+    {name:'Трубка Вентури: узко — быстро — давление ниже',
+     values:{Q:60,A1:200,A2:80,H1:8,dy:0,liq:'water',tStop:0}},
+    {name:'Сильнее сужение — глубже провал давления',
+     values:{Q:60,A1:200,A2:45,H1:12,dy:0,liq:'water',tStop:0}},
+    {name:'Без сужения: давление одинаково всюду',
+     values:{Q:60,A1:200,A2:200,H1:8,dy:0,liq:'water',tStop:0}},
+    {name:'Труба поднимается: работает слагаемое ρgy',
+     values:{Q:40,A1:200,A2:120,H1:8,dy:2,liq:'water',tStop:0}},
+    {name:'Кавитация: расход слишком велик',
+     values:{Q:150,A1:200,A2:25,H1:4,dy:0,liq:'water',tStop:0}},
+    {name:'Ртуть: та же геометрия, другая плотность',
+     values:{Q:40,A1:200,A2:60,H1:5,dy:0,liq:'merc',tStop:0}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-60)/(14*PX_PER_M),(H-60)/(15*PX_PER_M)),0.002,30);
+    return {x:0,y:1.6,scale};
+  },
+  /* Радиус трубы на картинке: ∝ √A, как у круглого сечения. */
+  rAt(p,x){ return 0.42*Math.sqrt(this.areaAt(p,x)/1e-2); },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
+          dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const L=this.liq(p), X0=this.X0, X1=this.X1;
+    const N=120, xs=[];
+    for(let i=0;i<=N;i++) xs.push(X0+(X1-X0)*i/N);
+
+    // ---- стенки трубы
+    const top=xs.map(x=>[x,this.yAt(p,x)+this.rAt(p,x)]);
+    const bot=xs.map(x=>[x,this.yAt(p,x)-this.rAt(p,x)]);
+    ctx.fillStyle=acc; ctx.globalAlpha=.13;
+    ctx.beginPath();
+    top.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+    for(let i=bot.length-1;i>=0;i--) ctx.lineTo(bot[i][0],bot[i][1]);
+    ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
+    ctx.beginPath(); top.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke();
+    ctx.beginPath(); bot.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke();
+
+    // ---- частицы: густота одинакова, а скорость в горловине выше
+    if(p.lines){
+      ctx.fillStyle=sec;
+      for(const q of s.parts){
+        const r=this.rAt(p,q.x), y=this.yAt(p,q.x)+q.s*r*0.78;
+        ctx.globalAlpha=.75;
+        ctx.beginPath(); ctx.arc(q.x,y,v.lw(1.9),0,7); ctx.fill();
+      }
+      ctx.globalAlpha=1;
+    }
+
+    // ---- манометрические трубки: столб = напор H(x)
+    if(p.mano){
+      const HS=0.42;                                   // масштаб: 1 м напора = 0.42 ед. сцены
+      for(const x of [-4.2,0,4.2]){
+        const yTop=this.yAt(p,x)+this.rAt(p,x);
+        const H=this.headAt(p,x), col=Math.max(0,H)*HS;
+        ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2);
+        ctx.strokeRect(x-0.16,yTop,0.32,Math.max(col,0.15)+0.5);
+        if(H>0){
+          ctx.fillStyle=sec; ctx.globalAlpha=.55;
+          ctx.fillRect(x-0.16,yTop,0.32,col); ctx.globalAlpha=1;
+          ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8);
+          ctx.beginPath(); ctx.moveTo(x-0.16,yTop+col); ctx.lineTo(x+0.16,yTop+col); ctx.stroke();
+        } else {
+          ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8);
+          ctx.beginPath(); ctx.moveTo(x-0.16,yTop); ctx.lineTo(x+0.16,yTop); ctx.stroke();
+        }
+        const t=`H = ${H.toFixed(2)} м`;
+        v.label(ctx,t,x,yTop+Math.max(col,0.15)+0.6,-Math.round(t.length*3.05),-6,H>0?sec:dang);
+      }
+      // уровень исходного напора — чтобы падение в горловине было очевидно
+      const y0=this.yAt(p,X0)+this.rAt(p,X0)+p.H1*0.42;
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1);
+      ctx.setLineDash([v.lw(4),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(X0,y0); ctx.lineTo(X1,y0); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      v.label(ctx,'напор на входе',X1,y0,-84,-8,ink3);
+    }
+
+    // ---- скорости в трёх сечениях
+    for(const x of [-4.2,0,4.2]){
+      const vv=this.vAt(p,x), y=this.yAt(p,x);
+      v.arrow(ctx,x-0.55,y,x-0.55+clamp(vv/Math.max(this.vAt(p,0),1e-6),0.15,1)*1.1,y,meas);
+      // подпись уводим ПОД трубу, иначе она ложится прямо на стенку
+      const t=`v = ${vv.toFixed(2)} м/с`;
+      v.label(ctx,t,x,y-this.rAt(p,x),-Math.round(t.length*3.05),16,meas);
+    }
+
+    // ---- эпюра давления вдоль трубы
+    if(p.plot){
+      const gy=-4.1, gh=1.9;
+      const hs=xs.map(x=>this.headAt(p,x));
+      const hi=Math.max(...hs,0.001), lo=Math.min(...hs,0);
+      const Y=h=>gy+(h-lo)/Math.max(hi-lo,1e-6)*gh;
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(X0,Y(0)); ctx.lineTo(X1,Y(0)); ctx.stroke(); ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
+      ctx.beginPath();
+      xs.forEach((x,i)=>{ const y=Y(hs[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      ctx.stroke();
+      v.label(ctx,'давление вдоль трубы: в горловине — провал',X0,gy+gh,2,-6,ink3);
+      v.label(ctx,'0',X0,Y(0),-14,0,ink3);
+    }
+
+    // ---- вывод
+    const v1=this.vAt(p,X0), v2=this.vAt(p,0);
+    v.label(ctx,`A₁v₁ = A₂v₂ = Q:  ${v1.toFixed(2)}·${p.A1} = ${v2.toFixed(2)}·${p.A2} см²·м/с`,
+      0,-5.1,-160,0,ink3);
+    v.label(ctx,`p + ρv²/2 + ρgy = const  —  где быстрее, там давление МЕНЬШЕ (${L.name})`,
+      0,-5.1,-160,14,acc);
+  }
+}
 
 });

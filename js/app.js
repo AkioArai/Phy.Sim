@@ -80,18 +80,19 @@ const VIEW={
     }
     const [sx,sy]=toScreen(wx,wy);
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
-    ctx.fillStyle=color||css('--ink-2'); ctx.font='11px ui-monospace,monospace'; ctx.textBaseline='middle';
+    const base=+prefGet('labelSize')||11;
+    ctx.fillStyle=color||css('--ink-2'); ctx.font=sceneFont(base); ctx.textBaseline='middle';
     let x=sx+dx, y=sy+dy;
     if(S.settings.labelFix!==false && isFinite(x) && isFinite(y)){
       // 0) длинные пояснения ужимаем по кеглю, пока не влезут в кадр
       let w=ctx.measureText(text).width;
       if(w>CW-6){
-        for(let fs=10;fs>=8&&w>CW-6;fs--){
-          ctx.font=fs+'px ui-monospace,monospace';
+        for(let fs=base-1;fs>=Math.max(7,base-3)&&w>CW-6;fs--){
+          ctx.font=sceneFont(fs);
           w=ctx.measureText(text).width;
         }
       }
-      const h=12;
+      const h=base+1;
       // 1) вернуть в кадр
       x=Math.max(2,Math.min(x,CW-w-2));
       y=Math.max(8,Math.min(y,CH-6));
@@ -185,7 +186,8 @@ const VIEW={
   },
   arrow(ctx,x1,y1,x2,y2,color){
     const L=Math.hypot(x2-x1,y2-y1); if(L<1e-9) return;
-    const a=Math.atan2(y2-y1,x2-x1), h=Math.min(L*0.35,this.lw(9));
+    // размер наконечника настраивается: с задней парты мелкие стрелки не видны
+    const a=Math.atan2(y2-y1,x2-x1), h=Math.min(L*0.35,this.lw(9*(+prefGet('arrowScale')||1)));
     ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=this.lw(1.8);
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x2,y2);
@@ -261,6 +263,8 @@ function drawGrid(ctx){
   const [x0,y1]=toWorld(0,0), [x1,y0]=toWorld(CW,CH);
   ctx.lineWidth=1/k;
   const minor=S.settings.quality==='high';
+  const ga=+prefGet('gridAlpha')||1;                     // насыщенность сетки из настроек
+  ctx.save(); ctx.globalAlpha=Math.min(1,ga);
   for(let i=Math.floor(x0/step)*step;i<=x1;i+=step){
     const maj=Math.abs(i%(step*5))<step/9; if(!minor&&!maj) continue;
     ctx.strokeStyle=maj?css('--grid-major'):css('--grid');
@@ -271,8 +275,15 @@ function drawGrid(ctx){
     ctx.strokeStyle=maj?css('--grid-major'):css('--grid');
     ctx.beginPath(); ctx.moveTo(x0,j); ctx.lineTo(x1,j); ctx.stroke();
   }
+  ctx.restore();
   if(S.settings.gridLabels!==false)
     VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
+}
+/* Семейство и кегль подписей на сцене — из настроек оформления. */
+const SCENE_FONTS={mono:'ui-monospace,monospace',sans:'system-ui,sans-serif',serif:'Georgia,serif'};
+function sceneFont(px){
+  const f=SCENE_FONTS[prefGet('sceneFont')]||SCENE_FONTS.mono;
+  return (px||prefGet('labelSize')||11)+'px '+f;
 }
 const fmt=v=>{
   if(!isFinite(v)) return '—';
@@ -462,6 +473,7 @@ function drawAll(){
     }
     octx.globalAlpha=1;
   }
+  drawSceneChrome(a);
   updateEnergyBox(a);
   $('#btn-makeout').style.display = a.def.makeOutput ? '' : 'none';
   updateHistoBox(a);
@@ -474,18 +486,136 @@ function drawAll(){
   $('#clock').textContent=`t = ${a.state.t.toFixed(2)} c`;
 }
 
+/* ================= ОБВЯЗКА СЦЕНЫ =================
+   Пять необязательных слоёв поверх картинки, каждый со своим выключателем в
+   настройках: оси координат, линейки по краям кадра, перекрестие курсора,
+   мини-карта и заголовок сцены. Всё рисуется в ЭКРАННЫХ координатах на слое
+   пометок — поэтому не зависит от зума и не мешает самой симуляции. */
+function drawSceneChrome(a){
+  const on=k=>prefGet(k)!==false;
+  if(!on('axes')&&!on('edgeRuler')&&!on('crosshair')&&!on('miniMap')&&!on('sceneTitle')) return;
+  octx.save(); octx.setTransform(DPR,0,0,DPR,0,0);
+  octx.font='10px ui-monospace,monospace'; octx.textBaseline='middle';
+  const ink3=css('--ink-3'), line=css('--line'), acc=css('--accent');
+  const k=ppm();
+
+  // --- оси координат: где в кадре начало отсчёта и куда растут x и y
+  if(on('axes')){
+    const o=toScreen(0,0);
+    octx.strokeStyle=ink3; octx.globalAlpha=.55; octx.lineWidth=1;
+    if(o[1]>=0&&o[1]<=CH){ octx.beginPath(); octx.moveTo(0,o[1]); octx.lineTo(CW,o[1]); octx.stroke(); }
+    if(o[0]>=0&&o[0]<=CW){ octx.beginPath(); octx.moveTo(o[0],0); octx.lineTo(o[0],CH); octx.stroke(); }
+    octx.globalAlpha=1;
+    if(o[0]>=0&&o[0]<=CW&&o[1]>=0&&o[1]<=CH){
+      octx.fillStyle=ink3;
+      octx.fillText('0',o[0]+4,o[1]+9);
+      octx.fillText('x',Math.min(CW-10,o[0]+42),o[1]-7);
+      octx.fillText('y',o[0]+7,Math.max(9,o[1]-42));
+    }
+  }
+
+  // --- линейки по краям кадра, как в графических редакторах
+  if(on('edgeRuler')){
+    const step=gridStep(), T=15;
+    octx.globalAlpha=.86; octx.fillStyle=css('--panel');
+    octx.fillRect(0,0,CW,T); octx.fillRect(0,0,T,CH); octx.globalAlpha=1;
+    octx.strokeStyle=line; octx.lineWidth=1; octx.globalAlpha=.8;
+    octx.beginPath(); octx.moveTo(0,T+.5); octx.lineTo(CW,T+.5);
+    octx.moveTo(T+.5,0); octx.lineTo(T+.5,CH); octx.stroke(); octx.globalAlpha=1;
+    octx.fillStyle=ink3;
+    const [wx0,wy1]=toWorld(0,0), [wx1,wy0]=toWorld(CW,CH);
+    for(let i=Math.ceil(wx0/step)*step;i<=wx1;i+=step){
+      const sx=toScreen(i,0)[0]; if(sx<T) continue;
+      octx.strokeStyle=line; octx.beginPath(); octx.moveTo(sx,T-4); octx.lineTo(sx,T); octx.stroke();
+      octx.fillText(fmtShort(i),sx+2,7);
+    }
+    for(let j=Math.ceil(wy0/step)*step;j<=wy1;j+=step){
+      const sy=toScreen(0,j)[1]; if(sy<T) continue;
+      octx.strokeStyle=line; octx.beginPath(); octx.moveTo(T-4,sy); octx.lineTo(T,sy); octx.stroke();
+      octx.save(); octx.translate(7,sy); octx.rotate(-Math.PI/2);
+      octx.textAlign='center'; octx.fillText(fmtShort(j),0,0); octx.restore(); octx.textAlign='left';
+    }
+  }
+
+  // --- перекрестие через весь кадр: точное прицеливание, как в CAD
+  if(on('crosshair')&&S.ptr){
+    octx.strokeStyle=acc; octx.globalAlpha=.3; octx.lineWidth=1;
+    octx.setLineDash([4,4]);
+    octx.beginPath();
+    octx.moveTo(0,S.ptr.py+.5); octx.lineTo(CW,S.ptr.py+.5);
+    octx.moveTo(S.ptr.px+.5,0); octx.lineTo(S.ptr.px+.5,CH);
+    octx.stroke(); octx.setLineDash([]); octx.globalAlpha=1;
+  }
+
+  // --- мини-карта: где мы находимся относительно всей сцены
+  if(on('miniMap')){
+    let box=null;
+    try{
+      const pts=(a.def.anchors?a.def.anchors(a.state,a.params):[])||[];
+      if(pts.length){
+        const xs=pts.map(q=>q.x).filter(isFinite), ys=pts.map(q=>q.y).filter(isFinite);
+        if(xs.length) box={x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)};
+      }
+    }catch(_){}
+    if(box){
+      const [vx0,vy1]=toWorld(0,0), [vx1,vy0]=toWorld(CW,CH);
+      const wx0=Math.min(box.x0,vx0), wx1=Math.max(box.x1,vx1);
+      const wy0=Math.min(box.y0,vy0), wy1=Math.max(box.y1,vy1);
+      const wW=Math.max(wx1-wx0,1e-6), wH=Math.max(wy1-wy0,1e-6);
+      const MW=86, MH=Math.max(34,Math.min(70,MW*wH/wW));
+      const mx=CW-MW-8, my=CH-MH-8;
+      const sc=Math.min(MW/wW,MH/wH);
+      const P=(x,y)=>[mx+MW/2+(x-(wx0+wx1)/2)*sc, my+MH/2-(y-(wy0+wy1)/2)*sc];
+      octx.globalAlpha=.82; octx.fillStyle=css('--panel'); octx.fillRect(mx,my,MW,MH); octx.globalAlpha=1;
+      octx.strokeStyle=line; octx.lineWidth=1; octx.strokeRect(mx+.5,my+.5,MW,MH);
+      const b0=P(box.x0,box.y1), b1=P(box.x1,box.y0);
+      octx.strokeStyle=ink3; octx.globalAlpha=.7;
+      octx.strokeRect(b0[0],b0[1],Math.max(2,b1[0]-b0[0]),Math.max(2,b1[1]-b0[1]));
+      octx.globalAlpha=1;
+      const v0=P(vx0,vy1), v1=P(vx1,vy0);
+      octx.strokeStyle=acc; octx.lineWidth=1.4;
+      octx.strokeRect(v0[0],v0[1],Math.max(3,v1[0]-v0[0]),Math.max(3,v1[1]-v0[1]));
+    }
+  }
+
+  // --- заголовок сцены: чтобы снимок экрана был самодостаточным
+  if(on('sceneTitle')){
+    const t=a.def.title||'';
+    octx.font='11px ui-monospace,monospace'; octx.fillStyle=ink3;
+    const w=octx.measureText(t).width;
+    octx.fillText(t,Math.max(4,(CW-w)/2),CH-8);
+  }
+  octx.restore();
+}
+/* короткая подпись деления линейки: 2.5 вместо 2.50, 1e3 вместо 1000 */
+function fmtShort(v){
+  if(Math.abs(v)<1e-9) return '0';
+  if(Math.abs(v)>=1e4||Math.abs(v)<1e-3) return (+v).toExponential(0);
+  return String(+(+v).toFixed(2));
+}
 /* Панель показаний. Уменьшая её, пользователь раньше получал полосу прокрутки
    внутри крошечного окошка — прокручивать её мышью на сцене неудобно, да и
    выглядит чужеродно. Теперь полосы нет: сколько строк влезло, столько и
    показано, а про остальные честно сказано в последней строке. */
 function updateHud(a){
-  const body=$('#hud-body'); if(!body) return;
+  const body=$('#hud-body'), panel=$('#hud'); if(!body||!panel) return;
   const rows=a.def.readouts(a.state,a.params)
     .map(([l,v,u])=>`${l.padEnd(14)} ${fmt(v).padStart(9)} ${u}`);
   const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
-  const avail=body.clientHeight-12;                  // за вычетом полей
+  /* Свободную высоту меряем по САМОЙ ПАНЕЛИ, а не по содержимому: высота
+     содержимого зависит от того, сколько строк мы уже показали, и получалась
+     самоподдерживающаяся петля — обрезали до одной строки и на ней застревали. */
+  const head=panel.querySelector('.fp-head');
+  const headH=head?head.offsetHeight:0;
+  let avail;
+  if(panel.style.height){                            // пользователь задал размер сам
+    avail=panel.clientHeight-headH-13;
+  } else {                                           // иначе не даём вылезти за нижний край сцены
+    const wrapH=($('#cwrap')||{}).clientHeight||0;
+    avail = wrapH ? wrapH-panel.offsetTop-headH-24 : Infinity;
+  }
   let n=rows.length;
-  if(avail>0 && lh>0){
+  if(isFinite(avail) && avail>0 && lh>0){
     const fits=Math.floor(avail/lh);
     if(fits<rows.length) n=Math.max(1,fits-1);       // строка «ещё N» тоже место занимает
   }
@@ -946,7 +1076,7 @@ function openSim(id){
   $('#eventflag').classList.add('hidden');
   S.playing=true; setPlayIcon(); acc=0;
   S.probe=null; a.tracePts=[];
-  renderParams(); buildGraphs(); renderPresets(); renderSimTools();
+  renderParams(); buildGraphs(); renderPresets(); renderSimTools(); renderSectTools();
   requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
 }
 function renderParams(){
@@ -1485,11 +1615,160 @@ $('#cwrap').addEventListener('pointermove',e=>{
 });
 $('#cwrap').addEventListener('pointerleave',()=>{ S.mouse=null; S.ptr=null; });
 
+/* ===== Папки в панели инструментов =====
+   Панель разрослась, поэтому кнопки собраны в сворачиваемые группы. */
+function initRailGroups(){
+  const open=LS.get('railGroups',{classic:true,sect:true,build:true});
+  document.querySelectorAll('.railgrp').forEach(g=>{
+    const id=g.dataset.grp;
+    g.classList.toggle('closed',open[id]===false);
+    g.querySelector('.grphead').onclick=()=>{
+      const closed=g.classList.toggle('closed');
+      const st=LS.get('railGroups',{}); st[id]=!closed; LS.set('railGroups',st);
+    };
+  });
+}
+initRailGroups();
+
+/* ===== ИНСТРУМЕНТЫ РАЗДЕЛА =====
+   Не пометки поверх картинки, а вмешательство в саму физику сцены — как
+   нагреватель в кинетической теории. Каждый инструмент объявляет, какие
+   параметры ему нужны, и показывается ТОЛЬКО в тех симуляциях, где такие
+   параметры есть. Поэтому механика получает невесомость и трение, термодинамика
+   — нагрев и поршень, электричество — поле и полярность, и всё это одним
+   общим механизмом, без списка «инструмент → симуляция». */
+const SECT_TOOLS=[
+  {id:'zerog',glyph:'g',keys:['g','ay'],
+   label:(P,ks)=>ks.every(k=>P[k]===0)?'Вернуть тяготение':'Невесомость: g = 0',
+   on:(P,ks)=>{ const off=ks.every(k=>P[k]===0);
+     ks.forEach(k=>{ const d=paramDef(k); P[k]= off ? (d?d.default:9.8) : 0; }); },
+   active:(P,ks)=>ks.every(k=>P[k]===0)},
+  {id:'nofric',glyph:'µ',keys:['mu','mus','mud','muF','muK','b','drag'],
+   label:(P,ks)=>ks.every(k=>P[k]===0)?'Вернуть трение':'Убрать трение и сопротивление',
+   on:(P,ks)=>{ const off=ks.every(k=>P[k]===0);
+     ks.forEach(k=>{ const d=paramDef(k); P[k]= off ? (d?d.default:0) : 0; }); },
+   active:(P,ks)=>ks.every(k=>P[k]===0)},
+  /* Затухание почти везде объявлено галочкой, а не числом, поэтому у него
+     отдельная кнопка — иначе «убрать трение» его бы не касалось. */
+  {id:'damp',glyph:'≈',keys:['damp'],flag:true,
+   label:P=>P.damp?'Выключить затухание':'Включить затухание (реалистичнее)',
+   on:P=>{ P.damp=!P.damp; }, active:P=>!!P.damp},
+  {id:'mass2',glyph:'m',keys:['m','m1','m2','M','mMol','m₁','m₂'],
+   label:'Удвоить массу (Ctrl+Z вернёт)',
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'heat',glyph:'↑T',keys:['T','T1','Tн'],
+   label:'Нагреть: +100 K',
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]+100))},
+  {id:'cool',glyph:'↓T',keys:['T','T1','Tн'],
+   label:'Охладить: −100 K',
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]-100))},
+  {id:'heater',glyph:'⌇',keys:['heater'],
+   label:P=>P.heater?'Выключить нагреватель':'Включить нагреватель',
+   on:P=>{ P.heater=!P.heater; }, active:P=>!!P.heater},
+  {id:'squeeze',glyph:'⇥',keys:['pistonX'],
+   label:'Сжать поршнем на 10 %',
+   on:P=>{ P.piston=true; P.pistonX=clampParam('pistonX',+(P.pistonX-0.1).toFixed(2)); }},
+  {id:'field2',glyph:'B',keys:['B','E','E0','Emax'],
+   label:'Удвоить поле',
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'flip',glyph:'±',keys:['q','q1','q2','q0','B','U','v0','v01','v02','I','a1','a2','a01','a02'],signed:true,
+   label:'Обратить знак: полярность, направление движения',
+   on:(P,ks)=>ks.forEach(k=>{ P[k]=clampParam(k,-P[k]); })},
+  {id:'lam2',glyph:'λ',keys:['lam','lam1','lamPm'],
+   label:'Удвоить длину волны',
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'more',glyph:'N',keys:['N','parts','rays','atoms'],
+   label:(P,ks)=>'Вдвое больше: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,Math.round(P[k]*2)))},
+  /* Дальше — универсальные «удвоить/прибавить». Подпись кнопки берётся из
+     самого параметра симуляции, поэтому в каждой сцене она честная: в линзе
+     это фокусное расстояние, в эффекте Доплера — частота сирены. */
+  {id:'volt2',glyph:'U',keys:['U','volt','U0','I'],
+   label:(P,ks)=>'Удвоить: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'chg2',glyph:'Q',keys:['Q','Q1','Q2','q','q1','q2'],
+   label:(P,ks)=>'Удвоить: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'freq2',glyph:'f',keys:['f','f0'],
+   label:(P,ks)=>'Удвоить: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'pow2',glyph:'P',keys:['P','P2'],
+   label:(P,ks)=>'Удвоить: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'half2',glyph:'½',keys:['half'],
+   label:(P,ks)=>'Удвоить: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'zplus',glyph:'Z',keys:['Z'],
+   label:(P,ks)=>'На единицу больше: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]+1))},
+  {id:'speed2',glyph:'v',keys:['u','vb','vs','vo','vball'],
+   label:(P,ks)=>'Удвоить: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]*2))},
+  {id:'nplus',glyph:'n',keys:['n','ni','A'],
+   label:(P,ks)=>'На единицу больше: '+labelOf(ks),
+   on:(P,ks)=>ks.forEach(k=>P[k]=clampParam(k,P[k]+1))}
+];
+/* Подпись параметра симуляции — чтобы кнопка называла вещи их именами. */
+function labelOf(ks){
+  return ks.map(k=>{ const d=paramDef(k); return d?(d.label||k):k; })
+           .join(', ').toLowerCase();
+}
+/* описание параметра текущей симуляции по ключу — оттуда берём границы */
+function paramDef(k){
+  const a=A(); if(!a) return null;
+  return a.def.params.find(q=>q.key===k&&q.type!=='group')||null;
+}
+function clampParam(k,v){
+  const d=paramDef(k); if(!d||!isFinite(v)) return v;
+  if(d.min!==undefined&&v<d.min) v=d.min;
+  if(d.max!==undefined&&v>d.max) v=d.max;
+  return +v.toFixed(6);
+}
+/* Инструмент годится, если у симуляции есть хоть один его числовой параметр
+   (галочки и списки в расчёт не идут — «удвоить режим» бессмысленно). */
+function sectToolKeys(t){
+  const a=A(); if(!a) return [];
+  return t.keys.filter(k=>{
+    const d=paramDef(k); if(!d) return false;
+    if(t.flag||t.id==='heater') return d.type==='check';       // переключатели
+    if(d.type==='select'||d.type==='check') return false;
+    if(typeof a.params[k]!=='number') return false;
+    /* «Обратить знак» показываем только там, где минус вообще допустим:
+       у напряжения источника в конструкторе цепей min = 1, и кнопка была бы
+       мёртвой. */
+    if(t.signed && !(d.min<0)) return false;
+    return true;
+  });
+}
+function renderSectTools(){
+  const box=$('#secttools'), grp=$('#grp-sect'); if(!box||!grp) return;
+  const a=A();
+  box.innerHTML='';
+  let n=0;
+  if(a && prefGet('sectTools')!==false) for(const t of SECT_TOOLS){
+    const ks=sectToolKeys(t); if(!ks.length) continue;
+    const b=document.createElement('button');
+    b.className='iconbtn simtool';
+    b.textContent=t.glyph;
+    b.title=typeof t.label==='function'? t.label(a.params,ks) : t.label;
+    if(t.active&&t.active(a.params,ks)) b.classList.add('on');
+    b.onclick=()=>{
+      const cur=A(); if(!cur) return;
+      pushUndo(cur);                               // всё это откатывается Ctrl+Z
+      t.on(cur.params,sectToolKeys(t));
+      cur.state=cur.def.init(cur.params); cur.hist=[]; acc=0;
+      renderParams(); renderSectTools(); toast(b.title);
+    };
+    box.appendChild(b); n++;
+  }
+  grp.style.display=n?'':'none';
+}
+
 /* ===== Инструменты конкретной симуляции в левой панели =====
    Раньше ctxTools жили только в меню по правой кнопке — на телефоне туда
-   вообще не попасть. Теперь они рисуются кнопками в общей панели. */
+   вообще не попасть. Теперь они рисуются кнопками в общей папке. */
 function renderSimTools(){
-  const box=$('#simtools'), sep=$('#simtools-sep'); if(!box) return;
+  const box=$('#simtools'), sep=$('#grp-build'); if(!box) return;
   const a=A();
   const items=(a&&a.def.ctxTools)? a.def.ctxTools(a.params) : [];
   box.innerHTML=''; sep.style.display=items.length?'':'none';
@@ -1765,7 +2044,13 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   clockShow:true,fpsShow:true,
   eventPause:true,zoomInvert:false,zoomSens:1,keyZoomStep:1.8,defSpeed:1,
   autoFit:true,mAutoOpen:true,
-  dprCap:0,graphEvery:6};
+  dprCap:0,graphEvery:6,
+  // обвязка сцены и папка инструментов раздела
+  axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,sectTools:true,
+  handles:'hover',
+  // кастомизация окружения
+  bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
+  panelAlpha:93,railSide:'left',traceLen:900};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -1819,6 +2104,40 @@ const PREFS=[
    name:'Шкала времени под сценой',desc:'Полоса перемотки: можно вернуться к любому моменту расчёта и рассмотреть его покадрово. Отключите, если не нужна — расчёт станет чуть легче.'},
   {cat:'scene',key:'labelFix',type:'toggle',def:true,
    name:'Разводить подписи на сцене',desc:'Автоматически сдвигает наехавшие друг на друга подписи и возвращает в кадр уехавшие за край. Выключите, если хотите видеть их строго там, где они рассчитаны.'},
+
+  {cat:'scene',key:'handles',type:'select',def:'hover',
+   name:'Ручки перетаскивания',desc:'Кружки на телах, за которые их можно тянуть. По умолчанию всплывают только под курсором — сцена остаётся чистой, но подсказка никуда не делась.',
+   options:[['hover','Под курсором'],['always','Показывать всегда'],['never','Не показывать']]},
+  {cat:'scene',key:'axes',type:'toggle',def:false,
+   name:'Оси координат',desc:'Тонкие оси x и y через начало отсчёта с отметкой нуля — сразу видно, откуда считаются координаты.'},
+  {cat:'scene',key:'edgeRuler',type:'toggle',def:false,
+   name:'Линейки по краям кадра',desc:'Шкалы сверху и слева, как в графических редакторах: показывают, какие метры сейчас в кадре.'},
+  {cat:'scene',key:'crosshair',type:'toggle',def:false,
+   name:'Перекрестие курсора',desc:'Пунктирные линии через весь кадр от указателя — помогают точно совместить точку с телом или делением.'},
+  {cat:'scene',key:'miniMap',type:'toggle',def:false,
+   name:'Мини-карта сцены',desc:'Окошко в углу: вся сцена целиком и рамка того, что сейчас видно. Удобно, когда зумом ушли далеко.'},
+  {cat:'scene',key:'sceneTitle',type:'toggle',def:false,
+   name:'Название сцены на картинке',desc:'Подпись симуляции внизу кадра — снимок экрана становится самодостаточным.'},
+  {cat:'scene',key:'sectTools',type:'toggle',def:true,
+   name:'Папка «Инструменты раздела»',desc:'Кнопки, меняющие саму физику сцены: невесомость, трение, нагрев, поле. Показываются только там, где применимы.'},
+
+  {cat:'look',key:'bgStyle',type:'select',def:'plain',
+   name:'Фон сцены',desc:'Подложка под рисунком. «Тетрадь» и «миллиметровка» ближе к бумажному черновику, «точки» — к макетным программам.',
+   options:[['plain','Сплошной'],['paper','Тетрадь в клетку'],['mm','Миллиметровка'],['dots','Точки'],['dark','Тёмная лаборатория']]},
+  {cat:'look',key:'gridAlpha',type:'range',def:1,min:0.2,max:2,step:0.1,unit:'×',
+   name:'Насыщенность сетки',desc:'Насколько заметны линии координатной сетки.'},
+  {cat:'look',key:'sceneFont',type:'select',def:'mono',
+   name:'Шрифт подписей на сцене',desc:'Моноширинный ровно выстраивает числа в столбик, пропорциональный компактнее.',
+   options:[['mono','Моноширинный'],['sans','Без засечек'],['serif','С засечками']]},
+  {cat:'look',key:'labelSize',type:'range',def:11,min:9,max:16,step:0.5,unit:' px',
+   name:'Кегль подписей на сцене',desc:'Размер надписей у тел и векторов. Крупнее — видно с задней парты.'},
+  {cat:'look',key:'arrowScale',type:'range',def:1,min:0.6,max:2,step:0.1,unit:'×',
+   name:'Размер наконечников стрелок',desc:'Величина «оперения» у векторов сил, скоростей и полей.'},
+  {cat:'look',key:'panelAlpha',type:'range',def:93,min:40,max:100,step:1,unit:' %',
+   name:'Непрозрачность плавающих панелей',desc:'Насколько панели показаний и энергии перекрывают рисунок под собой.'},
+  {cat:'look',key:'railSide',type:'select',def:'left',
+   name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
+   options:[['left','Слева'],['right','Справа']]},
 
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
@@ -2137,11 +2456,20 @@ function applySettings(){
     root.style.setProperty('--accent',ACC[s.accent]);
     root.style.setProperty('--accent-soft',ACC[s.accent]+'22');
   } else { root.style.removeProperty('--accent'); root.style.removeProperty('--accent-soft'); }
+  /* Кастомизация окружения: стиль фона, насыщенность сетки, шрифт и кегль
+     подписей, размер стрелок, прозрачность панелей и сторона панели
+     инструментов. Всё через data-атрибуты и CSS-переменные, поэтому подхваты-
+     вается сразу и на уже нарисованных элементах. */
+  root.dataset.bg = prefGet('bgStyle')||'plain';
+  root.dataset.rail = prefGet('railSide')==='right' ? 'right' : 'left';
+  root.style.setProperty('--panel-a',(prefGet('panelAlpha')||93)+'%');
   $('#hud').classList.toggle('hidden',s.hud===false);
   $('#clock').classList.toggle('hidden',prefGet('clockShow')===false);
   $('#fps').classList.toggle('hidden',prefGet('fpsShow')===false);
   // графики можно выключить целиком — это заметно разгружает слабые машины
   const gp=$('#gbox'); if(gp) gp.classList.toggle('hidden',s.graphs===false);
+  // папка инструментов раздела включается/выключается настройкой
+  try{ renderSectTools(); }catch(_){}
   LS.set('settings',s); resize();
 }
 // тема «как в системе» реагирует на смену темы устройства на лету

@@ -3331,6 +3331,221 @@ buoyancy:{
   }
 }
 ,
+/* ============ РЕАКТИВНОЕ ДВИЖЕНИЕ: УРАВНЕНИЕ ЦИОЛКОВСКОГО ============
+   Орир, т.1, глава об импульсе. Ракета — единственное тело, которое разгоняется,
+   ничего не отталкивая снаружи: она отбрасывает часть САМОЙ СЕБЯ.
+
+   За время dt ракета выбрасывает массу dm со скоростью u относительно себя.
+   Сохранение импульса замкнутой системы «ракета + выброшенный газ» даёт
+       m·dv = u·dm      ⇒      dv/dt = u·q/m(t),        q = dm/dt — расход,
+   где F = q·u — реактивная тяга. Она НЕ зависит от скорости ракеты.
+   Интегрируя от m₀ до m_к, получаем формулу Циолковского:
+       Δv = u·ln(m₀/m_к).
+   При старте с Земли к этому добавляется потеря на тяготение −g·t_раб:
+   чем дольше горит топливо, тем больше «съедает» сила тяжести.            */
+rocket:{
+  title:'Реактивное движение: формула Циолковского',
+  params:[
+    {key:'where',label:'Где летим',type:'select',default:'space',
+     options:[{v:'space',t:'В космосе — чистая формула Циолковского'},
+              {v:'earth',t:'Старт с Земли — с тяготением'}]},
+    {key:'mp', label:'Масса ракеты без топлива m_к',unit:'кг',min:100,max:20000,step:100,default:2000},
+    {key:'mf', label:'Масса топлива',unit:'кг',min:100,max:200000,step:100,default:18000},
+    {key:'u',  label:'Скорость истечения газов u',unit:'м/с',min:500,max:5000,step:50,default:3000},
+    {key:'q',  label:'Расход топлива q',unit:'кг/с',min:10,max:2000,step:10,default:200},
+    {key:'g',  label:'Ускорение свободного падения g',unit:'м/с²',min:0,max:20,step:0.1,default:9.8},
+
+    {type:'group',label:'Показывать'},
+    {key:'vec',   label:'Тяга и вес',type:'check',default:true},
+    {key:'jet',   label:'Струю газов',type:'check',default:true},
+    {key:'tank',  label:'Указатель топлива',type:'check',default:true},
+    {key:'ideal', label:'Идеальный Δv по Циолковскому',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'stopBurn',label:'Когда топливо кончится',type:'check',default:true},
+    {key:'tStop',   label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  m0(p){ return p.mp+p.mf; },                          // стартовая масса
+  tBurn(p){ return p.mf/Math.max(p.q,1e-9); },         // время работы двигателя
+  /* идеальный прирост скорости и потеря на тяготение */
+  dvIdeal(p){ return p.u*Math.log(this.m0(p)/Math.max(p.mp,1e-9)); },
+  gLoss(p){ return p.where==='earth' ? p.g*this.tBurn(p) : 0; },
+  init(p){
+    return {t:0,y:0,v:0,m:this.m0(p),burned:0,jet:0,vmax:0,event:null,__stop:null};
+  },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t; s.jet+=dt*6;
+    const g = p.where==='earth' ? p.g : 0;
+    const burning = s.burned < p.mf-1e-9;
+    // расход и тяга: пока есть топливо
+    let F=0;
+    if(burning){
+      const dm=Math.min(p.q*dt, p.mf-s.burned);
+      s.burned+=dm; s.m=this.m0(p)-s.burned;
+      F=p.q*p.u;                                        // реактивная тяга F = q·u
+    } else s.m=p.mp;
+    const a=F/Math.max(s.m,1e-9)-g;
+    s.v+=a*dt; s.y+=s.v*dt;
+    s.a=a;
+    if(s.v>s.vmax) s.vmax=s.v;
+    /* На Земле ракета может не оторваться: если тяга меньше веса, она просто
+       стоит на стартовом столе, а не проваливается сквозь него. */
+    if(p.where==='earth'&&s.y<0){ s.y=0; if(s.v<0) s.v=0; }
+    if(burning && s.burned>=p.mf-1e-9 && p.stopBurn && !s.event){
+      s.event={t:s.t,type:'burnout'};
+      s.__stop=`Топливо кончилось: t = ${s.t.toFixed(2)} с, v = ${s.v.toFixed(1)} м/с`;
+    }
+  },
+  // якорь — ЦЕНТР корпуса (корпус занимает Y−0.7 … Y+1.15), а не срез сопла
+  anchors(s,p){ return [{x:0,y:s.y/this.yScale(p)+0.2}]; },
+  /* Высоты бывают километровые, поэтому сцену меряем в «экранных метрах»:
+     весь подъём за время работы двигателя укладывается в 8 единиц. */
+  yScale(p){
+    const tb=this.tBurn(p), dv=this.dvIdeal(p)-this.gLoss(p);
+    return Math.max(1, Math.abs(dv)*tb/2/8);
+  },
+  readouts(s,p){
+    const tb=this.tBurn(p), burning=s.burned<p.mf-1e-9;
+    const F=burning?p.q*p.u:0;
+    return [['t',s.t,'с'],
+      ['стартовая масса m₀',this.m0(p),'кг'],
+      ['масса сейчас m(t)',s.m,'кг'],
+      ['осталось топлива',p.mf-s.burned,'кг'],
+      ['отношение масс m₀/m_к',this.m0(p)/Math.max(p.mp,1e-9),''],
+      ['реактивная тяга F = q·u',F,'Н'],
+      ['вес ракеты m·g',p.where==='earth'?s.m*p.g:0,'Н'],
+      ['ускорение a = F/m − g',s.a||0,'м/с²'],
+      ['скорость v',s.v,'м/с'],
+      ['высота h',s.y,'м'],
+      ['время работы двигателя',tb,'с'],
+      ['идеальный Δv = u·ln(m₀/m_к)',this.dvIdeal(p),'м/с'],
+      ['потеря на тяготение g·t_раб',this.gLoss(p),'м/с'],
+      ['ожидаемая скорость в конце',this.dvIdeal(p)-this.gLoss(p),'м/с'],
+      ['максимальная скорость',s.vmax,'м/с']];
+  },
+  graphs:[
+    {label:'Скорость ракеты',unit:'м/с',series:['v'],get(s,p){ return [s.v,null]; }},
+    {label:'Масса ракеты',unit:'кг',series:['m'],get(s,p){ return [s.m,null]; }},
+    {label:'Ускорение',unit:'м/с²',series:['a'],get(s,p){ return [s.a||0,null]; }}
+  ],
+  presets:[
+    {name:'В космосе: чистая формула Циолковского',
+     values:{where:'space',mp:2000,mf:18000,u:3000,q:200,tStop:0}},
+    {name:'Старт с Земли: видна потеря на тяготение',
+     values:{where:'earth',mp:2000,mf:18000,u:3000,q:400,g:9.8,tStop:0}},
+    {name:'Тяга меньше веса — ракета не взлетит',
+     values:{where:'earth',mp:8000,mf:12000,u:1500,q:40,g:9.8,tStop:0}},
+    {name:'Больше топлива — прирост растёт лишь как логарифм',
+     values:{where:'space',mp:2000,mf:120000,u:3000,q:600,tStop:0}},
+    {name:'Быстрое истечение важнее запаса топлива',
+     values:{where:'space',mp:2000,mf:18000,u:4500,q:200,tStop:0}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-60)/(9*PX_PER_M),(H-60)/(12*PX_PER_M)),0.002,30);
+    return {x:0,y:3,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), dang=v.c('--danger'), meas=v.c('--measure'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const Y=s.y/this.yScale(p);                       // экранная высота ракеты
+    const burning=s.burned<p.mf-1e-9;
+
+    // ---- земля и стартовый стол (только при старте с Земли)
+    if(p.where==='earth'){
+      ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
+      ctx.beginPath(); ctx.moveTo(-4.5,0); ctx.lineTo(4.5,0); ctx.stroke();
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.6;
+      for(let x=-4.4;x<4.5;x+=0.5){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x-0.3,-0.3); ctx.stroke(); }
+      ctx.globalAlpha=1;
+    }
+
+    // ---- струя газов: длина ∝ расходу, мерцает
+    if(p.jet&&burning){
+      const L=clamp(p.q/200,0.3,2.2);
+      for(let i=0;i<7;i++){
+        const f=i/7, w=0.34*(1-f)+0.06;
+        ctx.fillStyle=i<3?dang:meas; ctx.globalAlpha=(1-f)*0.75*(0.75+0.25*Math.sin(s.jet+i));
+        ctx.beginPath();
+        ctx.ellipse(0,Y-0.75-L*f,w,L*0.22,0,0,7); ctx.fill();
+      }
+      ctx.globalAlpha=1;
+    }
+
+    // ---- корпус ракеты
+    ctx.fillStyle=v.c('--panel'); ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
+    ctx.beginPath();
+    ctx.moveTo(0,Y+1.15);                 // нос
+    ctx.lineTo(0.3,Y+0.4); ctx.lineTo(0.3,Y-0.7);
+    ctx.lineTo(-0.3,Y-0.7); ctx.lineTo(-0.3,Y+0.4);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath();                       // стабилизаторы
+    ctx.moveTo(0.3,Y-0.35); ctx.lineTo(0.68,Y-0.75); ctx.lineTo(0.3,Y-0.75);
+    ctx.moveTo(-0.3,Y-0.35); ctx.lineTo(-0.68,Y-0.75); ctx.lineTo(-0.3,Y-0.75);
+    ctx.fillStyle=acc; ctx.fill(); ctx.stroke();
+
+    // ---- бак: сколько топлива осталось
+    if(p.tank){
+      const frac=clamp(1-s.burned/Math.max(p.mf,1e-9),0,1);
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+      ctx.strokeRect(-0.22,Y-0.6,0.44,0.85);
+      ctx.fillStyle=meas; ctx.globalAlpha=.65;
+      ctx.fillRect(-0.22,Y-0.6,0.44,0.85*frac); ctx.globalAlpha=1;
+    }
+
+    /* ---- Силы приложены к ЦЕНТРУ ракеты: тяга вверх, вес вниз. Тяга не
+       зависит от скорости — это главное, что стоит увидеть. */
+    if(p.vec){
+      /* Тяга и вес — в килоньютонах: fbd сам дописывает значение к подписи,
+         и в ньютонах это было бы «600000.0 Н» поперёк всей сцены. */
+      const F=(burning?p.q*p.u:0)/1000, Wt=(p.where==='earth'?s.m*p.g:0)/1000;
+      const forces=[];
+      if(F>0)  forces.push({fx:0,fy:F, label:'тяга F = q·u',color:dang});
+      if(Wt>0) forces.push({fx:0,fy:-Wt,label:'вес m·g',color:acc});
+      if(forces.length) v.fbd(ctx,{x:0,y:Y+0.2,forces,len:1.9,units:'кН',resultant:false});
+    }
+
+    // ---- шкала высоты слева
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(-3.6,0); ctx.lineTo(-3.6,9); ctx.stroke(); ctx.globalAlpha=1;
+    for(let i=0;i<=8;i+=2){
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.5;
+      ctx.beginPath(); ctx.moveTo(-3.75,i); ctx.lineTo(-3.45,i); ctx.stroke(); ctx.globalAlpha=1;
+      v.label(ctx,fmtKm(i*this.yScale(p)),-3.75,i,-46,0,ink3);
+    }
+    v.label(ctx,'высота',-3.75,9,-30,-14,ink3);
+
+    /* Сводка — справа и ВЫШЕ ракеты: под ней проходит стрелка веса со своей
+       подписью, и раньше строки накладывались друг на друга. */
+    const x0=2.4, ys=Y+1.55;
+    v.label(ctx,`v = ${s.v.toFixed(1)} м/с`,x0,ys,0,0,meas);
+    v.label(ctx,`m = ${s.m.toFixed(0)} кг`,x0,ys,0,14,ink3);
+    v.label(ctx,`a = ${(s.a||0).toFixed(2)} м/с²`,x0,ys,0,28,ink3);
+
+    // ---- итог главы внизу
+    const dv=this.dvIdeal(p), loss=this.gLoss(p);
+    v.label(ctx,`Δv = u·ln(m₀/m_к) = ${p.u} · ln(${(this.m0(p)/p.mp).toFixed(2)}) = ${dv.toFixed(0)} м/с`,
+      0,-1.5,-150,0,ink3);
+    if(p.where==='earth')
+      v.label(ctx,`потеря на тяготение g·t_раб = ${loss.toFixed(0)} м/с  →  ожидаемо ${(dv-loss).toFixed(0)} м/с`,
+        0,-1.5,-150,14,meas);
+    if(p.ideal)
+      v.label(ctx,'прирост скорости растёт лишь как ЛОГАРИФМ отношения масс — вот почему ракеты многоступенчатые',
+        0,-1.5,-150,28,ink3);
+    // не оторвались от стола — прямо об этом говорим
+    if(p.where==='earth'&&burning&&p.q*p.u<=s.m*p.g)
+      v.label(ctx,'тяга меньше веса — ракета не отрывается от стартового стола',0,-1.5,-150,42,dang);
+    else if(!burning)
+      v.label(ctx,`двигатель отработал: дальше — свободный полёт (v_max = ${s.vmax.toFixed(0)} м/с)`,
+        0,-1.5,-150,42,ok);
+  }
+}
+,
+
 /* ============ МОМЕНТ ИМПУЛЬСА: ГИРОСКОП И ПРЕЦЕССИЯ ============
    Орир, т.1. Момент силы тяжести перпендикулярен моменту импульса, поэтому
    он не меняет |L|, а поворачивает его: dL/dt = M. Отсюда угловая скорость
@@ -3340,3 +3555,8 @@ buoyancy:{
    Условие «быстрого волчка» (гироскопическое приближение): L ≫ I·Ω.       */
 
 });
+/* Короткая подпись высоты: метры до километра, дальше — километры. */
+function fmtKm(m){
+  if(Math.abs(m)>=1000) return (m/1000).toFixed(m>=10000?0:1)+' км';
+  return Math.round(m)+' м';
+}
