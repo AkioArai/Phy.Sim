@@ -285,6 +285,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 #app.simfull .sidebar.hidden{display:none}
 #app.simfull .simpane{padding-left:0}
 #app.simfull .simpane{flex:1 1 auto;width:auto}
+.simpick{display:none}          /* кнопка выбора симуляции — только на телефоне */
 #simsel{flex:1;min-width:0;padding:4px 6px;color:var(--accent);border-color:var(--accent);border:1px solid var(--line);border-radius:5px;background:var(--panel-2);font-size:12px;font-family:var(--sans);color:var(--ink-2);text-transform:none;letter-spacing:0}
 .simhead{display:flex;align-items:center;gap:6px;padding:6px 9px;border-bottom:1px solid var(--line-soft);font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
 /* кнопка «назад к конспекту» нужна только на узких экранах, где симуляция
@@ -695,7 +696,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .cmdk-item{padding:11px 10px}
 [data-ui="mobile"] .iconbtn{width:40px;height:40px}
 /* ---- Шапка симуляции: [‹] Название ▾ [⚙] [⋯] ---- */
-[data-ui="mobile"] .simhead{padding:6px 6px;gap:2px;font-size:13px;text-transform:none;letter-spacing:0;
+[data-ui="mobile"] .simhead{padding:2px 5px;gap:1px;font-size:13px;text-transform:none;letter-spacing:0;
     border-bottom:1px solid var(--line)}
 [data-ui="mobile"] .simhead-lbl,
 [data-ui="mobile"] #clock,
@@ -703,8 +704,27 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] #btn-makeout{display:none}
 [data-ui="mobile"] #btn-simback{display:inline-flex}
 [data-ui="mobile"] .mobile-only{display:inline-flex}
-[data-ui="mobile"] #simsel{flex:1;min-width:0;max-width:none;font-size:15px;font-weight:600;color:var(--ink);
-    border:none;background:none;padding:6px 2px;text-transform:none;letter-spacing:0}
+/* Название симуляции на телефоне.
+   Раньше здесь стоял <select>, который умеет только одну строку и обрезал
+   длинные названия на середине слова («Одномерно…»). Заменяем своей кнопкой:
+   имя ужимается по ширине (см. fitSimPick), а полный список — попапом.
+   Шапка держится в одну строку: на телефоне каждый лишний её пиксель
+   отнимается у сцены, ради которой всё и открывают. */
+[data-ui="mobile"] #simsel{display:none}
+[data-ui="mobile"] .simhead .spacer{display:none}   /* распорка отняла бы ширину у имени */
+[data-ui="mobile"] .simpick{display:flex;align-items:center;gap:4px;flex:1;min-width:0;
+    background:none;border:none;padding:2px;text-align:left;color:var(--ink);
+    font-family:var(--sans);text-transform:none;letter-spacing:0}
+[data-ui="mobile"] .simpick #simpick-t{flex:1;min-width:0;font-weight:600;line-height:1.15;
+    font-size:var(--simpick-fs,14px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+[data-ui="mobile"] .simpick .simpick-c{flex:0 0 auto;width:15px;height:15px;stroke:var(--ink-3);
+    fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+[data-ui="mobile"] .simpick:active{opacity:.6}
+/* Кнопки шапки — мельче общих 40 px: они задают её высоту, а тут важнее
+   тонкость. Палец всё равно попадает: сама шапка целиком кликабельна. */
+[data-ui="mobile"] .simhead{align-items:center}
+[data-ui="mobile"] .simhead .iconbtn{flex:0 0 auto;width:30px;height:30px}
+[data-ui="mobile"] .simhead .iconbtn svg{width:18px;height:18px}
 [data-ui="mobile"] .canvas-wrap{flex:1}
 [data-ui="mobile"] #hsplit{display:none}
 /* Шкала времени на телефоне не нужна отдельной строкой: шаг назад и вперёд

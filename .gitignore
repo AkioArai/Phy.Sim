@@ -1,2 +1,12 @@
 node_modules/
 .DS_Store
+
+# Упаковка: инструменты, промежуточные файлы и готовые установщики.
+# В репозитории держим только исходники оболочек, а не результат сборки.
+packaging/android/.tools/
+packaging/android/.work/
+packaging/android/out/
+packaging/android/*.keystore
+packaging/windows/app/
+packaging/windows/build/
+packaging/windows/out/

@@ -7,7 +7,9 @@
     "doc": "docs"
   },
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "build:standalone": "node build-standalone.mjs",
+    "build:apk": "node packaging/android/build-apk.mjs"
   },
   "repository": {
     "type": "git",

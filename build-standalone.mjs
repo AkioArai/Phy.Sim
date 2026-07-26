@@ -10,6 +10,16 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(root, p), 'utf8');
 
+/* KaTeX встраиваем целиком, вместе со шрифтами: в один файл нельзя положить
+   папку fonts/, а без шрифтов формулы съезжают (браузер подставляет свой
+   шрифт с другими метриками). 20 файлов .woff2 в base64 — около 400 КБ. */
+function katexCssInlined(){
+  return read('vendor/katex/katex.min.css').replace(
+    /url\(fonts\/([A-Za-z0-9_\-]+\.woff2)\)/g,
+    (_, f) => `url(data:font/woff2;base64,${readFileSync(join(root,'vendor/katex/fonts',f)).toString('base64')})`
+  );
+}
+
 /* Список файлов берём ПРЯМО из index.html и в том же порядке. Раньше он был
    выписан здесь руками, и новый файл симуляций попадал в обычную версию, но
    не в сборку — расхождение обнаруживалось только по числу симуляций. */
@@ -54,6 +64,11 @@ let html = read('index.html');
    в String.replace есть спецсимволы ($$, $&, $` и т.п.), а бандл содержит
    буквальные '$$' (KaTeX-делимитер формул); строкой-заменой это бы обрезало. */
 html = html.replace('<link rel="stylesheet" href="css/style.css">', () => `<style>${css}</style>`);
+// KaTeX: <link> и два <script> заменяем встроенными
+html = html.replace('<link rel="stylesheet" href="vendor/katex/katex.min.css">',
+  () => `<style>${katexCssInlined()}</style>`);
+html = html.replace(/[\t ]*<script defer src="vendor\/katex\/([^"]+)"><\/script>\r?\n?/g,
+  (_, f) => `<script>${read('vendor/katex/'+f).replace(/<\/script>/gi,'<\\/script>')}</script>\n`);
 html = html.replace(/[\t ]*<script defer src="js\/[^"]+"><\/script>\r?\n?/g, '');
 /* ВАЖНО: атрибут defer у ИНЛАЙН-скрипта (без src) браузер игнорирует —
    такой script выполняется сразу при парсинге. Поставленный в <head>, он
