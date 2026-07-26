@@ -1,0 +1,40 @@
+{
+  "name": "phy-sim",
+  "productName": "Phy.Sim",
+  "version": "1.0.0",
+  "description": "Физика в симуляциях — интерактивное пособие по курсу Дж. Орира",
+  "main": "main.js",
+  "author": "Phy.Sim",
+  "license": "ISC",
+  "scripts": {
+    "prepare-app": "node prepare.mjs",
+    "start": "npm run prepare-app && electron .",
+    "dist": "npm run prepare-app && electron-builder --win --x64",
+    "dist:portable": "npm run prepare-app && electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ru.physim.app",
+    "productName": "Phy.Sim",
+    "directories": { "output": "out" },
+    "files": ["main.js", "app/**/*", "package.json"],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Phy.Sim"
+    },
+    "portable": { "artifactName": "Phy.Sim-portable-${version}.exe" }
+  }
+}

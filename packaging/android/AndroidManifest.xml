@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Оболочка Android для Phy.Sim.
+
+  Пособие целиком лежит в assets/ и открывается в WebView по file://.
+  Интернет приложению не нужен: KaTeX, стили и все 76 симуляций внутри.
+
+  targetSdkVersion=29 выбран намеренно: при 30 и выше Android требует
+  выровненный несжатый resources.arsc и подпись схемы v2, а сборка ведётся
+  без Android SDK (без zipalign и apksigner) — см. build-apk.mjs. Для
+  раздачи учебника это ни на что не влияет: приложение ставится на все
+  версии Android от 5.0 до последних.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="ru.physim.app"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29"/>
+
+  <!-- Разрешений нет вообще: приложение не выходит в сеть и не читает файлы. -->
+
+  <application
+      android:label="@string/app_name"
+      android:icon="@mipmap/ic_launcher"
+      android:allowBackup="true"
+      android:hardwareAccelerated="true"
+      android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+    <activity
+        android:name="ru.physim.app.MainActivity"
+        android:exported="true"
+        android:label="@string/app_name"
+        android:screenOrientation="fullSensor"
+        android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|smallestScreenSize">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

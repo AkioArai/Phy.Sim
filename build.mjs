@@ -16,7 +16,7 @@
    Разработка ведётся в читаемых js/ и css/. Ученикам отдаётся dist/index.html.
    Запуск сборки:  node build.mjs   (или npm run build)
    ============================================================================= */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, cpSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -140,6 +140,9 @@ const distDir = join(root, 'dist');
 mkdirSync(distDir, { recursive: true });
 writeFileSync(join(distDir, 'app.min.js'), obfuscated);
 writeFileSync(join(distDir, 'index.html'), html);
+// KaTeX копируем как есть: чужую библиотеку обфусцировать незачем,
+// а без неё формулы в dist/ показывались бы сырым TeX-ом
+cpSync(join(root, 'vendor'), join(distDir, 'vendor'), { recursive: true });
 
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(0) + ' КБ';
 console.log(`Сборка готова: dist/index.html + dist/app.min.js (seed ${usedSeed})`);

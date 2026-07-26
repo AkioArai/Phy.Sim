@@ -983,8 +983,12 @@ function openTopic(id){
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
-  sel.style.display=sims.length?'block':'none';
+  // пустая строка, а не 'block': инлайновый display перебил бы правило
+  // «[data-ui=mobile] #simsel{display:none}» и на телефоне остались бы
+  // и <select>, и кнопка выбора — она бы ужалась вдвое
+  sel.style.display=sims.length?'':'none';
   sel.onchange=e=>openSim(e.target.value);
+  fillSimPick(sims);
   // симуляция темы открывается сама; на телефоне это поведение настраивается
   if(sims.length && !sims.includes(S.active)){
     if(isNarrow() && prefGet('mAutoOpen')===false){
@@ -1206,6 +1210,9 @@ function openSim(id){
   $('#simtitle').textContent=a.def.title;
   if(S.settings.autoplay && !S.playing){ S.playing=true; setPlayIcon(); acc=0; }
   const sel=$('#simsel'); if([...sel.options].some(o=>o.value===id)) sel.value=id;
+  paintSimPick();
+  document.querySelectorAll('#pop-sims-body .item').forEach((b,i)=>
+    b.classList.toggle('on', simPickIds[i]===id));
   $('#eventflag').classList.add('hidden');
   S.playing=true; setPlayIcon(); acc=0;
   S.probe=null; a.tracePts=[];
@@ -2573,6 +2580,60 @@ function openSimMobile(){
 /* ===== Инструменты сцены на телефоне =====
    Левой панели на узком экране нет, поэтому её содержимое показываем списком
    в таком же попапе, как меню симуляции: те же кнопки, те же обработчики. */
+/* ---- Список симуляций темы на телефоне ----
+   <select> обрезал длинные названия на середине слова. Своя кнопка переносит
+   название на вторую строку, а список открывает попапом с полными именами. */
+let simPickIds=[];
+function fillSimPick(sims){
+  simPickIds=sims||[];
+  const btn=$('#simpick');
+  if(btn) btn.style.display=simPickIds.length?'':'none';
+  paintSimPick();
+  const box=$('#pop-sims-body'); if(!box) return;
+  box.innerHTML='';
+  for(const id of simPickIds){
+    const b=document.createElement('button');
+    b.className='item'+(id===S.active?' on':'');
+    b.textContent=SIMS[id]?SIMS[id].title:id;
+    b.onclick=()=>{ $('#pop-sims').classList.add('hidden'); openSim(id); };
+    box.appendChild(b);
+  }
+}
+/* В шапку телефона ставим короткое имя, в списке — полное. Почти все длинные
+   названия построены как «Суть: подробности», «Суть — подробности» или
+   «Суть: одно, другое и третье»; отрезав хвост, получаем осмысленное короткое
+   имя вместо обрезка слова. Режем по одному разделителю за раз, пока имя не
+   станет коротким: так «Импульс: соударение на плоскости и отдача» → «Импульс»,
+   а «Затухающие колебания» остаётся целиком. */
+function shortSimTitle(s,lim){
+  s=String(s||'').trim(); lim=lim||22;
+  if(s.length>lim) s=s.replace(/\s*\([^()]*\)\s*$/,'').trim();   // «(закон Гука)» — уточнение
+  for(const re of [/\s*[:—]\s+/, /\s*,\s+/, /\s+и\s+/]){
+    if(s.length<=lim) break;
+    const cut=s.split(re)[0];
+    if(cut.length>=6 && cut.length<s.length) s=cut;
+  }
+  return s;
+}
+/* Шапка на телефоне — ровно одна строка (каждый её пиксель отнят у сцены),
+   поэтому имя не переносим, а ужимаем кегль под доступную ширину. Ниже 11 px
+   не опускаемся: дальше уже нечитаемо — там срабатывает многоточие, а полное
+   имя всегда есть в списке и в подсказке. */
+function fitSimPick(){
+  const t=$('#simpick-t'); if(!t||!t.offsetParent) return;
+  for(const fs of [14,13,12.5,12,11.5,11]){
+    t.style.setProperty('--simpick-fs',fs+'px');
+    if(t.scrollWidth<=t.clientWidth+1) return;
+  }
+}
+function paintSimPick(){
+  const t=$('#simpick-t'); if(!t) return;
+  const id=S.active||simPickIds[0];
+  const full=id&&SIMS[id]?SIMS[id].title:'';
+  t.textContent=shortSimTitle(full);
+  const btn=$('#simpick'); if(btn) btn.title=full;   // полное имя — в подсказке
+  fitSimPick();
+}
 function fillToolsPop(){
   const box=$('#pop-tools-body'); if(!box) return;
   box.innerHTML='';
@@ -2608,6 +2669,28 @@ $('#msheet-bg').onclick=()=>mSheet(false);
 $('#m-settings').onclick=()=>openPrefs();
 $('#m-cmdk').onclick=()=>cmdkOpen('');
 popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
+
+/* Аппаратная кнопка «назад» в Android-упаковке (packaging/android).
+   Оболочка спрашивает страницу, есть ли что закрыть; вернули false —
+   она закрывает приложение. Порядок ровно обратный тому, как слои
+   открывались: сначала самый верхний. В браузере функция просто не
+   вызывается и ничему не мешает. */
+window.physimBack=function(){
+  const vis=sel=>{ const e=$(sel); return e && !e.classList.contains('hidden'); };
+  const pop=[...document.querySelectorAll('.pop')].find(p=>!p.classList.contains('hidden'));
+  if(pop){ pop.classList.add('hidden'); return true; }
+  if(vis('#cmdk')){ cmdkClose(); return true; }
+  if(vis('#modal-kb')){ $('#modal-kb').classList.add('hidden'); return true; }
+  if(vis('#prefs')){ closePrefs(); return true; }
+  const sb=$('#simbottom');
+  if(sb && sb.classList.contains('msheet-open')){ mSheet(false); return true; }
+  const side=$('#sidebar');
+  if(side && side.classList.contains('open')){ drawer(false); return true; }
+  if(isNarrow() && vis('#simpane')){
+    closeSimMobile(); syncMbar(); return true;      // из сцены — обратно к конспекту
+  }
+  return false;
+};
 
 /* ================= РЕАЛЬНЫЙ ВИДИМЫЙ ЭКРАН ТЕЛЕФОНА =================
    Адресная строка браузера то выезжает, то прячется, и на телефоне это
@@ -2704,6 +2787,7 @@ for(const [id,apply] of [['#mb-speed',v=>setSpeed(v||1)],
 }
 /* Инструменты сцены: на телефоне левой панели нет, поэтому открываем их
    списком — и сразу переключаемся на сцену, иначе рисовать будет негде. */
+popup($('#simpick'),$('#pop-sims'));      // выбор симуляции темы на телефоне
 popup($('#mb-tools'),$('#pop-tools'));
 { // перед показом наполняем список актуальными инструментами
   const btn=$('#mb-tools'), base=btn.onclick;
@@ -2735,6 +2819,7 @@ function onViewportChange(){
     }
   }
   resize();
+  fitSimPick();          // ширина шапки поменялась — подгоняем кегль названия
   // вписываем сцену заново: при повороте пропорции меняются сильно.
   // Отключается настройкой «вписывать сцену при повороте».
   const a=A();

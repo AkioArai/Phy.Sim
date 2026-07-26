@@ -941,6 +941,19 @@ forces:{
     }
     return NaN;
   },
+  /* Десятичный логарифм той же силы. Нужен там, где сама сила не помещается
+     в double: exp(−r/R₀) при r ≫ R₀ обнуляется, а lg остаётся конечным. */
+  lgF(kind,r){
+    if(!(r>0)) return NaN;
+    const L=Math.LN10, lr2=2*Math.log10(r);
+    switch(kind){
+      case 'em':     return Math.log10(this.KE2)-lr2;
+      case 'grav':   return Math.log10(this.GM2)-lr2;
+      case 'strong': return Math.log10(this.A())-r/this.R0/L-lr2;
+      case 'weak':   return Math.log10(this.B())-r/this.RW/L-lr2;
+    }
+    return NaN;
+  },
   KINDS:['strong','em','weak','grav'],
   INFO:{
     strong:{name:'сильное',        range:'≈10⁻¹⁵ м — размер ядра', carrier:'глюоны',
@@ -1003,11 +1016,15 @@ forces:{
       const r=Math.pow(10,p.logr);
       const out=[['t',s.t,'с'],['расстояние между протонами r',r,'м'],
                  ['оно же в фемтометрах',r*1e15,'фм']];
-      const Fem=this.F('em',r);
       for(const k of this.KINDS){
         const F=this.F(k,r);
         out.push([this.INFO[k].name+': сила',F,'Н']);
-        out.push(['      во сколько раз меньше кулоновской',Fem/F,'']);
+        /* Отношение Fем/F считаем в логарифмах, а не делением. Прямое деление
+           на атомных расстояниях уходило в бесконечность: exp(−r/R₀) при
+           r = 10⁻¹⁰ м обнуляется в double, и в панели вместо ответа стоял
+           прочерк. Порядок 10^N здесь и нагляднее: он и есть та самая
+           пропасть между взаимодействиями, ради которой сцена сделана. */
+        out.push(['      слабее кулоновской, 10^N раз',this.lgF('em',r)-this.lgF(k,r),'']);
       }
       return out;
     }
@@ -1021,6 +1038,8 @@ forces:{
       ['теория N₀·2^(−t/T½)',theory,''],
       ['расхождение с теорией',s.left-theory,''],
       ['период полураспада нейтрона',this.halfLife,'с'],
+      // NaN здесь намеренно: fmt() печатает для него прочерк, и строка
+      // работает разделителем разделов панели, а не показанием
       ['— энергия —',NaN,'n → p + e⁻ + ν̄ₑ'],
       ['разность масс m_n − m_p',this.mn-this.mp,'МэВ'],
       ['масса покоя электрона',this.me,'МэВ'],

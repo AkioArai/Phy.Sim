@@ -5,9 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Phy.Sim — физика в симуляциях</title>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<!-- KaTeX лежит рядом, а не на CDN: пособие должно одинаково работать в школе
+     без интернета, в упаковке .apk и .exe. Раньше без сети формулы
+     показывались сырым TeX-текстом. -->
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 <script defer src="js/core.js"></script>
 <script defer src="js/sims/mechanics.js"></script>
@@ -130,6 +133,11 @@
         <button class="iconbtn" id="btn-simback" title="Назад к конспекту">
       <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <select id="simsel" title="Симуляции этой темы"></select>
+        <!-- На телефоне вместо <select> — своя кнопка: длинное название
+             помещается в две строки, а полный список открывается попапом. -->
+        <button id="simpick" class="simpick" title="Симуляции этой темы">
+          <span id="simpick-t"></span>
+          <svg viewBox="0 0 24 24" class="simpick-c"><path d="m6 9 6 6 6-6"/></svg></button>
         <span id="simtitle" style="display:none"></span>
         <div class="spacer"></div>
         <button class="iconbtn" id="btn-makeout" title="Создать вывод B в конце цепи" style="display:none;width:auto;padding:0 8px;height:24px;font-size:11px;font-family:var(--mono)">вывод B</button>
@@ -309,6 +317,11 @@
 <div class="pop hidden" id="pop-tools">
   <div class="ttl">Инструменты сцены</div>
   <div id="pop-tools-body"></div>
+</div>
+<!-- Список симуляций темы на телефоне: полные названия, без обрезки -->
+<div class="pop hidden" id="pop-sims">
+  <div class="ttl">Симуляции этой темы</div>
+  <div id="pop-sims-body"></div>
 </div>
 <div class="pop hidden" id="pop-help">
   <div class="ttl">Помощник</div>
