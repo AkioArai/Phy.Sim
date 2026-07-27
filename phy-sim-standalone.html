@@ -637,6 +637,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .lock-err{min-height:18px;font-size:12.5px;color:var(--danger);margin-top:9px;text-align:center}
 .lock-note{font-size:11.5px;color:var(--ink-3);line-height:1.55;margin-top:8px;text-align:center;
   border-top:1px solid var(--line-soft);padding-top:12px}
+.prefs-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.prefs-links .btn{text-decoration:none;display:inline-flex;align-items:center}
+
 .lock-card.shake{animation:lockShake .3s}
 @keyframes lockShake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}
   60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
@@ -664,17 +667,24 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .sp-txt{display:block;will-change:transform;opacity:0;
   animation-duration:.42s,.40s;animation-delay:0s,.46s;animation-fill-mode:both,both;
   animation-timing-function:cubic-bezier(.2,.7,.3,1),cubic-bezier(.3,.8,.3,1)}
-.sp-l .sp-txt{animation-name:sp-in,sp-open-l}
-.sp-r .sp-txt{animation-name:sp-in,sp-open-r}
+.splash.run .sp-l .sp-txt{animation-name:sp-in,sp-open-l}
+.splash.run .sp-r .sp-txt{animation-name:sp-in,sp-open-r}
 @keyframes sp-in{from{opacity:0}to{opacity:1}}
 @keyframes sp-open-l{to{transform:translateX(-.19em)}}
 @keyframes sp-open-r{to{transform:translateX(.19em)}}
+/* ВАЖНО: всё движение включается классом .run, который ставит скрипт после
+   того, как раскладка устоялась (см. playIntro). До этого заставка — просто
+   ровный фон, и это же индикатор загрузки. Пока анимация стартовала сразу с
+   первым кадром, на телефоне она успевала проиграться в старом окне: браузер
+   сначала размечает страницу под широкую область, а потом применяет
+   <meta viewport> — и падающая точка показывалась в правом нижнем углу,
+   после чего всё скачком вставало по центру. */
 /* Точка. transform-origin по нижнему краю: при сплющивании она остаётся
    стоять на «полу», а не проваливается сквозь него. */
 .sp-dot{position:absolute;left:50%;bottom:calc(50% - .28em);
   width:.19em;height:.19em;margin-left:-.095em;border-radius:50%;
-  background:var(--accent);transform-origin:50% 100%;
-  animation:sp-fall .62s .54s both}
+  background:var(--accent);transform-origin:50% 100%;opacity:0}
+.splash.run .sp-dot{animation:sp-fall .62s .54s both}
 @keyframes sp-fall{
   0%  {opacity:0;transform:translateY(-3.2em) scaleX(.66) scaleY(1.6);
        animation-timing-function:cubic-bezier(.45,0,.95,.5)}   /* разгон падения */
@@ -1044,7 +1054,6 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
       <div class="drawer-foot mobile-only">
         <div class="brand">Phy<span>.</span>Sim</div>
         <div class="spacer"></div>
-        <button class="iconbtn" id="d-help" title="Помощник"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
         <button class="iconbtn" id="d-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       </div>
     </aside>
@@ -1203,8 +1212,6 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
             <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-settings" title="Настройки">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-          <button class="iconbtn mb-btn" id="mb-help" title="Помощник и горячие клавиши">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
           <div class="m2fps" id="mb-fps">—</div>
         </div>
       </div>
@@ -1214,7 +1221,6 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 
   <div class="statusbar">
     <div class="brand">Phy<span>.</span>Sim</div>
-    <button class="iconbtn" id="btn-help" title="Помощник"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.9-.9 1.6v.4"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg></button>
     <button class="iconbtn" id="btn-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <div class="sep"></div>
     <div class="group">
@@ -1260,11 +1266,6 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 <div class="pop hidden" id="pop-sims">
   <div class="ttl">Симуляции этой темы</div>
   <div id="pop-sims-body"></div>
-</div>
-<div class="pop hidden" id="pop-help">
-  <div class="ttl">Помощник</div>
-  <button class="item" id="mi-kb"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M8 14h8"/></svg>Горячие клавиши</button>
-  <a class="item" href="https://telegram.me/SOMITGC" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M21 4 3 11l5 2 2 6 3-4 5 4z"/></svg>Telegram-канал</a>
 </div>
 <div class="prefs hidden" id="prefs">
   <div class="prefs-side" id="prefs-side"></div>
@@ -24345,8 +24346,17 @@ if($('#tl-range')){
   $('#tl-loop').classList.toggle('on',S.loop);
 }
 function applyParams(s){ const a=A(); a.params=JSON.parse(s); restart(a); renderParams(); buildGraphs(); }
-function undo(){ const a=A(); if(!a||a.undo.length<2) return; a.redo.push(a.undo.pop()); applyParams(a.undo[a.undo.length-1]); toast('Параметры: назад'); }
-function redo(){ const a=A(); if(!a||!a.redo.length) return; const s=a.redo.pop(); a.undo.push(s); applyParams(s); toast('Параметры: вперёд'); }
+/* Отмена и повтор ПАРАМЕТРОВ (не действий на сцене). Когда истории нет,
+   раньше кнопка молчала, и это читалось как «не работает» — особенно на
+   телефоне, где не видно ни курсора, ни подсветки. Теперь отвечает всегда. */
+function undo(){ const a=A();
+  if(!a){ toast('Сначала откройте симуляцию'); return; }
+  if(a.undo.length<2){ toast('Отменять нечего: параметры не менялись'); return; }
+  a.redo.push(a.undo.pop()); applyParams(a.undo[a.undo.length-1]); toast('Параметры: назад'); }
+function redo(){ const a=A();
+  if(!a){ toast('Сначала откройте симуляцию'); return; }
+  if(!a.redo.length){ toast('Повторять нечего'); return; }
+  const s=a.redo.pop(); a.undo.push(s); applyParams(s); toast('Параметры: вперёд'); }
 
 /* =========================== ИНСТРУМЕНТЫ / МЫШЬ ======================== */
 function snapPt(x,y){
@@ -25021,7 +25031,6 @@ $('#btn-cmdk').onclick=()=>cmdkOpen('');
 $('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(''); };
 $('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
 $('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
-popup($('#btn-help'),$('#pop-help'));
 addEventListener('click',()=>document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden')));
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
 
@@ -25438,7 +25447,12 @@ function renderPrefs(){
         Работает целиком в браузере, без интернета и установки — файл можно носить на флешке
         и открывать на любом компьютере. Всё, что вы настроите или сохраните,
         остаётся только на этом устройстве.
+      </div>
+      <div class="prefs-links">
+        <button class="btn" id="pref-keys">Горячие клавиши</button>
+        <a class="btn" href="https://telegram.me/SOMITGC" target="_blank" rel="noopener">Telegram-канал</a>
       </div>`;
+    const kb=$('#pref-keys'); if(kb) kb.onclick=()=>openPrefs('keys');
   } else {
     const list=PREFS.filter(p=>p.cat===prefCat);
     body.innerHTML=`<div class="pset-h">${cat.name}</div>`+list.map(prefRow).join('');
@@ -25679,7 +25693,6 @@ function drawer(open){
 }
 $('#m-drawer').onclick=()=>drawer();
 $('#drawer-bg').onclick=()=>drawer(false);
-$('#d-help').onclick=()=>{ drawer(false); $('#btn-help').click(); };
 $('#d-settings').onclick=()=>{ drawer(false); openPrefs(); };
 // выбрал тему — ящик закрывается сам, иначе он загораживает то, что открыл
 $('#tree').addEventListener('click',e=>{
@@ -25741,11 +25754,12 @@ $('#mb-fit').onclick=()=>{ if(!$('#simpane').classList.contains('hidden')) fitVi
 $('#mb-slow').onclick=()=>stepSpeed(-1);
 $('#mb-fast').onclick=()=>stepSpeed(1);
 /* Остальное из нижней панели компьютера — чтобы с телефона было доступно
-   ровно то же самое. Кнопки проксируют на существующие обработчики. */
-$('#mb-undo').onclick=()=>$('#btn-undo').click();
-$('#mb-redo').onclick=()=>$('#btn-redo').click();
-$('#mb-settings').onclick=()=>$('#btn-settings').click();
-$('#mb-help').onclick=()=>$('#btn-help').click();
+   ровно то же самое. Здесь зовём функции НАПРЯМУЮ, а не проксируем на кнопки
+   нижней панели: на телефоне та панель display:none, и любая её особенность
+   (попап, который позиционируется по невидимой кнопке) ломалась молча. */
+$('#mb-undo').onclick=undo;
+$('#mb-redo').onclick=redo;
+$('#mb-settings').onclick=()=>openPrefs();
 $('#mb-menu').onclick=e=>{ const r=e.currentTarget.getBoundingClientRect();
   openSimMenu(r.left+r.width/2, r.top); };
 /* Поля скорости и масштаба редактируются пальцем так же, как мышью. */
@@ -25868,7 +25882,6 @@ const KEYS=[['Ctrl + P','Командная палитра: темы, симул
  ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама'],
  ['Два пальца','Зум и панорама на сенсоре'],['ПКМ','Меню симуляции']];
 $('#kb-list').innerHTML=KEYS.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('');
-$('#mi-kb').onclick=()=>openPrefs('keys');
 $('#kb-close').onclick=()=>$('#modal-kb').classList.add('hidden');
 $('#modal-kb').onclick=e=>{ if(e.target.id==='modal-kb') $('#modal-kb').classList.add('hidden'); };
 
@@ -26450,7 +26463,18 @@ addEventListener('load',()=>{ typeset($('#pane')); resize(); });
     sp.classList.add('go');
     setTimeout(kill,PART);
   };
-  timer=setTimeout(open,FALL);
+  /* Движение запускаем не сразу, а когда раскладка устоялась. На телефоне
+     браузер размечает страницу сначала под широкую область и только потом
+     применяет <meta viewport>: анимация, начатая в первом кадре, проигрывалась
+     в старом окне — точка падала в правом нижнем углу, а потом всё скачком
+     вставало по центру. Двух кадров после load хватает, чтобы этого не было. */
+  const start=()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(done) return;
+    sp.classList.add('run');
+    timer=setTimeout(open,FALL);
+  }));
+  if(document.readyState==='complete') start();
+  else addEventListener('load',start,{once:true});
   sp.addEventListener('pointerdown',open);
   addEventListener('keydown',open,{once:true});
 })();

@@ -21,7 +21,7 @@
     "productName": "Phy.Sim",
     "directories": { "output": "out" },
     "publish": null,
-    "files": ["main.js", "preload.js", "app/**/*", "package.json"],
+    "files": ["main.js", "preload.js", "app/**/*", "build/icon.png", "package.json"],
     "win": {
       "target": [
         { "target": "nsis", "arch": ["x64"] },

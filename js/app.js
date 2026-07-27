@@ -1488,8 +1488,17 @@ if($('#tl-range')){
   $('#tl-loop').classList.toggle('on',S.loop);
 }
 function applyParams(s){ const a=A(); a.params=JSON.parse(s); restart(a); renderParams(); buildGraphs(); }
-function undo(){ const a=A(); if(!a||a.undo.length<2) return; a.redo.push(a.undo.pop()); applyParams(a.undo[a.undo.length-1]); toast('Параметры: назад'); }
-function redo(){ const a=A(); if(!a||!a.redo.length) return; const s=a.redo.pop(); a.undo.push(s); applyParams(s); toast('Параметры: вперёд'); }
+/* Отмена и повтор ПАРАМЕТРОВ (не действий на сцене). Когда истории нет,
+   раньше кнопка молчала, и это читалось как «не работает» — особенно на
+   телефоне, где не видно ни курсора, ни подсветки. Теперь отвечает всегда. */
+function undo(){ const a=A();
+  if(!a){ toast('Сначала откройте симуляцию'); return; }
+  if(a.undo.length<2){ toast('Отменять нечего: параметры не менялись'); return; }
+  a.redo.push(a.undo.pop()); applyParams(a.undo[a.undo.length-1]); toast('Параметры: назад'); }
+function redo(){ const a=A();
+  if(!a){ toast('Сначала откройте симуляцию'); return; }
+  if(!a.redo.length){ toast('Повторять нечего'); return; }
+  const s=a.redo.pop(); a.undo.push(s); applyParams(s); toast('Параметры: вперёд'); }
 
 /* =========================== ИНСТРУМЕНТЫ / МЫШЬ ======================== */
 function snapPt(x,y){
@@ -2164,7 +2173,6 @@ $('#btn-cmdk').onclick=()=>cmdkOpen('');
 $('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(''); };
 $('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
 $('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
-popup($('#btn-help'),$('#pop-help'));
 addEventListener('click',()=>document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden')));
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
 
@@ -2581,7 +2589,12 @@ function renderPrefs(){
         Работает целиком в браузере, без интернета и установки — файл можно носить на флешке
         и открывать на любом компьютере. Всё, что вы настроите или сохраните,
         остаётся только на этом устройстве.
+      </div>
+      <div class="prefs-links">
+        <button class="btn" id="pref-keys">Горячие клавиши</button>
+        <a class="btn" href="https://telegram.me/SOMITGC" target="_blank" rel="noopener">Telegram-канал</a>
       </div>`;
+    const kb=$('#pref-keys'); if(kb) kb.onclick=()=>openPrefs('keys');
   } else {
     const list=PREFS.filter(p=>p.cat===prefCat);
     body.innerHTML=`<div class="pset-h">${cat.name}</div>`+list.map(prefRow).join('');
@@ -2822,7 +2835,6 @@ function drawer(open){
 }
 $('#m-drawer').onclick=()=>drawer();
 $('#drawer-bg').onclick=()=>drawer(false);
-$('#d-help').onclick=()=>{ drawer(false); $('#btn-help').click(); };
 $('#d-settings').onclick=()=>{ drawer(false); openPrefs(); };
 // выбрал тему — ящик закрывается сам, иначе он загораживает то, что открыл
 $('#tree').addEventListener('click',e=>{
@@ -2884,11 +2896,12 @@ $('#mb-fit').onclick=()=>{ if(!$('#simpane').classList.contains('hidden')) fitVi
 $('#mb-slow').onclick=()=>stepSpeed(-1);
 $('#mb-fast').onclick=()=>stepSpeed(1);
 /* Остальное из нижней панели компьютера — чтобы с телефона было доступно
-   ровно то же самое. Кнопки проксируют на существующие обработчики. */
-$('#mb-undo').onclick=()=>$('#btn-undo').click();
-$('#mb-redo').onclick=()=>$('#btn-redo').click();
-$('#mb-settings').onclick=()=>$('#btn-settings').click();
-$('#mb-help').onclick=()=>$('#btn-help').click();
+   ровно то же самое. Здесь зовём функции НАПРЯМУЮ, а не проксируем на кнопки
+   нижней панели: на телефоне та панель display:none, и любая её особенность
+   (попап, который позиционируется по невидимой кнопке) ломалась молча. */
+$('#mb-undo').onclick=undo;
+$('#mb-redo').onclick=redo;
+$('#mb-settings').onclick=()=>openPrefs();
 $('#mb-menu').onclick=e=>{ const r=e.currentTarget.getBoundingClientRect();
   openSimMenu(r.left+r.width/2, r.top); };
 /* Поля скорости и масштаба редактируются пальцем так же, как мышью. */
@@ -3011,7 +3024,6 @@ const KEYS=[['Ctrl + P','Командная палитра: темы, симул
  ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама'],
  ['Два пальца','Зум и панорама на сенсоре'],['ПКМ','Меню симуляции']];
 $('#kb-list').innerHTML=KEYS.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('');
-$('#mi-kb').onclick=()=>openPrefs('keys');
 $('#kb-close').onclick=()=>$('#modal-kb').classList.add('hidden');
 $('#modal-kb').onclick=e=>{ if(e.target.id==='modal-kb') $('#modal-kb').classList.add('hidden'); };
 
@@ -3593,7 +3605,18 @@ addEventListener('load',()=>{ typeset($('#pane')); resize(); });
     sp.classList.add('go');
     setTimeout(kill,PART);
   };
-  timer=setTimeout(open,FALL);
+  /* Движение запускаем не сразу, а когда раскладка устоялась. На телефоне
+     браузер размечает страницу сначала под широкую область и только потом
+     применяет <meta viewport>: анимация, начатая в первом кадре, проигрывалась
+     в старом окне — точка падала в правом нижнем углу, а потом всё скачком
+     вставало по центру. Двух кадров после load хватает, чтобы этого не было. */
+  const start=()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(done) return;
+    sp.classList.add('run');
+    timer=setTimeout(open,FALL);
+  }));
+  if(document.readyState==='complete') start();
+  else addEventListener('load',start,{once:true});
   sp.addEventListener('pointerdown',open);
   addEventListener('keydown',open,{once:true});
 })();

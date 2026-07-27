@@ -618,6 +618,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .lock-err{min-height:18px;font-size:12.5px;color:var(--danger);margin-top:9px;text-align:center}
 .lock-note{font-size:11.5px;color:var(--ink-3);line-height:1.55;margin-top:8px;text-align:center;
   border-top:1px solid var(--line-soft);padding-top:12px}
+.prefs-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.prefs-links .btn{text-decoration:none;display:inline-flex;align-items:center}
+
 .lock-card.shake{animation:lockShake .3s}
 @keyframes lockShake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}
   60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
@@ -645,17 +648,24 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .sp-txt{display:block;will-change:transform;opacity:0;
   animation-duration:.42s,.40s;animation-delay:0s,.46s;animation-fill-mode:both,both;
   animation-timing-function:cubic-bezier(.2,.7,.3,1),cubic-bezier(.3,.8,.3,1)}
-.sp-l .sp-txt{animation-name:sp-in,sp-open-l}
-.sp-r .sp-txt{animation-name:sp-in,sp-open-r}
+.splash.run .sp-l .sp-txt{animation-name:sp-in,sp-open-l}
+.splash.run .sp-r .sp-txt{animation-name:sp-in,sp-open-r}
 @keyframes sp-in{from{opacity:0}to{opacity:1}}
 @keyframes sp-open-l{to{transform:translateX(-.19em)}}
 @keyframes sp-open-r{to{transform:translateX(.19em)}}
+/* ВАЖНО: всё движение включается классом .run, который ставит скрипт после
+   того, как раскладка устоялась (см. playIntro). До этого заставка — просто
+   ровный фон, и это же индикатор загрузки. Пока анимация стартовала сразу с
+   первым кадром, на телефоне она успевала проиграться в старом окне: браузер
+   сначала размечает страницу под широкую область, а потом применяет
+   <meta viewport> — и падающая точка показывалась в правом нижнем углу,
+   после чего всё скачком вставало по центру. */
 /* Точка. transform-origin по нижнему краю: при сплющивании она остаётся
    стоять на «полу», а не проваливается сквозь него. */
 .sp-dot{position:absolute;left:50%;bottom:calc(50% - .28em);
   width:.19em;height:.19em;margin-left:-.095em;border-radius:50%;
-  background:var(--accent);transform-origin:50% 100%;
-  animation:sp-fall .62s .54s both}
+  background:var(--accent);transform-origin:50% 100%;opacity:0}
+.splash.run .sp-dot{animation:sp-fall .62s .54s both}
 @keyframes sp-fall{
   0%  {opacity:0;transform:translateY(-3.2em) scaleX(.66) scaleY(1.6);
        animation-timing-function:cubic-bezier(.45,0,.95,.5)}   /* разгон падения */

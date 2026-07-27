@@ -16,7 +16,7 @@ function createWindow() {
     minHeight: 560,
     backgroundColor: '#101318',   // без него при запуске мелькает белый прямоугольник
     show: false,
-    title: 'Phy.Sim — физика в симуляциях',
+    title: 'Phy.Sim',
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       // Пособию ничего из Node не нужно — держим песочницу закрытой.
@@ -30,6 +30,11 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);      // меню нет: все команды внутри самого пособия
+  /* В заголовке окна — только «Phy.Sim». По умолчанию Electron подставляет
+     туда <title> страницы, а там нужен полный вариант с подзаголовком: он
+     идёт во вкладку браузера и в закладки. В окне приложения подзаголовок
+     лишний — интерфейс держим строгим. */
+  win.on('page-title-updated', (e) => e.preventDefault());
   win.once('ready-to-show', () => win.show());
   win.loadFile(path.join(__dirname, 'app', 'index.html'));
 
