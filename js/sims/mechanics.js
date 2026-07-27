@@ -3292,12 +3292,20 @@ buoyancy:{
        лежит на y = −d, а центр — на полвысоты выше. (Раньше за центр брали
        само дно, и тело рисовалось целиком под водой.) */
     const H=this.height(p), yc=-s.d+H/2;
-    ctx.fillStyle=acc; ctx.globalAlpha=.30;
+    /* Тело НЕПРОЗРАЧНО. Раньше оно заливалось акцентом с alpha 0.30, и
+       погружаясь, шар просвечивал жидкостью — выглядело как исчезновение
+       тела, а не как погружение. Красим в два слоя: сначала фоном сцены
+       (он и делает тело плотным), сверху — тот же лёгкий акцент. */
+    const bg=v.c('--canvas');
     if(p.shape==='cube'){
+      ctx.fillStyle=bg; ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a);
+      ctx.fillStyle=acc; ctx.globalAlpha=.30;
       ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); ctx.globalAlpha=1;
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
     } else {
-      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.fill(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7);
+      ctx.fillStyle=bg; ctx.fill();
+      ctx.fillStyle=acc; ctx.globalAlpha=.30; ctx.fill(); ctx.globalAlpha=1;
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
       ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.stroke();
     }

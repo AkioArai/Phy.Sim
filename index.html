@@ -244,6 +244,11 @@
            масштаба редактируемые, как на компьютере. -->
       <div class="mbar2" id="mbar2">
         <div class="m2row">
+          <!-- Пуск/стоп продублирован здесь: без него приходилось прыгать
+               между рядами ради самой частой кнопки. -->
+          <button class="mbplay m2play" id="mb-play2" title="Пуск / стоп">
+            <svg viewBox="0 0 24 24" id="ic-mbplay2"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+            <svg viewBox="0 0 24 24" id="ic-mbpause2" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.4"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-undo" title="Параметры назад">
             <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
@@ -315,9 +320,11 @@
   <div class="ttl">Сохранённые параметры</div><div id="presets"></div>
 </div>
 <!-- Инструменты сцены на телефоне: тот же попап, что и меню симуляции -->
-<div class="pop hidden" id="pop-tools">
-  <div class="ttl">Инструменты сцены</div>
-  <div id="pop-tools-body"></div>
+<!-- Инструменты на телефоне: столбик папок, из папки инструменты
+     раскрываются вправо. Простыня из двух десятков строк текста,
+     которая была здесь раньше, на телефоне не читалась. -->
+<div class="pop toolfan hidden" id="pop-tools">
+  <div class="tf-cols" id="pop-tools-body"></div>
 </div>
 <!-- Список симуляций темы на телефоне: полные названия, без обрезки -->
 <div class="pop hidden" id="pop-sims">
@@ -339,6 +346,19 @@
 <div class="modal-bg hidden" id="modal-kb"><div class="modal">
   <h3>Горячие клавиши</h3><div id="kb-list"></div>
   <div style="margin-top:16px;text-align:right"><button class="btn primary" id="kb-close">Закрыть</button></div>
+</div></div>
+<!-- Свой диалог вместо prompt()/confirm(). Системные диалоги в Android-WebView
+     без WebChromeClient молча возвращают null/false — из-за этого в .apk не
+     работали заметки, пресеты и все подтверждения. Свой работает везде
+     одинаково и выглядит как остальное приложение. -->
+<div class="modal-bg hidden" id="modal-ask"><div class="modal ask">
+  <h3 id="ask-title">—</h3>
+  <div class="ask-text" id="ask-text"></div>
+  <input class="lock-inp ask-inp hidden" id="ask-inp" type="text">
+  <div class="ask-row">
+    <button class="btn" id="ask-cancel">Отмена</button>
+    <button class="btn primary" id="ask-ok">ОК</button>
+  </div>
 </div></div>
 <div class="toast" id="toast"></div>
 

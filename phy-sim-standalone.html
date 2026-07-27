@@ -36,7 +36,13 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:var(--sans);font-size:var(--fs);color:var(--ink);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);font-size:var(--fs);color:var(--ink);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased;
+  /* Выделять текст в приложении незачем: случайный протяг мышью по конспекту
+     или долгое нажатие на телефоне выделяли полстраницы синим, а на сцене
+     это ещё и мешало таскать тела. Выделение оставляем ровно там, где текст
+     вводят, — см. правило ниже. */
+  user-select:none;-webkit-user-select:none}
+input,textarea,select,[contenteditable]{user-select:text;-webkit-user-select:text}
 /* ==================== НАЖАТИЯ ====================
    1) Мобильные браузеры подсвечивают любое нажатие синим прямоугольником, как
       будто открыли ссылку. Убираем — у нас своя обратная связь.
@@ -176,6 +182,8 @@ input,select{font:inherit;color:inherit}
 .chead h1{font-size:1.5em;font-weight:650;letter-spacing:-.02em;line-height:1.3}
 .chead .sub{color:var(--ink-3);font-size:12px;font-family:var(--mono);margin-top:5px}
 .tabs{display:flex;gap:2px;margin-top:16px;border-bottom:1px solid var(--line)}
+/* без задач переключать нечего — вкладки прячем целиком (введение, итоги) */
+.tabs.hidden{display:none}
 .tabs button{padding:9px 14px;font-size:13px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs button:hover{color:var(--ink)}
 .tabs button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
@@ -531,6 +539,11 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .modal-bg.hidden{display:none}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;width:min(460px,92vw);max-height:80vh;overflow-y:auto}
 .modal h3{font-size:15px;margin-bottom:14px}
+.modal.ask{width:min(380px,92vw)}
+.ask-text{font-size:13px;color:var(--ink-2);line-height:1.5}
+.ask-inp{margin-top:12px}
+.ask-inp.hidden{display:none}
+.ask-row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
 .kb{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--ink-2)}
 .kb kbd{font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 6px;color:var(--ink)}
 .toast{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);z-index:90;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;max-width:70vw;text-align:center}
@@ -544,7 +557,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .fpanel{position:absolute;z-index:24;display:flex;flex-direction:column;
   min-width:120px;min-height:60px;pointer-events:auto;overflow:hidden}
 .fpanel.dragging{opacity:.94;box-shadow:0 12px 34px -12px #0009;z-index:40}
-.fp-head{display:flex;align-items:center;gap:6px;flex:0 0 auto;cursor:grab;
+/* touch-action:none обязателен: без него браузер на телефоне считает протяг
+   по шапке своим жестом прокрутки, забирает указатель и присылает
+   pointercancel — панель дёргалась и бросалась на полпути. */
+.fp-head{touch-action:none;display:flex;align-items:center;gap:6px;flex:0 0 auto;cursor:grab;
   padding:5px 8px 4px;border-bottom:1px solid var(--line-soft);user-select:none;
   font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--ink-3);background:color-mix(in srgb,var(--panel) 55%,transparent)}
@@ -554,7 +570,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .fp-head .iconbtn svg{width:12px;height:12px}
 .fpanel > :not(.fp-head):not(.fp-grip){flex:1;min-height:0;overflow:auto}
 /* уголок для изменения размера */
-.fp-grip{position:absolute;right:0;bottom:0;width:14px;height:14px;cursor:nwse-resize;
+.fp-grip{touch-action:none;position:absolute;right:0;bottom:0;width:14px;height:14px;cursor:nwse-resize;
   z-index:2;background:linear-gradient(135deg,transparent 50%,var(--line) 50%,var(--line) 62%,
     transparent 62%,transparent 74%,var(--line) 74%,var(--line) 86%,transparent 86%)}
 .fpanel.rolled{height:auto!important;min-height:0}
@@ -868,7 +884,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
     max-width:62vw;max-height:34dvh;
     background:color-mix(in srgb,var(--panel) 82%,transparent)}
 [data-ui="mobile"] .hud::before{font-size:8px;margin-bottom:3px}
-[data-ui="mobile"] .fpanel .fp-head{font-size:8px;padding:4px 6px 3px}
+/* на телефоне шапку берут пальцем — делаем её выше и уголок крупнее */
+[data-ui="mobile"] .fpanel .fp-head{font-size:9px;padding:9px 8px 8px}
+[data-ui="mobile"] .fp-grip{width:22px;height:22px}
 [data-ui="mobile"] .fp-grip{display:none}
 /* Свёрнутая панель: остаётся только заголовок-полоска. На телефоне панель
    показаний закрывала до 60 % ширины сцены — теперь её убирают одним касанием
@@ -928,6 +946,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .m2row{display:flex;align-items:center;gap:2px;width:100%}
 [data-ui="mobile"] .m2row+.m2row{margin-top:4px;padding-top:4px;border-top:1px solid var(--line-soft)}
 [data-ui="mobile"] .mbar2 .mb-btn{width:auto;flex:1 1 0;min-width:0;height:42px;border-radius:9px}
+/* дублирующий пуск/стоп в строке состояния — той же формы, что и главный */
+[data-ui="mobile"] .m2play{width:42px;height:42px;flex:0 0 auto;margin-right:4px}
+[data-ui="mobile"] .m2play svg{width:18px;height:18px}
 [data-ui="mobile"] .mbar2 .mb-btn:active{background:var(--accent-soft);color:var(--accent);transform:scale(.94)}
 [data-ui="mobile"] .mbar2 .mb-sep{width:1px;height:22px;background:var(--line);margin:0 4px;flex:0 0 auto}
 /* редактируемые поля скорости и масштаба — как на компьютере */
@@ -950,6 +971,33 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] [data-dock="big"] .mbplay svg{width:24px;height:24px}
 [data-ui="mobile"] .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
 [data-ui="mobile"] .pop .item{padding:11px 10px;font-size:14px}
+/* ---- Инструменты на телефоне: папки с раскрытием вбок ----
+   Плоский список из двух десятков строк на маленьком экране не читался.
+   Слева столбик папок, справа от раскрытой — её инструменты иконками.
+   Открыта всегда одна папка: две колонки по ширине телефона не помещаются. */
+.toolfan{padding:6px;min-width:0;width:min(94vw,430px);
+  /* панель не должна уезжать за край экрана: инструментов бывает много */
+  max-height:min(58vh,440px);overflow-y:auto;overscroll-behavior:contain}
+.tf-cols{display:flex;flex-direction:column;gap:4px}
+.tf-row{display:flex;align-items:flex-start;gap:6px}
+.tf-folder{display:flex;align-items:center;gap:7px;flex:0 0 auto;width:104px;
+  padding:10px 8px;border-radius:8px;background:var(--panel-2);color:var(--ink-2);
+  font-size:12.5px;text-align:left;line-height:1.2}
+.tf-folder svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;flex:0 0 auto}
+.tf-row.open .tf-folder{background:var(--accent-soft);color:var(--accent)}
+.tf-items{display:none;flex-wrap:wrap;gap:3px;flex:1;min-width:0}
+.tf-row.open .tf-items{display:flex}
+.tf-tool{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:3px;width:60px;padding:6px 2px;border-radius:8px;color:var(--ink-2)}
+.tf-tool svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.6;flex:0 0 auto}
+.tf-tool i{font-style:normal;font-size:8.5px;line-height:1.15;text-align:center;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.tf-tool.on{background:var(--accent-soft);color:var(--accent)}
+.tf-tool:active{background:var(--panel-2)}
+/* На телефоне панель инструментов прижата к низу и растёт вверх — тогда
+   раскрытие папки не выносит её за экран, где бы ни стояла кнопка. */
+[data-ui="mobile"] .toolfan{position:fixed;left:8px;right:8px;width:auto;
+  top:auto;bottom:calc(var(--mbot,64px) + 12px);max-height:min(62vh,520px)}
 [data-ui="mobile"] .crumb{display:none}
 
 /* Телефон в альбомной ориентации: экономим высоту. */
@@ -1187,6 +1235,11 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
            масштаба редактируемые, как на компьютере. -->
       <div class="mbar2" id="mbar2">
         <div class="m2row">
+          <!-- Пуск/стоп продублирован здесь: без него приходилось прыгать
+               между рядами ради самой частой кнопки. -->
+          <button class="mbplay m2play" id="mb-play2" title="Пуск / стоп">
+            <svg viewBox="0 0 24 24" id="ic-mbplay2"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+            <svg viewBox="0 0 24 24" id="ic-mbpause2" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.4"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-undo" title="Параметры назад">
             <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
@@ -1258,9 +1311,11 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   <div class="ttl">Сохранённые параметры</div><div id="presets"></div>
 </div>
 <!-- Инструменты сцены на телефоне: тот же попап, что и меню симуляции -->
-<div class="pop hidden" id="pop-tools">
-  <div class="ttl">Инструменты сцены</div>
-  <div id="pop-tools-body"></div>
+<!-- Инструменты на телефоне: столбик папок, из папки инструменты
+     раскрываются вправо. Простыня из двух десятков строк текста,
+     которая была здесь раньше, на телефоне не читалась. -->
+<div class="pop toolfan hidden" id="pop-tools">
+  <div class="tf-cols" id="pop-tools-body"></div>
 </div>
 <!-- Список симуляций темы на телефоне: полные названия, без обрезки -->
 <div class="pop hidden" id="pop-sims">
@@ -1282,6 +1337,19 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 <div class="modal-bg hidden" id="modal-kb"><div class="modal">
   <h3>Горячие клавиши</h3><div id="kb-list"></div>
   <div style="margin-top:16px;text-align:right"><button class="btn primary" id="kb-close">Закрыть</button></div>
+</div></div>
+<!-- Свой диалог вместо prompt()/confirm(). Системные диалоги в Android-WebView
+     без WebChromeClient молча возвращают null/false — из-за этого в .apk не
+     работали заметки, пресеты и все подтверждения. Свой работает везде
+     одинаково и выглядит как остальное приложение. -->
+<div class="modal-bg hidden" id="modal-ask"><div class="modal ask">
+  <h3 id="ask-title">—</h3>
+  <div class="ask-text" id="ask-text"></div>
+  <input class="lock-inp ask-inp hidden" id="ask-inp" type="text">
+  <div class="ask-row">
+    <button class="btn" id="ask-cancel">Отмена</button>
+    <button class="btn primary" id="ask-ok">ОК</button>
+  </div>
 </div></div>
 <div class="toast" id="toast"></div>
 
@@ -4652,12 +4720,20 @@ buoyancy:{
        лежит на y = −d, а центр — на полвысоты выше. (Раньше за центр брали
        само дно, и тело рисовалось целиком под водой.) */
     const H=this.height(p), yc=-s.d+H/2;
-    ctx.fillStyle=acc; ctx.globalAlpha=.30;
+    /* Тело НЕПРОЗРАЧНО. Раньше оно заливалось акцентом с alpha 0.30, и
+       погружаясь, шар просвечивал жидкостью — выглядело как исчезновение
+       тела, а не как погружение. Красим в два слоя: сначала фоном сцены
+       (он и делает тело плотным), сверху — тот же лёгкий акцент. */
+    const bg=v.c('--canvas');
     if(p.shape==='cube'){
+      ctx.fillStyle=bg; ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a);
+      ctx.fillStyle=acc; ctx.globalAlpha=.30;
       ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); ctx.globalAlpha=1;
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
     } else {
-      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.fill(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7);
+      ctx.fillStyle=bg; ctx.fill();
+      ctx.fillStyle=acc; ctx.globalAlpha=.30; ctx.fill(); ctx.globalAlpha=1;
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
       ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.stroke();
     }
@@ -23289,17 +23365,30 @@ function drawAll(){
     const pts=a.def.anchors(a.state,a.params)||[];
     a.tracePts=a.tracePts||[];
     if(S.playing){
+      /* Прыжок положения рвём разрывом пути, а не соединяем прямой. Тело
+         может «телепортироваться» не только при сбросе: смена параметра,
+         зацикливание, переход через край сцены. Порог — четверть видимой
+         ширины: обычный шаг за кадр несопоставимо меньше. */
+      const jump=(toWorld(CW,0)[0]-toWorld(0,0)[0])*0.25;
       pts.forEach((q,i)=>{
-        (a.tracePts[i]=a.tracePts[i]||[]).push([q.x,q.y]);
-        if(a.tracePts[i].length>900) a.tracePts[i].shift();
+        const path=(a.tracePts[i]=a.tracePts[i]||[]);
+        const prev=path[path.length-1];
+        if(prev && prev && Math.hypot(q.x-prev[0],q.y-prev[1])>jump) path.push(null);
+        path.push([q.x,q.y]);
+        if(path.length>900) path.shift();
       });
     }
     const cols=[css('--accent'),css('--second'),css('--measure'),css('--danger')];
     a.tracePts.forEach((path,i)=>{
-      if(!path||path.length<2) return;
+      if(!path||path.filter(Boolean).length<2) return;
       octx.strokeStyle=cols[i%cols.length]; octx.globalAlpha=.55;
       octx.lineWidth=VIEW.lw(1.4); octx.lineJoin='round';
-      octx.beginPath(); path.forEach((q,j)=>j?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1]));
+      octx.beginPath();
+      let pen=false;
+      for(const q of path){
+        if(!q){ pen=false; continue; }          // разрыв после прыжка
+        if(pen) octx.lineTo(q[0],q[1]); else { octx.moveTo(q[0],q[1]); pen=true; }
+      }
       octx.stroke(); octx.globalAlpha=1;
     });
   }
@@ -23836,13 +23925,16 @@ function openTopic(id){
   LS.set('recent',S.recent);
   $('#t-title').textContent=t.title;
   $('#t-sub').textContent = t.kind==='recap' ? `${t.section} · итог раздела`
-    : t.ch ? `${t.section} · тема ${t.ch} · по Дж. Ориру, «Физика»` : `${t.section} · руководство`;
+    : t.ch ? `${t.section} · тема ${t.ch}` : `${t.section} · руководство`;
   $('#crumb').textContent=t.section;
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab==='notes'));
-  // счётчик задач на вкладке: сразу видно, есть ли по теме практика
+  /* Вкладки нужны, только когда есть между чем переключаться. У введения и
+     итогов разделов задач нет вовсе, и пара «Конспект | Задачи» там —
+     просто шум над текстом. */
   const np=$('#nprob'), pb=document.querySelector('#tabs button[data-tab="problems"]');
   if(np) np.textContent=t.problems.length||'';
   if(pb) pb.classList.toggle('empty-tab',!t.problems.length);
+  $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
@@ -24293,6 +24385,10 @@ function pushUndo(a){
 function restart(a){
   a.state=a.def.init(a.params); a.hist=[]; a.tick=0; acc=0;
   a.tape=[]; S.scrub=null; updateTimeline();
+  /* След тоже начинаем заново: тело скачком возвращается в начало, и без
+     сброса от последней точки к новой протягивалась прямая через весь
+     экран — та самая «телепортация траектории». */
+  a.tracePts=[];
   $('#eventflag').classList.add('hidden');
 }
 
@@ -24318,6 +24414,7 @@ function updateTimeline(){
 function scrubTo(i){
   const a=A(); if(!a||!a.tape||!a.tape.length) return;
   const idx=clamp(Math.round(i),0,a.tape.length-1);
+  a.tracePts=[];                       // перемотка — тот же скачок положения
   S.scrub=idx;
   try{ a.state=JSON.parse(a.tape[idx].s); }catch(_){}
   if(S.playing){ S.playing=false; setPlayIcon(); }
@@ -24465,8 +24562,7 @@ $('#cwrap').addEventListener('pointerdown',e=>{
     toast(e.altKey?'Вертикальная направляющая':'Горизонтальная направляющая (Alt — вертикальная)');
   }
   else if(S.tool==='note'){
-    const txt=prompt('Текст заметки:');
-    if(txt&&txt.trim()){ annSnapshot(a); a.annos.push({type:'note',p:[sx,sy],text:txt.trim()}); }
+    askText('Текст заметки','',txt=>{ annSnapshot(a); a.annos.push({type:'note',p:[sx,sy],text:txt}); });
   }
   else if(S.tool==='angle'||S.tool==='area'){
     /* Многоточечные инструменты: копим вершины кликами, замыкаем двойным
@@ -24568,7 +24664,12 @@ function annSnapshot(a){
 }
 function annUndo(){
   const a=A();
-  if(!a||!a.annHist||!a.annHist.length) return false;
+  if(!a) return false;
+  /* Замер пробника — тоже пометка на сцене, и снимать его надо тем же
+     Ctrl+Z и той же стрелкой «отменить». Раньше он жил отдельно от annos
+     и не убирался ничем, кроме смены симуляции. */
+  if(S.probe){ S.probe=null; toast('Замер убран'); return true; }
+  if(!a.annHist||!a.annHist.length) return false;
   a.annos=JSON.parse(a.annHist.pop());
   toast(a.annHist.length? 'Пометка отменена' : 'Отменена последняя пометка');
   return true;
@@ -24966,14 +25067,15 @@ function setPlayIcon(){
   $('#ic-play').style.display=pl?'none':'block'; $('#ic-pause').style.display=pl?'block':'none';
   /* Та же пара иконок на нижней панели телефона. Раньше её здесь не было,
      и кнопка «пуск» на телефоне не переключалась визуально, хотя симуляция шла. */
-  for(const [a,b] of [['#ic-mbplay','#ic-mbpause']]){
+  for(const [a,b] of [['#ic-mbplay','#ic-mbpause'],['#ic-mbplay2','#ic-mbpause2']]){
     const p=$(a), q=$(b);
     if(p&&q){ p.style.display=pl?'none':'block'; q.style.display=pl?'block':'none'; }
   }
 }
-$('#btn-reset').onclick=()=>{ const a=A(); if(!a) return;
-  if(prefGet('confirmReset') && !confirm('Сбросить симуляцию к начальному состоянию?')) return;
-  restart(a); toast('Симуляция сброшена'); };
+function doReset(){ const a=A(); if(!a) return; restart(a); toast('Симуляция сброшена'); }
+$('#btn-reset').onclick=()=>{ if(!A()) return;
+  if(prefGet('confirmReset')) askConfirm('Сбросить симуляцию к начальному состоянию?',doReset);
+  else doReset(); };
 $('#btn-undo').onclick=undo; $('#btn-redo').onclick=redo;
 $('#btn-makeout').onclick=()=>{
   const a=A(); if(!a||!a.def.makeOutput) return;
@@ -25036,7 +25138,8 @@ document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.sto
 
 $('#mi-save').onclick=()=>{
   const a=A(); if(!a){ toast('Симуляция не открыта'); return; }
-  const name=prompt('Название набора параметров:',a.def.title); if(!name) return;
+  askText('Название набора параметров',a.def.title,name=>savePresetAs(a,name)); }
+function savePresetAs(a,name){
   const all=LS.get('presets',{}); if(!all[S.active]) all[S.active]=[];
   all[S.active].push({name,values:{...a.params}});
   LS.set('presets',all); renderPresets(); toast('Параметры сохранены');
@@ -25386,20 +25489,17 @@ function renderPrefs(){
       <div class="pset"><div class="pset-l"><div class="pset-name">Закрыть доступ</div>
         <div class="pset-desc">Выход из пособия: при следующем открытии снова спросит пароль.</div></div>
         <div class="pset-c"><button class="btn" id="pref-logout">Выйти</button></div></div>`;
-    $('#pref-reset-all').onclick=()=>{
-      if(!confirm('Вернуть все настройки к исходным значениям?')) return;
+    $('#pref-reset-all').onclick=()=>askConfirm('Вернуть все настройки к исходным значениям?',()=>{
       S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Настройки сброшены');
-    };
-    $('#pref-clear-presets').onclick=()=>{
-      if(!confirm('Удалить все свои наборы параметров?')) return;
+    });
+    $('#pref-clear-presets').onclick=()=>askConfirm('Удалить все свои наборы параметров?',()=>{
       LS.set('presets',{}); renderPrefs(); toast('Наборы удалены');
-    };
-    $('#pref-clear-all').onclick=()=>{
-      if(!confirm('Удалить все сохранённые данные? Это нельзя отменить.')) return;
+    });
+    $('#pref-clear-all').onclick=()=>askConfirm('Удалить все сохранённые данные? Это нельзя отменить.',()=>{
       try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
         if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
       S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Хранилище очищено');
-    };
+    });
     $('#pref-export').onclick=()=>{
       const data=JSON.stringify({app:'physim',v:1,settings:S.settings,
         presets:LS.get('presets',{}),marks:S.marks},null,1);
@@ -25425,11 +25525,10 @@ function renderPrefs(){
       };
       rd.readAsText(f);
     };
-    $('#pref-logout').onclick=()=>{
-      if(!confirm('Выйти? При следующем открытии пособие снова спросит пароль.')) return;
+    $('#pref-logout').onclick=()=>askConfirm('Выйти? При следующем открытии пособие снова спросит пароль.',()=>{
       try{ localStorage.removeItem('physim.authv1'); }catch(_){}
       location.reload();
-    };
+    });
   } else if(prefCat==='about'){
     const nSim=Object.keys(SIMS).length;
     const nTop=SECTIONS.reduce((a,s)=>a+s.topics.length,0);
@@ -25595,25 +25694,62 @@ function paintSimPick(){
   const btn=$('#simpick'); if(btn) btn.title=full;   // полное имя — в подсказке
   fitSimPick();
 }
+/* Инструменты на телефоне. Раньше это был плоский список из двух десятков
+   строк — на маленьком экране просто простыня текста, в которой ничего не
+   найти. Теперь папки: столбик слева, по нажатию на папку её инструменты
+   раскрываются вправо иконками, как в левой панели компьютера. */
 function fillToolsPop(){
   const box=$('#pop-tools-body'); if(!box) return;
   box.innerHTML='';
-  const add=(label,on,active)=>{
-    if(!label) return;
-    const b=document.createElement('button');
-    b.className='item'+(active?' on':'');
-    b.textContent=label;
-    b.onclick=()=>{ on(); $('#pop-tools').classList.add('hidden'); };
-    box.appendChild(b);
+  /* Подпись под иконкой — в две строки максимум, поэтому режем хвосты:
+     сначала скобку с горячей клавишей, потом пояснение после «:» или тире,
+     а из оставшегося — предложный хвост («Окружность от центра» →
+     «Окружность», «Размерная линия с выносками» → «Размерная линия»). */
+  const clean=t=>{
+    let x=String(t||'').replace(/\s*\([^)]*\)$/,'').split(/\s*[:—]\s+/)[0].trim();
+    if(x.length>15) x=x.split(/\s+(?:от|с|со|на|по|для|в|из)\s+/)[0].trim();
+    return x;
   };
-  const clean=t=>String(t||'').replace(/\s*\([^)]*\)$/,'');
-  document.querySelectorAll('#rail .tool').forEach(t=>
-    add(clean(t.title),()=>setTool(t.dataset.tool),t.classList.contains('on')));
-  for(const id of ['btn-snap','btn-coords','btn-trace','btn-clear']){
-    const t=$('#'+id); if(t) add(clean(t.title),()=>t.click(),t.classList.contains('on'));
+  const q=sel=>[...document.querySelectorAll(sel)];
+
+  const folders=[
+    {name:'Основные', icon:'<path d="m5 3 6 16 2.2-6.8L20 10z"/>',
+     items:q('#rail > .tool')},
+    {name:'Чертёж',   icon:'<path d="M4 20h4L20 8l-4-4L4 16z"/>',
+     items:q('#grp-classic .tool')},
+    {name:'Сцена',    icon:'<path d="M3 17c4 0 5-10 9-10s5 6 9 6" stroke-dasharray="2.5 2.5"/><circle cx="21" cy="13" r="1.6" fill="currentColor" stroke="none"/>',
+     items:['btn-snap','btn-coords','btn-trace','btn-clear'].map(i=>$('#'+i)).filter(Boolean)},
+    {name:'Раздел',   icon:'<path d="M4 20h16"/><path d="M7 20V9M12 20V4M17 20v-7"/>',
+     items:q('#secttools button,#simtools button')},
+  ].filter(f=>f.items.length);
+
+  for(const f of folders){
+    const row=document.createElement('div'); row.className='tf-row';
+    const head=document.createElement('button');
+    head.className='tf-folder'; head.type='button';
+    head.innerHTML=`<svg viewBox="0 0 24 24">${f.icon}</svg><span>${f.name}</span>`;
+    const body=document.createElement('div'); body.className='tf-items';
+    for(const t of f.items){
+      const b=document.createElement('button');
+      b.className='tf-tool'+(t.classList.contains('on')?' on':'');
+      b.type='button';
+      b.innerHTML=(t.querySelector('svg')?t.querySelector('svg').outerHTML:'')
+                 +`<i>${clean(t.title||t.textContent)}</i>`;
+      b.onclick=()=>{
+        if(t.dataset.tool) setTool(t.dataset.tool); else t.click();
+        $('#pop-tools').classList.add('hidden');
+      };
+      body.appendChild(b);
+    }
+    /* Открыта всегда ровно одна папка: две раскрытые колонки не помещаются
+       по ширине телефона. */
+    head.onclick=e=>{ e.stopPropagation();
+      const was=row.classList.contains('open');
+      box.querySelectorAll('.tf-row').forEach(r=>r.classList.remove('open'));
+      row.classList.toggle('open',!was); };
+    row.appendChild(head); row.appendChild(body); box.appendChild(row);
   }
-  document.querySelectorAll('#secttools button,#simtools button').forEach(t=>
-    add(t.title,()=>t.click(),t.classList.contains('on')));
+  if(folders.length) box.firstChild.classList.add('open');   // первая раскрыта сразу
 }
 
 /* ===== МОБИЛЬНОЕ УПРАВЛЕНИЕ: плавающий док + шторка параметров/графиков =====
@@ -25742,6 +25878,7 @@ function syncBottomInset(){
   return MBOT;
 }
 $('#mb-play').onclick=()=>$('#btn-play').click();
+$('#mb-play2').onclick=()=>$('#btn-play').click();
 $('#mb-back').onclick=()=>$('#tl-prev').click();
 $('#mb-fwd').onclick=()=>$('#tl-next').click();
 $('#mb-params').onclick=()=>mSheet();
@@ -25778,7 +25915,14 @@ popup($('#mb-tools'),$('#pop-tools'));
 { // перед показом наполняем список актуальными инструментами
   const btn=$('#mb-tools'), base=btn.onclick;
   btn.onclick=e=>{ if($('#simpane').classList.contains('hidden')) openSimMobile();
-                   fillToolsPop(); base(e); };
+    fillToolsPop(); base(e);
+    /* На телефоне панель прижата к низу через CSS и растёт вверх. Инлайновые
+       top/left, которые расставляет popup(), тут только мешают: высота
+       меняется при раскрытии папки, а положение осталось бы от прежней —
+       раскрытая папка уезжала за нижний край экрана. */
+    const p=$('#pop-tools');
+    if(isNarrow()){ p.style.top=''; p.style.left=''; }
+  };
 }
 
 /* Поворот экрана и любое изменение размера окна. */
@@ -26005,6 +26149,42 @@ $('#speedval').onkeydown=e=>e.stopPropagation();
 setSpeed(+prefGet('defSpeed')||1);          // стартовая скорость времени — из настроек
 
 let tt;
+/* ===================== СВОИ ДИАЛОГИ =====================
+   prompt() и confirm() браузера в Android-WebView без WebChromeClient молча
+   возвращают null и false — в .apk из-за этого не работали ни заметки, ни
+   сохранение набора параметров, ни одно подтверждение. Свой диалог ведёт
+   себя одинаково везде и выглядит как остальное приложение.
+   Обратный вызов, а не Promise: точки вызова остаются такими же простыми. */
+function askBox(o){
+  const bg=$('#modal-ask'); if(!bg){ if(o.onOk) o.onOk(o.value||''); return; }
+  const inp=$('#ask-inp');
+  $('#ask-title').textContent=o.title||'';
+  $('#ask-text').textContent=o.text||'';
+  $('#ask-text').style.display=o.text?'':'none';
+  inp.classList.toggle('hidden', !o.input);
+  inp.value=o.input? (o.value||'') : '';
+  $('#ask-ok').textContent=o.ok||'ОК';
+  bg.classList.remove('hidden');
+  if(o.input) setTimeout(()=>{ inp.focus(); inp.select(); },40);
+  const close=()=>{ bg.classList.add('hidden'); document.removeEventListener('keydown',key,true); };
+  const done=()=>{ const v=o.input? inp.value : true; close(); if(o.onOk) o.onOk(v); };
+  const key=e=>{ // диалог перехватывает клавиатуру целиком: иначе Esc и Enter
+                 // уходят в сцену и, например, запускают расчёт
+    e.stopPropagation();
+    if(e.key==='Escape'){ e.preventDefault(); close(); }
+    else if(e.key==='Enter'){ e.preventDefault(); done(); } };
+  document.addEventListener('keydown',key,true);
+  $('#ask-ok').onclick=done;
+  $('#ask-cancel').onclick=close;
+  bg.onclick=e=>{ if(e.target===bg) close(); };
+}
+/* Подтверждение: действие выполняется только по «ОК». */
+function askConfirm(text,onOk,title){ askBox({title:title||'Подтверждение',text,onOk}); }
+/* Ввод строки: onOk получает введённое, пустая строка не проходит. */
+function askText(title,value,onOk){
+  askBox({title,input:true,value,onOk:v=>{ v=(v||'').trim(); if(v) onOk(v); }});
+}
+
 function toast(m){
   if(prefGet('toasts')===false) return;     // подсказки можно выключить в настройках
   const t=$('#toast'); t.textContent=m; t.classList.add('show');
@@ -26083,8 +26263,14 @@ function makeFloating(el){
     if(e.target.closest('button')) return;          // кнопки в шапке работают как обычно
     e.preventDefault(); e.stopPropagation();
     toLeftTop();
+    /* Границы и размер меряем ОДИН раз, на старте. Раньше на каждое движение
+       вызывался getBoundingClientRect — браузер пересчитывал раскладку в том
+       же кадре, и на телефоне панель ползла рывками. */
+    const wrap=$('#cwrap'), r=el.getBoundingClientRect();
     drag={sx:e.clientX, sy:e.clientY,
-          x0:parseFloat(el.style.left)||0, y0:parseFloat(el.style.top)||0, moved:false};
+          x0:parseFloat(el.style.left)||0, y0:parseFloat(el.style.top)||0, moved:false,
+          maxX:Math.max(0,wrap.clientWidth-r.width),
+          maxY:Math.max(0,wrap.clientHeight-r.height)};
     try{ head.setPointerCapture(e.pointerId); }catch(_){}
   });
   head.addEventListener('pointermove',e=>{
@@ -26092,12 +26278,11 @@ function makeFloating(el){
     const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy;
     if(!drag.moved && Math.hypot(dx,dy)<3) return;   // порог: короткий клик не считается перетаскиванием
     drag.moved=true; el.classList.add('dragging');
-    const wrap=$('#cwrap'), W=wrap.clientWidth, H=wrap.clientHeight, r=el.getBoundingClientRect();
     /* Панель не уезжает за нижний край: раньше вниз можно было утащить так,
        что от неё оставалась одна шапка, а уголок изменения размера просто
        обрезался сценой и становился недосягаем. */
-    el.style.left=clamp(drag.x0+dx, 0, Math.max(0,W-r.width))+'px';
-    el.style.top =clamp(drag.y0+dy, 0, Math.max(0,H-r.height))+'px';
+    el.style.left=clamp(drag.x0+dx, 0, drag.maxX)+'px';
+    el.style.top =clamp(drag.y0+dy, 0, drag.maxY)+'px';
   });
   const endDrag=()=>{
     if(!drag) return;
