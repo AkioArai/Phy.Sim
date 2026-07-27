@@ -20,6 +20,7 @@
     "appId": "ru.physim.app",
     "productName": "Phy.Sim",
     "directories": { "output": "out" },
+    "publish": null,
     "files": ["main.js", "app/**/*", "package.json"],
     "win": {
       "target": [

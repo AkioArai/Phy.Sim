@@ -622,6 +622,72 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 @keyframes lockShake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}
   60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 
+/* ========================= ЗАСТАВКА ПРИ ЗАПУСКЕ =========================
+   Сценарий: «PhySim» посередине → части слова расходятся, между ними сверху
+   падает синяя точка (в полёте вытянута, при касании сплющивается и без
+   отскока встаёт на место) → получается «Phy.Sim» → точка вырастает в
+   вертикальную линию, и половины экрана разъезжаются, открывая приложение.
+
+   z-index выше экрана доступа (500): заставка играет и до ввода пароля.
+   Половины непрозрачные — они и есть «занавес», который раздвигается. */
+.splash{position:fixed;inset:0;z-index:600;overflow:hidden;
+  font-family:var(--mono);font-weight:650;letter-spacing:-.02em;
+  font-size:clamp(30px,11vw,64px);color:var(--ink)}
+.splash.done{display:none}
+.sp-half{position:absolute;top:0;bottom:0;width:50.5%;background:var(--bg);
+  display:flex;align-items:center;will-change:transform}
+.sp-l{left:0;justify-content:flex-end}
+.sp-r{right:0;justify-content:flex-start}
+/* Слово целиком: сначала «PhySim» без зазора, потом половинки слова
+   раздвигаются ровно на диаметр точки с воздухом по бокам. */
+.sp-txt{display:block;will-change:transform;opacity:0;
+  animation-duration:.42s,.40s;animation-delay:0s,.46s;animation-fill-mode:both,both;
+  animation-timing-function:cubic-bezier(.2,.7,.3,1),cubic-bezier(.3,.8,.3,1)}
+.sp-l .sp-txt{animation-name:sp-in,sp-open-l}
+.sp-r .sp-txt{animation-name:sp-in,sp-open-r}
+@keyframes sp-in{from{opacity:0}to{opacity:1}}
+@keyframes sp-open-l{to{transform:translateX(-.19em)}}
+@keyframes sp-open-r{to{transform:translateX(.19em)}}
+/* Точка. transform-origin по нижнему краю: при сплющивании она остаётся
+   стоять на «полу», а не проваливается сквозь него. */
+.sp-dot{position:absolute;left:50%;bottom:calc(50% - .28em);
+  width:.19em;height:.19em;margin-left:-.095em;border-radius:50%;
+  background:var(--accent);transform-origin:50% 100%;
+  animation:sp-fall .62s .54s both}
+@keyframes sp-fall{
+  0%  {opacity:0;transform:translateY(-3.2em) scaleX(.66) scaleY(1.6);
+       animation-timing-function:cubic-bezier(.45,0,.95,.5)}   /* разгон падения */
+  12% {opacity:1;transform:translateY(-2.7em) scaleX(.66) scaleY(1.6);
+       animation-timing-function:cubic-bezier(.45,0,.95,.5)}
+  62% {opacity:1;transform:translateY(0) scaleX(.66) scaleY(1.6);
+       animation-timing-function:cubic-bezier(.2,0,.25,1)}     /* касание */
+  76% {transform:translateY(0) scaleX(1.5) scaleY(.5);
+       animation-timing-function:cubic-bezier(.25,0,.2,1)}     /* сплющилась */
+  100%{transform:translateY(0) scaleX(1) scaleY(1)}            /* встала, без отскока */
+}
+/* Финал: точка вытягивается в линию, занавес разъезжается. */
+.splash.go .sp-dot{animation:sp-line .5s cubic-bezier(.65,0,.3,1) both}
+@keyframes sp-line{
+  0%  {height:.19em;border-radius:50%;transform:translateY(0)}
+  /* радиус гасим рано: 50 % от растущей высоты — это острые концы «листа»,
+     а нужна именно линия */
+  22% {border-radius:3px}
+  100%{height:230vh;border-radius:2px;transform:translateY(115vh)}
+}
+.splash.go .sp-l{animation:sp-part-l .6s .18s cubic-bezier(.55,0,.25,1) both}
+.splash.go .sp-r{animation:sp-part-r .6s .18s cubic-bezier(.55,0,.25,1) both}
+@keyframes sp-part-l{to{transform:translateX(-101%)}}
+@keyframes sp-part-r{to{transform:translateX(101%)}}
+/* линия исчезает последней, когда открывать уже нечего */
+.splash.go{animation:sp-fade .26s .56s both}
+@keyframes sp-fade{to{opacity:0}}
+/* Страховка: если скрипты почему-то не выполнились, заставка не должна
+   остаться навсегда — иначе вместо приложения пустой экран. */
+.splash{animation:sp-failsafe .01s linear 9s forwards}
+@keyframes sp-failsafe{to{opacity:0;visibility:hidden}}
+/* «Уменьшить движение» в системе — показываем сразу приложение. */
+@media (prefers-reduced-motion: reduce){ .splash{display:none} }
+
 /* ---- Хуки новых настроек ---- */
 [data-serif="1"] article p,[data-serif="1"] article li,[data-serif="1"] .callout{
   font-family:Georgia,'Times New Roman',serif}
@@ -687,6 +753,12 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .chead{padding-bottom:0;border-bottom:none}
 [data-ui="mobile"] .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
 [data-ui="mobile"] .pane{padding-bottom:96px}
+/* Подсказки и плашка события пишутся у нижнего края — ровно там, где стоит
+   панель управления, и она их закрывала. Поднимаем над ней: --mbot ставит
+   syncBottomInset() по фактической высоте видимой панели (пилюля в один ряд
+   или полноширинная строка в два — высота разная). */
+[data-ui="mobile"] .toast{bottom:calc(var(--mbot,64px) + 12px);max-width:88vw}
+[data-ui="mobile"] .eventflag{bottom:calc(var(--mbot,64px) + 8px)}
 /* Название темы и вкладки уезжают вверх вместе с текстом.
    На компьютере они закреплены над прокруткой, и это правильно: места
    хватает. На телефоне та же плашка занимала около четверти экрана и висела
