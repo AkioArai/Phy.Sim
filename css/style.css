@@ -161,6 +161,13 @@ input,select{font:inherit;color:inherit}
 .tabs button:hover{color:var(--ink)}
 .tabs button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
 .pane{flex:1;overflow-y:auto;padding:22px 34px 64px}
+/* Формулы шире колонки прокручиваются сами, а не тянут за собой страницу.
+   Выносные ($$…$$) — всегда; строчные — только те, которым не хватило места:
+   класс вешает fitFormulas() в app.js, иначе inline-block сдвигал бы с
+   базовой линии и короткие формулы посреди предложения. */
+.katex-display{overflow-x:auto;overflow-y:hidden;max-width:100%;padding:2px 0}
+.katex-scroll{display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;
+    vertical-align:middle}
 .content.wide .chead{padding:24px 12vw 0}
 .content.wide .pane{padding:22px 12vw 64px}
 
@@ -680,6 +687,16 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .chead{padding-bottom:0;border-bottom:none}
 [data-ui="mobile"] .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
 [data-ui="mobile"] .pane{padding-bottom:96px}
+/* Название темы и вкладки уезжают вверх вместе с текстом.
+   На компьютере они закреплены над прокруткой, и это правильно: места
+   хватает. На телефоне та же плашка занимала около четверти экрана и висела
+   там всё время чтения. Поэтому прокручиваем не .pane, а весь .content —
+   заголовок с вкладками становится просто первым абзацем.
+   overflow-x:hidden здесь же: слишком широкий элемент (формула, таблица)
+   должен получить свою полосу, а не возить по горизонтали всю страницу. */
+[data-ui="mobile"] .content{overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+[data-ui="mobile"] .pane{flex:0 0 auto;overflow:visible}
 /* узкий экран: метка ошибки уходит на свою строку, отступы не съедают текст */
 [data-ui="mobile"] .pf-row{flex-direction:column;gap:3px}
 [data-ui="mobile"] .pf-tag{width:auto}
