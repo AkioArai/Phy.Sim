@@ -66,21 +66,39 @@ apksigner sign --ks phy-sim.keystore --ks-pass pass:physim out/phy-sim-aligned.a
 
 ## Windows — `.exe`
 
-Оболочка — Electron; настройки установщика уже прописаны в
-`packaging/windows/package.json`. Собирается на Windows (или на Linux с
-Wine), потому что `electron-builder` качает готовые бинарники Electron с
-GitHub — в этом окружении такие загрузки закрыты, поэтому здесь всё
-подготовлено, но не собрано.
+Оболочка — Electron, установщик — NSIS. Всё настроено в
+`packaging/windows/package.json`.
+
+### На Windows
 
 ```bash
 npm run build                  # в корне проекта: dist/
-cd packaging/windows
+cd packaging\windows
 npm install                    # electron + electron-builder
-npm start                      # проверить окно локально
-npm run dist                   # → out/Phy.Sim Setup 1.0.0.exe  и портативный .exe
+npm start                      # посмотреть окно локально
+npm run dist                   # → out\Phy.Sim Setup 1.0.0.exe и портативный .exe
 ```
 
-`npm run dist` делает сразу два файла:
+### На Linux (кросс-сборка)
+
+Работает, но нужен Wine — и **32-битный тоже**: `rcedit` (иконка и свойства
+файла) и сам установщик NSIS 32-битные.
+
+```bash
+apt-get install -y wine64
+dpkg --add-architecture i386 && apt-get update
+apt-get install -y libgd3:i386 wine32:i386     # libgd3 ставится отдельно: иначе конфликт зависимостей
+WINEPREFIX=~/.wine32 WINEARCH=win32 wineboot -u  # префикс именно win32
+cd packaging/windows && npm install
+WINEPREFIX=~/.wine32 WINEARCH=win32 npm run dist
+```
+
+Отдельный `win32`-префикс обязателен: с 64-битным Wine падает на
+`'/root/.wine' is a 64-bit installation, it cannot be used with a 32-bit
+wineserver`.
+
+`npm run dist` делает сразу два файла (по 83 МБ — столько занимает сам
+Electron, содержимое пособия там меньше четырёх мегабайт):
 
 * **`Phy.Sim Setup 1.0.0.exe`** — установщик NSIS: спрашивает папку, кладёт
   ярлык на рабочий стол, ставится без прав администратора;

@@ -636,6 +636,72 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 @keyframes lockShake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}
   60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 
+/* ========================= ЗАСТАВКА ПРИ ЗАПУСКЕ =========================
+   Сценарий: «PhySim» посередине → части слова расходятся, между ними сверху
+   падает синяя точка (в полёте вытянута, при касании сплющивается и без
+   отскока встаёт на место) → получается «Phy.Sim» → точка вырастает в
+   вертикальную линию, и половины экрана разъезжаются, открывая приложение.
+
+   z-index выше экрана доступа (500): заставка играет и до ввода пароля.
+   Половины непрозрачные — они и есть «занавес», который раздвигается. */
+.splash{position:fixed;inset:0;z-index:600;overflow:hidden;
+  font-family:var(--mono);font-weight:650;letter-spacing:-.02em;
+  font-size:clamp(30px,11vw,64px);color:var(--ink)}
+.splash.done{display:none}
+.sp-half{position:absolute;top:0;bottom:0;width:50.5%;background:var(--bg);
+  display:flex;align-items:center;will-change:transform}
+.sp-l{left:0;justify-content:flex-end}
+.sp-r{right:0;justify-content:flex-start}
+/* Слово целиком: сначала «PhySim» без зазора, потом половинки слова
+   раздвигаются ровно на диаметр точки с воздухом по бокам. */
+.sp-txt{display:block;will-change:transform;opacity:0;
+  animation-duration:.42s,.40s;animation-delay:0s,.46s;animation-fill-mode:both,both;
+  animation-timing-function:cubic-bezier(.2,.7,.3,1),cubic-bezier(.3,.8,.3,1)}
+.sp-l .sp-txt{animation-name:sp-in,sp-open-l}
+.sp-r .sp-txt{animation-name:sp-in,sp-open-r}
+@keyframes sp-in{from{opacity:0}to{opacity:1}}
+@keyframes sp-open-l{to{transform:translateX(-.19em)}}
+@keyframes sp-open-r{to{transform:translateX(.19em)}}
+/* Точка. transform-origin по нижнему краю: при сплющивании она остаётся
+   стоять на «полу», а не проваливается сквозь него. */
+.sp-dot{position:absolute;left:50%;bottom:calc(50% - .28em);
+  width:.19em;height:.19em;margin-left:-.095em;border-radius:50%;
+  background:var(--accent);transform-origin:50% 100%;
+  animation:sp-fall .62s .54s both}
+@keyframes sp-fall{
+  0%  {opacity:0;transform:translateY(-3.2em) scaleX(.66) scaleY(1.6);
+       animation-timing-function:cubic-bezier(.45,0,.95,.5)}   /* разгон падения */
+  12% {opacity:1;transform:translateY(-2.7em) scaleX(.66) scaleY(1.6);
+       animation-timing-function:cubic-bezier(.45,0,.95,.5)}
+  62% {opacity:1;transform:translateY(0) scaleX(.66) scaleY(1.6);
+       animation-timing-function:cubic-bezier(.2,0,.25,1)}     /* касание */
+  76% {transform:translateY(0) scaleX(1.5) scaleY(.5);
+       animation-timing-function:cubic-bezier(.25,0,.2,1)}     /* сплющилась */
+  100%{transform:translateY(0) scaleX(1) scaleY(1)}            /* встала, без отскока */
+}
+/* Финал: точка вытягивается в линию, занавес разъезжается. */
+.splash.go .sp-dot{animation:sp-line .5s cubic-bezier(.65,0,.3,1) both}
+@keyframes sp-line{
+  0%  {height:.19em;border-radius:50%;transform:translateY(0)}
+  /* радиус гасим рано: 50 % от растущей высоты — это острые концы «листа»,
+     а нужна именно линия */
+  22% {border-radius:3px}
+  100%{height:230vh;border-radius:2px;transform:translateY(115vh)}
+}
+.splash.go .sp-l{animation:sp-part-l .6s .18s cubic-bezier(.55,0,.25,1) both}
+.splash.go .sp-r{animation:sp-part-r .6s .18s cubic-bezier(.55,0,.25,1) both}
+@keyframes sp-part-l{to{transform:translateX(-101%)}}
+@keyframes sp-part-r{to{transform:translateX(101%)}}
+/* линия исчезает последней, когда открывать уже нечего */
+.splash.go{animation:sp-fade .26s .56s both}
+@keyframes sp-fade{to{opacity:0}}
+/* Страховка: если скрипты почему-то не выполнились, заставка не должна
+   остаться навсегда — иначе вместо приложения пустой экран. */
+.splash{animation:sp-failsafe .01s linear 9s forwards}
+@keyframes sp-failsafe{to{opacity:0;visibility:hidden}}
+/* «Уменьшить движение» в системе — показываем сразу приложение. */
+@media (prefers-reduced-motion: reduce){ .splash{display:none} }
+
 /* ---- Хуки новых настроек ---- */
 [data-serif="1"] article p,[data-serif="1"] article li,[data-serif="1"] .callout{
   font-family:Georgia,'Times New Roman',serif}
@@ -701,6 +767,12 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] .chead{padding-bottom:0;border-bottom:none}
 [data-ui="mobile"] .chead h1{font-size:1.5rem;line-height:1.25;margin:2px 0 6px}
 [data-ui="mobile"] .pane{padding-bottom:96px}
+/* Подсказки и плашка события пишутся у нижнего края — ровно там, где стоит
+   панель управления, и она их закрывала. Поднимаем над ней: --mbot ставит
+   syncBottomInset() по фактической высоте видимой панели (пилюля в один ряд
+   или полноширинная строка в два — высота разная). */
+[data-ui="mobile"] .toast{bottom:calc(var(--mbot,64px) + 12px);max-width:88vw}
+[data-ui="mobile"] .eventflag{bottom:calc(var(--mbot,64px) + 8px)}
 /* Название темы и вкладки уезжают вверх вместе с текстом.
    На компьютере они закреплены над прокруткой, и это правильно: места
    хватает. На телефоне та же плашка занимала около четверти экрана и висела
@@ -1222,6 +1294,18 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
     <div class="lock-err" id="lock-err"></div>
     <div class="lock-note">Пароль выдаёт преподаватель. Вход запоминается на этом устройстве.</div>
   </div>
+</div>
+
+<!-- Заставка. Лежит прямо в разметке (а не создаётся скриптом), чтобы
+     появиться в первом же кадре: пока грузятся и разбираются скрипты,
+     ученик видит анимацию, а не пустой экран.
+     Две половины экрана расходятся в стороны и открывают приложение —
+     поэтому «Phy» лежит в левой половине, а «Sim» в правой: они уезжают
+     вместе с ней сами, без отдельной анимации. -->
+<div class="splash" id="splash" aria-hidden="true">
+  <div class="sp-half sp-l"><span class="sp-txt">Phy</span></div>
+  <div class="sp-half sp-r"><span class="sp-txt">Sim</span></div>
+  <i class="sp-dot" id="sp-dot"></i>
 </div>
 <script>'use strict';
 /* =============================================================================
@@ -22767,6 +22851,12 @@ const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:fa
   solved:LS.get('solved',{}),
   settings:LS.get('settings',{theme:'light',fs:12,quality:'high',bgPause:true,videoQ:'med',nums:true,hud:true,events:true,energy:true})};
 
+/* Высота плавающей панели управления на телефоне: она лежит ПОВЕРХ сцены,
+   поэтому всё, что рисуется у нижнего края (мини-карта, название сцены),
+   должно подниматься на столько же — иначе оно под панелью. Значение ставит
+   syncBottomInset(); на компьютере всегда 0. */
+let MBOT=0;
+
 function rt(id){
   if(!RT[id]){
     const def=SIMS[id];
@@ -23320,7 +23410,7 @@ function drawSceneChrome(a){
       const wy0=Math.min(box.y0,vy0), wy1=Math.max(box.y1,vy1);
       const wW=Math.max(wx1-wx0,1e-6), wH=Math.max(wy1-wy0,1e-6);
       const MW=86, MH=Math.max(34,Math.min(70,MW*wH/wW));
-      const mx=CW-MW-8, my=CH-MH-8;
+      const mx=CW-MW-8, my=CH-MH-8-MBOT;   // над плавающей панелью телефона
       const sc=Math.min(MW/wW,MH/wH);
       const P=(x,y)=>[mx+MW/2+(x-(wx0+wx1)/2)*sc, my+MH/2-(y-(wy0+wy1)/2)*sc];
       octx.globalAlpha=.82; octx.fillStyle=css('--panel'); octx.fillRect(mx,my,MW,MH); octx.globalAlpha=1;
@@ -23340,7 +23430,7 @@ function drawSceneChrome(a){
     const t=a.def.title||'';
     octx.font='11px ui-monospace,monospace'; octx.fillStyle=ink3;
     const w=octx.measureText(t).width;
-    octx.fillText(t,Math.max(4,(CW-w)/2),CH-8);
+    octx.fillText(t,Math.max(4,(CW-w)/2),CH-8-MBOT);
   }
   octx.restore();
 }
@@ -25027,7 +25117,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,timeline:true,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
-  serifNotes:false,toasts:true,dockSize:'norm',
+  serifNotes:false,toasts:true,dockSize:'norm',intro:true,
   gridStepMode:'auto',gridLabels:true,hudSide:'left',hudScale:1,numPrec:2,
   clockShow:true,fpsShow:true,
   eventPause:true,zoomInvert:false,zoomSens:1,keyZoomStep:1.8,defSpeed:1,
@@ -25055,6 +25145,8 @@ const PREFS=[
    name:'Конспект с засечками',desc:'Текст конспектов набирается шрифтом с засечками — ближе к бумажному учебнику.'},
   {cat:'look',key:'toasts',type:'toggle',def:true,
    name:'Всплывающие подсказки',desc:'Короткие сообщения внизу экрана: «симуляция сброшена», «привязка: вкл» и подобные.'},
+  {cat:'look',key:'intro',type:'toggle',def:true,
+   name:'Заставка при запуске',desc:'Короткая анимация «Phy.Sim» перед входом. Выключите, если пособие открывается по многу раз за урок.'},
   {cat:'look',key:'dockSize',type:'select',def:'norm',
    name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
    options:[['norm','Обычный'],['big','Крупный']]},
@@ -25542,6 +25634,8 @@ function syncViewport(){
   root.style.setProperty('--appvh', h+'px');
   const hidden = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
   root.style.setProperty('--vvbottom', Math.round(hidden)+'px');
+  // панель поехала вместе с видимой областью — пересчитываем и запас снизу
+  if(typeof syncBottomInset==='function') syncBottomInset();
 }
 syncViewport();
 addEventListener('resize',syncViewport);
@@ -25580,6 +25674,7 @@ function mbarRow(second){
   $('#mbar').classList.toggle('hide', !!second);
   $('#mbar2').classList.toggle('show', !!second);
   $('#mbar2').classList.toggle('hide', !second);
+  syncBottomInset();
 }
 function syncMbar(){
   /* Панель нужна только на телефоне и только когда есть что запускать.
@@ -25588,6 +25683,28 @@ function syncMbar(){
   const show = isNarrow() && !!A();
   $('#mbar').classList.toggle('show', show);
   if(!show){ $('#mbar2').classList.remove('show'); $('#mbar').classList.remove('hide'); }
+  syncBottomInset();
+}
+/* Сколько снизу занято панелью управления — в пикселях, в --mbot.
+   Всё, что пишется у нижнего края (подсказки, плашка события, подписи на
+   сцене), обязано подниматься над ней: панель плавающая, её высота меняется
+   (пилюля в один ряд или полноширинная строка в два), и фиксированный отступ
+   всегда оказывался либо мал, либо слишком велик. */
+function syncBottomInset(){
+  let h=0;
+  /* Меряем по offsetTop, а не по getBoundingClientRect: панели переключаются
+     с анимацией (transform), и прямоугольник в момент вызова показывал панель
+     ещё сдвинутой — запас получался на десяток пикселей меньше нужного.
+     offsetTop про transform ничего не знает и даёт итоговое положение сразу.
+     Обе панели position:fixed, поэтому отсчёт идёт от окна. */
+  for(const id of ['#mbar','#mbar2']){
+    const b=$(id);
+    if(!b || !b.classList.contains('show') || b.classList.contains('hide')) continue;
+    if(b.offsetHeight) h=Math.max(h, window.innerHeight-b.offsetTop);
+  }
+  MBOT=Math.round(Math.max(0,h));
+  document.documentElement.style.setProperty('--mbot', MBOT+'px');
+  return MBOT;
 }
 $('#mb-play').onclick=()=>$('#btn-play').click();
 $('#mb-back').onclick=()=>$('#tl-prev').click();
@@ -26261,6 +26378,32 @@ openTopic((S.settings.restore!==false && LS.get('lastTopic',null) && ALL.some(t=
   ? LS.get('lastTopic',null) : 'intro');
 resize();
 addEventListener('load',()=>{ typeset($('#pane')); resize(); });
+
+/* ============================== ЗАСТАВКА ==============================
+   Разметка заставки лежит в index.html и показывается с первого кадра —
+   это же и есть индикатор загрузки. Здесь только финал: к моменту, когда
+   выполняется эта строка, приложение уже собрано, поэтому досматриваем
+   падение точки и раздвигаем «занавес».
+
+   Тап или клавиша пропускают анимацию: смотреть её каждый раз незачем,
+   а совсем отключить можно в настройках оформления. */
+(function playIntro(){
+  const sp=$('#splash'); if(!sp) return;
+  const kill=()=>{ sp.remove(); const i=$('#lock-pass'); if(i && !$('#lock').classList.contains('hidden')) i.focus(); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(prefGet('intro')===false || reduce){ kill(); return; }
+  const FALL=1560;      // конец падения точки: 540 мс задержки + 620 анимации + пауза
+  const PART=980;       // раздвигание занавеса вместе с затуханием
+  let done=false, timer=0;
+  const open=()=>{
+    if(done) return; done=true; clearTimeout(timer);
+    sp.classList.add('go');
+    setTimeout(kill,PART);
+  };
+  timer=setTimeout(open,FALL);
+  sp.addEventListener('pointerdown',open);
+  addEventListener('keydown',open,{once:true});
+})();
 </script>
 </body>
 </html>
