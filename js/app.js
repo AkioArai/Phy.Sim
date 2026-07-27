@@ -979,7 +979,7 @@ function openTopic(id){
   const np=$('#nprob'), pb=document.querySelector('#tabs button[data-tab="problems"]');
   if(np) np.textContent=t.problems.length||'';
   if(pb) pb.classList.toggle('empty-tab',!t.problems.length);
-  renderPane(); renderTree($('#search').value); $('#pane').scrollTop=0;
+  renderPane(); renderTree($('#search').value); paneTop();
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
@@ -1000,10 +1000,21 @@ function openTopic(id){
   }
   else if(sims.length) sel.value=S.active;
 }
+/* Прокрутка текста: на компьютере крутится сам .pane, на телефоне —
+   весь .content вместе с заголовком и вкладками. Сбрасывать нужно тот,
+   который сейчас прокручивается, поэтому не выбираем, а обнуляем оба. */
+function paneTop(){
+  const p=$('#pane'), c=$('#content');
+  if(p) p.scrollTop=0;
+  if(c) c.scrollTop=0;
+}
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   S.tab=b.dataset.tab;
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
   renderPane();
+  // вкладки уехали вместе с текстом — после переключения возвращаем к началу,
+  // иначе задачи открываются с середины списка
+  if(isNarrow()) paneTop();
 });
 
 /* ---------- Типичные ошибки ----------
@@ -1192,6 +1203,74 @@ function renderPane(){
 function typeset(el){
   if(!window.renderMathInElement) return;
   try{ renderMathInElement(el,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false}); }catch{}
+  fitFormulas(el);
+  /* И ещё раз следующим кадром, и после загрузки шрифтов. Пока шрифты KaTeX
+     не подгрузились, формула меряется подстановочным шрифтом и выходит уже
+     процентов на шесть — подгонка по такой ширине оставляла формулу шире
+     колонки. document.fonts.ready срабатывает один раз, это не дорого. */
+  requestAnimationFrame(()=>fitFormulas(el));
+  if(document.fonts && document.fonts.ready)
+    document.fonts.ready.then(()=>fitFormulas(el)).catch(()=>{});
+}
+/* Длинная формула шире колонки уводила в горизонтальную прокрутку ВСЮ
+   страницу: на телефоне приходилось возить текст влево-вправо, чтобы дочитать
+   строку. Выносные формулы ($$…$$) прокручиваются сами по себе всегда, а из
+   строчных помечаем только те, что действительно не поместились: остальные
+   должны остаться обычным текстом, иначе inline-block сдвинет их с базовой
+   линии на ровном месте. */
+function fitFormulas(root){
+  if(!root || !root.clientWidth) return;
+  /* Ширину меряем у КАЖДОЙ формулы отдельно, а не одну на весь конспект:
+     внутри врезок («типичные ошибки», условия задач) своя колонка, у́же общей
+     на два-три десятка пикселей, и формула, которая в тексте помещается, там
+     уже вылезает. */
+  /* Выносные формулы сначала пробуем УМЕНЬШИТЬ до ширины колонки: возить
+     формулу пальцем хуже, чем прочесть её чуть мельче. Ниже 0.68 не опускаемся
+     — дальше нечитаемо, и такие (их единицы) прокручиваются по-старому. */
+  for(const d of root.querySelectorAll('.katex-display')){
+    d.style.fontSize='';                       // мерим в исходном кегле
+    const avail=blockWidth(d);
+    if(!(avail>0)) continue;
+    /* Несколько проходов: формула ужимается не строго пропорционально кеглю
+       (в ней есть куски, которые почти не сжимаются), и одного деления не
+       хватало — формула оставалась на несколько процентов шире колонки. */
+    let k=1;
+    for(let pass=0; pass<4; pass++){
+      const wide=katexWidth(d);
+      if(wide<=avail) break;
+      const next=Math.max(0.68, k*avail/wide*0.995);
+      if(next>=k) break;                       // уже не ужимается — дальше прокрутка
+      k=next;
+      d.style.fontSize=k.toFixed(3)+'em';
+      if(k<=0.68) break;                       // ниже не опускаемся — дальше прокрутка
+    }
+  }
+  for(const k of root.querySelectorAll('.katex')){
+    const p=k.parentElement;
+    if(p && p.classList.contains('katex-display')) continue;   // у выносных своя полоса
+    k.classList.remove('katex-scroll');                        // мерим без ограничения
+    const avail=blockWidth(k);
+    if(avail>0 && katexWidth(k)>avail-1) k.classList.add('katex-scroll');
+  }
+}
+/* Ширина текстовой колонки, в которой стоит формула: ближайший предок,
+   который что-то из себя представляет по ширине, без его полей. */
+function blockWidth(el){
+  for(let p=el.parentElement; p; p=p.parentElement){
+    if(!p.clientWidth) continue;
+    const cs=getComputedStyle(p);
+    return p.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0);
+  }
+  return 0;
+}
+/* Настоящая ширина формулы — это ширина её .katex-base. У самой .katex она
+   уже ограничена колонкой (а у выносных ещё и прокруткой), так что мерить по
+   ней значит всегда получать «влезает». */
+function katexWidth(k){
+  let w=0;
+  for(const base of k.querySelectorAll('.katex-html>.katex-base'))
+    w=Math.max(w,base.getBoundingClientRect().width);
+  return w||k.getBoundingClientRect().width;
 }
 
 /* ========================== УПРАВЛЕНИЕ СИМУЛЯЦИЕЙ ====================== */
@@ -2820,6 +2899,7 @@ function onViewportChange(){
   }
   resize();
   fitSimPick();          // ширина шапки поменялась — подгоняем кегль названия
+  fitFormulas($('#pane'));   // и заново решаем, каким формулам нужна прокрутка
   // вписываем сцену заново: при повороте пропорции меняются сильно.
   // Отключается настройкой «вписывать сцену при повороте».
   const a=A();
@@ -2866,6 +2946,9 @@ function applySettings(){
   // вид интерфейса и папка инструментов раздела — сразу после смены настройки
   try{ if(applyUiMode()){ syncViewport(); syncMbar(); } }catch(_){}
   try{ renderSectTools(); }catch(_){}
+  // размер текста меняет и размер формул: подгонку под ширину колонки
+  // нужно пересчитать, иначе после «покрупнее» формулы снова вылезают
+  try{ fitFormulas($('#pane')); }catch(_){}
   LS.set('settings',s); resize();
 }
 // тема «как в системе» реагирует на смену темы устройства на лету
