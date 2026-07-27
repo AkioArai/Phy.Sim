@@ -9,10 +9,16 @@
 
 ```
 packaging/
-  icon-512.png       иконка приложения (растеризуется из android/icon.svg)
+  icon.svg           исходник иконки: упругое соударение и «Phy.Sim»
+  icon-512.png       та же иконка растром — для .exe
   android/           оболочка Android + сборка .apk без Android SDK
   windows/           оболочка Electron + настройки .exe
 ```
+
+Иконка нарисована в `icon.svg`; из него растеризованы `icon-512.png` и
+`android/res/mipmap-*/ic_launcher.png` (48–192 px). Та же картинка встроена
+в `index.html` как значок вкладки, поэтому она одна на все версии: браузер,
+телефон, компьютер.
 
 ---
 

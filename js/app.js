@@ -2279,7 +2279,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,timeline:true,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
-  serifNotes:false,toasts:true,dockSize:'norm',intro:true,
+  serifNotes:false,toasts:true,dockSize:'norm',intro:true,winMode:'window',
   gridStepMode:'auto',gridLabels:true,hudSide:'left',hudScale:1,numPrec:2,
   clockShow:true,fpsShow:true,
   eventPause:true,zoomInvert:false,zoomSens:1,keyZoomStep:1.8,defSpeed:1,
@@ -2307,6 +2307,9 @@ const PREFS=[
    name:'Конспект с засечками',desc:'Текст конспектов набирается шрифтом с засечками — ближе к бумажному учебнику.'},
   {cat:'look',key:'toasts',type:'toggle',def:true,
    name:'Всплывающие подсказки',desc:'Короткие сообщения внизу экрана: «симуляция сброшена», «привязка: вкл» и подобные.'},
+  {cat:'look',key:'winMode',type:'select',def:'window',
+   name:'Режим окна',desc:'«Весь экран в окне» — окно без рамки на весь экран: не выкидывает из приложения по Alt+Tab, удобно показывать с проектора. В браузере настоящего управления окном нет, есть только полноэкранный режим: там «в окне» и «весь экран в окне» означают одно и то же.',
+   options:[['window','В окне'],['full','Во весь экран'],['fullwin','Весь экран в окне']]},
   {cat:'look',key:'intro',type:'toggle',def:true,
    name:'Заставка при запуске',desc:'Короткая анимация «Phy.Sim» перед входом. Выключите, если пособие открывается по многу раз за урок.'},
   {cat:'look',key:'dockSize',type:'select',def:'norm',
@@ -2982,6 +2985,7 @@ function applySettings(){
   // размер текста меняет и размер формул: подгонку под ширину колонки
   // нужно пересчитать, иначе после «покрупнее» формулы снова вылезают
   try{ fitFormulas($('#pane')); }catch(_){}
+  try{ applyWindowMode(!S.__ready); }catch(_){}
   LS.set('settings',s); resize();
 }
 // тема «как в системе» реагирует на смену темы устройства на лету
@@ -3462,6 +3466,32 @@ function toggleFullscreen(){
   }catch(_){ toast('Полноэкранный режим недоступен'); }
 }
 
+/* ======================= РЕЖИМ ОКНА =======================
+   Три состояния: обычное окно, весь экран и «весь экран в окне» (окно во
+   весь экран, но без рамки и поверх панели задач — так удобно показывать
+   с проектора: не выкидывает из приложения по Alt+Tab).
+
+   В упаковке .exe этим управляет сама оболочка — она подставляет
+   window.physimShell (см. packaging/windows/preload.js). В браузере
+   настоящего управления окном нет: браузер даёт только полноэкранный режим,
+   поэтому «в окне» и «весь экран в окне» там означают одно и то же —
+   выйти из полноэкранного. Об этом честно сказано в описании настройки.
+
+   init=true — вызов при запуске: тогда полноэкранный режим НЕ включаем,
+   браузер всё равно отклонит его без действия пользователя. */
+function applyWindowMode(init){
+  const m=prefGet('winMode')||'window';
+  if(window.physimShell && physimShell.setWindowMode){
+    try{ physimShell.setWindowMode(m); }catch(_){}
+    return;
+  }
+  if(init) return;
+  try{
+    if(m==='full' && !document.fullscreenElement) document.documentElement.requestFullscreen();
+    else if(m!=='full' && document.fullscreenElement) document.exitFullscreen();
+  }catch(_){ toast('Полноэкранный режим недоступен'); }
+}
+
 /* ============================ ДОСТУП ПО ПАРОЛЮ ==========================
    В коде хранится ТОЛЬКО SHA-256-хэш пароля — самого пароля здесь нет.
    Это защита уровня «пособие не открыть без пароля от преподавателя», а не
@@ -3533,7 +3563,8 @@ initFloatingPanels();
 lockInit();
 
 /* ================================= СТАРТ =============================== */
-applySettings(); setTool('pan'); renderTree(); renderParams();
+applySettings();
+S.__ready=true;              // дальше applySettings вызывается уже по действию пользователя setTool('pan'); renderTree(); renderParams();
 // при следующем запуске откроем ту же тему, если это разрешено в настройках
 if(isNarrow()) closeSimMobile();          // на телефоне начинаем с конспекта
 openTopic((S.settings.restore!==false && LS.get('lastTopic',null) && ALL.some(t=>t.id===LS.get('lastTopic',null)))

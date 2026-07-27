@@ -1,6 +1,6 @@
 /* Оболочка Windows для Phy.Sim: одно окно Electron, внутри — то же пособие.
    Интернет не нужен: содержимое (папка app/) лежит рядом с .exe. */
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const path = require('path');
 
 // Один экземпляр: второй запуск разворачивает уже открытое окно, а не плодит копии
@@ -19,7 +19,9 @@ function createWindow() {
     title: 'Phy.Sim — физика в симуляциях',
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
-      // Пособию ничего из Node не нужно — держим песочницу закрытой
+      // Пособию ничего из Node не нужно — держим песочницу закрытой.
+      // Наружу через preload отдана ровно одна функция: смена режима окна.
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -38,8 +40,35 @@ function createWindow() {
   });
 }
 
+/* Режим окна из настроек пособия.
+   «Весь экран в окне» — это не полноэкранный режим Windows, а окно без рамки
+   на весь рабочий стол: Alt+Tab и всплывающие окна не выкидывают из
+   приложения, а показывать с проектора так же удобно. Рамку окна на лету
+   не убрать (setFrame нет), поэтому имитируем: убираем стандартную рамку
+   через setMenuBarVisibility + максимизацию, а «поверх всего» не включаем —
+   иначе поверх пособия не откроется даже диалог печати. */
+function applyWindowMode(w, mode) {
+  if (!w || w.isDestroyed()) return;
+  if (mode === 'full') {
+    w.setFullScreen(true);
+  } else if (mode === 'fullwin') {
+    w.setFullScreen(false);
+    w.setMenuBarVisibility(false);
+    w.maximize();
+  } else {
+    w.setFullScreen(false);
+    if (w.isMaximized()) w.unmaximize();
+  }
+}
+ipcMain.on('phy:window-mode', (e, mode) => {
+  applyWindowMode(BrowserWindow.fromWebContents(e.sender), mode);
+});
+
 app.on('second-instance', () => {
   if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
 });
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());
+
+// экспорт ради теста: проверяем выбор режима, не поднимая настоящее окно
+module.exports = { applyWindowMode };

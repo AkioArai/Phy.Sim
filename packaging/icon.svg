@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Иконка приложения: упругое соударение. Шар налетает слева, пунктиром
+       показано положение мишени до удара, после удара оба разлетаются.
+       Внизу — «Phy.Sim», точка синяя, как во всём пособии. -->
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="3.4" markerHeight="3.4" orient="auto-start-reverse">
+      <path d="M0 0.6 10 5 0 9.4Z" fill="#15181d"/>
+    </marker>
+  </defs>
+
+  <rect width="192" height="192" rx="38" fill="#f7f8fa"/>
+  <rect x="2.2" y="2.2" width="187.6" height="187.6" rx="36" fill="none"
+        stroke="#15181d" stroke-width="4.4"/>
+
+  <g fill="none" stroke="#15181d" stroke-width="5" stroke-linecap="round">
+    <!-- налетающий шар и его скорость -->
+    <circle cx="47" cy="70" r="18"/>
+    <path d="M70 70H92" marker-end="url(#ah)"/>
+    <!-- мишень до удара -->
+    <circle cx="117" cy="62" r="18" stroke-width="4" stroke-dasharray="6.5 7"/>
+    <!-- она же после удара -->
+    <circle cx="136" cy="89" r="19"/>
+    <!-- разлёт: вверх-вправо и вниз-вправо -->
+    <path d="M132 45 160 24" marker-end="url(#ah)"/>
+    <path d="M152 105 170 129" marker-end="url(#ah)"/>
+  </g>
+
+  <g font-family="ui-monospace, 'DejaVu Sans Mono', monospace" font-weight="700"
+     font-size="34" fill="#15181d">
+    <text x="24" y="167">Phy</text>
+    <text x="106" y="167">Sim</text>
+  </g>
+  <circle cx="96" cy="161" r="6.4" fill="#2f5ea8"/>
+</svg>
