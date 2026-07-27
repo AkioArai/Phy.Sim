@@ -3554,8 +3554,8 @@ addEventListener('load',()=>{ typeset($('#pane')); resize(); });
   const kill=()=>{ sp.remove(); const i=$('#lock-pass'); if(i && !$('#lock').classList.contains('hidden')) i.focus(); };
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(prefGet('intro')===false || reduce){ kill(); return; }
-  const FALL=1560;      // конец падения точки: 540 мс задержки + 620 анимации + пауза
-  const PART=980;       // раздвигание занавеса вместе с затуханием
+  const FALL=1420;      // конец падения точки: 540 мс задержки + 620 анимации + пауза
+  const PART=1080;      // линия вырастает, расходится надвое и уезжает со створками
   let done=false, timer=0;
   const open=()=>{
     if(done) return; done=true; clearTimeout(timer);

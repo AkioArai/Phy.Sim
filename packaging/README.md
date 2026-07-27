@@ -69,33 +69,45 @@ apksigner sign --ks phy-sim.keystore --ks-pass pass:physim out/phy-sim-aligned.a
 Оболочка — Electron, установщик — NSIS. Всё настроено в
 `packaging/windows/package.json`.
 
-### На Windows
+### На Windows — проще всего
 
-```bash
-npm run build                  # в корне проекта: dist/
+Нужен только [Node.js](https://nodejs.org) (кнопка **LTS**, обычный
+установщик «далее-далее-готово»). Дальше — двойной клик по
+`packaging\windows\build-exe.bat`. Он сам поставит зависимости и соберёт оба
+файла в `packaging\windows\out\`.
+
+Если хочется руками, в PowerShell или «Командной строке»:
+
+```bat
+cd C:\путь\к\Phy.Sim
+npm install
+npm run build
 cd packaging\windows
-npm install                    # electron + electron-builder
-npm start                      # посмотреть окно локально
-npm run dist                   # → out\Phy.Sim Setup 1.0.0.exe и портативный .exe
+npm install
+npm run dist
 ```
 
-### На Linux (кросс-сборка)
+### На Fedora / Ubuntu — кросс-сборка
 
-Работает, но нужен Wine — и **32-битный тоже**: `rcedit` (иконка и свойства
-файла) и сам установщик NSIS 32-битные.
+Работает, но нужен Wine, причём **32-битный тоже**: `rcedit` (иконка и
+свойства файла) и установщик NSIS — 32-битные программы.
 
 ```bash
-apt-get install -y wine64
-dpkg --add-architecture i386 && apt-get update
-apt-get install -y libgd3:i386 wine32:i386     # libgd3 ставится отдельно: иначе конфликт зависимостей
-WINEPREFIX=~/.wine32 WINEARCH=win32 wineboot -u  # префикс именно win32
-cd packaging/windows && npm install
-WINEPREFIX=~/.wine32 WINEARCH=win32 npm run dist
+# Fedora
+sudo dnf install -y nodejs wine wine.i686
+# Ubuntu / Debian
+sudo dpkg --add-architecture i386 && sudo apt update
+sudo apt install -y nodejs npm wine64 libgd3:i386 wine32:i386
+
+bash packaging/windows/build-exe.sh
 ```
 
-Отдельный `win32`-префикс обязателен: с 64-битным Wine падает на
-`'/root/.wine' is a 64-bit installation, it cannot be used with a 32-bit
-wineserver`.
+Скрипт сам создаёт отдельный `WINEARCH=win32` префикс — это обязательно:
+с 64-битным Wine сборка падает на «`'/root/.wine' is a 64-bit installation,
+it cannot be used with a 32-bit wineserver`».
+
+На Ubuntu `libgd3:i386` приходится ставить отдельной строкой: иначе apt
+не разрешает зависимости `wine32:i386` и отвечает «held broken packages».
 
 `npm run dist` делает сразу два файла (по 83 МБ — столько занимает сам
 Electron, содержимое пособия там меньше четырёх мегабайт):

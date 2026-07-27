@@ -76,17 +76,14 @@ npm run build:apk   # → packaging/android/out/phy-sim.apk (1,2 МБ)
 дексер) скачиваются с Maven Central при первом запуске. Приложение не просит
 ни одного разрешения и не выходит в сеть.
 
-Для Windows (`packaging/windows`) — оболочка Electron с настройками
-`electron-builder`:
+Для Windows (`packaging/windows`) — оболочка Electron. На самой Windows
+достаточно установить [Node.js](https://nodejs.org) и дважды кликнуть
+`packaging\windows\build-exe.bat`; на Linux — `bash
+packaging/windows/build-exe.sh` (нужен Wine, включая 32-битный). Получаются
+установщик NSIS (без прав администратора) и портативный `.exe` — запускается
+прямо с флешки.
 
-```bash
-cd packaging/windows && npm install
-npm run dist        # → out/Phy.Sim Setup 1.0.0.exe и Phy.Sim-portable-1.0.0.exe
-```
-
-Установщик NSIS ставится без прав администратора, портативный `.exe`
-запускается прямо с флешки. На Linux собирается тоже — нужен Wine, включая
-32-битный (см. packaging/README.md).
+Подробности — в [packaging/README.md](packaging/README.md).
 
 Подробности — в [packaging/README.md](packaging/README.md).
 
