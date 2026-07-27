@@ -648,10 +648,12 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   font-family:var(--mono);font-weight:650;letter-spacing:-.02em;
   font-size:clamp(30px,11vw,64px);color:var(--ink)}
 .splash.done{display:none}
-.sp-half{position:absolute;top:0;bottom:0;width:50.5%;background:var(--bg);
+.sp-half{position:absolute;top:0;bottom:0;width:50%;background:var(--bg);
   display:flex;align-items:center;will-change:transform}
 .sp-l{left:0;justify-content:flex-end}
-.sp-r{right:0;justify-content:flex-start}
+/* правая половина заходит на левую на пиксель — иначе по центру видна
+   волосяная щель, и приложение проглядывает сквозь «занавес» раньше времени */
+.sp-r{right:0;width:calc(50% + 1px);justify-content:flex-start}
 /* Слово целиком: сначала «PhySim» без зазора, потом половинки слова
    раздвигаются ровно на диаметр точки с воздухом по бокам. */
 .sp-txt{display:block;will-change:transform;opacity:0;
@@ -679,21 +681,33 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
        animation-timing-function:cubic-bezier(.25,0,.2,1)}     /* сплющилась */
   100%{transform:translateY(0) scaleX(1) scaleY(1)}            /* встала, без отскока */
 }
-/* Финал: точка вытягивается в линию, занавес разъезжается. */
-.splash.go .sp-dot{animation:sp-line .5s cubic-bezier(.65,0,.3,1) both}
-@keyframes sp-line{
-  0%  {height:.19em;border-radius:50%;transform:translateY(0)}
-  /* радиус гасим рано: 50 % от растущей высоты — это острые концы «листа»,
-     а нужна именно линия */
-  22% {border-radius:3px}
-  100%{height:230vh;border-radius:2px;transform:translateY(115vh)}
-}
-.splash.go .sp-l{animation:sp-part-l .6s .18s cubic-bezier(.55,0,.25,1) both}
-.splash.go .sp-r{animation:sp-part-r .6s .18s cubic-bezier(.55,0,.25,1) both}
+/* ---- Финал ----
+   Линия состоит из ДВУХ половин: каждая приклеена к внутреннему краю своей
+   половины занавеса. Пока они рядом, это одна линия; когда занавес
+   разъезжается, линия расходится надвое и уходит в бока вместе с ним —
+   отдельной анимации для этого не нужно. Раньше линия была одним элементом
+   посередине и оставалась стоять, пока створки уезжали. */
+.sp-l::after,.sp-r::before{content:'';position:absolute;top:0;bottom:0;
+  width:calc(.095em + 1px);background:var(--accent);
+  transform:scaleY(0);transform-origin:50% 50%;will-change:transform}
+/* Половинки заходят друг на друга на пиксель. Встык не годится: каждая
+   из-за will-change лежит в своём слое, и по стыку проступала светлая
+   волосяная линия — вместо одной линии получались две. */
+.sp-l::after{right:-1px}
+.sp-r::before{left:0}
+.splash.go .sp-l::after,
+.splash.go .sp-r::before{animation:sp-bar .4s cubic-bezier(.6,0,.25,1) forwards}
+@keyframes sp-bar{to{transform:scaleY(1)}}
+/* Точка гаснет внутри уже выросшей линии — того же цвета, подмены не видно.
+   Уехать вместе со створками она не может: лежит не в них, а поверх. */
+.splash.go .sp-dot{animation:sp-dotout .14s .24s forwards}
+@keyframes sp-dotout{to{opacity:0}}
+.splash.go .sp-l{animation:sp-part-l .58s .4s cubic-bezier(.55,0,.25,1) both}
+.splash.go .sp-r{animation:sp-part-r .58s .4s cubic-bezier(.55,0,.25,1) both}
 @keyframes sp-part-l{to{transform:translateX(-101%)}}
 @keyframes sp-part-r{to{transform:translateX(101%)}}
-/* линия исчезает последней, когда открывать уже нечего */
-.splash.go{animation:sp-fade .26s .56s both}
+/* остатки гасим в самом конце, когда открывать уже нечего */
+.splash.go{animation:sp-fade .24s .8s both}
 @keyframes sp-fade{to{opacity:0}}
 /* Страховка: если скрипты почему-то не выполнились, заставка не должна
    остаться навсегда — иначе вместо приложения пустой экран. */
@@ -26392,8 +26406,8 @@ addEventListener('load',()=>{ typeset($('#pane')); resize(); });
   const kill=()=>{ sp.remove(); const i=$('#lock-pass'); if(i && !$('#lock').classList.contains('hidden')) i.focus(); };
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(prefGet('intro')===false || reduce){ kill(); return; }
-  const FALL=1560;      // конец падения точки: 540 мс задержки + 620 анимации + пауза
-  const PART=980;       // раздвигание занавеса вместе с затуханием
+  const FALL=1420;      // конец падения точки: 540 мс задержки + 620 анимации + пауза
+  const PART=1080;      // линия вырастает, расходится надвое и уезжает со створками
   let done=false, timer=0;
   const open=()=>{
     if(done) return; done=true; clearTimeout(timer);
