@@ -179,6 +179,13 @@
           <div class="cmp-body" id="cmp-body"></div>
         </div>
         <div class="eventflag hidden" id="eventflag"></div>
+        <!-- Настройки карандаша. Всплывают, только когда карандаш выбран, —
+             постоянная панель ради двух параметров заняла бы место у сцены. -->
+        <div class="penbar hidden" id="penbar">
+          <div class="pb-row" id="pb-colors"></div>
+          <span class="pb-sep"></span>
+          <div class="pb-row" id="pb-widths"></div>
+        </div>
         <div class="empty" id="nosim" style="position:absolute;inset:0;display:grid;place-items:center;background:var(--canvas)">
           Нажмите ▷ в углу формулы — здесь откроется её симуляция.</div>
       </div>
@@ -223,7 +230,7 @@
            обратно можно такой же кнопкой справа. -->
       <div class="mbar" id="mbar">
         <button class="iconbtn mb-btn" id="mb-tools" title="Инструменты сцены">
-          <svg viewBox="0 0 24 24"><path d="M14 6.5a3.5 3.5 0 1 0-4.6 3.3L4 15.2V20h4.8l5.4-5.4A3.5 3.5 0 0 0 14 6.5z"/></svg></button>
+          <svg viewBox="0 0 24 24"><path d="M20.3 5.2a5 5 0 0 1-6.6 6.6l-7 7a2 2 0 0 1-2.8-2.8l7-7a5 5 0 0 1 6.6-6.6l-3 3 2.8 2.8z"/></svg></button>
         <button class="iconbtn mb-btn" id="mb-back" title="Шаг назад по записи">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14 8l-4 4 4 4"/></svg></button>
         <button class="mbplay" id="mb-play" title="Пуск / пауза">

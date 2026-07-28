@@ -2,15 +2,17 @@
   "name": "phy-sim",
   "productName": "Phy.Sim",
   "version": "1.0.0",
-  "description": "Физика в симуляциях — интерактивное пособие по курсу Дж. Орира",
+  "description": "Phy.Sim desktop shell — an interactive physics textbook with 76 live simulations",
   "main": "main.js",
-  "author": "Phy.Sim",
-  "license": "ISC",
+  "author": "AkioArai",
+  "license": "GPL-3.0",
+  "homepage": "https://github.com/AkioArai/Phy.Sim",
   "scripts": {
     "prepare-app": "node prepare.mjs",
     "start": "npm run prepare-app && electron .",
     "dist": "npm run prepare-app && electron-builder --win --x64",
-    "dist:portable": "npm run prepare-app && electron-builder --win portable --x64"
+    "dist:portable": "npm run prepare-app && electron-builder --win portable --x64",
+    "dist:fedora": "npm run prepare-app && electron-builder --linux rpm --x64"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -19,13 +21,31 @@
   "build": {
     "appId": "ru.physim.app",
     "productName": "Phy.Sim",
-    "directories": { "output": "out" },
+    "directories": {
+      "output": "out"
+    },
     "publish": null,
-    "files": ["main.js", "preload.js", "app/**/*", "build/icon.png", "package.json"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.png"
     },
@@ -33,9 +53,42 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "shortcutName": "Phy.Sim"
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": false,
+      "shortcutName": "Phy.Sim",
+      "license": "notice.txt",
+      "include": "installer.nsh",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Phy.Sim-Setup-${version}.exe"
     },
-    "portable": { "artifactName": "Phy.Sim-portable-${version}.exe" }
+    "portable": {
+      "artifactName": "Phy.Sim-portable-${version}.exe"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "rpm",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "maintainer": "AkioArai <akioarai@users.noreply.github.com>",
+      "category": "Education;Science;Physics",
+      "icon": "build/icon.png",
+      "synopsis": "Interactive physics textbook with 76 live simulations",
+      "description": "Phy.Sim is an interactive physics textbook: notes, formulas, problems and 76 live simulations, from kinematics to particle physics. Works offline. The course text and the code were written by Claude (an AI assistant) and partly reworked by the author — see the project page.",
+      "desktop": {
+        "entry": {
+          "Name": "Phy.Sim",
+          "Comment": "Interactive physics textbook",
+          "Categories": "Education;Science;Physics;"
+        }
+      }
+    },
+    "rpm": {
+      "artifactName": "Phy.Sim-${version}.x86_64.rpm"
+    }
   }
 }

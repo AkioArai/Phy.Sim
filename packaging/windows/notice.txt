@@ -1,0 +1,43 @@
+Phy.Sim — an interactive physics textbook
+=========================================
+
+PLEASE READ BEFORE INSTALLING
+
+
+How this program was made
+-------------------------
+
+The text of the course, the simulations and the source code of this program
+were written by Claude, an AI assistant made by Anthropic, and were then
+reviewed and partly reworked by the author of the project.
+
+That means:
+
+  * the physics has been checked, but it has not been peer-reviewed by a
+    teacher or a physicist;
+  * mistakes are possible in the notes, in the problems and in the answers;
+  * treat this program as a study aid, not as a source of truth. If a result
+    contradicts your textbook, trust the textbook and please report the
+    problem.
+
+Bug reports and corrections are welcome:
+https://github.com/AkioArai/Phy.Sim/issues
+
+
+What gets installed
+-------------------
+
+Phy.Sim runs entirely on your computer. It does not need the internet, does
+not send anything anywhere, and does not collect any data. Everything you
+change — settings, bookmarks, solved problems — stays on this device.
+
+The next screen lets you choose the install folder and whether to create
+shortcuts. Nothing is written outside that folder except the shortcuts you
+ask for.
+
+
+License
+-------
+
+GPL-3.0. You may use, study, change and share this program, including in
+class. The full text is in the LICENSE file in the repository.

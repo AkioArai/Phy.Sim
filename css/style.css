@@ -975,6 +975,27 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
   overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .tf-tool.on{background:var(--accent-soft);color:var(--accent)}
 .tf-tool:active{background:var(--panel-2)}
+
+/* ---- Настройки карандаша ----
+   Появляются только при выбранном карандаше: постоянная панель ради двух
+   параметров отнимала бы место у сцены. Одинакова на компьютере и телефоне. */
+.penbar{position:absolute;left:50%;transform:translateX(-50%);top:8px;z-index:35;
+  display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:999px;
+  background:color-mix(in srgb,var(--panel) var(--panel-a),transparent);
+  border:1px solid var(--line);box-shadow:0 8px 26px -14px #0009}
+.penbar.hidden{display:none}
+.pb-row{display:flex;align-items:center;gap:5px}
+.pb-sep{width:1px;height:18px;background:var(--line)}
+.pb-color{width:20px;height:20px;border-radius:50%;background:var(--pc);
+  border:2px solid transparent;box-shadow:inset 0 0 0 1px #0002}
+.pb-color.on{border-color:var(--ink);transform:scale(1.12)}
+.pb-width{width:26px;height:20px;border-radius:5px;display:grid;place-items:center}
+.pb-width i{display:block;width:16px;background:var(--ink-2);border-radius:3px}
+.pb-width.on{background:var(--accent-soft)}
+.pb-width.on i{background:var(--accent)}
+[data-ui="mobile"] .penbar{top:6px;gap:6px;padding:7px 10px}
+[data-ui="mobile"] .pb-color{width:24px;height:24px}
+[data-ui="mobile"] .pb-width{width:30px;height:24px}
 /* На телефоне панель инструментов прижата к низу и растёт вверх — тогда
    раскрытие папки не выносит её за экран, где бы ни стояла кнопка. */
 [data-ui="mobile"] .toolfan{position:fixed;left:8px;right:8px;width:auto;

@@ -1,0 +1,100 @@
+name: Build installers
+
+# Собирает установщики и прикладывает их к релизу, чтобы их можно было
+# скачать одной кнопкой — без git, без консоли, без сборки на своей машине.
+#
+# Запуск: пуш тега вида v1.0.0 либо кнопка «Run workflow» во вкладке Actions.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install build tools
+        working-directory: packaging/windows
+        run: npm ci
+      - name: Build setup and portable
+        working-directory: packaging/windows
+        run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            packaging/windows/out/Phy.Sim-Setup-*.exe
+            packaging/windows/out/Phy.Sim-portable-*.exe
+
+  fedora:
+    name: Fedora package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # electron-builder делает rpm через fpm, а тому нужен rpmbuild.
+      - name: Install rpm tooling
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Install build tools
+        working-directory: packaging/windows
+        run: npm ci
+      - name: Build rpm
+        working-directory: packaging/windows
+        run: npm run dist:fedora
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fedora
+          path: packaging/windows/out/Phy.Sim-*.rpm
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      # Ключ подписи скрипт создаёт сам, и на каждом прогоне он новый: поставить
+      # новый apk «поверх» старого не выйдет, сначала удалите прежнюю версию.
+      - name: Build apk
+        working-directory: packaging/android
+        run: node build-apk.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: packaging/android/out/*.apk
+
+  release:
+    name: Attach to release
+    needs: [windows, fedora, android]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Phy.Sim ${GITHUB_REF_NAME}" \
+            --notes "Installers for Windows, Fedora and Android. See the README for what to download." \
+            artifacts/*/*

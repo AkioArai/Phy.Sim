@@ -31,16 +31,26 @@ offline, with no install and no account.
 
 ---
 
-## Try it in 30 seconds
+## Download
 
-| I want to… | Do this |
-|---|---|
-| **Just look at it** | Download [`phy-sim-standalone.html`](phy-sim-standalone.html) and open it. One file, 2.6 MB, works offline, no server. |
-| **Run from source** | `git clone` → open `index.html`. No build step, no dependencies. |
-| **Install on Android** | Grab `phy-sim.apk` from [Releases](../../releases), or build it: `npm run build:apk`. |
-| **Install on Windows** | Grab the `.exe` from [Releases](../../releases), or build it: double-click `packaging\windows\build-exe.bat`. |
+**[→ Get the latest build](../../releases/latest)** — pick the file for your system,
+double-click it, done. No console, no toolchain, nothing to compile.
 
-There is nothing to configure. No sign-in, no telemetry, no network requests —
+| System | File | What happens |
+|---|---|---|
+| **Windows 10/11** | `Phy.Sim-Setup-1.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions. |
+| **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
+
+> The installers are attached to the release rather than committed to the
+> repository: each one is ~80 MB, and a git repository keeps every copy of every
+> file forever. The **Code** tab holds the source; the **Releases** page holds the
+> ready-made builds.
+
+Running from source needs nothing at all: `git clone` → open `index.html`.
+No build step, no dependencies, no sign-in, no telemetry, no network requests —
 KaTeX and its fonts ship inside the repository.
 
 ---
@@ -71,10 +81,11 @@ problem is solvable by simply reading a number off the screen.
 ### A real instrument, not a slideshow
 
 Pan, zoom, box-zoom, coordinate probe, ruler, dimension line, protractor, circle,
-polygon area, notes, guides, body trails. Parameter fields accept expressions
-(`2*9.8`). A timeline scrubs the computed history frame by frame. Panels float,
-resize and collapse. `Ctrl+P` opens a command palette over everything —
-topics, simulations, settings, commands.
+polygon area, notes, guides, body trails, and a freehand pencil with six colours
+and four widths. Parameter fields accept expressions (`2*9.8`). A timeline scrubs
+the computed history frame by frame. Panels float, resize and collapse. `Ctrl+P`
+opens a command palette over everything — topics, simulations, settings, commands.
+`F11` cycles the window mode: windowed → fullscreen → borderless fullscreen.
 
 <p align="center">
   <img src="docs/media/03-simulation-dark.png" width="900" alt="Full-screen simulation, dark theme">
@@ -119,6 +130,27 @@ straight off a flash drive. On Windows you can just double-click
 `packaging\windows\build-exe.bat`. Cross-building from Linux works too — see
 [packaging/README.md](packaging/README.md) for the Wine setup.
 
+The installer's first page is [`notice.txt`](packaging/windows/notice.txt) — the
+statement about how the course was written. The shortcut checkboxes live in
+[`installer.nsh`](packaging/windows/installer.nsh).
+
+### Fedora `.rpm`
+
+```bash
+cd packaging/windows && npm install && npm run dist:fedora
+```
+
+Needs `rpmbuild` on the build machine. Installs into `/opt/Phy.Sim` and adds a
+desktop entry. Other distributions are not packaged — use the standalone HTML file.
+
+### Everything at once
+
+Push a tag and GitHub Actions builds all four and attaches them to a release:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
 ### Single file
 
 ```bash
@@ -134,6 +166,7 @@ email, put on a flash drive, or open by double-clicking.
 
 ```
 index.html            markup and script order — this is the dependency graph
+tests/regress.js      pre-release suite: every simulation, formulas, layout
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
 js/sims/*.js          the 76 simulations, grouped by branch of physics
@@ -152,6 +185,14 @@ double-clicking on any school computer.
 **Adding a simulation** means adding one object to the `SIMS` registry with
 `init` / `step` / `draw` / `fit`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 for the full contract.
+
+**Before releasing**, run the suite — it boots both the source and the bundled
+single file, runs 300 steps of every simulation, checks that no formula overflows
+its column, and walks the desktop and phone layouts:
+
+```bash
+npm i -D playwright && npm test
+```
 
 ---
 

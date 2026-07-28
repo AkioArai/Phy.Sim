@@ -6,6 +6,9 @@ const RT={};
 const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:false,graphOn:true,rec:null,speed:1,
   snap:LS.get('snap',true), marks:LS.get('marks',[]), open:LS.get('open',['intro','mech']),
   trace:LS.get('trace',false), probe:null, recent:LS.get('recent',[]),
+  /* Карандаш: цвет хранится ИМЕНЕМ CSS-переменной, а не готовым цветом, —
+     тогда рисунок сам подстраивается под светлую и тёмную тему. */
+  pen:LS.get('pen',{c:'--danger',w:2}),
   scrub:null, loop:LS.get('loop',false), favs:LS.get('favs',[]),
   coords:LS.get('coords',false), mouse:null,
   /* Решённые задачи. Ключ — «тема#номер»; хранится между запусками, иначе при
@@ -317,7 +320,10 @@ function drawAll(){
   const list=a.draft?a.annos.concat([a.draft]):a.annos;
   for(const an of list){
     if(an.type==='pencil'){
-      octx.strokeStyle=css('--danger'); octx.lineWidth=VIEW.lw(2); octx.lineJoin='round';
+      // толщина и цвет — у каждой линии свои: нарисованное раньше не должно
+      // менять вид от того, что потом выбрали другой карандаш
+      octx.strokeStyle=css(an.c||'--danger'); octx.lineWidth=VIEW.lw(an.w||2);
+      octx.lineJoin='round'; octx.lineCap='round';
       octx.beginPath(); an.pts.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1])); octx.stroke();
     } else if(an.type==='ruler'){
       const [x1,y1,x2,y2]=an.p, d=Math.hypot(x2-x1,y2-y1);
@@ -1614,7 +1620,7 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   }
   if(S.tool==='pan'){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
   const [sx,sy]=snapPt(wx,wy);
-  if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]]}; drag={mode:'draw'}; }
+  if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]],c:S.pen.c,w:S.pen.w}; drag={mode:'draw'}; }
   else if(S.tool==='ruler'||S.tool==='vector'||S.tool==='dim'||S.tool==='circle'){
     a.draft={type:S.tool,p:[sx,sy,sx,sy]}; drag={mode:'draw'};
   }
@@ -1821,10 +1827,39 @@ $('#btn-fit').onclick=fitView;
 
 /* ================================== UI ================================= */
 document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
+/* ---- Настройки карандаша ----
+   Цвет и толщина. Панель показывается только при выбранном карандаше и
+   одинакова на компьютере и на телефоне: на маленьком экране отдельного
+   места под неё нет, а так она занимает одну строку над сценой. */
+const PEN_COLORS=[['--danger','красный'],['--accent','синий'],['--second','фиолетовый'],
+                  ['--measure','оранжевый'],['--ok','зелёный'],['--ink','чёрный']];
+const PEN_WIDTHS=[[1,'тонко'],[2,'обычно'],[3.5,'жирно'],[6,'маркер']];
+function renderPenbar(){
+  const bar=$('#penbar'); if(!bar) return;
+  bar.classList.toggle('hidden', S.tool!=='pencil');
+  if(S.tool!=='pencil') return;
+  const cols=$('#pb-colors'), ws=$('#pb-widths');
+  cols.innerHTML=''; ws.innerHTML='';
+  for(const [v,name] of PEN_COLORS){
+    const b=document.createElement('button');
+    b.className='pb-color'+(S.pen.c===v?' on':''); b.type='button'; b.title=name;
+    b.style.setProperty('--pc',`var(${v})`);
+    b.onclick=()=>{ S.pen={...S.pen,c:v}; LS.set('pen',S.pen); renderPenbar(); };
+    cols.appendChild(b);
+  }
+  for(const [v,name] of PEN_WIDTHS){
+    const b=document.createElement('button');
+    b.className='pb-width'+(S.pen.w===v?' on':''); b.type='button'; b.title=name;
+    b.innerHTML=`<i style="height:${Math.max(2,v)}px"></i>`;
+    b.onclick=()=>{ S.pen={...S.pen,w:v}; LS.set('pen',S.pen); renderPenbar(); };
+    ws.appendChild(b);
+  }
+}
 function setTool(t){
   const a=A(); if(a&&a.draft&&a.draft.type!==t) a.draft=null;   // бросаем недорисованное
   S.tool=t;
   document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
+  renderPenbar();
   const CUR={pan:'grab',eraser:'cell',note:'text',marquee:'crosshair',probe:'crosshair'};
   $('#cwrap').style.cursor=CUR[t]||'crosshair';
   // подсказка, как завершить многоточечный инструмент
@@ -3072,7 +3107,7 @@ $('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtogg
 
 const KEYS=[['Ctrl + P','Командная палитра: темы, симуляции, команды'],
  ['Ctrl + Shift + P','Палитра: только команды'],
- ['Ctrl + D','Снимок показаний для сравнения'],['S','Закладка на тему'],['F11','Во весь экран'],
+ ['Ctrl + D','Снимок показаний для сравнения'],['S','Закладка на тему'],['F11','Режим окна: окно → весь экран → весь экран в окне'],
  ['J','Симуляция в избранное'],['Ctrl + L','Зациклить проигрывание'],
  [', / .','Шаг по записи назад / вперёд'],['`','Вернуться к живому расчёту'],
  ['Ctrl + ,','Настройки'],['Space','Пуск / стоп'],['R','Сбросить симуляцию'],['Ctrl + Z','Параметры: назад'],['Ctrl + Y','Параметры: вперёд'],
@@ -3138,7 +3173,7 @@ addEventListener('keydown',e=>{
     KeyA:()=>e.shiftKey? setTool('area') : $('#btn-snap').click(),
     KeyR:()=>$('#btn-reset').click(),
     KeyS:()=>toggleMark(S.topic&&S.topic.id),      // закладка на текущую тему
-    F11:()=>toggleFullscreen(),
+    F11:()=>cycleWindowMode(),
     Comma:()=>$('#tl-prev').click(),              // покадрово назад
     Period:()=>$('#tl-next').click(),             // покадрово вперёд
     KeyJ:()=>toggleFav(S.active),                 // избранная симуляция
@@ -3407,7 +3442,8 @@ const CMDS=[
   {k:'Симуляция',t:'Снимок для сравнения', hint:'Ctrl+D', run:()=>takeSnapshot()},
   {k:'Симуляция',t:'Скопировать все показания', run:()=>copyReadouts()},
   {k:'Симуляция',t:'Скопировать параметры', run:()=>copyParams()},
-  {k:'Вид',t:'Во весь экран (браузер)', hint:'F11', run:()=>toggleFullscreen()},
+  {k:'Вид',t:'Режим окна: следующий', hint:'F11', run:()=>cycleWindowMode()},
+  {k:'Вид',t:'Во весь экран (браузер)', run:()=>toggleFullscreen()},
   {k:'Вид',t:'Симуляция во весь экран', hint:'F', run:()=>$('#btn-simfull').click()},
   {k:'Вид',t:'Скрыть/показать симуляцию', hint:'H', run:()=>$('#btn-simhide').click()},
   {k:'Вид',t:'Скрыть/показать панель тем', hint:'Tab', run:()=>$('#btn-rail').click()},
@@ -3594,6 +3630,18 @@ function toggleFullscreen(){
 
    init=true — вызов при запуске: тогда полноэкранный режим НЕ включаем,
    браузер всё равно отклонит его без действия пользователя. */
+/* F11 перебирает три режима: окно → во весь экран → весь экран в окне.
+   В браузере «весь экран в окне» неотличим от обычного окна (управления
+   окном там нет), поэтому цикл сокращается до двух состояний — иначе одно
+   нажатие из трёх выглядело бы так, будто клавиша не сработала. */
+function cycleWindowMode(){
+  const shell=!!(window.physimShell&&physimShell.setWindowMode);
+  const ring=shell? ['window','full','fullwin'] : ['window','full'];
+  const i=ring.indexOf(prefGet('winMode'));
+  const next=ring[(i+1)%ring.length];
+  prefSet('winMode',next);
+  toast('Режим окна: '+({window:'в окне',full:'во весь экран',fullwin:'весь экран в окне'})[next]);
+}
 function applyWindowMode(init){
   const m=prefGet('winMode')||'window';
   if(window.physimShell && physimShell.setWindowMode){
