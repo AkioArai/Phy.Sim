@@ -71,10 +71,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # android-all.jar (Robolectric) поставляется с байт-кодом уровня Java 21
+      # (class file version 65.0); javac 17 читать такие классы не умеет и
+      # падает "class file has wrong version 65.0, should be 61.0" ещё на
+      # импортах android.*, отсюда и десятки "cannot find symbol" следом.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
       # android-all.jar весит 190 МБ — качать его на каждый прогон незачем.
       - name: Cache Android build tools
         uses: actions/cache@v4
