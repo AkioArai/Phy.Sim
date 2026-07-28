@@ -1,24 +1,15 @@
 Phy.Sim — an interactive physics textbook
 =========================================
 
-PLEASE READ BEFORE INSTALLING
+
+MUST READ
 
 
-How this program was made
--------------------------
-
-The text of the course, the simulations and the source code of this program
-were written by Claude, an AI assistant made by Anthropic, and were then
-reviewed and partly reworked by the author of the project.
-
-That means:
-
-  * the physics has been checked, but it has not been peer-reviewed by a
-    teacher or a physicist;
-  * mistakes are possible in the notes, in the problems and in the answers;
-  * treat this program as a study aid, not as a source of truth. If a result
-    contradicts your textbook, trust the textbook and please report the
-    problem.
+This application was developed by the creator Somi together with Claude.
+The AI assistant wrote practically all of the course notes on its own; the
+only places I stepped in were the introduction and a few other topics. The
+mobile adaptation and the entire architecture of this project were likewise
+built by Claude, and may well contain plenty of bugs.
 
 Bug reports and corrections are welcome:
 https://github.com/AkioArai/Phy.Sim/issues

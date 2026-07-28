@@ -75,6 +75,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      # android-all.jar весит 190 МБ — качать его на каждый прогон незачем.
+      - name: Cache Android build tools
+        uses: actions/cache@v4
+        with:
+          path: packaging/android/.tools
+          key: android-tools-v1
       # Ключ подписи скрипт создаёт сам, и на каждом прогоне он новый: поставить
       # новый apk «поверх» старого не выйдет, сначала удалите прежнюю версию.
       - name: Build apk
@@ -102,8 +108,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
         run: |
+          cat > notes.md <<'EOF'
+          **Phy.Sim — an interactive physics textbook.** 76 live simulations, 34 topics,
+          252 formulas and 380 problems. Runs offline, asks for nothing, sends nothing.
+
+          ### Must read
+
+          This application was developed by the creator Somi together with Claude. The AI
+          assistant wrote practically all of the course notes on its own; the only places I
+          stepped in were the introduction and a few other topics. The mobile adaptation and
+          the entire architecture of this project were likewise built by Claude, and may well
+          contain plenty of bugs. Bug reports are welcome in Issues.
+
+          ### What to download
+
+          | System | File |
+          |---|---|
+          | Windows 10/11 | `Phy.Sim-Setup-1.0.0.exe` — setup wizard, pick your folder and shortcuts, no admin rights |
+          | Windows, no install | `Phy.Sim-portable-1.0.0.exe` — runs from a flash drive |
+          | Fedora | `Phy.Sim-1.0.0.x86_64.rpm` — double-click, or `sudo dnf install ./Phy.Sim-1.0.0.x86_64.rpm` |
+          | Android | `phy-sim.apk` — zero permissions. Each build is signed with a fresh key, so remove any older version first |
+          | Anything else | `phy-sim-standalone.html` in the repository — one file, opens in any browser |
+
+          The course content is in Russian; the code and documentation are in English.
+          Licensed under GPL-3.0.
+          EOF
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "Phy.Sim $TAG" \
-            --notes "Installers for Windows, Fedora and Android. See the README for what to download." \
+            --notes-file notes.md \
             artifacts/*/*

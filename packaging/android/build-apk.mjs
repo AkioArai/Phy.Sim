@@ -18,7 +18,8 @@
    Итог:    packaging/android/out/phy-sim.apk
    ============================================================================= */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, readdirSync, statSync, writeFileSync, chmodSync, cpSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, readdirSync, statSync, writeFileSync, chmodSync, cpSync,
+         openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -55,13 +56,30 @@ const run = (cmd, args, opts = {}) => {
 const step = (s) => console.log('• ' + s);
 
 /* ---------- 1. Инструменты ---------- */
+/* Скачанное обязательно проверяем: без -f curl молча пишет в файл страницу
+   ошибки и выходит с нулём, а дальше javac ругается сорока шестью «cannot
+   find symbol» — как будто виноват исходник, а не пустой classpath. Проверка
+   магии ZIP («PK») ловит и это, и оборванную закачку. */
+function checkJar(f, name) {
+  const size = statSync(f).size;
+  const head = Buffer.alloc(2);
+  const fd = openSync(f, 'r');
+  try { readSync(fd, head, 0, 2, 0); } finally { closeSync(fd); }
+  if (size < 100 * 1024 || head.toString('latin1') !== 'PK') {
+    rmSync(f, { force: true });
+    throw new Error(`${name}: скачался не архив (${size} байт). ` +
+      'Похоже, зеркало Maven ответило ошибкой — попробуйте ещё раз.');
+  }
+}
+
 function fetchTools() {
   mkdirSync(tools, { recursive: true });
   for (const d of DEPS) {
     const f = join(tools, d.name);
-    if (existsSync(f)) continue;
+    if (existsSync(f)) { checkJar(f, d.name); continue; }   // и кэш проверяем тоже
     step(`качаю ${d.name} …`);
-    run('curl', ['-sSL', '--retry', '3', '-o', f, d.url]);
+    run('curl', ['-fsSL', '--retry', '3', '--retry-all-errors', '-o', f, d.url]);
+    checkJar(f, d.name);
   }
   const aapt2 = join(tools, 'aapt2');
   const framework = join(tools, 'android-framework.jar');

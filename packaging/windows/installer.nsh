@@ -30,8 +30,8 @@
   ; Первая страница — не «лицензия», а предупреждение об авторстве, поэтому
   ; перебиваем стандартные надписи MUI. Работает потому, что этот файл
   ; подключается ДО вставки самой страницы (!insertmacro MUI_PAGE_LICENSE).
-  !define MUI_PAGE_HEADER_TEXT "Before you install"
-  !define MUI_PAGE_HEADER_SUBTEXT "Please read this notice about Phy.Sim."
+  !define MUI_PAGE_HEADER_TEXT "Must read"
+  !define MUI_PAGE_HEADER_SUBTEXT "How Phy.Sim was made."
   !define MUI_LICENSEPAGE_TEXT_TOP "Press Page Down to read the whole notice."
   !define MUI_LICENSEPAGE_TEXT_BOTTOM "Click I Agree to accept this notice and the GPL-3.0 license and continue."
   !define MUI_LICENSEPAGE_BUTTON "I Agree"

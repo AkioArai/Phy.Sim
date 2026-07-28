@@ -9,6 +9,14 @@ offline, with no install and no account.
 > The course content is in **Russian** (it follows J. Orear's *Physics*, vols. 1–2).
 > The code, build scripts and this document are in English.
 
+### Must read
+
+This application was developed by the creator Somi together with Claude. The AI
+assistant wrote practically all of the course notes on its own; the only places I
+stepped in were the introduction and a few other topics. The mobile adaptation and
+the entire architecture of this project were likewise built by Claude, and may well
+contain plenty of bugs. [Bug reports](../../issues) are welcome.
+
 <p align="center">
   <img src="docs/media/01-notes-and-sim.png" width="900" alt="Notes and a live simulation side by side">
 </p>

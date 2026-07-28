@@ -78,7 +78,7 @@
       "category": "Education;Science;Physics",
       "icon": "build/icon.png",
       "synopsis": "Interactive physics textbook with 76 live simulations",
-      "description": "Phy.Sim is an interactive physics textbook: notes, formulas, problems and 76 live simulations, from kinematics to particle physics. Works offline. The course text and the code were written by Claude (an AI assistant) and partly reworked by the author — see the project page.",
+      "description": "Phy.Sim is an interactive physics textbook: notes, formulas, problems and 76 live simulations, from kinematics to particle physics. Works offline. Developed by the creator Somi together with Claude: the AI assistant wrote practically all of the notes, the mobile adaptation and the architecture, so bugs are possible — see the project page.",
       "desktop": {
         "entry": {
           "Name": "Phy.Sim",
