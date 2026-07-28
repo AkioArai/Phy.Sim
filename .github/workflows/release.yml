@@ -10,6 +10,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Тег релиза (например v1.0.0). Пусто — только собрать, релиз не создавать.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -83,18 +88,22 @@ jobs:
   release:
     name: Attach to release
     needs: [windows, fedora, android]
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      # При запуске по тегу берём имя тега; при ручном запуске gh создаёт тег
+      # сам — на том коммите, с которого запущен прогон.
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            --title "Phy.Sim ${GITHUB_REF_NAME}" \
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "Phy.Sim $TAG" \
             --notes "Installers for Windows, Fedora and Android. See the README for what to download." \
             artifacts/*/*
