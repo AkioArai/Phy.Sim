@@ -1,8 +1,8 @@
 node_modules/
 .DS_Store
 
-# Упаковка: инструменты, промежуточные файлы и готовые установщики.
-# В репозитории держим только исходники оболочек, а не результат сборки.
+# Packaging: toolchains, intermediates and finished installers.
+# Only the shell sources are tracked, never the build output.
 packaging/android/.tools/
 packaging/android/.work/
 packaging/android/out/

@@ -2552,9 +2552,7 @@ function renderPrefs(){
         <div class="pset-desc">Восстанавливает настройки, наборы и закладки из ранее сохранённого файла.</div></div>
         <div class="pset-c"><button class="btn" id="pref-import">Выбрать файл</button>
           <input type="file" id="pref-import-file" accept="application/json" style="display:none"></div></div>
-      <div class="pset"><div class="pset-l"><div class="pset-name">Закрыть доступ</div>
-        <div class="pset-desc">Выход из пособия: при следующем открытии снова спросит пароль.</div></div>
-        <div class="pset-c"><button class="btn" id="pref-logout">Выйти</button></div></div>`;
+`;
     $('#pref-reset-all').onclick=()=>askConfirm('Вернуть все настройки к исходным значениям?',()=>{
       S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Настройки сброшены');
     });
@@ -2591,10 +2589,6 @@ function renderPrefs(){
       };
       rd.readAsText(f);
     };
-    $('#pref-logout').onclick=()=>askConfirm('Выйти? При следующем открытии пособие снова спросит пароль.',()=>{
-      try{ localStorage.removeItem('physim.authv1'); }catch(_){}
-      location.reload();
-    });
   } else if(prefCat==='about'){
     const nSim=Object.keys(SIMS).length;
     const nTop=SECTIONS.reduce((a,s)=>a+s.topics.length,0);
@@ -3448,7 +3442,7 @@ const CMDS=[
   {k:'Прочее',t:'Настройки', hint:'Ctrl+,', run:()=>openPrefs()},
   {k:'Прочее',t:'Горячие клавиши', run:()=>openPrefs('keys')},
   {k:'Прочее',t:'Сохранить настройки в файл', run:()=>{ openPrefs('data'); setTimeout(()=>$('#pref-export')&&$('#pref-export').click(),120); }},
-  {k:'Прочее',t:'Закрыть доступ (выйти)', run:()=>{ openPrefs('data'); }}
+  {k:'Прочее',t:'Данные и настройки', run:()=>{ openPrefs('data'); }}
 ];
 let cmdkSel=0, cmdkItems=[];
 function cmdkOpen(prefix){
@@ -3613,79 +3607,14 @@ function applyWindowMode(init){
   }catch(_){ toast('Полноэкранный режим недоступен'); }
 }
 
-/* ============================ ДОСТУП ПО ПАРОЛЮ ==========================
-   В коде хранится ТОЛЬКО SHA-256-хэш пароля — самого пароля здесь нет.
-   Это защита уровня «пособие не открыть без пароля от преподавателя», а не
-   криптография: код выполняется на устройстве ученика и в принципе вскрываем.
-   SHA-256 реализован на чистом JS, потому что crypto.subtle недоступен на
-   http-адресах локальной сети (телефон, открывающий пособие с ноутбука). */
-const AUTH_HASH='7fce9a9a82c9dad39f8a98a2c8a5bd37a5fb2c207af75ee40e4f39bf989b6239';
-function sha256hex(msg){
-  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
-  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
-  const b=new TextEncoder().encode(msg);
-  const L=b.length;
-  // выравнивание: 1-бит, нули, 64-битная длина сообщения
-  const total=(((L+8)>>6)+1)<<6;
-  const m=new Uint8Array(total);
-  m.set(b); m[L]=0x80;
-  const dv=new DataView(m.buffer);
-  dv.setUint32(total-8, Math.floor(L/536870912), false);   // старшие биты длины (L*8 / 2^32)
-  dv.setUint32(total-4, (L<<3)>>>0, false);
-  const rr=(x,n)=>(x>>>n)|(x<<(32-n));
-  const w=new Uint32Array(64);
-  for(let off=0; off<total; off+=64){
-    for(let i=0;i<16;i++) w[i]=dv.getUint32(off+i*4,false);
-    for(let i=16;i<64;i++){
-      const s0=rr(w[i-15],7)^rr(w[i-15],18)^(w[i-15]>>>3);
-      const s1=rr(w[i-2],17)^rr(w[i-2],19)^(w[i-2]>>>10);
-      w[i]=(w[i-16]+s0+w[i-7]+s1)>>>0;
-    }
-    let[a,bb,c,d,e,f,g,h]=H;
-    for(let i=0;i<64;i++){
-      const S1=rr(e,6)^rr(e,11)^rr(e,25);
-      const ch=(e&f)^(~e&g);
-      const t1=(h+S1+ch+K[i]+w[i])>>>0;
-      const S0=rr(a,2)^rr(a,13)^rr(a,22);
-      const mj=(a&bb)^(a&c)^(bb&c);
-      const t2=(S0+mj)>>>0;
-      h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=bb; bb=a; a=(t1+t2)>>>0;
-    }
-    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+bb)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0;
-    H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
-  }
-  return H.map(x=>x.toString(16).padStart(8,'0')).join('');
-}
-function lockInit(){
-  const lk=$('#lock'); if(!lk) return;
-  if(LS.get('authv1',null)===AUTH_HASH){ lk.classList.add('hidden'); return; }
-  const inp=$('#lock-pass'), err=$('#lock-err'), card=$('#lock-card');
-  const attempt=()=>{
-    if(sha256hex(inp.value.trim())===AUTH_HASH){
-      LS.set('authv1',AUTH_HASH);
-      lk.classList.add('hidden'); resize(); toast('Доступ открыт');
-    } else {
-      err.textContent='Неверный пароль'; inp.select();
-      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
-    }
-  };
-  $('#lock-enter').onclick=attempt;
-  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') attempt(); });
-  setTimeout(()=>inp.focus(),60);
-}
 initFloatingPanels();
-lockInit();
+
 
 /* ================================= СТАРТ =============================== */
 applySettings();
-S.__ready=true;              // дальше applySettings вызывается уже по действию пользователя setTool('pan'); renderTree(); renderParams();
+// дальше applySettings вызывается уже по действию пользователя
+S.__ready=true;
+setTool('pan'); renderTree(); renderParams();
 // при следующем запуске откроем ту же тему, если это разрешено в настройках
 if(isNarrow()) closeSimMobile();          // на телефоне начинаем с конспекта
 openTopic((S.settings.restore!==false && LS.get('lastTopic',null) && ALL.some(t=>t.id===LS.get('lastTopic',null)))
@@ -3703,7 +3632,7 @@ addEventListener('load',()=>{ typeset($('#pane')); resize(); });
    а совсем отключить можно в настройках оформления. */
 (function playIntro(){
   const sp=$('#splash'); if(!sp) return;
-  const kill=()=>{ sp.remove(); const i=$('#lock-pass'); if(i && !$('#lock').classList.contains('hidden')) i.focus(); };
+  const kill=()=>sp.remove();
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(prefGet('intro')===false || reduce){ kill(); return; }
   const FALL=1420;      // конец падения точки: 540 мс задержки + 620 анимации + пауза

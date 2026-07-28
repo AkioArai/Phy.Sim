@@ -24,6 +24,27 @@ body{font-family:var(--sans);font-size:var(--fs);color:var(--ink);background:var
      вводят, — см. правило ниже. */
   user-select:none;-webkit-user-select:none}
 input,textarea,select,[contenteditable]{user-select:text;-webkit-user-select:text}
+
+/* ==================== ПОЛОСЫ ПРОКРУТКИ ====================
+   Системные полосы в Windows широкие и белые: рядом с тонкой типографикой
+   конспекта они выглядят чужеродной деталью и съедают колонку текста.
+   Убираем их везде, кроме служебных списков, где полоса — единственный
+   признак, что содержимое длиннее окна. Прокрутка колесом, клавишами и
+   пальцем работает как обычно. */
+.pane,.content,.sidebar,#tree,.prefs-body,.prefs-side,.cmdk-list,
+.msheet-body,.simbottom,.toolfan,.modal{scrollbar-width:none;-ms-overflow-style:none}
+.pane::-webkit-scrollbar,.content::-webkit-scrollbar,.sidebar::-webkit-scrollbar,
+#tree::-webkit-scrollbar,.prefs-body::-webkit-scrollbar,.prefs-side::-webkit-scrollbar,
+.cmdk-list::-webkit-scrollbar,.msheet-body::-webkit-scrollbar,
+.simbottom::-webkit-scrollbar,.toolfan::-webkit-scrollbar,
+.modal::-webkit-scrollbar{width:0;height:0}
+/* Там, где полоса всё же нужна (плавающие панели показаний), делаем её
+   тонкой и в цвет темы, а не системной белой. */
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--line-soft)}
 /* ==================== НАЖАТИЯ ====================
    1) Мобильные браузеры подсвечивают любое нажатие синим прямоугольником, как
       будто открыли ссылку. Убираем — у нас своя обратная связь.
@@ -616,30 +637,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .cmp-row .d{font-variant-numeric:tabular-nums}
 .cmp-row .up{color:var(--ok)}.cmp-row .dn{color:var(--danger)}
 
-/* ======================= ЭКРАН ДОСТУПА (ПАРОЛЬ) ======================= */
-.lock{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:var(--bg);
-  padding:20px calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left))}
-.lock.hidden{display:none}
-.lock-card{width:min(360px,100%);background:var(--panel);border:1px solid var(--line);
-  border-radius:10px;padding:28px 26px 20px;box-shadow:0 14px 44px -18px #0006}
-.lock-brand{font-family:var(--mono);font-weight:650;font-size:22px;letter-spacing:-.02em}
-.lock-brand span{color:var(--accent)}
-.lock-sub{font-size:12px;color:var(--ink-3);margin:3px 0 22px;font-family:var(--mono);
-  letter-spacing:.06em;text-transform:uppercase}
-.lock-lab{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:6px}
-.lock-inp{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);
-  background:var(--panel-2);color:var(--ink);font:inherit;font-size:14px;letter-spacing:.06em}
-.lock-inp:focus{outline:none;border-color:var(--accent)}
-.lock-btn{width:100%;margin-top:12px;padding:9px;font-size:13.5px}
-.lock-err{min-height:18px;font-size:12.5px;color:var(--danger);margin-top:9px;text-align:center}
-.lock-note{font-size:11.5px;color:var(--ink-3);line-height:1.55;margin-top:8px;text-align:center;
-  border-top:1px solid var(--line-soft);padding-top:12px}
-.prefs-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
-.prefs-links .btn{text-decoration:none;display:inline-flex;align-items:center}
-
-.lock-card.shake{animation:lockShake .3s}
-@keyframes lockShake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}
-  60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.ask-inp{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--panel-2);color:var(--ink);font:inherit;font-size:14px}
+.ask-inp:focus{outline:none;border-color:var(--accent)}
 
 /* ========================= ЗАСТАВКА ПРИ ЗАПУСКЕ =========================
    Сценарий: «PhySim» посередине → части слова расходятся, между ними сверху

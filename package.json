@@ -1,25 +1,28 @@
 {
   "name": "phy.sim",
   "version": "1.0.0",
-  "description": "Интерактивное научное пособие по физике для школьников: конспекты, формулы, задачи и живые симуляции по курсу Дж. Орира «Физика» — от кинематики до физики элементарных частиц.",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "Phy.Sim — an interactive physics textbook: notes, formulas, problems and 76 live simulations, from kinematics to particle physics. Runs in the browser, offline.",
+  "main": "index.html",
   "scripts": {
-    "build": "node build.mjs",
-    "build:standalone": "node build-standalone.mjs",
-    "build:apk": "node packaging/android/build-apk.mjs"
+    "build": "node build-standalone.mjs",
+    "build:apk": "node packaging/android/build-apk.mjs",
+    "build:exe": "cd packaging/windows && npm install && npm run dist"
   },
   "repository": {
     "type": "git",
-    "url": "http://local_proxy@127.0.0.1:41729/git/AkioArai/Phy.Sim"
+    "url": "https://github.com/AkioArai/Phy.Sim.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "clean-css": "^5.3.3",
-    "javascript-obfuscator": "^4.2.2"
-  }
+  "keywords": [
+    "physics",
+    "simulation",
+    "education",
+    "textbook",
+    "canvas",
+    "offline",
+    "katex"
+  ],
+  "author": "AkioArai",
+  "license": "GPL-3.0",
+  "devDependencies": {},
+  "homepage": "https://github.com/AkioArai/Phy.Sim"
 }

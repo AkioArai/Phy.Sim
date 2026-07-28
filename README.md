@@ -1,170 +1,160 @@
-# Phy.Sim — физика в симуляциях
+# Phy.Sim
 
-Интерактивное научное пособие по физике для школьников: конспекты, формулы,
-задачи и живые симуляции по курсу Дж. Орира «Физика» — от кинематики до
-физики элементарных частиц.
+**An interactive physics textbook where every formula has a live simulation next to it.**
 
-Работает целиком в браузере, без сборки и без сервера: достаточно открыть
-`index.html`. Интернет не нужен вообще — KaTeX со шрифтами лежит рядом,
-в `vendor/katex/`.
+Read the theory, change the numbers, watch what happens. 76 simulations, 380 problems
+and the whole course from kinematics to quarks — in a single HTML file that runs
+offline, with no install and no account.
 
-Кроме браузера есть упаковки: **`.apk` для Android** и подготовленная сборка
-**`.exe` для Windows** — см. [packaging/README.md](packaging/README.md).
+> The course content is in **Russian** (it follows J. Orear's *Physics*, vols. 1–2).
+> The code, build scripts and this document are in English.
 
-## Запуск
+<p align="center">
+  <img src="docs/media/01-notes-and-sim.png" width="900" alt="Notes and a live simulation side by side">
+</p>
+
+---
+
+## Demo
+
+<!-- TRAILER: upload the video file straight into this README on GitHub
+     (edit the file → drag & drop the .mp4 → GitHub inserts a
+     https://github.com/user-attachments/assets/... link) and replace the
+     poster line below with that link. GitHub renders it as a player. -->
+
+<p align="center">
+  <a href="docs/media/03-simulation-dark.png">
+    <img src="docs/media/03-simulation-dark.png" width="900" alt="Trailer — click to play">
+  </a>
+  <br><em>▶ Trailer — coming soon</em>
+</p>
+
+---
+
+## Try it in 30 seconds
+
+| I want to… | Do this |
+|---|---|
+| **Just look at it** | Download [`phy-sim-standalone.html`](phy-sim-standalone.html) and open it. One file, 2.6 MB, works offline, no server. |
+| **Run from source** | `git clone` → open `index.html`. No build step, no dependencies. |
+| **Install on Android** | Grab `phy-sim.apk` from [Releases](../../releases), or build it: `npm run build:apk`. |
+| **Install on Windows** | Grab the `.exe` from [Releases](../../releases), or build it: double-click `packaging\windows\build-exe.bat`. |
+
+There is nothing to configure. No sign-in, no telemetry, no network requests —
+KaTeX and its fonts ship inside the repository.
+
+---
+
+## What's inside
+
+|  |  |
+|---|---|
+| **76** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear |
+| **34** topics in **7** sections | full lecture notes, written to be read, not skimmed |
+| **252** key formulas | each one opens the simulation that shows it working |
+| **380** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
+| **133** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
+| **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
+| **56** settings | theme, density, scene decorations, performance, recording |
+
+### Problems that can't be looked up
+
+Every answer is computed from the **current parameters of the linked simulation**.
+Change the mass and the answer changes — so your neighbour's answer is different,
+and nothing can be copied off the readouts panel. A build-time audit checks that no
+problem is solvable by simply reading a number off the screen.
+
+<p align="center">
+  <img src="docs/media/02-problems.png" width="900" alt="Problems tab with progress tracking">
+</p>
+
+### A real instrument, not a slideshow
+
+Pan, zoom, box-zoom, coordinate probe, ruler, dimension line, protractor, circle,
+polygon area, notes, guides, body trails. Parameter fields accept expressions
+(`2*9.8`). A timeline scrubs the computed history frame by frame. Panels float,
+resize and collapse. `Ctrl+P` opens a command palette over everything —
+topics, simulations, settings, commands.
+
+<p align="center">
+  <img src="docs/media/03-simulation-dark.png" width="900" alt="Full-screen simulation, dark theme">
+  <img src="docs/media/04-settings.png" width="900" alt="Settings">
+</p>
+
+### Built for a phone, not shrunk onto one
+
+A separate layout: a 35 px header, notes as plain text, a drawer for topics, a
+floating control bar and a parameter sheet. Tools open as folders. Sizes come from
+the *visual* viewport, so the browser's address bar never covers anything.
+
+<p align="center">
+  <img src="docs/media/05-mobile.png" width="270" alt="Phone: simulation">
+  <img src="docs/media/06-mobile-tools.png" width="270" alt="Phone: tool folders">
+</p>
+
+---
+
+## Build the apps
+
+Both wrappers hold the same source — there is no separate mobile or desktop version.
+
+### Android `.apk` — no Android Studio, no SDK
 
 ```bash
-# любой статический сервер, например:
-python3 -m http.server 8000
-# → http://localhost:8000
+npm run build:apk        # → packaging/android/out/phy-sim.apk  (1.2 MB)
 ```
 
-или просто открыть `index.html` двойным кликом.
+Needs only a JDK, `curl`, `zip` and `unzip`. The missing pieces (`aapt2`,
+`android.jar`, the dexer) are fetched from Maven Central on first run. The app asks
+for **zero permissions** and never touches the network.
 
-## Структура проекта
-
-```
-index.html            разметка приложения и подключение стилей/скриптов
-css/style.css         все стили, включая тёмную тему и мобильную раскладку
-js/core.js            общие хелперы и реестр симуляций SIMS
-js/sims/*.js          симуляции по разделам физики (регистрируются в SIMS)
-js/topics.js          учебный контент: конспекты, формулы, задачи, разделы
-js/app.js             ядро приложения: состояние, холст, рендер-цикл, UI
-vendor/katex/         KaTeX со шрифтами — чтобы формулы работали без сети
-build.mjs             сборка защищённой (обфусцированной) версии в dist/
-build-standalone.mjs  сборка всего пособия в один файл phy-sim-standalone.html
-packaging/            оболочки для .apk (Android) и .exe (Windows)
-dist/                 готовая к раздаче ученикам сборка (генерируется build.mjs)
-docs/ARCHITECTURE.md  подробное описание архитектуры и контрактов
-```
-
-Подробнее — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Защищённая сборка для раздачи ученикам
-
-Разработка ведётся в читаемых `js/` и `css/`. Чтобы ученикам не был доступен
-исходный код и, в частности, формулы ответов к задачам, есть сборка, которая
-собирает обфусцированную (запутанную) версию:
+### Windows `.exe`
 
 ```bash
-npm install     # один раз — ставит инструменты сборки
-npm run build   # → dist/index.html + dist/app.min.js
+cd packaging/windows && npm install && npm run dist
 ```
 
-Ученикам отдаётся папка `dist/` (KaTeX копируется в неё как есть). В ней имена
-переменных заменены на бессмысленные, все строки — конспекты, подписи, а главное
-логика вычисления ответов — зашифрованы. «Просмотр кода» и DevTools покажут
-нечитаемую кашу.
+Produces an NSIS installer (no admin rights needed) and a portable `.exe` that runs
+straight off a flash drive. On Windows you can just double-click
+`packaging\windows\build-exe.bat`. Cross-building from Linux works too — see
+[packaging/README.md](packaging/README.md) for the Wine setup.
 
-> **Важно.** Код в браузере невозможно защитить абсолютно: он выполняется на
-> устройстве, поэтому теоретически восстановим. Обфускация лишь поднимает планку
-> и отсекает любопытного школьника, а не эксперта. Ради этого не жертвуем
-> производительностью: тяжёлые преобразования (control-flow-flattening и т.п.)
-> намеренно отключены, чтобы 240-кадровый физический цикл не тормозил.
-
-Детали настроек — в `build.mjs` и [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Приложения: Android и Windows
+### Single file
 
 ```bash
-npm run build       # dist/
-npm run build:apk   # → packaging/android/out/phy-sim.apk (1,2 МБ)
+npm run build            # → phy-sim-standalone.html
 ```
 
-Сборка `.apk` идёт **без Android Studio и без Android SDK** — нужны только JDK,
-`curl`, `zip` и `unzip`; недостающие инструменты (`aapt2`, `android.jar`,
-дексер) скачиваются с Maven Central при первом запуске. Приложение не просит
-ни одного разрешения и не выходит в сеть.
+Everything — styles, scripts, KaTeX, fonts — inlined into one HTML file you can
+email, put on a flash drive, or open by double-clicking.
 
-Для Windows (`packaging/windows`) — оболочка Electron. На самой Windows
-достаточно установить [Node.js](https://nodejs.org) и дважды кликнуть
-`packaging\windows\build-exe.bat`; на Linux — `bash
-packaging/windows/build-exe.sh` (нужен Wine, включая 32-битный). Получаются
-установщик NSIS (без прав администратора) и портативный `.exe` — запускается
-прямо с флешки.
+---
 
-Подробности — в [packaging/README.md](packaging/README.md).
+## Project layout
 
-## Доступ
+```
+index.html            markup and script order — this is the dependency graph
+css/style.css         all styles: light/dark themes, desktop and phone layouts
+js/core.js            helpers and the empty SIMS registry
+js/sims/*.js          the 76 simulations, grouped by branch of physics
+js/topics.js          course content: notes, formulas, mistakes, links, problems
+js/app.js             the core: state, canvases, render loop, the entire UI
+vendor/katex/         KaTeX + fonts, so formulas render without a network
+build-standalone.mjs  bundles everything into one HTML file
+packaging/            Android and Windows wrappers, icon source
+docs/ARCHITECTURE.md  contracts and design decisions (in Russian, like the code comments)
+```
 
-Пособие защищено паролем: при первом открытии на устройстве спрашивается
-пароль, дальше вход запоминается. Выйти — «Настройки → Данные → Закрыть
-доступ». В исходниках хранится только SHA-256-хэш пароля.
+Plain `<script defer>` tags sharing one global scope — deliberately. ES modules
+don't work over `file://`, and the whole point is that `index.html` opens by
+double-clicking on any school computer.
 
-Это защита от случайного читателя, а не криптостойкая: клиентский код
-исполняется на устройстве и в принципе вскрываем.
+**Adding a simulation** means adding one object to the `SIMS` registry with
+`init` / `step` / `draw` / `fit`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+for the full contract.
 
-## Возможности
+---
 
-- 76 интерактивных симуляций с изменяемыми параметрами, графиками и пресетами
-- командная палитра `Ctrl+P`: переход к любой теме, симуляции, настройке и команде
-- инструменты сцены: пробник координат, зум рамкой, линейка, размерная линия,
-  транспортир, окружность, площадь многоугольника, заметки, направляющие, след за телами
-- поля параметров принимают выражения (`2*9.8`), меняются стрелками и колесом,
-  средняя кнопка возвращает значение по умолчанию
-- снимок показаний и сравнение с текущими (`Ctrl+D`)
-- шкала времени: перемотка расчёта, покадровый шаг, зацикливание
-- фильтр параметров, пометка изменённых, сброс к умолчаниям и случайные значения
-- избранные симуляции и координаты под курсором
-- панели показаний, энергии, гистограммы и сравнения — плавающие: их можно
-  перетаскивать за шапку, менять размер и сворачивать двойным кликом
-- инструменты собраны в сворачиваемые папки: классические, конструкторы и
-  «инструменты раздела» — кнопки, меняющие саму физику сцены (невесомость,
-  трение, нагрев, поле, полярность)
-- обвязка сцены на выбор: оси координат, линейки по краям, перекрестие
-  курсора, мини-карта и название сцены на картинке
-- кастомизация окружения: стиль подложки (тетрадь, миллиметровка, точки,
-  тёмная лаборатория), насыщенность сетки, шрифт и кегль подписей, размер
-  стрелок, прозрачность панелей, сторона панели инструментов
-- конспекты и основные формулы по каждой теме
-- разбор типичных ошибок: неверная мысль, верная и объяснение, откуда
-  берётся соблазн — по 4–6 на главу
-- сквозные связи между главами: одна и та же идея в механике, термодинамике
-  и квантовой физике соединена кликабельными переходами
-- «Итог раздела» в конце каждого раздела: главное, сквозные идеи, лист всех
-  формул и вопросы на понимание без вычислений
-- **380 задач** — по пять на каждую из 76 симуляций: первая на знакомство
-  с моделью, три средних и одна олимпиадного уровня. Ответ пересчитывается
-  из текущих параметров симуляции, поэтому у соседа он другой, а списать
-  его с панели показаний нельзя
-- инструменты поверх сцены: карандаш, линейка, векторы, измерения
-- закладки, поиск по темам и формулам, история изменений параметров (Undo/Redo)
-- запись симуляции в WebM и снимки кадра в PNG
-- тёмная тема, настройка плотности интерфейса, полноэкранный режим
-- телефонная версия по отдельному макету: шапка в одну строку 35 px (название
-  симуляции сокращается по смыслу и ужимается по ширине, полное — в списке),
-  конспект голым текстом, выезжающий ящик тем, плавающая панель управления и шторка
-  параметров; размеры берутся у видимой области, поэтому адресная строка
-  браузера ничего не загораживает
-- название темы и вкладки «Конспект / Задачи» на телефоне не висят над
-  текстом, а уезжают вверх вместе с ним — читается весь экран, а не три
-  четверти
-- формулы всегда в границах колонки: выносные ужимаются под её ширину,
-  и только совсем огромные (десяток на всё пособие) прокручиваются сами
-  в себе — возить пальцем страницу целиком больше не нужно
-- вторая нижняя панель на телефоне — полноширинная строка состояния с тем же
-  набором, что на компьютере: отмена и повтор, сброс, редактируемые поля
-  скорости и масштаба, вписать, меню симуляции, настройки, помощник и счётчик
-  кадров; в альбомной ориентации складывается в один ряд
-- плавающие панели (показания, распределение, графики) сворачиваются в
-  заголовок одним касанием — на телефоне панель показаний иначе закрывает
-  до 60 % сцены
-- всё работает офлайн: ни одного запроса наружу ни в браузере, ни в
-  приложениях — формулы, шрифты и симуляции лежат внутри
-- аппаратная кнопка «назад» на Android закрывает верхний открытый слой
-  (попап, шторку, ящик тем, сцену) и только на самом верху выходит из
-  приложения
-- инструменты на телефоне открываются папками: столбик слева, иконки нужной
-  папки — справа от неё, вместо простыни из двух десятков строк
-- вкладки «Конспект / Задачи» показываются только там, где задачи есть
-- горячие клавиши и ссылка на канал живут в «Настройках» (разделы «Горячие
-  клавиши» и «О программе») — отдельной кнопки «?» в интерфейсе нет
-- режим окна на выбор: в окне, во весь экран или «весь экран в окне» —
-  окно без рамки на весь рабочий стол, из которого не выкидывает по Alt+Tab
-  (в упаковке `.exe`; в браузере доступен только полноэкранный режим)
-- заставка при запуске: «PhySim» расходится, между половинами падает точка
-  и встаёт на место — «Phy.Sim», после чего вытягивается в линию и
-  раздвигает половины экрана. Пропускается касанием, отключается в
-  «Настройки → Оформление → Заставка при запуске»
-- подсказки и плашка события на телефоне поднимаются над панелью
-  управления, какой бы высоты она сейчас ни была
+## License
+
+[GPL-3.0](LICENSE). Free to use, study, change and share — including in class.

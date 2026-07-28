@@ -354,7 +354,7 @@
 <div class="modal-bg hidden" id="modal-ask"><div class="modal ask">
   <h3 id="ask-title">—</h3>
   <div class="ask-text" id="ask-text"></div>
-  <input class="lock-inp ask-inp hidden" id="ask-inp" type="text">
+  <input class="ask-inp hidden" id="ask-inp" type="text">
   <div class="ask-row">
     <button class="btn" id="ask-cancel">Отмена</button>
     <button class="btn primary" id="ask-ok">ОК</button>
@@ -379,19 +379,6 @@
 
 </div>
 
-<!-- Экран доступа: пособие открывается только по паролю. Проверка идёт по
-     SHA-256-хэшу на устройстве; сам пароль нигде в коде не хранится. -->
-<div class="lock" id="lock">
-  <div class="lock-card" id="lock-card">
-    <div class="lock-brand">Phy<span>.</span>Sim</div>
-    <div class="lock-sub">интерактивный курс физики</div>
-    <label class="lock-lab" for="lock-pass">Пароль доступа</label>
-    <input class="lock-inp" id="lock-pass" type="password" autocomplete="current-password" placeholder="Введите пароль…">
-    <button class="btn primary lock-btn" id="lock-enter">Войти</button>
-    <div class="lock-err" id="lock-err"></div>
-    <div class="lock-note">Пароль выдаёт преподаватель. Вход запоминается на этом устройстве.</div>
-  </div>
-</div>
 
 <!-- Заставка. Лежит прямо в разметке (а не создаётся скриптом), чтобы
      появиться в первом же кадре: пока грузятся и разбираются скрипты,

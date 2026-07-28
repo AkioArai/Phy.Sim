@@ -14,7 +14,7 @@
    манифест объявляет targetSdkVersion=29: требование «только v2 и выше»
    Android предъявляет к приложениям с targetSdk 30+.
 
-   Запуск:  npm run build:apk      (сначала соберётся dist/)
+   Запуск:  npm run build:apk
    Итог:    packaging/android/out/phy-sim.apk
    ============================================================================= */
 import { execFileSync } from 'node:child_process';
@@ -76,15 +76,13 @@ function fetchTools() {
 
 /* ---------- 2. Содержимое приложения ---------- */
 function collectAssets() {
-  const dist = join(root, 'dist');
-  if (!existsSync(join(dist, 'index.html')))
-    throw new Error('нет dist/index.html — сначала выполните npm run build');
   const assets = join(work, 'assets');
   mkdirSync(assets, { recursive: true });
-  // в assets кладём именно защищённую сборку: ученик не должен читать ответы.
-  // Копируем СОДЕРЖИМОЕ dist, а не саму папку: WebView открывает
-  // file:///android_asset/index.html
-  cpSync(dist, assets, { recursive: true });
+  /* Кладём исходники как есть: приложение открытое, прятать нечего.
+     Раньше сюда копировалась обфусцированная сборка dist/. */
+  cpSync(join(root, 'index.html'), join(assets, 'index.html'));
+  for (const d of ['css', 'js', 'vendor'])
+    cpSync(join(root, d), join(assets, d), { recursive: true });
   let n = 0, bytes = 0;
   (function walk(d) {
     for (const e of readdirSync(d, { withFileTypes: true })) {
