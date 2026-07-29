@@ -55,9 +55,12 @@ const run = (cmd, args, opts = {}) => {
   try {
     return execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], ...opts }).toString();
   } catch (e) {
-    // без этого Node печатает сообщение инструмента байтовым массивом
-    const err = (e.stderr || e.stdout || '').toString().trim();
-    throw new Error(`${cmd} завершился с ошибкой:\n${err}`);
+    /* Печатаем ОБА потока и код возврата. Раньше бралось только stderr, и
+       когда инструмент ругался в stdout (или молчал), сообщение выходило
+       пустым: «jarsigner завершился с ошибкой:» и ничего дальше. */
+    const out = [e.stderr, e.stdout].map(x => (x || '').toString().trim()).filter(Boolean).join('\n');
+    throw new Error(`${cmd} завершился с ошибкой (код ${e.status ?? '?'})` +
+      (out ? `:\n${out}` : ' и ничего не сказал.'));
   }
 };
 const step = (s) => console.log('• ' + s);
@@ -174,22 +177,57 @@ function buildDex(t) {
    Если ничего не задано, ключ по-прежнему создаётся сам и переиспользуется
    при следующих локальных сборках — для проверки на своём телефоне этого
    достаточно, а выпускать так нельзя, о чём скрипт предупреждает. */
+const clean = v => (v || '').replace(/\s+/g, '');
 const KEY = {
-  pass: process.env.PHYSIM_KEYSTORE_PASS || 'physim',
-  alias: process.env.PHYSIM_KEYSTORE_ALIAS || 'physim',
+  /* Пробелы и переводы строк срезаем: при вставке в поле секрета в конец
+     легко попадает перевод строки, и пароль перестаёт подходить — а
+     jarsigner на это отвечает молча, без объяснений. */
+  pass: clean(process.env.PHYSIM_KEYSTORE_PASS) || 'physim',
+  alias: clean(process.env.PHYSIM_KEYSTORE_ALIAS) || 'physim',
 };
+/* Проверяем хранилище ДО подписи и объясняем, что именно не так. Иначе
+   всё сводится к одной строке «jarsigner завершился с ошибкой», по которой
+   не понять, испорчен ли файл, не подходит пароль или нет такого псевдонима. */
+function checkKey(ks) {
+  const size = existsSync(ks) ? statSync(ks).size : 0;
+  if (size < 100)
+    throw new Error(`хранилище ключей пустое или обрезано (${size} байт). ` +
+      'Похоже, значение PHYSIM_KEYSTORE_B64 скопировано не целиком.');
+  try {
+    run('keytool', ['-list', '-keystore', ks, '-storepass', KEY.pass]);
+  } catch (e) {
+    throw new Error('не открывается хранилище ключей: не подходит пароль ' +
+      '(PHYSIM_KEYSTORE_PASS) или файл повреждён.\n' + e.message);
+  }
+  try {
+    run('keytool', ['-list', '-keystore', ks, '-storepass', KEY.pass, '-alias', KEY.alias]);
+  } catch (_) {
+    let есть = '';
+    try {
+      есть = run('keytool', ['-list', '-keystore', ks, '-storepass', KEY.pass])
+        .split('\n').filter(l => l.includes('PrivateKeyEntry'))
+        .map(l => l.split(',')[0].trim()).join(', ');
+    } catch (_) {}
+    throw new Error(`в хранилище нет ключа с псевдонимом «${KEY.alias}» ` +
+      `(PHYSIM_KEYSTORE_ALIAS).` + (есть ? ` Есть: ${есть}.` : ''));
+  }
+  step(`хранилище открыто, псевдоним «${KEY.alias}» на месте`);
+}
+
 function keystore() {
   if (process.env.PHYSIM_KEYSTORE_B64) {
     const ks = join(work, 'release.keystore');
     mkdirSync(work, { recursive: true });
-    writeFileSync(ks, Buffer.from(process.env.PHYSIM_KEYSTORE_B64, 'base64'));
+    writeFileSync(ks, Buffer.from(clean(process.env.PHYSIM_KEYSTORE_B64), 'base64'));
     step('ключ подписи взят из PHYSIM_KEYSTORE_B64');
+    checkKey(ks);
     return ks;
   }
   if (process.env.PHYSIM_KEYSTORE) {
     if (!existsSync(process.env.PHYSIM_KEYSTORE))
       throw new Error(`PHYSIM_KEYSTORE указывает на несуществующий файл: ${process.env.PHYSIM_KEYSTORE}`);
     step('ключ подписи взят из PHYSIM_KEYSTORE');
+    checkKey(process.env.PHYSIM_KEYSTORE);
     return process.env.PHYSIM_KEYSTORE;
   }
   const ks = join(here, 'phy-sim.keystore');   // в .gitignore: приватный ключ не коммитим
