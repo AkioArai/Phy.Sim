@@ -1,3 +1,5 @@
+
+
 # Phy.Sim
 
 **An interactive physics textbook where every formula has a live simulation next to it.**
@@ -24,6 +26,10 @@ contain plenty of bugs. [Bug reports](../../issues) are welcome.
 ---
 
 ## Demo
+
+
+https://github.com/user-attachments/assets/efd65eac-32d3-40f8-8381-c8aeccb81596
+
 
 <!-- TRAILER: upload the video file straight into this README on GitHub
      (edit the file → drag & drop the .mp4 → GitHub inserts a
