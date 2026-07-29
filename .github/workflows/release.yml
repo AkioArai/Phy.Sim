@@ -127,6 +127,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
         run: |
+          set -eu
+          VER="${TAG#v}"
+          # Ограничитель в кавычках: внутри текста есть обратные кавычки, и без
+          # этого оболочка приняла бы их за подстановку команд. Номер версии
+          # поэтому вписываем меткой и заменяем следом — иначе имена файлов
+          # в описании отставали бы от выпуска (в v1.1.0 они остались 1.0.0).
           cat > notes.md <<'EOF'
           **Phy.Sim — an interactive physics textbook.** 76 live simulations, 34 topics,
           252 formulas and 380 problems. Runs offline, asks for nothing, sends nothing.
@@ -143,17 +149,25 @@ jobs:
 
           | System | File |
           |---|---|
-          | Windows 10/11 | `Phy.Sim-Setup-1.0.0.exe` — setup wizard, pick your folder and shortcuts, no admin rights |
-          | Windows, no install | `Phy.Sim-portable-1.0.0.exe` — runs from a flash drive |
-          | Fedora | `Phy.Sim-1.0.0.x86_64.rpm` — double-click, or `sudo dnf install ./Phy.Sim-1.0.0.x86_64.rpm` |
-          | Android | `phy-sim.apk` — zero permissions. Each build is signed with a fresh key, so remove any older version first |
+          | Windows 10/11 | `Phy.Sim-Setup-__VER__.exe` — setup wizard, pick your folder and shortcuts, no admin rights |
+          | Windows, no install | `Phy.Sim-portable-__VER__.exe` — runs from a flash drive |
+          | Fedora | `Phy.Sim-__VER__.x86_64.rpm` — double-click, or `sudo dnf install ./Phy.Sim-__VER__.x86_64.rpm` |
+          | Android | `phy-sim.apk` — zero permissions. Installs over an earlier version, keeping your progress. |
           | Anything else | `phy-sim-standalone.html` in the repository — one file, opens in any browser |
 
           The course content is in Russian; the code and documentation are in English.
           Licensed under GPL-3.0.
           EOF
-          gh release create "$TAG" \
-            --target "$GITHUB_SHA" \
-            --title "Phy.Sim $TAG" \
-            --notes-file notes.md \
-            artifacts/*/*
+          sed -i "s/__VER__/$VER/g" notes.md
+          # Повторный выпуск того же тега не должен падать: описание правим,
+          # файлы перезаписываем.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "Phy.Sim $TAG" --notes-file notes.md
+            gh release upload "$TAG" artifacts/*/* --clobber
+          else
+            gh release create "$TAG" \
+              --target "$GITHUB_SHA" \
+              --title "Phy.Sim $TAG" \
+              --notes-file notes.md \
+              artifacts/*/*
+          fi
