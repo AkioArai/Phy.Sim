@@ -40,7 +40,6 @@ https://github.com/user-attachments/assets/efd65eac-32d3-40f8-8381-c8aeccb81596
   <a href="docs/media/03-simulation-dark.png">
     <img src="docs/media/03-simulation-dark.png" width="900" alt="Trailer — click to play">
   </a>
-  <br><em>▶ Trailer — coming soon</em>
 </p>
 
 ---
