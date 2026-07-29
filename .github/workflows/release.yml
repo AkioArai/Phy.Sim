@@ -66,6 +66,12 @@ jobs:
   android:
     name: Android APK
     runs-on: ubuntu-latest
+    # Ключ подписи объявлен на уровне задания: его видит и сборка, и проверка
+    # «а настроен ли он вообще».
+    env:
+      PHYSIM_KEYSTORE_B64:   ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      PHYSIM_KEYSTORE_PASS:  ${{ secrets.ANDROID_KEYSTORE_PASS }}
+      PHYSIM_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -91,13 +97,12 @@ jobs:
       # Как завести секрет — см. packaging/README.md.
       - name: Build apk
         working-directory: packaging/android
-        env:
-          PHYSIM_KEYSTORE_B64:  ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          PHYSIM_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-          PHYSIM_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
         run: node build-apk.mjs
+      # Проверяем env, а не secrets: контекст secrets в условиях if недоступен,
+      # и с ним весь файл workflow перестаёт разбираться —
+      # «Unrecognized named-value: secrets».
       - name: Предупредить, если ключ не настроен
-        if: ${{ secrets.ANDROID_KEYSTORE_B64 == '' }}
+        if: ${{ env.PHYSIM_KEYSTORE_B64 == '' }}
         run: |
           echo "::warning title=APK подписан временным ключом::Секрет ANDROID_KEYSTORE_B64 не задан. Этот apk нельзя поставить поверх предыдущей версии — у пользователей сотрётся прогресс. Инструкция: packaging/README.md"
       - uses: actions/upload-artifact@v4
