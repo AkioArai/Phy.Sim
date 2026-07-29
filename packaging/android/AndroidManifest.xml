@@ -11,10 +11,12 @@
   раздачи учебника это ни на что не влияет: приложение ставится на все
   версии Android от 5.0 до последних.
 -->
+<!-- Версии здесь нет намеренно: её подставляет aapt2 из корневого
+     package.json (флаги version-code и version-name в build-apk.mjs).
+     Атрибут в манифесте молча перебивал эти флаги, и apk выходил с
+     версией 1.0 независимо от версии проекта. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="ru.physim.app"
-    android:versionCode="1"
-    android:versionName="1.0">
+    package="ru.physim.app">
 
   <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29"/>
 

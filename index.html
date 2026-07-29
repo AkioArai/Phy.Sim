@@ -179,12 +179,14 @@
           <div class="cmp-body" id="cmp-body"></div>
         </div>
         <div class="eventflag hidden" id="eventflag"></div>
-        <!-- Настройки карандаша. Всплывают, только когда карандаш выбран, —
-             постоянная панель ради двух параметров заняла бы место у сцены. -->
+        <!-- Настройки инструмента: цвет, толщина и, где уместно, пунктир.
+             Всплывают, только когда выбран рисующий инструмент, — постоянная
+             панель ради трёх параметров заняла бы место у сцены. -->
         <div class="penbar hidden" id="penbar">
           <div class="pb-row" id="pb-colors"></div>
           <span class="pb-sep"></span>
           <div class="pb-row" id="pb-widths"></div>
+          <div class="pb-row" id="pb-extra"></div>
         </div>
         <div class="empty" id="nosim" style="position:absolute;inset:0;display:grid;place-items:center;background:var(--canvas)">
           Нажмите ▷ в углу формулы — здесь откроется её симуляция.</div>
@@ -323,6 +325,7 @@
   <button class="item" id="mi-snap"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M9 12h6M12 9v6"/></svg>Снимок для сравнения</button>
   <button class="item" id="mi-copyout"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>Скопировать показания</button>
   <button class="item" id="mi-cmdk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg>Командная палитра</button>
+  <button class="item" id="mi-teacher"><svg viewBox="0 0 24 24"><path d="M4 5h12a2 2 0 0 1 2 2v13H6a2 2 0 0 1-2-2z"/><path d="M8 9h6M8 13h6"/></svg>Собрать контрольную</button>
   <button class="item" id="mi-reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Всё сбросить</button>
   <div class="ttl">Сохранённые параметры</div><div id="presets"></div>
 </div>
@@ -367,6 +370,62 @@
     <button class="btn primary" id="ask-ok">ОК</button>
   </div>
 </div></div>
+
+<!-- Режим учителя: сборка контрольной в нескольких вариантах. У каждого
+     варианта свои параметры симуляций, поэтому и ответы разные. -->
+<div class="modal-bg hidden" id="modal-teacher"><div class="modal teacher">
+  <h3>Контрольная работа</h3>
+  <p class="tm-lead">У каждого варианта будут свои параметры симуляций — значит,
+    и свои ответы. Числа печатаются прямо в условии, лист ответов идёт отдельно.</p>
+
+  <label class="tm-field"><span>Название</span>
+    <input type="text" id="tm-title" placeholder="Контрольная работа" value="Контрольная работа"></label>
+
+  <div class="tm-grid">
+    <label class="tm-field"><span>Вариантов</span>
+      <input type="number" id="tm-count" min="1" max="40" value="4"></label>
+    <label class="tm-field"><span>Задач в варианте</span>
+      <input type="number" id="tm-per" min="1" max="20" value="5"></label>
+    <label class="tm-field"><span>Зерно</span>
+      <input type="number" id="tm-seed" min="1" max="999999" value="1"
+             title="Одно и то же зерно даёт ту же раздачу — можно распечатать повторно"></label>
+  </div>
+
+  <div class="tm-sub">Уровни сложности</div>
+  <div class="tm-lvls">
+    <label class="tm-lvl"><input type="checkbox" value="1" checked><span>1 · знакомство</span></label>
+    <label class="tm-lvl"><input type="checkbox" value="2" checked><span>2</span></label>
+    <label class="tm-lvl"><input type="checkbox" value="3" checked><span>3</span></label>
+    <label class="tm-lvl"><input type="checkbox" value="4" checked><span>4</span></label>
+    <label class="tm-lvl"><input type="checkbox" value="5"><span>5 · олимпиадная</span></label>
+  </div>
+
+  <div class="tm-sub">Темы
+    <button class="tm-mini" id="tm-all">все</button>
+    <button class="tm-mini" id="tm-none">снять</button></div>
+  <div class="tm-topics" id="tm-topics"></div>
+
+  <label class="tm-check"><input type="checkbox" id="tm-key" checked>
+    <span>Приложить лист ответов (для учителя)</span></label>
+
+  <div class="ask-row">
+    <button class="btn" id="tm-cancel">Отмена</button>
+    <button class="btn primary" id="tm-make">Собрать</button>
+  </div>
+</div></div>
+
+<!-- Готовая контрольная. Своя страница поверх всего: печатается только она. -->
+<div class="worksheet hidden" id="worksheet">
+  <div class="ws-bar">
+    <span id="ws-count"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="ws-again">Пересобрать</button>
+    <button class="btn primary" id="ws-print">Печать</button>
+    <button class="btn" id="ws-close">Закрыть</button>
+  </div>
+  <div class="ws-body" id="ws-body"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Командная палитра (Ctrl+P / Ctrl+Shift+P): быстрый переход к теме,

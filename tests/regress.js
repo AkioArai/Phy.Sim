@@ -92,26 +92,84 @@ async function boot(b, url, ui) {
     });
     ok('формулы влезают в колонку', wide.over === 0 && wide.seen > 200, wide);
 
-    // Карандаш: полоса, цвета, толщины, и стиль запоминается в самом штрихе.
-    const pen = await p.evaluate(() => {
-      openSim(Object.keys(SIMS)[0]);
-      setTool('pencil');
-      const bar = document.querySelector('#penbar');
-      const colors = document.querySelectorAll('#pb-colors .pb-color').length;
-      const widths = document.querySelectorAll('#pb-widths .pb-width').length;
-      const visible = bar && !bar.classList.contains('hidden') && bar.getBoundingClientRect().height > 0;
-      // рисуем штрих последним цветом и последней толщиной
-      document.querySelectorAll('#pb-colors .pb-color')[4].click();
-      document.querySelectorAll('#pb-widths .pb-width')[3].click();
-      const a = A();
-      const n0 = a.annos.length;
-      a.draft = { type: 'pencil', pts: [[0, 0], [1, 1]], c: S.pen.c, w: S.pen.w };
-      a.annos.push(a.draft); a.draft = null;
-      const last = a.annos[a.annos.length - 1];
-      return { visible, colors, widths, добавлен: a.annos.length === n0 + 1, c: last.c, w: last.w };
+    /* Инструменты: полоса настроек, клики по ней НАСТОЯЩЕЙ мышью и рисование
+       по холсту. Программный .click() здесь не годится: он не проходит
+       hit-testing и не зависит от захвата указателя, поэтому пропускал баг,
+       из-за которого на компьютере цвет карандаша не переключался вовсе. */
+    await p.evaluate(() => { openSim('kin1d'); setTool('pencil'); });
+    await p.waitForTimeout(200);
+
+    const bar = await p.evaluate(() => {
+      const b = document.querySelector('#penbar');
+      const c = document.querySelectorAll('#pb-colors .pb-color');
+      const w = document.querySelectorAll('#pb-widths .pb-width');
+      const r = k => { const q = k.getBoundingClientRect();
+        return [Math.round(q.left + q.width / 2), Math.round(q.top + q.height / 2)]; };
+      return { видна: !b.classList.contains('hidden') && b.getBoundingClientRect().height > 0,
+               цветов: c.length, толщин: w.length, цвет: r(c[4]), толщина: r(w[3]) };
     });
-    ok('панель карандаша', pen.visible && pen.colors === 6 && pen.widths === 4, pen);
-    ok('штрих хранит свой стиль', pen.добавлен && pen.c && pen.w > 0, { c: pen.c, w: pen.w });
+    ok('полоса настроек инструмента', bar.видна && bar.цветов === 6 && bar.толщин === 4, bar);
+
+    await p.mouse.click(bar.цвет[0], bar.цвет[1]);
+    await p.mouse.click(bar.толщина[0], bar.толщина[1]);
+    await p.waitForTimeout(150);
+    const style = await p.evaluate(() => markStyle('pencil'));
+    ok('клик мышью по полосе меняет стиль', style.c === '--ok' && style.w === 6, style);
+
+    const scene = await p.evaluate(() => { const r = document.querySelector('#scene').getBoundingClientRect();
+      return { cx: Math.round(r.left + r.width / 2), cy: Math.round(r.top + r.height / 2) }; });
+    await p.mouse.move(scene.cx - 60, scene.cy - 30); await p.mouse.down();
+    for (const d of [20, 40, 60, 80]) { await p.mouse.move(scene.cx - 60 + d, scene.cy - 30 + d / 2); }
+    await p.mouse.up(); await p.waitForTimeout(150);
+    const drawn = await p.evaluate(() => { const a = A(), l = a.annos[a.annos.length - 1];
+      return { всего: a.annos.length, тип: l && l.type, c: l && l.c, w: l && l.w }; });
+    ok('карандаш рисует по холсту выбранным стилем',
+        drawn.всего === 1 && drawn.тип === 'pencil' && drawn.c === '--ok' && drawn.w === 6, drawn);
+
+    // Полоса не должна накрывать шапки плавающих панелей — иначе их не схватить.
+    const hud = await p.evaluate(() => {
+      const r = document.querySelector('#hud .fp-head').getBoundingClientRect();
+      const c = [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)];
+      const top = document.elementFromPoint(c[0], c[1]);
+      return { свободна: !!(top && top.closest('#hud .fp-head')),
+               накрыта: top ? (top.id || top.className) : 'ничего' };
+    });
+    ok('полоса не накрывает шапку панели показателей', hud.свободна, hud);
+
+    // Настройки положены каждому рисующему инструменту, а не одному карандашу.
+    const tools = await p.evaluate(async () => {
+      const r = {};
+      for (const t of ['ruler','vector','dim','circle','angle','area','note','guide','pan','probe']) {
+        setTool(t); await new Promise(z => setTimeout(z, 15));
+        r[t] = { полоса: !document.querySelector('#penbar').classList.contains('hidden'),
+                 пунктир: document.querySelectorAll('#pb-extra .pb-dash').length };
+      }
+      return r;
+    });
+    ok('полоса настроек у всех рисующих инструментов',
+        ['ruler','vector','dim','circle','angle','area','note','guide'].every(t => tools[t].полоса)
+        && !tools.pan.полоса && !tools.probe.полоса,
+        Object.fromEntries(Object.entries(tools).map(([k, v]) => [k, v.полоса])));
+    ok('пунктир предложен направляющей и размерной линии',
+        tools.guide.пунктир === 1 && tools.dim.пунктир === 1 && tools.ruler.пунктир === 0,
+        { направляющая: tools.guide.пунктир, размер: tools.dim.пунктир, линейка: tools.ruler.пунктир });
+
+    // Режим учителя: варианты различаются, ключ сходится с пересчётом.
+    const teach = await p.evaluate(() => {
+      const topics = ALL.filter(t => (t.problems || []).length).map(t => t.id);
+      const v = buildVariants({ topics, levels: [1,2,3,4], count: 4, per: 4, seed: 11 });
+      const наборы = new Set(v.map(x => x.items.map(i => JSON.stringify(i.params)).join('|')));
+      let сошлось = 0, всего = 0;
+      for (const вар of v) for (const it of вар.items) {
+        всего++;
+        const заново = it.pr.answer(it.params);
+        if (Number.isFinite(заново) && Number.isFinite(it.answer) &&
+            Math.abs(заново - it.answer) <= Math.abs(it.answer) * 1e-12) сошлось++;
+      }
+      return { вариантов: v.length, различных: наборы.size, всего, сошлось };
+    });
+    ok('варианты контрольной различаются', teach.различных === teach.вариантов, teach);
+    ok('лист ответов сходится с пересчётом', teach.сошлось === teach.всего && teach.всего > 10, teach);
 
     // F11 в браузере: кольцо из двух режимов, «весь экран в окне» не предлагается.
     const wm = await p.evaluate(() => {

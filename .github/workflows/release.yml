@@ -85,11 +85,21 @@ jobs:
         with:
           path: packaging/android/.tools
           key: android-tools-v1
-      # Ключ подписи скрипт создаёт сам, и на каждом прогоне он новый: поставить
-      # новый apk «поверх» старого не выйдет, сначала удалите прежнюю версию.
+      # Ключ подписи берётся из секрета репозитория: Android ставит обновление
+      # поверх старой версии, только если обе подписаны одним ключом, иначе
+      # придётся удалять приложение — вместе с прогрессом ученика.
+      # Как завести секрет — см. packaging/README.md.
       - name: Build apk
         working-directory: packaging/android
+        env:
+          PHYSIM_KEYSTORE_B64:  ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          PHYSIM_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          PHYSIM_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
         run: node build-apk.mjs
+      - name: Предупредить, если ключ не настроен
+        if: ${{ secrets.ANDROID_KEYSTORE_B64 == '' }}
+        run: |
+          echo "::warning title=APK подписан временным ключом::Секрет ANDROID_KEYSTORE_B64 не задан. Этот apk нельзя поставить поверх предыдущей версии — у пользователей сотрётся прогресс. Инструкция: packaging/README.md"
       - uses: actions/upload-artifact@v4
         with:
           name: android

@@ -6,9 +6,10 @@ const RT={};
 const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:false,graphOn:true,rec:null,speed:1,
   snap:LS.get('snap',true), marks:LS.get('marks',[]), open:LS.get('open',['intro','mech']),
   trace:LS.get('trace',false), probe:null, recent:LS.get('recent',[]),
-  /* Карандаш: цвет хранится ИМЕНЕМ CSS-переменной, а не готовым цветом, —
-     тогда рисунок сам подстраивается под светлую и тёмную тему. */
-  pen:LS.get('pen',{c:'--danger',w:2}),
+  /* Стиль инструментов: цвет хранится ИМЕНЕМ CSS-переменной, а не готовым
+     цветом, — тогда рисунок сам подстраивается под светлую и тёмную тему.
+     Заполняется из TOOL_STYLE ниже; старый ключ pen переносится туда же. */
+  tstyle:LS.get('tstyle',null),
   scrub:null, loop:LS.get('loop',false), favs:LS.get('favs',[]),
   coords:LS.get('coords',false), mouse:null,
   /* Решённые задачи. Ключ — «тема#номер»; хранится между запусками, иначе при
@@ -319,47 +320,52 @@ function drawAll(){
   applyWorld(octx);
   const list=a.draft?a.annos.concat([a.draft]):a.annos;
   for(const an of list){
+    /* Цвет и толщина — у каждой пометки свои, взятые в момент создания:
+       смена настройки не должна перекрашивать нарисованное раньше. У пометок
+       из старых версий полей нет, поэтому падаем на прежние умолчания. */
+    const D=TOOL_STYLE[an.type]||{}, AC=css(an.c||D.c||'--accent'), AW=an.w||D.base||1;
+    const ADASH=an.dash!==undefined?an.dash:D.dash;
     if(an.type==='pencil'){
-      // толщина и цвет — у каждой линии свои: нарисованное раньше не должно
-      // менять вид от того, что потом выбрали другой карандаш
-      octx.strokeStyle=css(an.c||'--danger'); octx.lineWidth=VIEW.lw(an.w||2);
+      octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
       octx.lineJoin='round'; octx.lineCap='round';
       octx.beginPath(); an.pts.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1])); octx.stroke();
     } else if(an.type==='ruler'){
       const [x1,y1,x2,y2]=an.p, d=Math.hypot(x2-x1,y2-y1);
-      octx.strokeStyle=css('--measure'); octx.lineWidth=VIEW.lw(1.4);
+      octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
       octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
-      VIEW.label(octx,`${d.toFixed(2)} м`,(x1+x2)/2,(y1+y2)/2,6,-8,css('--measure'));
+      VIEW.label(octx,`${d.toFixed(2)} м`,(x1+x2)/2,(y1+y2)/2,6,-8,AC);
     } else if(an.type==='vector'){
       const [x1,y1,x2,y2]=an.p;
-      VIEW.arrow(octx,x1,y1,x2,y2,css('--accent'));
-      VIEW.label(octx,`${Math.hypot(x2-x1,y2-y1).toFixed(2)} ∠${(Math.atan2(y2-y1,x2-x1)*180/Math.PI).toFixed(0)}°`,x2,y2,8,-8,css('--accent'));
+      octx.lineWidth=VIEW.lw(AW);
+      VIEW.arrow(octx,x1,y1,x2,y2,AC);
+      VIEW.label(octx,`${Math.hypot(x2-x1,y2-y1).toFixed(2)} ∠${(Math.atan2(y2-y1,x2-x1)*180/Math.PI).toFixed(0)}°`,x2,y2,8,-8,AC);
     } else if(an.type==='dim'){
       /* Размерная линия как в чертеже: сама линия со стрелками на концах
          и две выноски-перпендикуляра от измеряемых точек. */
       const [x1,y1,x2,y2]=an.p, dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1e-9;
       const nx=-dy/L, ny=dx/L, off=VIEW.lw(14);
       const ax=x1+nx*off, ay=y1+ny*off, bx=x2+nx*off, by=y2+ny*off;
-      octx.strokeStyle=css('--measure'); octx.lineWidth=VIEW.lw(1);
+      octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
+      if(ADASH) octx.setLineDash([VIEW.lw(5),VIEW.lw(3)]);
       octx.beginPath();
       octx.moveTo(x1,y1); octx.lineTo(ax+nx*off*0.25,ay+ny*off*0.25);
       octx.moveTo(x2,y2); octx.lineTo(bx+nx*off*0.25,by+ny*off*0.25);
-      octx.stroke();
-      VIEW.arrow(octx,ax,ay,bx,by,css('--measure'));
-      VIEW.arrow(octx,bx,by,ax,ay,css('--measure'));
-      VIEW.label(octx,`${L.toFixed(2)} м`,(ax+bx)/2,(ay+by)/2,-16,-8,css('--measure'));
+      octx.stroke(); octx.setLineDash(EMPTY_DASH);
+      VIEW.arrow(octx,ax,ay,bx,by,AC);
+      VIEW.arrow(octx,bx,by,ax,ay,AC);
+      VIEW.label(octx,`${L.toFixed(2)} м`,(ax+bx)/2,(ay+by)/2,-16,-8,AC);
     } else if(an.type==='circle'){
       const [cx0,cy0,px2,py2]=an.p, R=Math.hypot(px2-cx0,py2-cy0);
-      octx.strokeStyle=css('--second'); octx.lineWidth=VIEW.lw(1.4);
+      octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
       octx.beginPath(); octx.arc(cx0,cy0,R,0,7); octx.stroke();
       octx.setLineDash([VIEW.lw(3),VIEW.lw(3)]);
       octx.beginPath(); octx.moveTo(cx0,cy0); octx.lineTo(px2,py2); octx.stroke();
       octx.setLineDash(EMPTY_DASH);
-      VIEW.label(octx,`R = ${R.toFixed(2)} м   S = ${(Math.PI*R*R).toFixed(2)} м²`,cx0,cy0,8,-10,css('--second'));
+      VIEW.label(octx,`R = ${R.toFixed(2)} м   S = ${(Math.PI*R*R).toFixed(2)} м²`,cx0,cy0,8,-10,AC);
     } else if(an.type==='angle'&&an.pts.length>=2){
       // транспортир: вершина — вторая точка
-      const P=an.pts, col=css('--accent');
-      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(1.4);
+      const P=an.pts, col=AC;
+      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(AW);
       octx.beginPath(); P.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1])); octx.stroke();
       if(P.length>=3){
         const [A1,V0,B1]=P;
@@ -372,8 +378,8 @@ function drawAll(){
         VIEW.label(octx,`${Math.abs(d*180/Math.PI).toFixed(1)}°`,V0[0]+R*Math.cos(a1+d/2),V0[1]+R*Math.sin(a1+d/2),8,-6,col);
       }
     } else if(an.type==='area'&&an.pts.length>=2){
-      const P=an.pts, col=css('--second');
-      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(1.4);
+      const P=an.pts, col=AC;
+      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(AW);
       octx.beginPath(); P.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1]));
       if(P.length>=3){
         octx.closePath();
@@ -389,20 +395,21 @@ function drawAll(){
           cx0/P.length,cy0/P.length,-40,0,col);
       }
     } else if(an.type==='note'){
-      const [x,y]=an.p, col=css('--measure');
-      octx.fillStyle=col; octx.beginPath(); octx.arc(x,y,VIEW.lw(3),0,7); octx.fill();
+      const [x,y]=an.p, col=AC;
+      octx.fillStyle=col; octx.beginPath(); octx.arc(x,y,VIEW.lw(1.5*AW),0,7); octx.fill();
       VIEW.label(octx,an.text,x,y,10,-8,col);
     } else if(an.type==='guide'){
       const [x,y]=an.p;
       const [wx0,wy1]=toWorld(0,0), [wx1,wy0]=toWorld(CW,CH);
-      octx.strokeStyle=css('--accent'); octx.globalAlpha=.55;
-      octx.lineWidth=VIEW.lw(1); octx.setLineDash([VIEW.lw(6),VIEW.lw(4)]);
+      octx.strokeStyle=AC; octx.globalAlpha=.55;
+      octx.lineWidth=VIEW.lw(AW);
+      if(ADASH) octx.setLineDash([VIEW.lw(6),VIEW.lw(4)]);
       octx.beginPath();
       if(an.dir==='v'){ octx.moveTo(x,wy0); octx.lineTo(x,wy1); }
       else { octx.moveTo(wx0,y); octx.lineTo(wx1,y); }
       octx.stroke(); octx.setLineDash(EMPTY_DASH); octx.globalAlpha=1;
       VIEW.label(octx,an.dir==='v'?`x = ${x.toFixed(2)}`:`y = ${y.toFixed(2)}`,
-        an.dir==='v'?x:wx0, an.dir==='v'?wy0:y, 6, -6, css('--accent'));
+        an.dir==='v'?x:wx0, an.dir==='v'?wy0:y, 6, -6, AC);
     } else if(an.type==='marquee'){
       const [x1,y1,x2,y2]=an.p;
       octx.strokeStyle=css('--accent'); octx.lineWidth=VIEW.lw(1);
@@ -1570,6 +1577,16 @@ document.addEventListener('pointerdown',e=>{
 },true);
 
 $('#cwrap').addEventListener('pointerdown',e=>{
+  /* Внутри #cwrap лежат не только холсты, но и плавающие панели, полоса
+     карандаша, флажок события. Раньше жест начинался от нажатия по любому
+     из них, и вместе с жестом срабатывал setPointerCapture на #cwrap:
+     указатель уводился с кнопки, pointerup приходил уже на #cwrap, и click
+     не рождался вовсе — цвет и толщина карандаша не переключались.
+     Проверяем не список классов, а саму цель: жест начинается только от
+     сцены. Тогда любая будущая панель внутри обёртки работает сама собой.
+     (#overlay брать не нужно — у него pointer-events:none, и события
+     холста всегда приходят на #scene.) */
+  if(e.target!==scene) return;
   const a=A(); if(!a) return;
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
   const [wx,wy]=toWorld(px,py);
@@ -1620,9 +1637,9 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   }
   if(S.tool==='pan'){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
   const [sx,sy]=snapPt(wx,wy);
-  if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]],c:S.pen.c,w:S.pen.w}; drag={mode:'draw'}; }
+  if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]],...markStyle('pencil')}; drag={mode:'draw'}; }
   else if(S.tool==='ruler'||S.tool==='vector'||S.tool==='dim'||S.tool==='circle'){
-    a.draft={type:S.tool,p:[sx,sy,sx,sy]}; drag={mode:'draw'};
+    a.draft={type:S.tool,p:[sx,sy,sx,sy],...markStyle(S.tool)}; drag={mode:'draw'};
   }
   else if(S.tool==='eraser'){ annSnapshot(a); erase(wx,wy); drag={mode:'erase'}; }
   else if(S.tool==='marquee'){ drag={mode:'marquee',x0:wx,y0:wy}; a.draft={type:'marquee',p:[wx,wy,wx,wy]}; }
@@ -1630,16 +1647,16 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   else if(S.tool==='guide'){
     annSnapshot(a);
     // ЛКМ — горизонтальная направляющая, с Alt — вертикальная
-    a.annos.push({type:'guide',p:[sx,sy],dir:e.altKey?'v':'h'});
+    a.annos.push({type:'guide',p:[sx,sy],dir:e.altKey?'v':'h',...markStyle('guide')});
     toast(e.altKey?'Вертикальная направляющая':'Горизонтальная направляющая (Alt — вертикальная)');
   }
   else if(S.tool==='note'){
-    askText('Текст заметки','',txt=>{ annSnapshot(a); a.annos.push({type:'note',p:[sx,sy],text:txt}); });
+    askText('Текст заметки','',txt=>{ annSnapshot(a); a.annos.push({type:'note',p:[sx,sy],text:txt,...markStyle('note')}); });
   }
   else if(S.tool==='angle'||S.tool==='area'){
     /* Многоточечные инструменты: копим вершины кликами, замыкаем двойным
        кликом, клавишей Enter или (для угла) третьей точкой. */
-    if(!a.draft||a.draft.type!==S.tool) a.draft={type:S.tool,pts:[]};
+    if(!a.draft||a.draft.type!==S.tool) a.draft={type:S.tool,pts:[],...markStyle(S.tool)};
     a.draft.pts.push([sx,sy]);
     if(S.tool==='angle'&&a.draft.pts.length===3){ annSnapshot(a); a.annos.push(a.draft); a.draft=null; }
     else if(S.tool==='area'&&e.detail>=2&&a.draft.pts.length>=4){
@@ -1827,39 +1844,93 @@ $('#btn-fit').onclick=fitView;
 
 /* ================================== UI ================================= */
 document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
-/* ---- Настройки карандаша ----
-   Цвет и толщина. Панель показывается только при выбранном карандаше и
-   одинакова на компьютере и на телефоне: на маленьком экране отдельного
-   места под неё нет, а так она занимает одну строку над сценой. */
-const PEN_COLORS=[['--danger','красный'],['--accent','синий'],['--second','фиолетовый'],
-                  ['--measure','оранжевый'],['--ok','зелёный'],['--ink','чёрный']];
-const PEN_WIDTHS=[[1,'тонко'],[2,'обычно'],[3.5,'жирно'],[6,'маркер']];
-function renderPenbar(){
+/* ---- Настройки инструмента ----
+   Цвет, толщина и — где это имеет смысл — пунктир. Полоса показывается
+   только когда выбран инструмент, который что-то рисует, и одинакова на
+   компьютере и на телефоне: на маленьком экране отдельного места под неё
+   нет, а так она занимает одну строку у края сцены.
+
+   Толщина хранится МНОЖИТЕЛЕМ, а не абсолютным числом. У линейки своя
+   привычная толщина, у карандаша своя; множитель 1 означает «как было
+   всегда», поэтому вид уже нарисованного и умолчания не меняются, а
+   «жирно» одинаково жирно для любого инструмента. */
+const TOOL_COLORS=[['--danger','красный'],['--accent','синий'],['--second','фиолетовый'],
+                   ['--measure','оранжевый'],['--ok','зелёный'],['--ink','чёрный']];
+const TOOL_WIDTHS=[[0.5,'тонко'],[1,'обычно'],[1.75,'жирно'],[3,'маркер']];
+/* Базовый вид каждого инструмента — ровно тот, что раньше был зашит в
+   отрисовке. Поле dash есть только у инструментов, которым пунктир к лицу. */
+const TOOL_STYLE={
+  pencil:{c:'--danger',  base:2},
+  ruler: {c:'--measure', base:1.4},
+  vector:{c:'--accent',  base:1.4},
+  dim:   {c:'--measure', base:1,   dash:false},
+  circle:{c:'--second',  base:1.4},
+  angle: {c:'--accent',  base:1.4},
+  area:  {c:'--second',  base:1.4},
+  note:  {c:'--measure', base:2},
+  guide: {c:'--accent',  base:1,   dash:true},
+};
+/* Разовый перенос со старого ключа pen: у кого карандаш был настроен, тот
+   его настройку и получает, остальные — умолчания. */
+if(!S.tstyle){
+  S.tstyle={};
+  const old=LS.get('pen',null);
+  for(const [t,d] of Object.entries(TOOL_STYLE)){
+    S.tstyle[t]={c:d.c,k:1,...(d.dash!==undefined?{dash:d.dash}:{})};
+  }
+  if(old&&old.c) S.tstyle.pencil={c:old.c,k:(old.w||2)/TOOL_STYLE.pencil.base};
+  LS.set('tstyle',S.tstyle);
+}
+const tstyle=t=>S.tstyle[t]||{c:(TOOL_STYLE[t]||{}).c,k:1};
+/* Цвет и толщина, с которыми пометка будет создана. Кладутся в саму пометку
+   в момент создания: иначе смена цвета перекрашивала бы нарисованное раньше. */
+function markStyle(t){
+  const d=TOOL_STYLE[t]||{base:1}, s=tstyle(t);
+  const o={c:s.c||d.c, w:(d.base||1)*(s.k||1)};
+  if(d.dash!==undefined) o.dash=s.dash!==undefined?s.dash:d.dash;
+  return o;
+}
+function renderToolbar(){
   const bar=$('#penbar'); if(!bar) return;
-  bar.classList.toggle('hidden', S.tool!=='pencil');
-  if(S.tool!=='pencil') return;
-  const cols=$('#pb-colors'), ws=$('#pb-widths');
-  cols.innerHTML=''; ws.innerHTML='';
-  for(const [v,name] of PEN_COLORS){
+  const styleable=!!TOOL_STYLE[S.tool];
+  bar.classList.toggle('hidden', !styleable);
+  $('#cwrap').classList.toggle('has-toolbar', styleable);
+  if(!styleable) return;
+  const s=tstyle(S.tool), def=TOOL_STYLE[S.tool];
+  const cols=$('#pb-colors'), ws=$('#pb-widths'), ex=$('#pb-extra');
+  cols.innerHTML=''; ws.innerHTML=''; ex.innerHTML='';
+  const save=upd=>{ S.tstyle={...S.tstyle,[S.tool]:{...s,...upd}};
+                    LS.set('tstyle',S.tstyle); renderToolbar(); };
+  for(const [v,name] of TOOL_COLORS){
     const b=document.createElement('button');
-    b.className='pb-color'+(S.pen.c===v?' on':''); b.type='button'; b.title=name;
+    b.className='pb-color'+((s.c||def.c)===v?' on':''); b.type='button'; b.title=name;
     b.style.setProperty('--pc',`var(${v})`);
-    b.onclick=()=>{ S.pen={...S.pen,c:v}; LS.set('pen',S.pen); renderPenbar(); };
+    b.onclick=()=>save({c:v});
     cols.appendChild(b);
   }
-  for(const [v,name] of PEN_WIDTHS){
+  for(const [v,name] of TOOL_WIDTHS){
     const b=document.createElement('button');
-    b.className='pb-width'+(S.pen.w===v?' on':''); b.type='button'; b.title=name;
-    b.innerHTML=`<i style="height:${Math.max(2,v)}px"></i>`;
-    b.onclick=()=>{ S.pen={...S.pen,w:v}; LS.set('pen',S.pen); renderPenbar(); };
+    b.className='pb-width'+((s.k||1)===v?' on':''); b.type='button'; b.title=name;
+    // высота полоски показывает итоговую толщину именно этого инструмента
+    b.innerHTML=`<i style="height:${Math.max(2,Math.round(def.base*v))}px"></i>`;
+    b.onclick=()=>save({k:v});
     ws.appendChild(b);
+  }
+  if(def.dash!==undefined){
+    const on=s.dash!==undefined?s.dash:def.dash;
+    const b=document.createElement('button');
+    b.className='pb-dash'+(on?' on':''); b.type='button';
+    b.title=on?'пунктиром':'сплошной';
+    b.innerHTML='<i></i>';
+    b.onclick=()=>save({dash:!on});
+    ex.appendChild(b);
   }
 }
 function setTool(t){
   const a=A(); if(a&&a.draft&&a.draft.type!==t) a.draft=null;   // бросаем недорисованное
   S.tool=t;
   document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
-  renderPenbar();
+  renderToolbar();
   const CUR={pan:'grab',eraser:'cell',note:'text',marquee:'crosshair',probe:'crosshair'};
   $('#cwrap').style.cursor=CUR[t]||'crosshair';
   // подсказка, как завершить многоточечный инструмент
@@ -2232,6 +2303,7 @@ popup($('#btn-simmenu'),$('#pop-simmenu'));
 $('#btn-settings').onclick=()=>openPrefs();
 $('#btn-cmdk').onclick=()=>cmdkOpen('');
 $('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(''); };
+$('#mi-teacher').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openTeacher(); };
 $('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
 $('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
 addEventListener('click',()=>document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden')));
@@ -2580,11 +2652,11 @@ function renderPrefs(){
       <div class="pset"><div class="pset-l"><div class="pset-name">Очистить всё хранилище</div>
         <div class="pset-desc">Удаляет настройки, наборы и пометки. Отменить это будет нельзя.</div></div>
         <div class="pset-c"><button class="btn" id="pref-clear-all">Очистить</button></div></div>
-      <div class="pset"><div class="pset-l"><div class="pset-name">Сохранить настройки в файл</div>
-        <div class="pset-desc">Скачивает файл с настройками, наборами и закладками — чтобы перенести их на другой компьютер.</div></div>
+      <div class="pset"><div class="pset-l"><div class="pset-name">Сохранить всё в файл</div>
+        <div class="pset-desc">Настройки, наборы параметров, закладки, стиль инструментов и — главное — отметки о решённых задачах. Чтобы перенести на другое устройство или уберечь перед переустановкой.</div></div>
         <div class="pset-c"><button class="btn" id="pref-export">Скачать</button></div></div>
-      <div class="pset"><div class="pset-l"><div class="pset-name">Загрузить настройки из файла</div>
-        <div class="pset-desc">Восстанавливает настройки, наборы и закладки из ранее сохранённого файла.</div></div>
+      <div class="pset"><div class="pset-l"><div class="pset-name">Загрузить из файла</div>
+        <div class="pset-desc">Восстанавливает всё из ранее сохранённого файла, включая прогресс по задачам. Файлы старых версий тоже подходят.</div></div>
         <div class="pset-c"><button class="btn" id="pref-import">Выбрать файл</button>
           <input type="file" id="pref-import-file" accept="application/json" style="display:none"></div></div>
 `;
@@ -2599,14 +2671,21 @@ function renderPrefs(){
         if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
       S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Хранилище очищено');
     });
+    /* В файл идёт ВСЁ, что пользователь нажил, а не одни настройки. Раньше
+       отметки о решённых задачах (solved) в него не попадали: человек делал
+       резервную копию, восстанавливал её и обнаруживал, что 380 задач снова
+       не решены. Это же единственная защита перед переустановкой на
+       телефоне, где обновление стирает хранилище. */
     $('#pref-export').onclick=()=>{
-      const data=JSON.stringify({app:'physim',v:1,settings:S.settings,
-        presets:LS.get('presets',{}),marks:S.marks},null,1);
+      const solved=Object.keys(S.solved||{}).length;
+      const data=JSON.stringify({app:'physim',v:2,settings:S.settings,
+        presets:LS.get('presets',{}),marks:S.marks,
+        solved:S.solved,favs:S.favs,tstyle:S.tstyle,recent:S.recent},null,1);
       const a=document.createElement('a');
       a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
-      a.download='physim-настройки.json'; a.click();
+      a.download='physim-данные.json'; a.click();
       setTimeout(()=>URL.revokeObjectURL(a.href),2000);
-      toast('Файл настроек сохранён');
+      toast(`Сохранено: решённых задач ${solved}`);
     };
     $('#pref-import').onclick=()=>$('#pref-import-file').click();
     $('#pref-import-file').onchange=e=>{
@@ -2619,7 +2698,14 @@ function renderPrefs(){
           if(j.settings) S.settings={...PREF_DEFAULTS,...j.settings};
           if(j.presets)  LS.set('presets',j.presets);
           if(j.marks){ S.marks=j.marks; LS.set('marks',S.marks); }
-          applySettings(); renderPrefs(); renderTree(); toast('Настройки загружены');
+          /* Прогресс СЛИВАЕМ, а не заменяем: если человек успел решить
+             что-то и на этом устройстве, копия не должна это стереть. */
+          if(j.solved){ S.solved={...S.solved,...j.solved}; LS.set('solved',S.solved); }
+          if(j.favs){ S.favs=[...new Set([...(S.favs||[]),...j.favs])]; LS.set('favs',S.favs); }
+          if(j.tstyle){ S.tstyle={...S.tstyle,...j.tstyle}; LS.set('tstyle',S.tstyle); }
+          if(j.recent){ S.recent=j.recent; LS.set('recent',S.recent); }
+          applySettings(); renderPrefs(); renderTree(); renderPane();
+          toast(j.solved?`Загружено, решённых задач ${Object.keys(S.solved).length}`:'Данные загружены');
         }catch(_){ toast('Это не файл настроек Phy.Sim'); }
       };
       rd.readAsText(f);
@@ -3477,8 +3563,10 @@ const CMDS=[
   {k:'Вид',t:'Сбросить расположение панелей', run:()=>resetPanels()},
   {k:'Прочее',t:'Настройки', hint:'Ctrl+,', run:()=>openPrefs()},
   {k:'Прочее',t:'Горячие клавиши', run:()=>openPrefs('keys')},
-  {k:'Прочее',t:'Сохранить настройки в файл', run:()=>{ openPrefs('data'); setTimeout(()=>$('#pref-export')&&$('#pref-export').click(),120); }},
-  {k:'Прочее',t:'Данные и настройки', run:()=>{ openPrefs('data'); }}
+  {k:'Прочее',t:'Сохранить все данные в файл', run:()=>{ openPrefs('data'); setTimeout(()=>$('#pref-export')&&$('#pref-export').click(),120); }},
+  {k:'Прочее',t:'Данные и настройки', run:()=>{ openPrefs('data'); }},
+  {k:'Учителю',t:'Собрать контрольную в нескольких вариантах', run:()=>openTeacher()},
+  {k:'Учителю',t:'Печать контрольной и листа ответов', run:()=>openTeacher()}
 ];
 let cmdkSel=0, cmdkItems=[];
 function cmdkOpen(prefix){
@@ -3656,6 +3744,197 @@ function applyWindowMode(init){
 }
 
 initFloatingPanels();
+
+
+/* ============================ РЕЖИМ УЧИТЕЛЯ ============================
+   Печать контрольной в нескольких вариантах и отдельного листа ответов.
+
+   Смысл ровно в том, ради чего задачи вообще считаются формулой, а не
+   записаны числом: у каждого варианта свои параметры симуляции, поэтому
+   и ответы разные. Списать у соседа нечего, а проверять всё равно по
+   одному листу.
+
+   Две вещи, из-за которых это не сводится к «распечатать условия»:
+
+   1) На бумаге нет панели параметров, а условия ссылаются на неё
+      («значения — в параметрах слева»). Значит, в каждый вариант нужно
+      вписать сами числа. Какие именно — определяем не на глаз: гоняем
+      answer через Proxy и смотрим, какие ключи она действительно читает.
+      Что не влияет на ответ, то и печатать незачем.
+
+   2) Случайные параметры сплошь и рядом дают «события не происходит»
+      (брошенное вверх тело не останавливается, если его разгоняют).
+      Поэтому набор перебирается, пока ответ не окажется конечным. */
+
+/* Число для печати: без хвоста нулей, но и без потери значащих цифр.
+   fmt() всегда даёт два знака после точки, и «1404.00 Ом» в условии
+   контрольной выглядит опечаткой. */
+function fmtNice(v){
+  if(!isFinite(v)) return '—';
+  if(Number.isInteger(v)) return String(v);
+  const a=Math.abs(v);
+  if(a>=1e5||(a<1e-3&&a>0)) return v.toExponential(2);
+  return String(+v.toFixed(a>=100?1:a>=1?2:4));
+}
+
+/* Склонение при числительном: «6 вариантов по 4 задачи». */
+function plural(n,one,few,many){
+  const d=Math.abs(n)%100, e=d%10;
+  return n+' '+(d>10&&d<20?many:e===1?one:e>=2&&e<=4?few:many);
+}
+
+/* Какие параметры читает answer. Proxy-ловушка честнее любого разбора
+   текста: она видит ровно те обращения, что произошли. */
+function answerParams(pr, params){
+  const used=new Set();
+  try{
+    pr.answer(new Proxy({...params},{ get(t,k){ if(typeof k==='string') used.add(k); return t[k]; } }));
+  }catch(_){ /* упавшая answer просто не даст списка — не беда */ }
+  return [...used];
+}
+
+/* Датчик случайных чисел с явным зерном: «вариант 3» обязан печататься
+   одинаково и сегодня, и через месяц, иначе учитель не сможет повторить
+   раздачу или проверить работу по позже распечатанному ключу. */
+function seeded(seed){
+  let s=(seed>>>0)||1;
+  return ()=>((s=(s*1664525+1013904223)>>>0)/4294967296);
+}
+
+function randomParams(def, rnd){
+  const p={};
+  for(const q of def.params){
+    if(q.type==='group') continue;
+    if(q.type==='select'){ const o=q.options||[]; p[q.key]=o.length?o[Math.floor(rnd()*o.length)].v:q.default; }
+    else if(typeof q.default==='boolean') p[q.key]=rnd()<0.5;
+    else if(typeof q.min==='number'&&typeof q.max==='number'){
+      /* Берём среднюю треть диапазона: у краёв слишком часто получается
+         вырожденный случай, а «красивые» числа нужнее экзотических.
+         Шаг параметра округляет до того же вида, что и ползунок. */
+      const lo=q.min+(q.max-q.min)*0.25, hi=q.min+(q.max-q.min)*0.75;
+      const v=lo+rnd()*(hi-lo);
+      p[q.key]=q.step?Math.round(v/q.step)*q.step:Math.round(v*100)/100;
+    } else p[q.key]=q.default;
+  }
+  return p;
+}
+
+/* Набор параметров, при котором у задачи есть конечный ответ. */
+function solvableParams(pr, def, rnd){
+  for(let i=0;i<60;i++){
+    const p=randomParams(def,rnd);
+    let v; try{ v=pr.answer(p); }catch(_){ continue; }
+    if(typeof v==='number'&&isFinite(v)) return {params:p, answer:v};
+  }
+  const p={}; for(const q of def.params) if(q.type!=='group') p[q.key]=q.default;
+  let v=NaN; try{ v=pr.answer(p); }catch(_){}
+  return {params:p, answer:v};       // сдаёмся и печатаем умолчания
+}
+
+function buildVariants(o){
+  const пул=[];
+  for(const t of ALL){
+    if(!o.topics.includes(t.id)) continue;
+    (t.problems||[]).forEach((pr,i)=>{
+      if(o.levels.includes(pr.level)&&pr.sim&&SIMS[pr.sim]) пул.push({t,pr,i});
+    });
+  }
+  if(!пул.length) return [];
+  const варианты=[];
+  for(let v=0;v<o.count;v++){
+    const rnd=seeded(o.seed+v*7919);        // своё зерно на вариант
+    const мешок=пул.slice();
+    // перемешивание Фишера — Йетса тем же датчиком, что и параметры
+    for(let i=мешок.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [мешок[i],мешок[j]]=[мешок[j],мешок[i]]; }
+    const items=мешок.slice(0,o.per).map(({t,pr,i})=>{
+      const def=SIMS[pr.sim];
+      const {params,answer}=solvableParams(pr,def,rnd);
+      const keys=answerParams(pr,params);
+      const дано=def.params.filter(q=>q.type!=='group'&&keys.includes(q.key)).map(q=>{
+        let v=params[q.key];
+        if(q.type==='select'){ const o2=(q.options||[]).find(x=>x.v===v); v=o2?o2.t:v; }
+        else if(typeof v==='boolean') v=v?'да':'нет';
+        else if(typeof v==='number') v=fmtNice(v);
+        return {label:q.label, value:v, unit:q.unit||''};
+      });
+      return {topic:t.title, sim:def.title, pr, дано, answer, params, keys};
+    });
+    варианты.push({n:v+1, items});
+  }
+  return варианты;
+}
+
+function renderWorksheet(o){
+  const варианты=buildVariants(o);
+  if(!варианты.length){ toast('В выбранных темах нет задач нужного уровня'); return; }
+  const box=$('#worksheet'), body=$('#ws-body');
+  const дата=new Date().toLocaleDateString('ru-RU');
+  const лист=v=>`
+    <section class="ws-page">
+      <header class="ws-head">
+        <div><b>${o.title||'Контрольная работа'}</b> · вариант ${v.n}</div>
+        <div class="ws-meta">Фамилия, класс: ______________________  ·  ${дата}</div>
+      </header>
+      <ol class="ws-list">${v.items.map(it=>`
+        <li>
+          <div class="ws-topic">${it.topic} · ${it.sim}</div>
+          <div class="ws-st">${it.pr.statement}</div>
+          ${it.дано.length?`<div class="ws-given"><b>Дано:</b> ${it.дано.map(d=>
+            `${d.label} = ${d.value}${d.unit?' '+d.unit:''}`).join(';  ')}</div>`:''}
+          <div class="ws-ans">Ответ: ______________ ${it.pr.unit}</div>
+        </li>`).join('')}</ol>
+    </section>`;
+  const ключ=`
+    <section class="ws-page ws-key">
+      <header class="ws-head"><div><b>${o.title||'Контрольная работа'}</b> · лист ответов</div>
+        <div class="ws-meta">только для учителя · ${дата}</div></header>
+      ${варианты.map(v=>`<div class="ws-keycol"><b>Вариант ${v.n}</b><ol>${
+        v.items.map(it=>`<li>${isFinite(it.answer)?fmtNice(it.answer):'события нет'} ${it.pr.unit}</li>`).join('')
+      }</ol></div>`).join('')}
+    </section>`;
+  body.innerHTML=варианты.map(лист).join('')+(o.key?ключ:'');
+  typeset(body);
+  box.classList.remove('hidden');
+  $('#ws-count').textContent=`${plural(варианты.length,'вариант','варианта','вариантов')} `+
+    `по ${plural(варианты[0].items.length,'задаче','задачи','задач')}`;
+}
+
+function openTeacher(){
+  const темыСзадачами=ALL.filter(t=>(t.problems||[]).length);
+  const box=$('#modal-teacher');
+  $('#tm-topics').innerHTML=темыСзадачами.map(t=>
+    `<label class="tm-topic"><input type="checkbox" value="${t.id}"${t.id===(S.topic&&S.topic.id)?' checked':''}>
+       <span>${t.title}</span><i>${t.problems.length}</i></label>`).join('');
+  box.classList.remove('hidden');
+}
+
+function initTeacher(){
+  const box=$('#modal-teacher'); if(!box) return;
+  const закрыть=()=>box.classList.add('hidden');
+  $('#tm-cancel').onclick=закрыть;
+  box.addEventListener('click',e=>{ if(e.target===box) закрыть(); });
+  $('#tm-all').onclick=()=>box.querySelectorAll('#tm-topics input').forEach(c=>c.checked=true);
+  $('#tm-none').onclick=()=>box.querySelectorAll('#tm-topics input').forEach(c=>c.checked=false);
+  $('#tm-make').onclick=()=>{
+    const topics=[...box.querySelectorAll('#tm-topics input:checked')].map(c=>c.value);
+    if(!topics.length){ toast('Выберите хотя бы одну тему'); return; }
+    const levels=[...box.querySelectorAll('.tm-lvl input:checked')].map(c=>+c.value);
+    if(!levels.length){ toast('Выберите хотя бы один уровень сложности'); return; }
+    закрыть();
+    renderWorksheet({
+      topics, levels,
+      count:Math.max(1,Math.min(40,+$('#tm-count').value||4)),
+      per:Math.max(1,Math.min(20,+$('#tm-per').value||5)),
+      seed:+$('#tm-seed').value||1,
+      key:$('#tm-key').checked,
+      title:$('#tm-title').value.trim(),
+    });
+  };
+  $('#ws-close').onclick=()=>$('#worksheet').classList.add('hidden');
+  $('#ws-print').onclick=()=>window.print();
+  $('#ws-again').onclick=()=>{ $('#worksheet').classList.add('hidden'); openTeacher(); };
+}
+initTeacher();
 
 
 /* ================================= СТАРТ =============================== */

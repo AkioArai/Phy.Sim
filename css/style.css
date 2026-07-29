@@ -391,7 +391,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .ebar .val{font-family:var(--mono);font-size:9px;color:var(--ink-3)}
 .energybox .tot{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);align-self:flex-start;margin-left:2px}
 .hud.hidden{display:none}
-.eventflag{position:absolute;right:8px;bottom:8px;font-family:var(--mono);font-size:11px;color:#fff;background:var(--measure);padding:4px 8px;border-radius:5px;pointer-events:none}
+.eventflag{position:absolute;right:8px;bottom:8px;transition:bottom .18s;font-family:var(--mono);font-size:11px;color:#fff;background:var(--measure);padding:4px 8px;border-radius:5px;pointer-events:none}
 .eventflag.hidden{display:none}
 .hsplit{height:6px;flex:0 0 6px;cursor:row-resize;background:var(--line-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center}
 .hsplit::after{content:'';width:34px;height:2px;border-radius:2px;background:var(--ink-3);opacity:.45}
@@ -979,11 +979,21 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 /* ---- Настройки карандаша ----
    Появляются только при выбранном карандаше: постоянная панель ради двух
    параметров отнимала бы место у сцены. Одинакова на компьютере и телефоне. */
-.penbar{position:absolute;left:50%;transform:translateX(-50%);top:8px;z-index:35;
+/* Полоса стоит ВНИЗУ сцены, а не вверху: вверху справа живут плавающие
+   панели, и на узкой панели симуляции полоса накрывала их шапки — панель
+   становилось невозможно схватить, пока выбран инструмент. Внизу свободно.
+   На телефоне наоборот: низ занят плавающей панелью управления, зато верх
+   пуст, поэтому там полоса остаётся сверху. */
+.penbar{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;z-index:35;
   display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:999px;
   background:color-mix(in srgb,var(--panel) var(--panel-a),transparent);
   border:1px solid var(--line);box-shadow:0 8px 26px -14px #0009}
 .penbar.hidden{display:none}
+#cwrap.has-toolbar .eventflag{bottom:52px}   /* уступает место полосе инструмента */
+.pb-dash{width:26px;height:20px;border-radius:5px;display:grid;place-items:center}
+.pb-dash i{display:block;width:16px;height:0;border-top:2px solid var(--ink-2)}
+.pb-dash.on{background:var(--accent-soft)}
+.pb-dash.on i{border-top-style:dashed;border-top-color:var(--accent)}
 .pb-row{display:flex;align-items:center;gap:5px}
 .pb-sep{width:1px;height:18px;background:var(--line)}
 .pb-color{width:20px;height:20px;border-radius:50%;background:var(--pc);
@@ -993,7 +1003,8 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .pb-width i{display:block;width:16px;background:var(--ink-2);border-radius:3px}
 .pb-width.on{background:var(--accent-soft)}
 .pb-width.on i{background:var(--accent)}
-[data-ui="mobile"] .penbar{top:6px;gap:6px;padding:7px 10px}
+[data-ui="mobile"] .penbar{top:6px;bottom:auto;gap:6px;padding:7px 10px}
+[data-ui="mobile"] #cwrap.has-toolbar .eventflag{bottom:8px}
 [data-ui="mobile"] .pb-color{width:24px;height:24px}
 [data-ui="mobile"] .pb-width{width:30px;height:24px}
 /* На телефоне панель инструментов прижата к низу и растёт вверх — тогда
@@ -1020,3 +1031,66 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 [data-ui="mobile"] #simbottom{max-height:min(92dvh,92vh)}
 }
 
+
+/* ============================ РЕЖИМ УЧИТЕЛЯ ============================
+   Диалог сборки и сама контрольная. Контрольная — отдельный слой поверх
+   приложения со своими правилами печати: по Ctrl+P на бумагу уходит
+   только она, без панелей, дерева тем и симуляций. */
+.modal.teacher{width:min(680px,94vw);max-height:88vh;overflow:auto;text-align:left}
+.tm-lead{color:var(--ink-2);font-size:13px;line-height:1.5;margin:0 0 14px}
+.tm-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.tm-field span{font-size:12px;color:var(--ink-3)}
+.tm-field input{padding:7px 9px;border:1px solid var(--line);border-radius:7px;
+  background:var(--panel-2);color:var(--ink);font:inherit}
+.tm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tm-sub{font-size:12px;color:var(--ink-3);margin:14px 0 7px;display:flex;align-items:center;gap:8px}
+.tm-mini{border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
+  border-radius:5px;padding:1px 7px;font-size:11px;cursor:pointer}
+.tm-lvls{display:flex;flex-wrap:wrap;gap:6px}
+.tm-lvl,.tm-check{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.tm-lvl{border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.tm-check{margin-top:14px}
+.tm-topics{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;
+  max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px}
+.tm-topic{display:flex;align-items:center;gap:7px;font-size:13px;padding:2px 0;cursor:pointer}
+.tm-topic span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-topic i{font-style:normal;font-size:11px;color:var(--ink-3);font-family:var(--mono)}
+[data-ui="mobile"] .tm-grid,[data-ui="mobile"] .tm-topics{grid-template-columns:1fr}
+
+.worksheet{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column}
+.worksheet.hidden{display:none}
+.ws-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;
+  border-bottom:1px solid var(--line);background:var(--panel);font-size:13px;color:var(--ink-2)}
+.ws-bar .spacer{flex:1}
+.ws-body{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;align-items:center;gap:20px}
+.ws-page{width:min(820px,100%);background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:10px;padding:26px 30px}
+.ws-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:16px;flex-wrap:wrap}
+.ws-meta{font-size:12px;color:var(--ink-3)}
+.ws-list{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:18px}
+.ws-list li{line-height:1.55}
+.ws-topic{font-size:11px;color:var(--ink-3);font-family:var(--mono);text-transform:uppercase;
+  letter-spacing:.04em;margin-bottom:3px}
+.ws-st{margin-bottom:6px}
+.ws-given{font-size:13px;background:var(--panel-2);border-left:3px solid var(--accent);
+  padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:6px}
+.ws-ans{font-size:13px;color:var(--ink-3)}
+.ws-key .ws-keycol{display:inline-block;vertical-align:top;width:32%;margin:0 1% 12px 0;font-size:13px}
+.ws-key ol{margin:4px 0 0;padding-left:20px}
+
+/* Печать: на бумагу уходит только контрольная. Раньше правил печати не было
+   вовсе, и печаталось окно приложения целиком — с деревом тем и графиками. */
+@media print{
+  body>*{display:none!important}
+  body>.worksheet{display:block!important;position:static;background:#fff;color:#000}
+  .ws-bar{display:none!important}
+  .ws-body{display:block;padding:0;overflow:visible}
+  .ws-page{width:auto;border:0;border-radius:0;padding:0;background:#fff;color:#000;
+    page-break-after:always;break-after:page}
+  .ws-page:last-child{page-break-after:auto;break-after:auto}
+  .ws-list li{break-inside:avoid}
+  .ws-given{background:#f4f4f4;border-left:3px solid #888}
+  .ws-topic,.ws-meta,.ws-ans{color:#555}
+  @page{margin:16mm}
+}

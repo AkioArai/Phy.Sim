@@ -1,13 +1,14 @@
 {
   "name": "phy.sim",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Phy.Sim — an interactive physics textbook: notes, formulas, problems and 76 live simulations, from kinematics to particle physics. Runs in the browser, offline.",
   "main": "index.html",
   "scripts": {
     "build": "node build-standalone.mjs",
     "build:apk": "node packaging/android/build-apk.mjs",
     "build:exe": "cd packaging/windows && npm install && npm run dist",
-    "test": "node tests/regress.js"
+    "test": "node tests/regress.js",
+    "audit": "node tests/answers.mjs"
   },
   "repository": {
     "type": "git",

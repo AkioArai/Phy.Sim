@@ -19,7 +19,7 @@
    ============================================================================= */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, readdirSync, statSync, writeFileSync, chmodSync, cpSync,
-         openSync, readSync, closeSync } from 'node:fs';
+         openSync, readSync, closeSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,10 +36,17 @@ const DEPS = [
   { name: 'android-all.jar', url: `${M}/org/robolectric/android-all/16-robolectric-13921718/android-all-16-robolectric-13921718.jar` },
 ];
 
+/* Версия — только из корневого package.json. Раньше она была прописана ещё
+   и здесь, и в упаковке для Windows, и три места успели разойтись.
+   versionCode Android требует целым и строго возрастающим, поэтому считаем
+   его из номера версии: 1.2.3 → 10203. */
+const VERSION = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+const [MAJ, MIN, PAT] = VERSION.split('.').map(n => parseInt(n, 10) || 0);
+
 const APP = {
   pkg: 'ru.physim.app',
-  versionCode: '1',
-  versionName: '1.0',
+  versionCode: String(MAJ * 10000 + MIN * 100 + PAT),
+  versionName: VERSION,
   minSdk: '21',
   targetSdk: '29',
 };
@@ -154,17 +161,47 @@ function buildDex(t) {
   return join(work, 'classes.dex');
 }
 
-/* ---------- 5. Сборка и подпись ---------- */
+/* ---------- 5. Сборка и подпись ----------
+   Android разрешает установить обновление поверх старой версии, только если
+   обе подписаны ОДНИМ ключом. Пока ключ генерировался заново на каждой
+   сборке, каждый выпуск требовал удалить приложение — а вместе с ним
+   стиралось хранилище и весь прогресс ученика. Поэтому:
+
+     PHYSIM_KEYSTORE_B64  — хранилище ключей в base64 (секрет в CI);
+     PHYSIM_KEYSTORE      — путь к файлу, если он уже лежит на машине;
+     PHYSIM_KEYSTORE_PASS — пароль, PHYSIM_KEYSTORE_ALIAS — псевдоним.
+
+   Если ничего не задано, ключ по-прежнему создаётся сам и переиспользуется
+   при следующих локальных сборках — для проверки на своём телефоне этого
+   достаточно, а выпускать так нельзя, о чём скрипт предупреждает. */
+const KEY = {
+  pass: process.env.PHYSIM_KEYSTORE_PASS || 'physim',
+  alias: process.env.PHYSIM_KEYSTORE_ALIAS || 'physim',
+};
 function keystore() {
+  if (process.env.PHYSIM_KEYSTORE_B64) {
+    const ks = join(work, 'release.keystore');
+    mkdirSync(work, { recursive: true });
+    writeFileSync(ks, Buffer.from(process.env.PHYSIM_KEYSTORE_B64, 'base64'));
+    step('ключ подписи взят из PHYSIM_KEYSTORE_B64');
+    return ks;
+  }
+  if (process.env.PHYSIM_KEYSTORE) {
+    if (!existsSync(process.env.PHYSIM_KEYSTORE))
+      throw new Error(`PHYSIM_KEYSTORE указывает на несуществующий файл: ${process.env.PHYSIM_KEYSTORE}`);
+    step('ключ подписи взят из PHYSIM_KEYSTORE');
+    return process.env.PHYSIM_KEYSTORE;
+  }
   const ks = join(here, 'phy-sim.keystore');   // в .gitignore: приватный ключ не коммитим
   if (!existsSync(ks)) {
     step('создаю ключ подписи (phy-sim.keystore, пароль physim)');
-    run('keytool', ['-genkeypair', '-keystore', ks, '-storepass', 'physim', '-keypass', 'physim',
-      '-alias', 'physim', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10950',
+    run('keytool', ['-genkeypair', '-keystore', ks, '-storepass', KEY.pass, '-keypass', KEY.pass,
+      '-alias', KEY.alias, '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10950',
       '-dname', 'CN=Phy.Sim, OU=Physics, O=Phy.Sim, C=RU']);
-    console.log('  ВАЖНО: сохраните этот файл. Обновление приложения «поверх»');
-    console.log('  возможно только с тем же ключом, иначе придётся удалять старую версию.');
   }
+  console.log('  ВНИМАНИЕ: подпись локальным ключом. Для выпуска задайте');
+  console.log('  PHYSIM_KEYSTORE_B64, иначе обновление «поверх» будет невозможно');
+  console.log('  и у пользователей сотрётся прогресс.');
   return ks;
 }
 
@@ -176,8 +213,8 @@ function assemble(baseApk, dex) {
   step('добавляю classes.dex');
   run('zip', ['-q', '-X', '-j', apk, dex]);
   step('подпись (jarsigner, схема v1)');
-  run('jarsigner', ['-keystore', keystore(), '-storepass', 'physim', '-keypass', 'physim',
-    '-sigalg', 'SHA256withRSA', '-digestalg', 'SHA-256', apk, 'physim']);
+  run('jarsigner', ['-keystore', keystore(), '-storepass', KEY.pass, '-keypass', KEY.pass,
+    '-sigalg', 'SHA256withRSA', '-digestalg', 'SHA-256', apk, KEY.alias]);
   return apk;
 }
 

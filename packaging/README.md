@@ -42,10 +42,44 @@ How it works (details in the comments of `build-apk.mjs`):
 | `.class` → `classes.dex` | `com.jakewharton.android.repackaged:dalvik-dx` |
 | signing | `jarsigner` from the JDK, scheme v1 |
 
-A signing key is generated on the first build — `packaging/android/phy-sim.keystore`
-(password `physim`). **Keep that file.** Installing an update over an existing
-install only works with the same key; with a new one the old version must be
-uninstalled first.
+### Signing key — read this before publishing
+
+Android installs an update over an existing app **only if both are signed with the
+same key**. With a different key the user has to uninstall first, and uninstalling
+wipes local storage — every solved problem, bookmark and setting is gone. So the
+release key has to stay the same forever.
+
+For local builds the script generates `packaging/android/phy-sim.keystore`
+(password `physim`) once and reuses it. That is fine for testing on your own
+phone, and the build prints a warning so you don't ship it by accident.
+
+For releases, create a key once and hand it to CI:
+
+```bash
+# 1. create the key (do this once, then back the file up somewhere safe)
+keytool -genkeypair -keystore phy-sim-release.keystore \
+        -storepass ВАШ_ПАРОЛЬ -keypass ВАШ_ПАРОЛЬ -alias physim \
+        -keyalg RSA -keysize 2048 -validity 10950 \
+        -dname "CN=Phy.Sim, O=Phy.Sim, C=RU"
+
+# 2. turn it into one line
+base64 -w0 phy-sim-release.keystore
+```
+
+Then in **Settings → Secrets and variables → Actions → New repository secret**
+add three secrets:
+
+| Secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_B64` | the base64 line from step 2 |
+| `ANDROID_KEYSTORE_PASS` | the password you chose |
+| `ANDROID_KEYSTORE_ALIAS` | `physim` |
+
+Never commit the keystore itself — `*.keystore` is in `.gitignore`. If the file is
+lost, the app can never be updated in place again, so keep a copy offline.
+
+The same variables work locally: `PHYSIM_KEYSTORE_B64`, `PHYSIM_KEYSTORE_PASS`,
+`PHYSIM_KEYSTORE_ALIAS`, or `PHYSIM_KEYSTORE` with a path to the file.
 
 `targetSdkVersion` is deliberately `29`: from 30 onwards Android demands signature
 scheme v2 and an uncompressed, aligned `resources.arsc`, which need `apksigner` and

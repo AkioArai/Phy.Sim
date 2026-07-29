@@ -46,9 +46,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
 
@@ -74,13 +74,20 @@ KaTeX and its fonts ship inside the repository.
 | **133** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
 | **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **56** settings | theme, density, scene decorations, performance, recording |
+| **printable tests** | any number of variants, each with its own numbers, plus an answer key |
 
 ### Problems that can't be looked up
 
-Every answer is computed from the **current parameters of the linked simulation**.
-Change the mass and the answer changes — so your neighbour's answer is different,
-and nothing can be copied off the readouts panel. A build-time audit checks that no
-problem is solvable by simply reading a number off the screen.
+Most answers are computed from the **current parameters of the linked simulation**.
+Change the mass and the answer changes — so your neighbour's answer is different.
+An audit (`npm run audit`) runs all 380 problems against 40 randomised parameter
+sets each and checks that none of them throws, returns a non-number, is unanswerable
+for every input, or simply equals a number already shown in the readouts panel.
+
+It also reports — as information, not as errors — the 82 problems whose answer is
+deliberately parameter-independent. Those are the conceptual ones ("how much work
+does the tension do over one revolution?" — always zero) or ones whose numbers are
+given in the statement itself. Worth knowing when you set homework.
 
 <p align="center">
   <img src="docs/media/02-problems.png" width="900" alt="Problems tab with progress tracking">
@@ -89,16 +96,34 @@ problem is solvable by simply reading a number off the screen.
 ### A real instrument, not a slideshow
 
 Pan, zoom, box-zoom, coordinate probe, ruler, dimension line, protractor, circle,
-polygon area, notes, guides, body trails, and a freehand pencil with six colours
-and four widths. Parameter fields accept expressions (`2*9.8`). A timeline scrubs
-the computed history frame by frame. Panels float, resize and collapse. `Ctrl+P`
-opens a command palette over everything — topics, simulations, settings, commands.
-`F11` cycles the window mode: windowed → fullscreen → borderless fullscreen.
+polygon area, notes, guides, body trails and a freehand pencil. Every drawing tool
+carries its own colour, thickness and — for guides and dimension lines — a dashed
+or solid stroke; each mark keeps the style it was drawn with, so changing the
+colour never repaints what is already on the scene. Parameter fields accept
+expressions (`2*9.8`). A timeline scrubs the computed history frame by frame.
+Panels float, resize and collapse. `Ctrl+P` opens a command palette over
+everything — topics, simulations, settings, commands. `F11` cycles the window
+mode: windowed → fullscreen → borderless fullscreen.
 
 <p align="center">
   <img src="docs/media/03-simulation-dark.png" width="900" alt="Full-screen simulation, dark theme">
   <img src="docs/media/04-settings.png" width="900" alt="Settings">
 </p>
+
+### For teachers: a test where copying doesn't help
+
+**Menu → Собрать контрольную**, or `Ctrl+P` → "контрольная". Pick the topics, the
+difficulty levels, how many variants and how many problems each, and the app
+prints a paper test.
+
+Every variant gets **its own parameters for the linked simulations**, so every
+variant has different answers. The numbers are printed into the problem itself —
+the app works out which parameters actually affect the answer and lists only
+those. A separate answer key comes at the end, and only `Ctrl+P` on that page
+puts it on paper: the rest of the interface never prints.
+
+The variant seed is on the dialog. The same seed always produces the same test,
+so you can reprint a lost sheet, or mark work against a key printed weeks later.
 
 ### Built for a phone, not shrunk onto one
 
