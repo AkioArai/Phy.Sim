@@ -870,9 +870,24 @@ function updateHistoBox(a){
   const M=a.def.measure(s,p), vr=M.vrms||1, bins=16, cnt=new Array(bins).fill(0), vmax=vr*2.6||1;
   for(const m of s.mol){ const sp=Math.hypot(m.vx,m.vy); const bi=Math.min(bins-1,Math.floor(sp/vmax*bins)); cnt[bi]++; }
   const maxC=Math.max(...cnt,1);
-  $('#histo-body').innerHTML=`<div class="hbars">`+
+  /* Поверх измеренных столбиков — теоретическая кривая Максвелла. В двух
+     измерениях p(v) ∝ v·exp(−v²/v²ср.кв), максимум при v = v_ср.кв/√2. Без неё
+     панель показывала гистограмму, но сверить её было не с чем: «похоже на
+     Максвелла» — не проверка. Обе кривые нормированы на свой максимум, поэтому
+     сравнивается форма, а не абсолютная высота. */
+  const W=bins*16, H=96;
+  const pdf=u=>u*Math.exp(-u*u), pk=pdf(1/Math.SQRT2);
+  let curve='';
+  for(let i=0;i<=64;i++){
+    const u=vmax*i/64/vr, x=W*i/64, y=H-pdf(u)/pk*H*0.92;
+    curve+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);
+  }
+  $('#histo-body').innerHTML=`<div class="hwrap">`+
+    `<div class="hbars">`+
     cnt.map(c=>`<div class="hb" style="height:${(c/maxC*100).toFixed(0)}%"></div>`).join('')+`</div>`+
-    `<div class="hx">медленные ← v → быстрые</div>`;
+    `<svg class="hcurve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`+
+    `<path d="${curve}" fill="none" stroke="var(--danger)" stroke-width="2"/></svg></div>`+
+    `<div class="hx">столбики — измерено, кривая — Максвелл</div>`;
   box.classList.remove('hidden');
 }
 function updateEnergyBox(a){

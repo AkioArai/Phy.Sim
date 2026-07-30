@@ -34,8 +34,15 @@ gas:{
     const mol=[], v=this.vrms(p), wx=p.Lx*(p.piston?p.pistonX:1);
     for(let i=0;i<p.N;i++){
       const ang=Math.random()*2*Math.PI;
-      // распределение скоростей: разброс вокруг v_rms
-      const speed=v*(0.5+Math.random());
+      /* Скорости раздаём по РАСПРЕДЕЛЕНИЮ МАКСВЕЛЛА. В двух измерениях его
+         плотность p(v) ∝ v·exp(−mv²/2kT) (распределение Рэлея), и разыгрывается
+         она в одну строку: v = v_ср.кв·√(−ln ξ) при ξ равномерном на (0,1].
+         Тогда ⟨v²⟩ = v_ср.кв² РОВНО, и измеренная температура совпадает с
+         заданной. Раньше стояло v·(0,5 + ξ) — равномерная полоса от 0,5v до
+         1,5v: у неё ⟨v²⟩ = 13/12·v², то есть газ был на 8 % горячее, чем
+         показывал ползунок, а «гистограмма Максвелла» изображала бы ровную
+         полку вместо горба. */
+      const speed=v*Math.sqrt(-Math.log(1-Math.random()));
       mol.push({x:0.3+Math.random()*(wx-0.6), y:0.3+Math.random()*(p.Ly-0.6),
                 vx:speed*Math.cos(ang), vy:speed*Math.sin(ang),
                 trail:[]});
@@ -184,6 +191,7 @@ gas:{
       ctx.fillStyle = (p.fast && sp>vr*1.3) ? dang : acc;
       ctx.beginPath(); ctx.arc(m.x,m.y,r,0,7); ctx.fill();
     }
+
         v.label(ctx,`T = ${p.T} K   v_ср.кв = ${vr.toFixed(3)}`,0,-0.3,0,0,v.c('--ink-3'));
   }
 }
