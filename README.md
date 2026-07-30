@@ -87,12 +87,30 @@ Most answers are computed from the **current parameters of the linked simulation
 Change the mass and the answer changes — so your neighbour's answer is different.
 An audit (`npm run audit`) runs all 380 problems against 40 randomised parameter
 sets each and checks that none of them throws, returns a non-number, is unanswerable
-for every input, or simply equals a number already shown in the readouts panel.
+for every input, compares a switch against a value the simulation doesn't have, or —
+above level 1 — simply equals a number already shown in the readouts panel.
 
 It also reports — as information, not as errors — the 82 problems whose answer is
-deliberately parameter-independent. Those are the conceptual ones ("how much work
-does the tension do over one revolution?" — always zero) or ones whose numbers are
-given in the statement itself. Worth knowing when you set homework.
+deliberately parameter-independent (the conceptual ones: "how much work does the
+tension do over one revolution?" — always zero), the level-1 problems that *are*
+meant to be answered by reading the panel, and every answer that is proportional to
+a single parameter, so its unit can be checked against that parameter's. Worth
+knowing when you set homework.
+
+### Every simulation checked against the textbook
+
+`npm run physics` is a separate harness: **504 checks** that take a simulation's
+readouts and compare them with a number computed from the closed-form solution,
+written out independently of the simulation's own code. Parameters are deliberately
+un-round (a wrong coefficient hides behind a nice number), the reference constants
+are listed separately from the ones the simulations use, and every check carries a
+justified tolerance — `1e-9` for algebra, looser where a numerical integral or a
+finite number of molecules is involved.
+
+Conservation laws are checked as *behaviour*, not as formulas: the harness records
+the readouts frame by frame and looks at how far a conserved quantity drifts over
+the whole run, and separately at whether it ever **grows** where it must only decay
+(mechanical energy under friction, kinetic energy in an inelastic collision).
 
 <p align="center">
   <img src="docs/media/02-problems.png" width="900" alt="Problems tab with progress tracking">
@@ -205,6 +223,8 @@ email, put on a flash drive, or open by double-clicking.
 ```
 index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
+tests/physics.mjs     504 checks of readouts against closed-form solutions
+tests/answers.mjs     all 380 problems against 40 random parameter sets each
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
 js/sims/*.js          the 76 simulations, grouped by branch of physics
@@ -224,12 +244,14 @@ double-clicking on any school computer.
 `init` / `step` / `draw` / `fit`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 for the full contract.
 
-**Before releasing**, run the suite — it boots both the source and the bundled
-single file, runs 300 steps of every simulation, checks that no formula overflows
-its column, and walks the desktop and phone layouts:
+**Before releasing**, run all three suites. `npm test` boots both the source and the
+bundled single file, runs 300 steps of every simulation, checks that no formula
+overflows its column, and walks the desktop and phone layouts. `npm run physics`
+compares the simulations with the textbook. `npm run audit` checks the problems.
 
 ```bash
-npm i -D playwright && npm test
+npm i -D playwright
+npm test && npm run physics && npm run audit
 ```
 
 ---
