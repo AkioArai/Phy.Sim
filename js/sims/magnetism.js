@@ -23,8 +23,12 @@ magnetism:{
     {type:'group',label:'Остановка таймера'},
     {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
-  /* радиус окружности заряда: R = mv/(qB) */
-  radius(p){ return p.m*p.v0/(Math.abs(p.q*1e-9)*p.B)*1e-9*1e9*1e-9; },  // масштаб условный
+  /* Циклотронная частота ω = qB/m и радиус R = mv/(qB) = v/|ω|.
+     Единицы у сцены условные (заряд в нКл, масса «усл.»), но связь величин
+     настоящая: показание R, период T = 2π/|ω| и нарисованная окружность должны
+     совпадать — иначе линейка на сцене будет спорить с панелью. */
+  omega(p){ return p.q*p.B/Math.max(p.m,1e-9); },
+  radius(p){ const w=Math.abs(this.omega(p)); return w>1e-12?p.v0/w:Infinity; },
   init(p){
     // старт слева, скорость вправо
     return {t:0,x:-3,y:0,vx:p.v0,vy:0,trail:[],event:null,__stop:null};
@@ -36,24 +40,33 @@ magnetism:{
       s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
     s.t=t;
     if(p.scene==='lorentz'){
-      // сила Лоренца F = qv×B, B из плоскости (по z). В 2D: ускорение перпендикулярно скорости.
-      // a = (q/m)·(v × B), B=Bz. vx'=(q/m)(vy·B), vy'=-(q/m)(vx·B)
-      const qm=(p.q)*p.B/p.m*0.5;                  // условный масштаб
-      const sub=8, h=dt/sub;
-      for(let i=0;i<sub;i++){
-        const ax=qm*s.vy, ay=-qm*s.vx;
-        s.vx+=ax*h; s.vy+=ay*h; s.x+=s.vx*h; s.y+=s.vy*h;
-      }
+      /* Сила Лоренца F = qv×B перпендикулярна скорости, поэтому она только
+         поворачивает вектор v, не меняя его модуля. Явный Эйлер этого не умеет:
+         он каждый шаг удлиняет v в √(1+(ωh)²) раз, и частица по спирали
+         «разгоняется» — за три оборота набегало почти 0,8 %. Поэтому шаг делаем
+         точным: v поворачиваем на угол ωh, а смещение берём как интеграл
+         повёрнутого вектора, ∫₀ʰ R(−ωt)v dt. Ошибки нет вообще ни в модуле
+         скорости, ни в радиусе. */
+      const w=this.omega(p), a=w*dt;
+      let S, Cc;                                    // ∫cos и ∫sin по шагу
+      if(Math.abs(a)<1e-9){ S=dt; Cc=a*dt/2; }      // предел ω→0: прямая
+      else { S=Math.sin(a)/w; Cc=(1-Math.cos(a))/w; }
+      const vx=s.vx, vy=s.vy;
+      s.x+=S*vx+Cc*vy; s.y+=-Cc*vx+S*vy;
+      const ca=Math.cos(a), sa=Math.sin(a);
+      s.vx=ca*vx+sa*vy; s.vy=-sa*vx+ca*vy;
       if(p.trail){ s.trail.push([s.x,s.y]); if(s.trail.length>600) s.trail.shift(); }
     }
   },
   anchors(s,p){ if(p.scene==='lorentz') return [{x:s.x,y:s.y}]; return [{x:0,y:0}]; },
   readouts(s,p){
     if(p.scene==='lorentz'){
-      const speed=Math.hypot(s.vx,s.vy), R=p.m*p.v0/(Math.abs(p.q)*p.B+1e-9);
+      const speed=Math.hypot(s.vx,s.vy), R=this.radius(p), w=Math.abs(this.omega(p));
       return [['t',s.t,'с'],['скорость v',speed,'м/с'],
         ['магнитное поле B',p.B,'Тл'],['заряд q',p.q,'нКл'],
-        ['радиус R = mv/(qB)',R,'усл.ед.'],
+        ['радиус R = mv/(qB)',R,'м'],
+        ['период T = 2πm/(qB)',w>1e-12?2*Math.PI/w:Infinity,'с'],
+        ['оборотов пройдено',w*s.t/(2*Math.PI),''],
         ['сила Лоренца F = qvB',Math.abs(p.q*1e-9)*speed*p.B*1e9,'нН'],
         ['направление',p.q>0?1:0,p.q>0?'по часовой':'против часовой']];
     }
@@ -148,9 +161,11 @@ battery:{
               {v:'twoR',   t:'Два резистора последовательно'},
               {v:'parR',   t:'Два резистора параллельно'}]},
     {key:'U', label:'ЭДС батареи',unit:'В',min:1,max:50,step:1,default:12},
-    {key:'R1',label:'Сопротивление R₁',unit:'кОм',min:0.1,max:20,step:0.1,default:2},
+    {key:'R1',label:'Сопротивление R₁',unit:'кОм',min:0.1,max:20,step:0.1,default:10},
     {key:'R2',label:'Сопротивление R₂',unit:'кОм',min:0.1,max:20,step:0.1,default:3},
-    {key:'C1',label:'Ёмкость C₁',unit:'мкФ',min:0.1,max:20,step:0.1,default:1},
+    // τ = R·C: кОм·мкФ даёт миллисекунды. При 10 кОм и 47 мкФ это 0,47 с —
+    // заряд успевает нарисоваться на глазах и совпадает с секундомером.
+    {key:'C1',label:'Ёмкость C₁',unit:'мкФ',min:0.1,max:200,step:0.1,default:47},
     {type:'group',label:'Показывать'},
     {key:'flow',  label:'Движение тока',type:'check',default:true},
     {key:'values',label:'Номиналы и напряжения',type:'check',default:true},
@@ -187,7 +202,13 @@ battery:{
     return {t:0,capV,volts:new Array(net.nNodes).fill(0),isrc:0,flow:0,event:null,__stop:null}; },
   step(s,dt,p){
     if(p.reset){ const net=this.build(p); for(const c of net.comps) if(c.type==='C')s.capV[c.id]=0; }
-    const net=this.build(p), h=dt*0.02, r=this.stamp(net,h,s.capV);
+    /* Схему продвигаем НАСТОЯЩИМ шагом времени. Раньше здесь стояло dt·0,02 —
+       «чтобы заряд наползал плавнее», но тогда конденсатор заряжался в 50 раз
+       медленнее показанной тут же постоянной времени τ = RC, и секундомер на
+       сцене противоречил панели. Плавность обеспечивается не подменой времени,
+       а номиналами: при R = 10 кОм и C = 47 мкФ τ = 0,47 с — как раз десятки
+       кадров на глаз. */
+    const net=this.build(p), h=dt, r=this.stamp(net,h,s.capV);
     s.volts=r.volts; s.isrc=r.isrc;
     for(const c of net.comps) if(c.type==='C')s.capV[c.id]=r.volts[c.n1]-r.volts[c.n2];
     s.flow+=r.isrc*dt*40; s.t+=dt;
@@ -208,7 +229,8 @@ battery:{
     {label:'Напряжение на C',unit:'В',series:['U(C)'],get(s,p){ const k=Object.keys(s.capV); return [k.length?s.capV[k[0]]:0,null]; }}
   ],
   presets:[
-    {name:'RC-заряд от батареи',values:{topo:'series',U:12,R1:2,C1:1}},
+    {name:'RC-заряд от батареи (τ = 0,47 с)',values:{topo:'series',U:12,R1:10,C1:47}},
+    {name:'Быстрый заряд: τ = 47 мс',values:{topo:'series',U:12,R1:1,C1:47}},
     {name:'Два резистора последовательно',values:{topo:'twoR',U:12,R1:2,R2:3}},
     {name:'Два резистора параллельно',values:{topo:'parR',U:12,R1:2,R2:3}}
   ],
@@ -659,45 +681,85 @@ magmat:{
     {type:'group',label:'Показывать'},
     {key:'grid',label:'Сетка доменов',type:'check',default:true}
   ],
-  /* относительная восприимчивость: ферро — сильная, пара — слабая +, диа — слабая − */
-  chi(p){ return p.kind==='ferro'?1.0:(p.kind==='para'?0.12:-0.06); },
-  /* равновесная намагниченность: насыщение через th(x), с тепловым размытием */
-  Mof(p){
-    const x=this.chi(p)*p.Bext/(0.6+0.35*p.T);
-    return Math.tanh(x);                                   // от −1 до +1
+  /* ТАБЛИЧНАЯ магнитная восприимчивость χ: именно эти значения и спрашиваются
+     в задаче про μ = 1 + χ. Раньше панель показывала здесь коэффициенты самой
+     модели (−0,06 … 1,0) — числа, которых у настоящих веществ не бывает, и
+     ученик, прочитавший χ с панели, получал не тот ответ, что в ключе. */
+  CHI:{ferro:500, para:2e-5, dia:-1e-5},
+  chi(p){ const x=this.CHI[p.kind]; return x===undefined?0:x; },
+  /* Коэффициент сцепления домена с полем — величина уже не табличная, а
+     подобранная так, чтобы разницу между веществами было ВИДНО: при настоящих
+     χ ≈ 10⁻⁵ парамагнетик на экране не шевельнулся бы совсем. Порядок
+     («ферро ≫ пара > |диа|») сохранён. */
+  COUP:{ferro:1.0, para:0.035, dia:-0.018},
+  coup(p){ const c=this.COUP[p.kind]; return c===undefined?0:c; },
+  Teff(p){ return Math.max(p.T,0.08); },
+  /* Безразмерный параметр Больцмана u = (энергия в поле)/(тепловая энергия).
+     Он пропорционален B/T — это и есть закон Кюри, о котором говорит задача. */
+  u(p){ return this.coup(p)*p.Bext/this.Teff(p); },
+  /* Равновесная намагниченность = средняя проекция ⟨cos θ⟩ при распределении
+     Больцмана p(θ) ∝ e^{u·cos θ}. В двух измерениях это I₁(u)/I₀(u); считаем
+     интеграл численно и с вынесенным максимумом e^{u(cosθ−1)}, чтобы не
+     переполнялось при больших u. При малых u ⟨cos θ⟩ ≈ u/2 — линейный участок,
+     где намагниченность и правда пропорциональна B/T. */
+  Meq(p){
+    const u=this.u(p), N=360; let num=0, den=0;
+    for(let i=0;i<N;i++){
+      const th=(i+0.5)/N*2*Math.PI, c=Math.cos(th), w=Math.exp(Math.abs(u)*(c-1));
+      num+=c*w; den+=w;
+    }
+    const A=den>0?num/den:0;
+    return u>=0?A:-A;                                 // диамагнетик — против поля
   },
   init(p){
     const n=p.n, dom=[];
-    for(let i=0;i<n*n;i++) dom.push({a:Math.random()*2*Math.PI, w:(Math.random()-0.5)*2});
-    return {t:0,dom,M:0,event:null,__stop:null};
+    for(let i=0;i<n*n;i++) dom.push({a:Math.random()*2*Math.PI});
+    return {t:0,dom,M:0,Mavg:null,event:null,__stop:null};
   },
   step(s,dt,p){
-    const target=this.Mof(p);                 // целевая проекция на ось поля
-    const align=Math.abs(this.chi(p))*Math.abs(p.Bext)/(0.5+0.3*p.T);
-    const dir=(this.chi(p)*p.Bext)>=0?0:Math.PI;      // диамагнетик поворачивает против поля
+    /* Домен — броуновский ротатор в поле: момент сил μ×B поворачивает его к полю
+       (или от поля у диамагнетика), а тепловое движение сбивает. Оба слагаемых
+       имеют смысл по отдельности: момент зависит только от B, диффузия — только
+       от T, а их отношение u = k/D = coup·B/T задаёт равновесие. Поэтому
+       измеренная намагниченность САМА выходит на Meq — раньше домены
+       выстраивались полностью при любом поле, и панель показывала равновесие
+       0,04, пока на сцене стояло 1,0. */
+    const D=2.0*this.Teff(p);                          // вращательная диффузия ∝ T
+    const k=Math.abs(this.coup(p)*p.Bext)*2.0;         // момент сил ∝ B
+    const dir=this.u(p)>=0?0:Math.PI;                  // куда тянет: по полю или против
+    const sig=Math.sqrt(2*D*dt);
     for(const d of s.dom){
-      // стремление к направлению поля + тепловое дрожание
-      let da=Math.atan2(Math.sin(dir-d.a),Math.cos(dir-d.a));
-      d.a += da*Math.min(1,align*dt*3) + (Math.random()-0.5)*p.T*dt*1.4;
+      // гауссов шум (Бокс–Мюллер): у него нет «краёв», в отличие от Math.random()
+      const g=Math.sqrt(-2*Math.log(Math.random()+1e-12))*Math.cos(2*Math.PI*Math.random());
+      d.a += -k*Math.sin(d.a-dir)*dt + sig*g;
     }
-    // измеренная намагниченность = средняя проекция
     let sum=0; for(const d of s.dom) sum+=Math.cos(d.a);
     s.M=sum/s.dom.length;
+    /* Доменов всего n², поэтому мгновенное среднее скачет на ~1/√(2n²).
+       Сглаженное значение и сравнивают с равновесным. */
+    const al=Math.min(1,dt/1.5);
+    s.Mavg=(s.Mavg==null)?s.M:s.Mavg+(s.M-s.Mavg)*al;
     s.t+=dt;
   },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
     const kind={ferro:'ферромагнетик',para:'парамагнетик',dia:'диамагнетик'}[p.kind];
+    const u=this.u(p);
     return [['t',s.t,'с'],['вещество',0,kind],
       ['внешнее поле B₀',p.Bext,'мТл'],
-      ['восприимчивость χ',this.chi(p),''],
-      ['намагниченность M (изм.)',s.M,''],
-      ['равновесная M',this.Mof(p),''],
+      ['восприимчивость χ (таблица)',this.chi(p),''],
+      ['проницаемость μ = 1 + χ',1+this.chi(p),''],
       ['температура',p.T,'усл.'],
+      ['параметр u = сцепление·B₀/T',u,''],
+      ['равновесная M = ⟨cos θ⟩',this.Meq(p),''],
+      ['линейный предел (Кюри) u/2',u/2,''],
+      ['намагниченность M (мгновенно)',s.M,''],
+      ['M (среднее по времени)',s.Mavg==null?s.M:s.Mavg,''],
       ['доменов',s.dom.length,'']];
   },
   graphs:[
-    {label:'Намагниченность M',unit:'',series:['M'],get(s,p){ return [s.M,null]; }},
+    {label:'Намагниченность M',unit:'',series:['M','равновесная'],
+     get(s,p){ return [s.M,SIMS.magmat.Meq(p)]; }},
     {label:'Внешнее поле B₀',unit:'мТл',series:['B₀'],get(s,p){ return [p.Bext,null]; }}
   ],
   presets:[

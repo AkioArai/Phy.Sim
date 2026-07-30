@@ -1089,8 +1089,16 @@ incline:{
     const N=Fg*Math.cos(th);                  // реакция опоры
     const lim=p.mus*N;                        // порог трения покоя
     const moving=s.v>1e-6;
-    const fr = moving ? -p.mud*N : -Math.min(along,lim);
     const stuck = !moving && along<=lim;
+    /* Трение статическое ТОЛЬКО пока тело держится. Как только скатывающая
+       превысила порог, начинается скольжение, и трение сразу кинетическое —
+       даже в тот самый миг, когда скорость ещё нулевая.
+       Раньше в этот миг бралось -min(along, lim) = -μs·N, и показание
+       ускорения выдавало g(sinθ − μs·cosθ) — величину, которой в физике
+       не соответствует ничего: при v→0⁺ трение равно μd·N. На глаз это не
+       видно, потому что при stopSlip симуляция замирает ровно здесь.
+       В newton2 тот же случай изначально считается через μd. */
+    const fr = stuck ? -along : -p.mud*N;
     return {th,Fg,along,N,lim,fr,stuck,a:stuck?0:(along+fr)/p.m};
   },
   init(p){ return {t:0,s:0,v:0,slipped:false,stopped:false,thSlip:null,event:null,__stop:null}; },
