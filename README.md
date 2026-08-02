@@ -51,9 +51,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -84,12 +84,13 @@ KaTeX and its fonts ship inside the repository.
 |  |  |
 |---|---|
 | **76** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear |
+| **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws and stored charge are solved live |
 | **34** topics in **7** sections | full lecture notes, written to be read, not skimmed |
 | **252** key formulas | each one opens the simulation that shows it working |
 | **380** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
 | **133** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
 | **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
-| **56** settings | theme, density, scene decorations, performance, recording |
+| **57** settings | theme, density, scene decorations, performance, recording |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
 
 ### Problems that can't be looked up
@@ -129,8 +130,10 @@ the whole run, and separately at whether it ever **grows** where it must only de
 
 ### A real instrument, not a slideshow
 
-Pan, zoom, box-zoom, coordinate probe, ruler, dimension line, protractor, circle,
-polygon area, notes, guides, body trails and a freehand pencil. Every drawing tool
+Axes carry ticks and numbers, so a coordinate is read off the scene rather than
+counted out in grid squares. Pan, zoom, box-zoom, coordinate probe, ruler,
+dimension line, protractor, circle, polygon area, notes, guides, body trails and
+a freehand pencil. Every drawing tool
 carries its own colour, thickness and — for guides and dimension lines — a dashed
 or solid stroke; each mark keeps the style it was drawn with, so changing the
 colour never repaints what is already on the scene. Parameter fields accept
