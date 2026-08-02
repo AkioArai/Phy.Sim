@@ -3,6 +3,10 @@ Object.assign(SIMS,{
 /* ================== ЭЛЕКТРОСТАТИКА: ЗАКОН КУЛОНА И ПОЛЕ ================= */
 efield:{
   title:'Электрическая сила и поле',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'scene',label:'Конфигурация',type:'select',default:'two',
      options:[{v:'two',   t:'Два заряда (закон Кулона)'},
@@ -24,8 +28,6 @@ efield:{
     {key:'fieldGrid', label:'Сетка векторов поля',type:'check',default:false},
     {key:'forceVec',  label:'Сила на пробный заряд',type:'check',default:true},
 
-    {type:'group',label:'Остановка таймера'},
-    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   k:8.99e9,                                       // постоянная Кулона
   /* базовые позиции по конфигурации (если пользователь не двигал заряды) */
@@ -82,32 +84,26 @@ efield:{
   },
   step(s,dt,p){
     s.t+=dt;
-    if(p.tStop>0&&s.t>=p.tStop&&!(s.done&&s.done.time)){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
-      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; }
   },
   anchors(s,p){ return this.charges(p).map(c=>({x:c.x,y:c.y})).concat([{x:p.tx,y:p.ty}]); },
   readouts(s,p){
     const F=this.coulomb(p), E=this.fieldAt(p,p.tx,p.ty);
     const Fon=E.mag*Math.abs(p.qt)*1e-9;
     const cs=this.charges(p), r=cs.length>=2?Math.hypot(cs[1].x-cs[0].x,cs[1].y-cs[0].y):0;
-    return [['t',s.t,'с'],
-            ['сила Кулона F (q₁–q₂)',F*1e9,'нН'],
+    return [['сила Кулона F (q₁–q₂)',F*1e9,'нН'],
             ['расстояние r',r,'м'],
             ['поле E в точке пробы',E.mag,'Н/Кл'],
             ['Eₓ',E.Ex,'Н/Кл'],['Eᵧ',E.Ey,'Н/Кл'],
             ['сила на пробный заряд',Fon*1e9,'нН'],
             ['направление поля',Math.atan2(E.Ey,E.Ex)*180/Math.PI,'°']];
   },
-  graphs:[
-    {label:'Модуль поля E вдоль движения пробы',unit:'Н/Кл',series:['E'],
-     get(s,p){ return [SIMS.efield.fieldAt(p,p.tx,p.ty).mag,null]; }}
-  ],
+  graphs:[],
   presets:[
-    {name:'Притяжение: +8 и −8 нКл',values:{scene:'two',q1:8,q2:-8,d:3,qt:1,tx:0,ty:2.5,tStop:0}},
-    {name:'Отталкивание: два +8 нКл',values:{scene:'same',q1:8,q2:8,d:3,qt:1,tx:0,ty:2.5,tStop:0}},
-    {name:'Диполь: силовые линии',values:{scene:'dipole',q1:10,q2:-10,d:3,qt:1,tx:0,ty:2,fieldLines:true,tStop:0}},
-    {name:'Три заряда: суперпозиция',values:{scene:'triangle',q1:8,q2:8,q3:-6,d:4,qt:1,tx:0,ty:0,tStop:0}},
-    {name:'Сетка векторов поля',values:{scene:'two',q1:10,q2:-10,d:4,fieldGrid:true,fieldLines:false,tStop:0}}
+    {name:'Притяжение: +8 и −8 нКл',values:{scene:'two',q1:8,q2:-8,d:3,qt:1,tx:0,ty:2.5}},
+    {name:'Отталкивание: два +8 нКл',values:{scene:'same',q1:8,q2:8,d:3,qt:1,tx:0,ty:2.5}},
+    {name:'Диполь: силовые линии',values:{scene:'dipole',q1:10,q2:-10,d:3,qt:1,tx:0,ty:2,fieldLines:true}},
+    {name:'Три заряда: суперпозиция',values:{scene:'triangle',q1:8,q2:8,q3:-6,d:4,qt:1,tx:0,ty:0}},
+    {name:'Сетка векторов поля',values:{scene:'two',q1:10,q2:-10,d:4,fieldGrid:true,fieldLines:false}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -258,6 +254,10 @@ efield:{
 /* ================== ТЕОРЕМА ГАУССА: ПОТОК ПОЛЯ ================= */
 gauss:{
   title:'Теорема Гаусса: поток через поверхность',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'scene',label:'Конфигурация зарядов',type:'select',default:'single',
      options:[{v:'single',t:'Один заряд'},
@@ -276,8 +276,6 @@ gauss:{
     {key:'flux',label:'Стрелки потока по поверхности',type:'check',default:true},
     {key:'lines',label:'Силовые линии',type:'check',default:true},
 
-    {type:'group',label:'Остановка таймера'},
-    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   k:8.99e9, eps0:8.854e-12,
   charges(p){
@@ -321,8 +319,6 @@ gauss:{
   fluxTheory(p){ return 2*Math.PI*this.k*this.enclosed(p); },   // 2πk·Q_внутр
   init(p){ return {t:0,event:null,__stop:null}; },
   step(s,dt,p){ s.t+=dt;
-    if(p.tStop>0&&s.t>=p.tStop&&!(s.done&&s.done.time)){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
-      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; }
   },
   dragPoints(p){
     const cs=this.charges(p).map(c=>({x:c.x,y:c.y}));
@@ -338,24 +334,20 @@ gauss:{
   readouts(s,p){
     const Qin=this.enclosed(p), Phi=this.flux(p), PhiTheory=this.fluxTheory(p);
     const match=Math.abs(Phi-PhiTheory)<Math.abs(PhiTheory)*0.05+1;
-    return [['t',s.t,'с'],
-            ['заряд внутри Qвнутр',Qin*1e9,'нКл'],
+    return [['заряд внутри Qвнутр',Qin*1e9,'нКл'],
             ['поток Φ (численно)',Phi,'усл.ед.'],
             ['2πk·Qвнутр (теорема Гаусса)',PhiTheory,'усл.ед.'],
             ['Φ = 2πk·Qвнутр',match?1:0,match?'выполняется':'—'],
             ['радиус поверхности R',p.gr,'м'],
             ['всего зарядов',this.charges(p).length,'']];
   },
-  graphs:[
-    {label:'Поток Φ через поверхность',unit:'В·м',series:['Φ'],get(s,p){ return [SIMS.gauss.flux(p),null]; }},
-    {label:'Заряд внутри поверхности',unit:'нКл',series:['Q'],get(s,p){ return [SIMS.gauss.enclosed(p)*1e9,null]; }}
-  ],
+  graphs:[],
   presets:[
-    {name:'Заряд внутри — поток есть',values:{scene:'single',Q1:10,gx:0,gy:0,gr:2.5,tStop:0}},
-    {name:'Поверхность не охватывает заряд — поток 0',values:{scene:'single',Q1:10,gx:5,gy:0,gr:2,tStop:0}},
-    {name:'Большой радиус — тот же поток',values:{scene:'single',Q1:10,gx:0,gy:0,gr:5,tStop:0}},
-    {name:'Диполь: оба внутри — поток 0',values:{scene:'plusminus',Q1:10,sep:3,gx:0,gy:0,gr:4,tStop:0}},
-    {name:'Диполь: только + внутри',values:{scene:'plusminus',Q1:10,sep:3,gx:-1.5,gy:0,gr:1.2,tStop:0}}
+    {name:'Заряд внутри — поток есть',values:{scene:'single',Q1:10,gx:0,gy:0,gr:2.5}},
+    {name:'Поверхность не охватывает заряд — поток 0',values:{scene:'single',Q1:10,gx:5,gy:0,gr:2}},
+    {name:'Большой радиус — тот же поток',values:{scene:'single',Q1:10,gx:0,gy:0,gr:5}},
+    {name:'Диполь: оба внутри — поток 0',values:{scene:'plusminus',Q1:10,sep:3,gx:0,gy:0,gr:4}},
+    {name:'Диполь: только + внутри',values:{scene:'plusminus',Q1:10,sep:3,gx:-1.5,gy:0,gr:1.2}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -434,6 +426,10 @@ gauss:{
 /* ================== ЭЛЕКТРОСТАТИКА: РАСПРЕДЕЛЕНИЯ ЗАРЯДА ================= */
 charged:{
   title:'Распределения заряда и теорема Гаусса',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'shape',label:'Заряженное тело',type:'select',default:'sphere',
      options:[{v:'sphere',t:'Равномерно заряженный шар'},
@@ -451,8 +447,6 @@ charged:{
     {key:'graph', label:'График E(r)',type:'check',default:true},
     {key:'arrows',label:'Стрелки поля',type:'check',default:true},
 
-    {type:'group',label:'Остановка таймера'},
-    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   k:8.99e9,
   /* модуль поля на расстоянии d от центра/оси/плоскости */
@@ -484,8 +478,6 @@ charged:{
   },
   init(p){ return {t:0,event:null,__stop:null}; },
   step(s,dt,p){ s.t+=dt;
-    if(p.tStop>0&&s.t>=p.tStop&&!(s.done&&s.done.time)){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
-      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; }
   },
   dragPoints(p){ return [{x:p.px,y:p.py}]; },
   dragMove(p,idx,x,y){ p.px=Math.round(x*10)/10; p.py=Math.round(y*10)/10; },
@@ -494,7 +486,7 @@ charged:{
     const d=this.distOf(p,p.px,p.py), E=this.fieldMag(p,d);
     const law={sphere:(d<=p.R?'внутри: E ∝ r':'снаружи: E = kQ/r²'),
                line:'нить: E = 2kλ/r',plane:'плоскость: E = 2πkσ (однородно)'}[p.shape];
-    const out=[['t',s.t,'с'],['расстояние до тела',d,'м'],
+    const out=[['расстояние до тела',d,'м'],
                ['поле E',E,'В/м'],['закон',0,law]];
     if(p.shape==='sphere'){
       out.push(['E на поверхности',this.fieldMag(p,p.R),'В/м'],
@@ -502,15 +494,12 @@ charged:{
     }
     return out;
   },
-  graphs:[
-    {label:'E(r) — поле от расстояния',unit:'В/м',series:['E'],
-     get(s,p){ return [SIMS.charged.fieldMag(p,SIMS.charged.distOf(p,p.px,p.py)),null]; }}
-  ],
+  graphs:[],
   presets:[
-    {name:'Шар: поле внутри и снаружи',values:{shape:'sphere',Q:15,R:2,px:4,py:0,tStop:0}},
-    {name:'Шар: проба внутри (E ∝ r)',values:{shape:'sphere',Q:15,R:3,px:1,py:0,tStop:0}},
-    {name:'Линейный заряд (нить): E ∝ 1/r',values:{shape:'line',Q:15,R:2,px:0,py:3,tStop:0}},
-    {name:'Плоскость: однородное поле',values:{shape:'plane',Q:15,R:3,px:0,py:3,tStop:0}}
+    {name:'Шар: поле внутри и снаружи',values:{shape:'sphere',Q:15,R:2,px:4,py:0}},
+    {name:'Шар: проба внутри (E ∝ r)',values:{shape:'sphere',Q:15,R:3,px:1,py:0}},
+    {name:'Линейный заряд (нить): E ∝ 1/r',values:{shape:'line',Q:15,R:2,px:0,py:3}},
+    {name:'Плоскость: однородное поле',values:{shape:'plane',Q:15,R:3,px:0,py:3}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -625,6 +614,10 @@ charged:{
 /* ================= ЭЛЕКТРОСТАТИКА: КОНДЕНСАТОР, ДИЭЛЕКТРИК, ЭНЕРГИЯ ================= */
 capacitor:{
   title:'Конденсатор: ёмкость, диэлектрик, энергия',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'volt',   label:'Напряжение U',unit:'В',min:1,max:200,step:1,default:50},
     {key:'plateL', label:'Площадь пластин S',unit:'усл.ед.',min:1,max:12,step:0.5,default:6},
@@ -636,8 +629,6 @@ capacitor:{
     {key:'fieldLines',label:'Однородное поле',type:'check',default:true},
     {key:'charges',    label:'Заряды на пластинах',type:'check',default:true},
 
-    {type:'group',label:'Остановка таймера'},
-    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   eps0:8.854e-12,
   /* ёмкость, заряд, энергия. S в усл.ед² (·1e-4 м²), d в мм (·1e-3 м). */
@@ -653,13 +644,11 @@ capacitor:{
   },
   init(p){ return {t:0,event:null,__stop:null}; },
   step(s,dt,p){ s.t+=dt;
-    if(p.tStop>0&&s.t>=p.tStop&&!(s.done&&s.done.time)){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
-      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; }
   },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
     const c=this.calc(p);
-    return [['t',s.t,'с'],['напряжение U',p.volt,'В'],
+    return [['напряжение U',p.volt,'В'],
             ['ёмкость C = εε₀S/d',c.C*1e12,'пФ'],
             ['заряд Q = CU',c.Q*1e9,'нКл'],
             ['поле E = U/d',c.E,'В/м'],
@@ -668,15 +657,12 @@ capacitor:{
             ['диэлектрик ε',c.eps,''],
             ['во сколько ↑ ёмкость',c.eps,'раз']];
   },
-  graphs:[
-    {label:'Энергия W = ½CU²',unit:'нДж',series:['W'],get(s,p){ return [SIMS.capacitor.calc(p).W*1e9,null]; }},
-    {label:'Ёмкость C',unit:'пФ',series:['C'],get(s,p){ return [SIMS.capacitor.calc(p).C*1e12,null]; }}
-  ],
+  graphs:[],
   presets:[
-    {name:'Вакуумный конденсатор',values:{volt:50,plateL:6,gap:3,eps:1,dielectric:false,tStop:0}},
-    {name:'С диэлектриком ε=5 (ёмкость ×5)',values:{volt:50,plateL:6,gap:3,eps:5,dielectric:true,tStop:0}},
-    {name:'Меньше зазор — больше ёмкость',values:{volt:50,plateL:6,gap:1,eps:1,dielectric:false,tStop:0}},
-    {name:'Больше площадь — больше ёмкость',values:{volt:50,plateL:12,gap:3,eps:1,dielectric:false,tStop:0}}
+    {name:'Вакуумный конденсатор',values:{volt:50,plateL:6,gap:3,eps:1,dielectric:false}},
+    {name:'С диэлектриком ε=5 (ёмкость ×5)',values:{volt:50,plateL:6,gap:3,eps:5,dielectric:true}},
+    {name:'Меньше зазор — больше ёмкость',values:{volt:50,plateL:6,gap:1,eps:1,dielectric:false}},
+    {name:'Больше площадь — больше ёмкость',values:{volt:50,plateL:12,gap:3,eps:1,dielectric:false}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -757,6 +743,10 @@ capacitor:{
    можно проверить численно в каждом узле. */
 resistors:{
   title:'Конструктор цепей: закон Ома и законы Кирхгофа',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   A:{x:-6,y:0},                      // клемма «+» источника, φ = U
   Rw:1e-4,                           // сопротивление куска идеального провода, Ом
   SUB:'₀₁₂₃₄₅₆₇₈₉',
@@ -766,10 +756,13 @@ resistors:{
               {v:'parallel',t:'Параллельное: R₁ ∥ R₂'},
               {v:'mixed',   t:'Смешанное: R₁ + (R₂ ∥ R₃)'},
               {v:'bridge',  t:'Мост Уитстона (5 резисторов)'},
+              {v:'cpar',    t:'Конденсатор параллельно резистору'},
+              {v:'cdiv',    t:'Два конденсатора последовательно'},
               {v:'blank',   t:'Пустая сетка — рисовать самому'}]},
     {key:'tool',label:'Инструмент (или ПКМ по сцене)',type:'select',default:'wire',
      options:[{v:'wire',t:'Провод (тянуть от узла)'},
-              {v:'R',   t:'Резистор (тянуть от узла)'}]},
+              {v:'R',   t:'Резистор (тянуть от узла)'},
+              {v:'C',   t:'Конденсатор (тянуть от узла)'}]},
     {key:'U',   label:'Напряжение источника U (A→B)',unit:'В',min:1,max:50,step:1,default:12},
 
     {type:'group',label:'Номиналы резисторов (в порядке появления в схеме)'},
@@ -779,6 +772,12 @@ resistors:{
     {key:'R4',label:'R₄',unit:'Ом',min:1,max:2000,step:1,default:300},
     {key:'R5',label:'R₅',unit:'Ом',min:1,max:2000,step:1,default:470},
     {key:'Rnew',label:'Номинал шестого и следующих',unit:'Ом',min:1,max:2000,step:1,default:100},
+
+    {type:'group',label:'Номиналы конденсаторов (в порядке появления)'},
+    {key:'C1',label:'C₁',unit:'мкФ',min:0.1,max:1000,step:0.1,default:47},
+    {key:'C2',label:'C₂',unit:'мкФ',min:0.1,max:1000,step:0.1,default:100},
+    {key:'C3',label:'C₃',unit:'мкФ',min:0.1,max:1000,step:0.1,default:22},
+    {key:'Cnew',label:'Номинал четвёртого и следующих',unit:'мкФ',min:0.1,max:1000,step:0.1,default:47},
 
     {type:'group',label:'Показывать'},
     {key:'flow',  label:'Движение тока',type:'check',default:true},
@@ -799,10 +798,58 @@ resistors:{
     if(idx<=5 && typeof v==='number' && isFinite(v) && v>0) return v;
     return (seg&&seg.value)||p.Rnew||100;
   },
+  /* Ёмкость k-го конденсатора, мкФ: первые три — с ползунков, дальше — то, с
+     чем конденсатор был нарисован. Всё как у резисторов. */
+  Cval(p,idx,seg){
+    const v=p['C'+idx];
+    if(idx<=3 && typeof v==='number' && isFinite(v) && v>0) return v;
+    return (seg&&seg.cap)||p.Cnew||47;
+  },
+  /* ---- Конденсаторы в установившемся режиме ----
+     phi — уже известные потенциалы (их задала резистивная часть), извест —
+     множество узлов с известным потенциалом. Достраиваем потенциалы «висячих»
+     узлов из сохранения заряда и заполняем у каждого конденсатора напряжение,
+     заряд и энергию. Возвращаем суммарную запасённую энергию.
+
+     Уравнение для висячего узла: сумма зарядов всех сходящихся в нём обкладок
+     равна нулю (до включения он был не заряжен), то есть ΣC(φ−φ′) = 0. Это та
+     же узловая система, что и для токов, только с ёмкостями вместо
+     проводимостей — потому и решается тем же методом Гаусса. */
+  зарядить(elsC,phi,извест){
+    const неизв=new Map();
+    for(const e of elsC) for(const k of [e.a,e.b])
+      if(!извест.has(k) && !неизв.has(k)) неизв.set(k,неизв.size);
+    const n=неизв.size;
+    if(n){
+      const M=Array.from({length:n},()=>new Array(n).fill(0)), b=new Array(n).fill(0);
+      for(const e of elsC){
+        if(e.a===e.b) continue;
+        const ia=неизв.has(e.a)?неизв.get(e.a):-1, ib=неизв.has(e.b)?неизв.get(e.b):-1;
+        if(ia>=0) M[ia][ia]+=e.C;
+        if(ib>=0) M[ib][ib]+=e.C;
+        if(ia>=0&&ib>=0){ M[ia][ib]-=e.C; M[ib][ia]-=e.C; }
+        // конец на известном потенциале уходит в правую часть
+        if(ia>=0&&ib<0) b[ia]+=e.C*(phi[e.b]||0);
+        if(ib>=0&&ia<0) b[ib]+=e.C*(phi[e.a]||0);
+      }
+      const x=this.solveLinear(M,b);
+      for(const [k,i] of неизв) phi[k]=x[i];
+    }
+    let W=0;
+    for(const e of elsC){
+      e.dU=(phi[e.a]||0)-(phi[e.b]||0);
+      e.I=0; e.P=0;                    // постоянному току конденсатор хода не даёт
+      e.Q=e.C*e.dU;                    // мкФ · В = мкКл
+      e.W=0.5*e.C*e.dU*e.dU;           // мкДж
+      W+=e.W;
+    }
+    return W;
+  },
   demoNet(name){
     const segs=[], B={x:0,y:0};
     const w=(x1,y1,x2,y2)=>segs.push({x1,y1,x2,y2,type:'wire',value:0});
     const r=(x1,y1,x2,y2)=>segs.push({x1,y1,x2,y2,type:'R',value:100});
+    const cc=(x1,y1,x2,y2)=>segs.push({x1,y1,x2,y2,type:'C',cap:47});
     /* Схемы нарочно растянуты: подписи «R₁ = 100 Ом» и «41.2 мА · 4.12 В»
        живут под своими резисторами, и если поставить элементы вплотную, эти
        строки налезают друг на друга. */
@@ -829,6 +876,18 @@ resistors:{
       r(-1,3,-1,-3);    // R₅ — сам мост (диагональ)
       w(4,3,4,0); w(4,-3,4,0);
       B.x=4; B.y=0;
+    } else if(name==='cpar'){
+      /* Конденсатор параллельно резистору. Ток идёт по резистору, а
+         конденсатор просто заряжается до напряжения на нём — сколько ни жди,
+         через него не потечёт ничего. */
+      w(-6,0,-5,0); r(-5,0,-1,0); w(-1,0,3,0);
+      w(-5,0,-5,3); cc(-5,3,-1,3); w(-1,3,-1,0);
+      B.x=3; B.y=0;
+    } else if(name==='cdiv'){
+      /* Два конденсатора последовательно: делитель напряжения наоборот —
+         больше ёмкость, меньше напряжение, а заряд у обоих одинаковый. */
+      w(-6,0,-5,0); cc(-5,0,-1,0); cc(-1,0,3,0); w(3,0,4,0);
+      B.x=4; B.y=0;
     } else return {segs:[],B:null,demo:name};
     return {segs,B,demo:name};
   },
@@ -849,11 +908,23 @@ resistors:{
     const nodes=[{x:this.A.x,y:this.A.y}];
     if(net.B) nodes.push({x:net.B.x,y:net.B.y});
     for(const g of net.segs) nodes.push({x:g.x1,y:g.y1},{x:g.x2,y:g.y2});
-    const els=[]; let rIdx=0;
+    const els=[]; let rIdx=0, cIdx=0;
     for(const g of net.segs){
       if(g.type==='R'){
         rIdx++;
         els.push({type:'R',idx:rIdx,seg:g,R:Math.max(this.Rval(p,rIdx,g),1e-6),
+                  a:this.key(g.x1,g.y1),b:this.key(g.x2,g.y2),
+                  x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2});
+        continue;
+      }
+      if(g.type==='C'){
+        cIdx++;
+        /* Нули проставляем сразу: до расчёта эти поля всё равно спрашивает
+           отрисовка, а её вызывают и когда схема ещё не собрана (нет вывода B,
+           цепь разомкнута) — тогда calc выходит раньше, чем дойдёт до
+           конденсаторов. */
+        els.push({type:'C',idx:cIdx,seg:g,C:Math.max(this.Cval(p,cIdx,g),1e-6),R:Infinity,
+                  I:0,dU:0,P:0,Q:0,W:0,
                   a:this.key(g.x1,g.y1),b:this.key(g.x2,g.y2),
                   x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2});
         continue;
@@ -900,13 +971,45 @@ resistors:{
     const kB=this.key(net.B.x,net.B.y);
     if(kA===kB) return {status:'short',els,nR,Req:0};
 
-    // что вообще связано с клеммой A
-    const adj={};
-    for(const e of els){ (adj[e.a]=adj[e.a]||[]).push(e.b); (adj[e.b]=adj[e.b]||[]).push(e.a); }
-    const seen=new Set([kA]), q=[kA];
-    while(q.length){ const x=q.pop(); for(const y of adj[x]||[]) if(!seen.has(y)){ seen.add(y); q.push(y); } }
-    if(!seen.has(kB)) return {status:'open',els,nR};
-    const live=els.filter(e=>seen.has(e.a)&&seen.has(e.b)&&e.a!==e.b);
+    /* Резистивную часть и конденсаторы считаем ОТДЕЛЬНО, и вот почему.
+
+       В установившемся режиме через конденсатор постоянный ток не идёт, значит
+       потенциалы задаёт только сеть из проводов и резисторов. А напряжение на
+       самих конденсаторах определяется не сопротивлением, а СОХРАНЕНИЕМ
+       ЗАРЯДА: на узле, который держится в цепи одними конденсаторами, суммарный
+       заряд обкладок так и остался нулевым, каким был до включения. Отсюда для
+       таких узлов выходит своё уравнение ΣC(φ−φ′) = 0 — с ёмкостями на месте
+       проводимостей.
+
+       Если этого не делать, а изобразить конденсатор просто очень большим
+       сопротивлением, два последовательных конденсатора поделят напряжение
+       поровну. На деле у них одинаков ЗАРЯД, и напряжения делятся обратно
+       ёмкостям: U₁/U₂ = C₂/C₁. Ошибка не тонкая — при 47 и 100 мкФ вместо
+       8,16 и 3,84 В вышло бы 6 и 6. */
+    const elsR=els.filter(e=>e.type!=='C'), elsC=els.filter(e=>e.type==='C');
+    const обход=(набор,старт)=>{
+      const adj={};
+      for(const e of набор){ (adj[e.a]=adj[e.a]||[]).push(e.b); (adj[e.b]=adj[e.b]||[]).push(e.a); }
+      const s=new Set([старт]), q=[старт];
+      while(q.length){ const x=q.pop(); for(const y of adj[x]||[]) if(!s.has(y)){ s.add(y); q.push(y); } }
+      return s;
+    };
+    const seen=обход(elsR,kA);                 // куда дотягивается ток от клеммы A
+    const всё=обход(els,kA);                   // связность с учётом конденсаторов
+    if(!всё.has(kB)) return {status:'open',els,nR};
+    if(!seen.has(kB)){
+      /* A и B соединены, но только через конденсатор. Тока нет вовсе, а значит
+         нет и падений напряжения: весь остров вокруг A сидит на U, весь остров
+         вокруг B — на нуле, промежуточные узлы разберёт ёмкостный расчёт. */
+      const островB=обход(elsR,kB);
+      const phi={};
+      for(const k of seen) phi[k]=p.U;
+      for(const k of островB) phi[k]=0;
+      for(const e of els){ e.I=0; e.dU=0; e.P=0; }
+      const Wc=this.зарядить(elsC,phi,new Set([...seen,...островB]));
+      return {status:'blocked',els,live:[],nR,nC:elsC.length,phi,seen:всё,Wc,I:0,Req:Infinity};
+    }
+    const live=elsR.filter(e=>seen.has(e.a)&&seen.has(e.b)&&e.a!==e.b);
 
     /* Узловой метод. Земля — клемма B (φ = 0), источник задаёт φ(A) = U.
        Неизвестные: потенциалы всех прочих узлов + ток через источник. */
@@ -959,10 +1062,13 @@ resistors:{
       e.dU=e.I*e.R;
       e.P =e.I*e.I*e.R;
     }
+    // конденсаторы: потенциалы резистивной сети уже известны, достраиваем остальное
+    const Wc=this.зарядить(elsC,phi,new Set(Object.keys(phi)));
     // число независимых контуров: рёбра − узлы + 1 (формула Эйлера)
     const loops=Math.max(0, live.length - seen.size + 1);
+    const nC=els.filter(e=>e.type==='C').length;
 
-    return {status:'ok',els,live,nR,I,Req,phi,seen,kcl,Psum,Psrc:p.U*I,loops};
+    return {status:'ok',els,live,nR,nC,I,Req,phi,seen,kcl,Psum,Psrc:p.U*I,loops,Wc};
   },
 
   /* --- рисование схемы мышью --- */
@@ -989,8 +1095,9 @@ resistors:{
     const pv=p._preview; p._preview=null;
     if(!pv) return;
     if(Math.abs(pv.x2-pv.x1)+Math.abs(pv.y2-pv.y1)<1) return;
+    const тип = p.tool==='R'?'R' : p.tool==='C'?'C' : 'wire';
     this.netOf(p).segs.push({x1:pv.x1,y1:pv.y1,x2:pv.x2,y2:pv.y2,
-                             type:p.tool==='R'?'R':'wire',value:p.Rnew});
+                             type:тип,value:p.Rnew,cap:p.Cnew});
   },
   /* развилки образуются сами: сегменты, сошедшиеся в одном узле сетки,
      оказываются подключены к одному и тому же потенциалу */
@@ -1010,6 +1117,7 @@ resistors:{
     return [
       {label:m('wire')+'Инструмент: провод',                on:q=>{ q.tool='wire'; }},
       {label:m('R')+`Инструмент: резистор (${p.Rnew} Ом)`,  on:q=>{ q.tool='R'; }},
+      {label:m('C')+`Инструмент: конденсатор (${p.Cnew} мкФ)`, on:q=>{ q.tool='C'; }},
       {label:'Создать вывод B (конец цепи)',                on:q=>{ SIMS.resistors.makeOutput(q); }},
       {label:'Отменить последний отрезок (Ctrl+Z)',         on:q=>{ SIMS.resistors.undoAction(q); }},
       {label:'Пересобрать выбранную готовую схему',         on:q=>{ if(q._net) q._net.demo=null; }},
@@ -1048,15 +1156,36 @@ resistors:{
     const deg={}; const bump=k=>deg[k]=(deg[k]||0)+1;
     for(const g of net.segs){ bump(this.key(g.x1,g.y1)); bump(this.key(g.x2,g.y2)); }
     const forks=Object.values(deg).filter(d=>d>=3).length;
-    const out=[['t',s.t,'с'],
-      ['напряжение источника U',p.U,'В'],
+    const конд=c.els?c.els.filter(e=>e.type==='C'):[];
+    const out=[['напряжение источника U',p.U,'В'],
       ['резисторов в схеме',c.nR,''],
+      ['конденсаторов в схеме',конд.length,''],
       ['отрезков нарисовано',net.segs.length,''],
       ['развилок (узлов со степенью ≥ 3)',forks,'']];
+
+    /* Показания конденсаторов выносим в отдельную часть: они осмысленны и
+       тогда, когда ток по цепи вообще не идёт. */
+    const конденсаторы=()=>{
+      for(const e of конд.slice(0,6)){
+        const i=this.sub(e.idx);
+        out.push([`C${i} = ${e.C} мкФ · напряжение U${i}`, Math.abs(e.dU),'В'],
+                 [`      заряд Q${i} = C${i}·U${i}`, Math.abs(e.Q),'мкКл'],
+                 [`      энергия W${i} = ½C${i}U${i}²`, e.W,'мкДж']);
+      }
+      if(конд.length>1) out.push(['запасено всего',c.Wc||0,'мкДж']);
+      if(конд.length) out.push(['ток через конденсаторы',0,'мА — постоянный ток не проходит']);
+    };
 
     if(c.status==='noB'){ out.push(['состояние',NaN,'нет вывода B — кнопка «вывод B»']); return out; }
     if(c.status==='open'){ out.push(['состояние',NaN,'цепь разомкнута: A и B не соединены']); return out; }
     if(c.status==='short'){ out.push(['состояние',NaN,'КОРОТКОЕ ЗАМЫКАНИЕ: путь A→B без резисторов']); return out; }
+    if(c.status==='blocked'){
+      out.push(['состояние',NaN,'конденсатор разрывает цепь: постоянный ток не идёт'],
+               ['ток источника I',0,'мА'],
+               ['эквивалентное R_экв',Infinity,'Ом']);
+      конденсаторы();
+      return out;
+    }
 
     out.push(['эквивалентное R_экв',c.Req,'Ом'],
              ['ток источника I = U/R_экв',c.I*1000,'мА'],
@@ -1072,22 +1201,13 @@ resistors:{
                [`      падение U${i} = I${i}·R${i}`, Math.abs(e.dU),'В'],
                [`      мощность P${i} = I${i}²·R${i}`, e.P,'Вт']);
     }
+    конденсаторы();
     out.push(['независимых контуров (II закон)',c.loops,''],
              ['I закон Кирхгофа: макс. невязка ΣI в узле',c.kcl,'А'],
              ['баланс мощностей: ΣI²R − U·I',c.Psum-c.Psrc,'Вт']);
     return out;
   },
-  graphs:[
-    {label:'Ток источника I',unit:'мА',series:['I'],
-     get(s,p){ const c=SIMS.resistors.calc(p); return [c.status==='ok'?c.I*1000:0,null]; }},
-    {label:'Эквивалентное сопротивление',unit:'Ом',series:['R'],
-     get(s,p){ const c=SIMS.resistors.calc(p); return [c.status==='ok'?c.Req:0,null]; }},
-    {label:'Ток через R₁ и R₂',unit:'мА',series:['I₁','I₂'],
-     get(s,p){ const c=SIMS.resistors.calc(p);
-       if(c.status!=='ok') return [0,0];
-       const rs=c.els.filter(e=>e.type==='R');
-       return [rs[0]?rs[0].I*1000:0, rs[1]?rs[1].I*1000:0]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Последовательно: R складываются',
      values:{demo:'series',R1:100,R2:200,U:12,phi:true,values:true}},
@@ -1101,6 +1221,10 @@ resistors:{
      values:{demo:'bridge',R1:100,R2:200,R3:150,R4:300,R5:470,U:12,phi:true,values:true}},
     {name:'Мост Уитстона разбалансирован: ток пошёл',
      values:{demo:'bridge',R1:100,R2:200,R3:150,R4:200,R5:470,U:12,phi:true,values:true}},
+    {name:'Конденсатор параллельно резистору: заряжен, но тока не пропускает',
+     values:{demo:'cpar',R1:100,C1:47,U:12,phi:true,values:true}},
+    {name:'Два конденсатора последовательно: заряд один, напряжения разные',
+     values:{demo:'cdiv',C1:47,C2:100,U:12,phi:true,values:true}},
     {name:'Пустая сетка — собрать схему самому',
      values:{demo:'blank',U:12,phi:true,values:true}}
   ],
@@ -1169,10 +1293,42 @@ resistors:{
       }
     }
 
+    /* ---- конденсаторы: две обкладки с зазором.
+       Провод под ними стираем цветом холста — иначе линия проходила бы прямо
+       через зазор, и на схеме конденсатор выглядел бы замкнутым, ровно
+       наоборот тому, что он делает с постоянным током. */
+    for(const e of c.els.filter(e=>e.type==='C')){
+      const cx=(e.x1+e.x2)/2, cy=(e.y1+e.y2)/2, horiz=e.y1===e.y2;
+      const зазор=0.17, пласт=0.42;
+      ctx.strokeStyle=v.c('--canvas'); ctx.lineWidth=v.lw(4);
+      ctx.beginPath();
+      if(horiz){ ctx.moveTo(cx-0.3,cy); ctx.lineTo(cx+0.3,cy); }
+      else     { ctx.moveTo(cx,cy-0.3); ctx.lineTo(cx,cy+0.3); }
+      ctx.stroke();
+      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.6);
+      ctx.beginPath();
+      if(horiz){
+        ctx.moveTo(cx-зазор,cy-пласт); ctx.lineTo(cx-зазор,cy+пласт);
+        ctx.moveTo(cx+зазор,cy-пласт); ctx.lineTo(cx+зазор,cy+пласт);
+      } else {
+        ctx.moveTo(cx-пласт,cy-зазор); ctx.lineTo(cx+пласт,cy-зазор);
+        ctx.moveTo(cx-пласт,cy+зазор); ctx.lineTo(cx+пласт,cy+зазор);
+      }
+      ctx.stroke();
+      if(p.values){
+        const i=this.sub(e.idx);
+        const t1=`C${i} = ${e.C} мкФ`;
+        const t2=`${Math.abs(e.dU).toFixed(2)} В · ${Math.abs(e.Q).toFixed(1)} мкКл`;
+        v.label(ctx,t1,cx,cy,horiz?mid(t1):16,horiz?18:-8,sec);
+        if(c.status==='ok'||c.status==='blocked')
+          v.label(ctx,t2,cx,cy,horiz?mid(t2):16,horiz?32:7,ink3);
+      }
+    }
+
     // ---- предпросмотр рисуемого отрезка
     if(p._preview){
       const pv=p._preview;
-      ctx.strokeStyle=p.tool==='R'?acc:sec; ctx.lineWidth=v.lw(2);
+      ctx.strokeStyle=p.tool==='R'?acc:p.tool==='C'?sec:sec; ctx.lineWidth=v.lw(2);
       ctx.setLineDash([v.lw(5),v.lw(4)]);
       ctx.beginPath(); ctx.moveTo(pv.x1,pv.y1); ctx.lineTo(pv.x2,pv.y2); ctx.stroke();
       ctx.setLineDash([]);
@@ -1261,6 +1417,10 @@ resistors:{
     if(c.status==='noB'){ st='нарисуйте цепь от A и нажмите «вывод B»'; }
     else if(c.status==='open'){ st='цепь разомкнута: A и B не соединены'; col=meas; }
     else if(c.status==='short'){ st='КОРОТКОЕ ЗАМЫКАНИЕ: путь A→B без резисторов'; col=dang; }
+    else if(c.status==='blocked'){
+      st=`постоянный ток не идёт: путь A→B только через конденсатор · запасено ${(c.Wc||0).toFixed(0)} мкДж`;
+      col=sec;
+    }
     else st=`R_экв = ${c.Req.toFixed(2)} Ом · I = ${(c.I*1000).toFixed(2)} мА · P = ${c.Psrc.toFixed(3)} Вт`;
     v.label(ctx,st,0,5.1,mid(st),0,col);
     if(c.status==='ok'){

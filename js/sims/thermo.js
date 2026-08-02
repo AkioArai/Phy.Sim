@@ -866,6 +866,10 @@ calorimetry:{
    так их видно прямо на картинке — высотой воды в манометрических трубках. */
 bernoulli:{
   title:'Течение жидкости: уравнение Бернулли и трубка Вентури',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'Q',  label:'Расход Q',unit:'л/с',min:1,max:300,step:1,default:60},
     {key:'A1', label:'Сечение широкой части A₁',unit:'см²',min:20,max:400,step:5,default:200},
@@ -885,8 +889,6 @@ bernoulli:{
     {key:'plot', label:'Эпюру давления вдоль трубы',type:'check',default:true},
     {key:'reyn', label:'Число Рейнольдса (проверка идеальности)',type:'check',default:true},
 
-    {type:'group',label:'Остановка таймера'},
-    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   LIQ:{water:{rho:1000,mu:1.0e-3,name:'вода'}, oil:{rho:900,mu:8.0e-2,name:'масло'},
        gly:{rho:1260,mu:1.4,name:'глицерин'},  merc:{rho:13600,mu:1.53e-3,name:'ртуть'}},
@@ -934,8 +936,6 @@ bernoulli:{
   step(s,dt,p){
     if(s.event) return;
     const t=s.t+dt;
-    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
-      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
     s.t=t;
     /* Частицы двигаются со СВОЕЙ местной скоростью: в горловине они заметно
        ускоряются — это и есть уравнение неразрывности, видимое глазом. */
@@ -959,8 +959,7 @@ bernoulli:{
     const rho=L.rho;
     const e1=p1+rho*v1*v1/2+rho*p.g*this.yAt(p,this.X0);
     const e2=p2+rho*v2*v2/2+rho*p.g*this.yAt(p,0);
-    return [['t',s.t,'с'],
-      ['жидкость: плотность ρ',rho,'кг/м³'],
+    return [['жидкость: плотность ρ',rho,'кг/м³'],
       ['расход Q',p.Q,'л/с'],
       ['сечение широкой части A₁',p.A1,'см²'],
       ['сечение узкой части A₂',p.A2,'см²'],
@@ -979,25 +978,20 @@ bernoulli:{
       ['расхождение сумм (должно быть 0)',(e1-e2)/1000,'кПа'],
       ...(p.reyn?[['число Рейнольдса в узкой части',this.Re(p,0),'']]:[])];
   },
-  graphs:[
-    {label:'Скорость в узкой части',unit:'м/с',series:['v₂','v₁'],
-     get(s,p){ return [SIMS.bernoulli.vAt(p,0), SIMS.bernoulli.vAt(p,SIMS.bernoulli.X0)]; }},
-    {label:'Избыточное давление в узкой части',unit:'кПа',series:['p₂','p₁'],
-     get(s,p){ return [SIMS.bernoulli.pAt(p,0)/1000, SIMS.bernoulli.pAt(p,SIMS.bernoulli.X0)/1000]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Трубка Вентури: узко — быстро — давление ниже',
-     values:{Q:60,A1:200,A2:80,H1:8,dy:0,liq:'water',tStop:0}},
+     values:{Q:60,A1:200,A2:80,H1:8,dy:0,liq:'water'}},
     {name:'Сильнее сужение — глубже провал давления',
-     values:{Q:60,A1:200,A2:45,H1:12,dy:0,liq:'water',tStop:0}},
+     values:{Q:60,A1:200,A2:45,H1:12,dy:0,liq:'water'}},
     {name:'Без сужения: давление одинаково всюду',
-     values:{Q:60,A1:200,A2:200,H1:8,dy:0,liq:'water',tStop:0}},
+     values:{Q:60,A1:200,A2:200,H1:8,dy:0,liq:'water'}},
     {name:'Труба поднимается: работает слагаемое ρgy',
-     values:{Q:40,A1:200,A2:120,H1:8,dy:2,liq:'water',tStop:0}},
+     values:{Q:40,A1:200,A2:120,H1:8,dy:2,liq:'water'}},
     {name:'Кавитация: расход слишком велик',
-     values:{Q:150,A1:200,A2:25,H1:4,dy:0,liq:'water',tStop:0}},
+     values:{Q:150,A1:200,A2:25,H1:4,dy:0,liq:'water'}},
     {name:'Ртуть: та же геометрия, другая плотность',
-     values:{Q:40,A1:200,A2:60,H1:5,dy:0,liq:'merc',tStop:0}}
+     values:{Q:40,A1:200,A2:60,H1:5,dy:0,liq:'merc'}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;

@@ -434,6 +434,9 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .group .iconbtn{border-radius:0;border:none;width:30px;height:28px}
 .zoomval{font-family:var(--mono);font-size:12px;width:66px;text-align:center;color:var(--ink-2);background:transparent;border:none;border-left:1px solid var(--line);border-right:1px solid var(--line);height:28px}
 .clock{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+/* Общее правило для шапки симуляции: у кнопок здесь задана ширина в
+   атрибуте style, и без !important класс «спрятать» на них не действовал. */
+.clock.hidden,.simhead .iconbtn.hidden{display:none!important}
 
 .pop{position:absolute;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 10px 34px -12px #0000004d;padding:6px;min-width:240px}
 .pop.hidden{display:none}

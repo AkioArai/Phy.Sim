@@ -229,6 +229,10 @@ emwave:{
 /* ================= ГЛ.20: ПЕРЕНОС ЭНЕРГИИ И ИНТЕНСИВНОСТЬ ================= */
 intensity:{
   title:'Перенос энергии волной: интенсивность',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'P',label:'Мощность источника P',unit:'Вт',min:1,max:500,step:1,default:100},
     {key:'dx',label:'Детектор: расстояние x',unit:'м',min:0.5,max:9,step:0.1,default:3},
@@ -258,17 +262,14 @@ intensity:{
   anchors(s,p){ return [{x:0,y:0},{x:p.dx,y:p.dy}]; },
   readouts(s,p){
     const c=this.total(p);
-    const out=[['t',s.t,'с'],['мощность источника P',p.P,'Вт'],
+    const out=[['мощность источника P',p.P,'Вт'],
       ['расстояние до детектора r',c.r1,'м'],
       ['интенсивность I = P/4πr²',c.I1,'Вт/м²'],
       ['при удвоении r станет',this.Iof(p.P,c.r1*2),'Вт/м² (вчетверо меньше)']];
     if(p.two) out.push(['от второго источника',c.I2,'Вт/м²'],['суммарная интенсивность',c.I,'Вт/м²']);
     return out;
   },
-  graphs:[
-    {label:'Интенсивность на детекторе',unit:'Вт/м²',series:['I'],get(s,p){ return [SIMS.intensity.total(p).I,null]; }},
-    {label:'Расстояние до источника',unit:'м',series:['r'],get(s,p){ return [Math.hypot(p.dx,p.dy),null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Точечный источник',values:{P:100,dx:3,dy:0,two:false}},
     {name:'Вдвое дальше — вчетверо слабее',values:{P:100,dx:6,dy:0,two:false}},
@@ -435,6 +436,10 @@ displacement:{
 /* ================= ГЛ.20: ЭЛЕКТРОМАГНИТНАЯ ВОЛНА ================= */
 fourier:{
   title:'Разложение Фурье: любой сигнал — сумма синусоид',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'shape',label:'Форма сигнала',type:'select',default:'square',
      options:[{v:'square',t:'Прямоугольный'},{v:'saw',t:'Пилообразный'},{v:'tri',t:'Треугольный'}]},
@@ -473,17 +478,13 @@ fourier:{
     for(let i=0;i<200;i++){ const x=i/200*2*Math.PI;
       const d=this.sum(p,x,0)-this.exact(p,x,0); err+=d*d; cnt++; }
     err=Math.sqrt(err/cnt);
-    const out=[['t',s.t,'с'],['форма',0,{square:'прямоугольный',saw:'пилообразный',tri:'треугольный'}[p.shape]],
+    const out=[['форма',0,{square:'прямоугольный',saw:'пилообразный',tri:'треугольный'}[p.shape]],
       ['число гармоник N',p.N,''],['ошибка приближения',err,'']];
     for(let n=1;n<=Math.min(p.N,5);n++){ const a=this.coef(p.shape,n);
       if(a) out.push([`амплитуда ${n}-й гармоники`,a,'']); }
     return out;
   },
-  graphs:[
-    {label:'Ошибка приближения',unit:'',series:['ошибка'],get(s,p){
-      let e=0; for(let i=0;i<120;i++){ const x=i/120*2*Math.PI; const d=SIMS.fourier.sum(p,x,0)-SIMS.fourier.exact(p,x,0); e+=d*d; }
-      return [Math.sqrt(e/120),null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Прямоугольный: 1 гармоника',values:{shape:'square',N:1,auto:true}},
     {name:'Прямоугольный: 9 гармоник',values:{shape:'square',N:9,auto:true}},
@@ -551,6 +552,10 @@ fourier:{
 /* ================== ГЕОМЕТРИЧЕСКАЯ ОПТИКА: ТОНКАЯ ЛИНЗА ================= */
 tir:{
   title:'Полное внутреннее отражение и световод',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'mode',label:'Что смотрим',type:'select',default:'flat',
      options:[{v:'flat', t:'Плоская граница: рождение полного отражения'},
@@ -622,8 +627,7 @@ tir:{
   init(p){ return {t:0,event:null,__stop:null}; },
   step(s,dt,p){ s.t+=dt; },
   readouts(s,p){
-    const c=this.critical(p), out=[['t',s.t,'с'],
-      ['n₁ (плотная)',this.n1(p),''],['n₂ (менее плотная)',this.n2(p),'']];
+    const c=this.critical(p), out=[['n₁ (плотная)',this.n1(p),''],['n₂ (менее плотная)',this.n2(p),'']];
     out.push(['предельный угол θпр', c===null?NaN:c,
       c===null?'полного отражения нет: свет идёт в более плотную среду':'°']);
     if(p.mode==='flat'){
@@ -1160,6 +1164,10 @@ bench:{
 ,
 lens:{
   title:'Тонкая линза: построение изображения',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'kind',label:'Тип линзы',type:'select',default:'conv',
      options:[{v:'conv',t:'Собирающая (положительная)'},
@@ -1242,8 +1250,7 @@ lens:{
   },
   readouts(s,p){
     const F=this.F(p), dp=this.dPrime(p), g=this.gamma(p), H=this.H(p), k=this.kindOf(p);
-    const out=[['t',s.t,'с'],
-      ['фокусное расстояние F',F,'м'],
+    const out=[['фокусное расстояние F',F,'м'],
       ['оптическая сила D = 1/F',this.D(p),'дптр'],
       ['расстояние до предмета d',p.d,'м'],
       ['высота предмета h',p.h,'м'],
@@ -1263,12 +1270,7 @@ lens:{
     }
     return out;
   },
-  graphs:[
-    {label:'Расстояние до изображения d′',unit:'м',series:['d′'],
-     get(s,p){ const dp=SIMS.lens.dPrime(p); return [isFinite(dp)?clamp(dp,-40,40):0,null]; }},
-    {label:'Увеличение Γ',unit:'',series:['Γ'],
-     get(s,p){ const g=SIMS.lens.gamma(p); return [isFinite(g)?clamp(g,-20,20):0,null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'За 2F: действительное, перевёрнутое, уменьшенное',values:{kind:'conv',f:1.5,d:5,h:1}},
     {name:'В точке 2F: равное по величине',values:{kind:'conv',f:1.5,d:3,h:1}},
@@ -1426,6 +1428,10 @@ lens:{
 /* ================== ГЛ.21: ЭНЕРГИЯ И ИМПУЛЬС ИЗЛУЧЕНИЯ ================= */
 radpressure:{
   title:'Импульс излучения и световое давление',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'surf',label:'Поверхность',type:'select',default:'black',
      options:[{v:'black',t:'Чёрная (поглощает)'},
@@ -1455,7 +1461,7 @@ radpressure:{
   anchors(s,p){ return [{x:0,y:0},{x:p.r,y:0}]; },
   readouts(s,p){
     const I=this.I(p), pr=this.pressure(p), F=this.force(p);
-    const out=[['t',s.t,'с'],['мощность источника',p.P,'Вт'],
+    const out=[['мощность источника',p.P,'Вт'],
       ['расстояние r',p.r,'м'],
       ['интенсивность I = P/4πr²',I,'Вт/м²'],
       ['площадь мишени',p.A,'м²'],
@@ -1467,10 +1473,7 @@ radpressure:{
     else out.push(['множитель импульса',(p.surf==='mirror')?2:1,p.surf==='mirror'?'(отражение)':'(поглощение)']);
     return out;
   },
-  graphs:[
-    {label:'Интенсивность',unit:'Вт/м²',series:['I'],get(s,p){ return [SIMS.radpressure.I(p),null]; }},
-    {label:'Сила светового давления',unit:'мкН',series:['F'],get(s,p){ return [SIMS.radpressure.force(p)*1e6,null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Чёрная мишень: p = U/c',values:{surf:'black',P:1000,r:4,A:2}},
     {name:'Зеркало: импульс вдвое больше',values:{surf:'mirror',P:1000,r:4,A:2}},
@@ -1577,6 +1580,10 @@ radpressure:{
 /* ================= ГЛ.21: ПОКАЗАТЕЛЬ ПРЕЛОМЛЕНИЯ ================= */
 refraction:{
   title:'Показатель преломления и преломление света',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'mat1',label:'Среда сверху',type:'select',default:'air',
      options:[{v:'air',t:'Воздух (n = 1,00)'},{v:'water',t:'Вода (n = 1,33)'},
@@ -1629,8 +1636,7 @@ refraction:{
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
     const n1=this.n1(p), n2=this.n2(p), t2=this.theta2(p), cr=this.critical(p);
-    const out=[['t',s.t,'с'],
-      ['показатель среды 1: n₁',n1,''],
+    const out=[['показатель среды 1: n₁',n1,''],
       ['показатель среды 2: n₂',n2,''],
       ['скорость в среде 1: v = c/n',this.vIn(n1)/1e8,'·10⁸ м/с'],
       ['скорость в среде 2: v = c/n',this.vIn(n2)/1e8,'·10⁸ м/с'],
@@ -1649,9 +1655,7 @@ refraction:{
       ['частота (не меняется)',this.c/(p.lam*1e-9)/1e12,'ТГц']);
     return out;
   },
-  graphs:[
-    {label:'Угол преломления θ₂',unit:'°',series:['θ₂'],get(s,p){ const t=SIMS.refraction.theta2(p); return [t===null?0:t,null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Воздух → стекло: луч прижимается к нормали',values:{mat1:'air',mat2:'glass',ang:45}},
     {name:'Воздух → вода',values:{mat1:'air',mat2:'water',ang:50}},
@@ -1784,6 +1788,10 @@ refraction:{
 /* ================= ГЛ.21: ИЗЛУЧЕНИЕ В ИОНИЗОВАННОЙ СРЕДЕ ================= */
 plasma:{
   title:'Радиоволны в ионосфере: плазменная частота',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'Ne',label:'Плотность электронов N',unit:'10¹¹ 1/м³',min:0.5,max:50,step:0.5,default:10},
     {key:'f', label:'Частота волны f',unit:'МГц',min:0.5,max:30,step:0.1,default:5},
@@ -1814,7 +1822,7 @@ plasma:{
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
     const fp=this.fp(p)/1e6, n=this.n(p), pass=this.passes(p);
-    const out=[['t',s.t,'с'],['плотность электронов',p.Ne,'·10¹¹ 1/м³'],
+    const out=[['плотность электронов',p.Ne,'·10¹¹ 1/м³'],
       ['плазменная частота fp',fp,'МГц'],
       ['частота волны f',p.f,'МГц'],
       ['показатель преломления n',n,''],
@@ -1826,10 +1834,7 @@ plasma:{
     }
     return out;
   },
-  graphs:[
-    {label:'Показатель преломления n',unit:'',series:['n'],get(s,p){ return [SIMS.plasma.n(p),null]; }},
-    {label:'Групповая скорость',unit:'·10⁸ м/с',series:['v'],get(s,p){ return [SIMS.plasma.vgroup(p)/1e8,null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Низкая частота — отражается (радиосвязь)',values:{Ne:10,f:2}},
     {name:'Высокая частота — уходит в космос',values:{Ne:10,f:20}},
@@ -2065,6 +2070,10 @@ standing:{
 /* ================= ГЛ.22: ИНТЕРФЕРЕНЦИЯ ОТ ДВУХ ИСТОЧНИКОВ ================= */
 interf2:{
   title:'Интерференция от двух источников (опыт Юнга)',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'d',  label:'Расстояние между источниками d',unit:'мм',min:0.05,max:1,step:0.01,default:0.2},
     {key:'lam',label:'Длина волны λ',unit:'нм',min:400,max:700,step:10,default:550},
@@ -2098,8 +2107,7 @@ interf2:{
   readouts(s,p){
     const y=p.ymm*1e-3, d=this.delta(p,y), m=this.order(p,y), I=this.I(p,y);
     const near=Math.round(m), isMax=Math.abs(m-near)<0.08, isMin=Math.abs(Math.abs(m-near)-0.5)<0.08;
-    return [['t',s.t,'с'],
-      ['расстояние между источниками d',p.d,'мм'],
+    return [['расстояние между источниками d',p.d,'мм'],
       ['длина волны λ',p.lam,'нм'],
       ['расстояние до экрана L',p.Ls,'м'],
       ['точка наблюдения y',p.ymm,'мм'],
@@ -2110,10 +2118,7 @@ interf2:{
       ['что здесь',0, !p.coh?'некогерентные: полос нет':(isMax?'СВЕТЛАЯ полоса (максимум)':(isMin?'ТЁМНАЯ полоса (минимум)':'между полосами'))],
       ['ширина полосы Δy = λL/d',this.spacing(p)*1e3,'мм']];
   },
-  graphs:[
-    {label:'Интенсивность в точке наблюдения',unit:'I₀',series:['I'],
-     get(s,p){ return [SIMS.interf2.I(p,p.ymm*1e-3),null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Опыт Юнга: светлые и тёмные полосы',values:{d:0.2,lam:550,Ls:2,ymm:5.5,coh:true}},
     {name:'Источники ближе — полосы шире',values:{d:0.1,lam:550,Ls:2,ymm:5.5,coh:true}},
@@ -2199,6 +2204,10 @@ interf2:{
 /* ================= ГЛ.22: РЕШЁТКА И ДИФРАКЦИЯ НА ЩЕЛИ ================= */
 grating:{
   title:'Дифракционная решётка и дифракция на щели',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'mode',label:'Опыт',type:'select',default:'grating',
      options:[{v:'grating',t:'Решётка: N источников'},
@@ -2249,7 +2258,7 @@ grating:{
   readouts(s,p){
     if(p.mode==='grating'){
       const ms=this.maxAngles(p);
-      const out=[['t',s.t,'с'],['число щелей N',p.N,''],['период d',p.d,'мкм'],['длина волны λ',p.lam,'нм'],
+      const out=[['число щелей N',p.N,''],['период d',p.d,'мкм'],['длина волны λ',p.lam,'нм'],
         ['главных максимумов',ms.length,''],
         ['условие максимума','','d·sinθ = mλ']];
       for(const q of ms.filter(q=>q.m>=0&&q.m<=3)) out.push([`максимум m = ${q.m}: угол`,q.th*180/Math.PI,'°']);
@@ -2259,16 +2268,14 @@ grating:{
     }
     const mins=this.minAngles(p);
     const first=mins.find(q=>q.m===1);
-    return [['t',s.t,'с'],['ширина щели a',p.a,'мкм'],['длина волны λ',p.lam,'нм'],
+    return [['ширина щели a',p.a,'мкм'],['длина волны λ',p.lam,'нм'],
       ['условие минимума','','a·sinθ = mλ'],
       ['первый минимум: угол',first?first.th*180/Math.PI:0,'°'],
       ['полуширина центрального максимума',first?first.th*180/Math.PI:0,'°'],
       ['минимумов всего',mins.length,''],
       ['чем уже щель',0,'тем шире центральный максимум']];
   },
-  graphs:[
-    {label:'Интенсивность в центре',unit:'I₀',series:['I'],get(s,p){ return [SIMS.grating.I(p,0),null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Две щели (как у Юнга)',values:{mode:'grating',N:2,d:3,lam:550}},
     {name:'Пять щелей — максимумы острее',values:{mode:'grating',N:5,d:3,lam:550}},

@@ -327,6 +327,10 @@ battery:{
 /* ================== ГЛ.18: ЗАКОН АМПЕРА И КОНФИГУРАЦИИ ТОКОВ ================= */
 ampere:{
   title:'Закон Ампера: поля токов',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'scene',label:'Конфигурация',type:'select',default:'wire',
      options:[{v:'wire',  t:'Прямой провод: B = μ₀I/2πr'},
@@ -396,12 +400,12 @@ ampere:{
   readouts(s,p){
     if(p.scene==='solen'){
       const B=this.Bsolen(p);
-      return [['t',s.t,'с'],['витков N',p.N,''],['длина L',p.L,'м'],
+      return [['витков N',p.N,''],['длина L',p.L,'м'],
         ['плотность витков n = N/L',p.N/p.L,'1/м'],['ток I',p.I1,'А'],
         ['поле внутри B = μ₀nI',B*1e6,'мкТл'],['поле снаружи',0,'мкТл (≈0)']];
     }
     const circ=this.circulation(p), Ienc=this.Ienc(p), theory=this.mu0*Ienc;
-    const out=[['t',s.t,'с'],['ток I₁',p.I1,'А'],
+    const out=[['ток I₁',p.I1,'А'],
       ['B на расстоянии r',this.Bwire(p.I1,p.ar)*1e6,'мкТл'],
       ['радиус контура r',p.ar,'м'],
       ['циркуляция ∮B·ds',circ*1e6,'мкТл·м'],
@@ -414,10 +418,7 @@ ampere:{
     }
     return out;
   },
-  graphs:[
-    {label:'B(r) на контуре',unit:'мкТл',series:['B'],get(s,p){ return [SIMS.ampere.Bwire(p.I1,p.ar)*1e6,null]; }},
-    {label:'Циркуляция ∮B·ds',unit:'мкТл·м',series:['∮'],get(s,p){ return [SIMS.ampere.circulation(p)*1e6,null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Прямой провод и контур Ампера',values:{scene:'wire',I1:10,ar:2}},
     {name:'Контур больше — циркуляция та же',values:{scene:'wire',I1:10,ar:4}},
@@ -558,6 +559,10 @@ ampere:{
 /* ================= ГЛ.18: ЗАКОН БИО–САВАРА (виток с током) ================= */
 biot:{
   title:'Закон Био–Савара: виток с током',
+  /* Время здесь ни на что не влияет: показания и графики от него не
+     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
+     времени, поэтому часы, шкала времени и графики по времени скрыты. */
+  timeless:true,
   params:[
     {key:'I',label:'Ток в витке I',unit:'А',min:-20,max:20,step:0.5,default:10},
     {key:'R',label:'Радиус витка R',unit:'м',min:0.5,max:4,step:0.1,default:2},
@@ -601,15 +606,13 @@ biot:{
   anchors(s,p){ return [{x:0,y:0},{x:p.px,y:p.py}]; },
   readouts(s,p){
     const B=this.Bat(p,p.px,p.py), Bc=this.Bcenter(p), Bax=this.Baxis(p,p.px);
-    return [['t',s.t,'с'],['ток I',p.I,'А'],['витков',p.turns,''],['радиус R',p.R,'м'],
+    return [['ток I',p.I,'А'],['витков',p.turns,''],['радиус R',p.R,'м'],
       ['B в пробной точке',B.mag*1e6,'мкТл'],
       ['B в центре = μ₀I/2R',Bc*1e6,'мкТл'],
       ['B на оси (аналитика)',Math.abs(Bax)*1e6,'мкТл'],
       ['Bₓ',B.Bx*1e6,'мкТл'],['Bᵧ',B.By*1e6,'мкТл']];
   },
-  graphs:[
-    {label:'B в пробной точке',unit:'мкТл',series:['B'],get(s,p){ return [SIMS.biot.Bat(p,p.px,p.py).mag*1e6,null]; }}
-  ],
+  graphs:[],
   presets:[
     {name:'Виток: поле в центре',values:{I:10,R:2,turns:1,px:0,py:0}},
     {name:'Точка на оси витка',values:{I:10,R:2,turns:1,px:2,py:0}},

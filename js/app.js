@@ -289,8 +289,103 @@ function drawGrid(ctx){
     ctx.beginPath(); ctx.moveTo(x0,j); ctx.lineTo(x1,j); ctx.stroke();
   }
   ctx.restore();
+  if(prefGet('axisTicks')!==false) drawAxes(ctx,step,x0,x1,y0,y1);
   if(S.settings.gridLabels!==false)
     VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
+}
+
+/* ---------------------- ОСИ С ДЕЛЕНИЯМИ И ЧИСЛАМИ ----------------------
+   Сетка показывает масштаб, но не даёт прочитать координату: чтобы понять,
+   где тело, приходилось считать клетки от начала координат. Здесь рисуются
+   сами оси, риски на них и числа у рисок.
+
+   Две вещи, из-за которых это не сводится к паре строк:
+
+   • Числа нельзя рисовать в мировых координатах. Мир перевёрнут по вертикали
+     (ось y смотрит вверх, см. applyWorld) и масштабируется зумом — текст вышел
+     бы вверх ногами и то микроскопическим, то огромным. Поэтому переходим в
+     экранные координаты и там рисуем.
+
+   • Мимо VIEW.label: он разводит подписи, чтобы те не налезали друг на друга,
+     а число деления обязано стоять ровно у своей риски — уехавшее число врёт.
+
+   Если начало координат ушло за кадр, ось прижимается к краю: иначе, отъехав
+   в сторону, пользователь остался бы вообще без чисел. */
+function drawAxes(ctx,step,x0,x1,y0,y1){
+  const k=ppm(), maj=step*5;
+  const цвет=css('--ink-3'), цветОси=css('--grid-major');
+
+  // положение осей в мире: на нуле, а если ноль вне кадра — у ближней границы
+  const поляX=18/k, поляY=16/k;                  // отступ от края в мировых единицах
+  const осьY=Math.min(Math.max(0,y0+поляY),y1-поляY);   // где рисуем горизонтальную ось
+  const осьX=Math.min(Math.max(0,x0+поляX),x1-поляX);   // где рисуем вертикальную
+  const нольВидно=(0>=x0&&0<=x1&&0>=y0&&0<=y1);
+
+  ctx.save();
+  ctx.lineWidth=1.4/k; ctx.strokeStyle=цветОси; ctx.globalAlpha=0.9;
+  ctx.beginPath(); ctx.moveTo(x0,осьY); ctx.lineTo(x1,осьY);
+                   ctx.moveTo(осьX,y0); ctx.lineTo(осьX,y1); ctx.stroke();
+  /* Риски двух родов, как на настоящей линейке: мелкие на каждом шаге сетки и
+     длинные на каждом пятом — по ним глаз считает деления, не пересчитывая
+     клетки. Подписываются только длинные. */
+  ctx.lineWidth=1/k;
+  for(const [ш,длина] of [[step,3/k],[maj,6/k]]){
+    ctx.beginPath();
+    for(let i=Math.ceil(x0/ш)*ш;i<=x1;i+=ш){ ctx.moveTo(i,осьY-длина); ctx.lineTo(i,осьY+длина); }
+    for(let j=Math.ceil(y0/ш)*ш;j<=y1;j+=ш){ ctx.moveTo(осьX-длина,j); ctx.lineTo(осьX+длина,j); }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  if(S.settings.nums===false) return;            // режим «без чисел» касается и осей
+
+  /* Числа. Шаг подписей загрубляем, пока соседние не перестанут наезжать:
+     при сильном отдалении рисок много, и все подписать нельзя. */
+  ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+  const кегль=Math.max(8,(+prefGet('labelSize')||11)-2);
+  ctx.font=sceneFont(кегль); ctx.fillStyle=цвет;
+  ctx.textBaseline='top'; ctx.textAlign='center';
+
+  const подпись=v=>{
+    // 2.5, 0.5 — с запятой как в остальном пособии; целые — без хвоста
+    const s=Math.abs(v)<1e-9?'0':(Math.abs(v)>=1e4||Math.abs(v)<1e-3
+      ? v.toExponential(0) : String(+v.toFixed(3)));
+    return s.replace('.',',');
+  };
+  const ширина=v=>ctx.measureText(подпись(v)).width;
+
+  /* Начинаем с шага сетки — тогда число стоит у каждой клетки, и координата
+     читается без счёта. Загрубляем только пока подписи налезают друг на друга:
+     на сильном отдалении клеток в кадре сотни, все подписать нельзя. */
+  let шагX=step, шагY=step;
+  while(шагX*k < ширина(x1)+14 && шагX<step*1e5) шагX*=2;
+  while(шагY*k < кегль+8   && шагY<step*1e5) шагY*=2;
+
+  /* С какой стороны от оси ставить числа. Когда начало координат уходит за
+     кадр, ось прижата к краю — и подписи «как обычно» оказались бы за краем и
+     обрезались. Поэтому у прижатой оси они ставятся внутрь кадра. */
+  const снизу = !(0 < y0);        // ноль ушёл ВНИЗ → ось прижата к низу, числа над ней
+  const слева = !(0 < x0);        // ноль ушёл ВЛЕВО → ось прижата к левому краю, числа справа
+  const [,экрY]=toScreen(0,осьY), [экрX]=toScreen(осьX,0);
+
+  ctx.textAlign='center'; ctx.textBaseline=снизу?'top':'bottom';
+  for(let i=Math.ceil(x0/шагX)*шагX;i<=x1;i+=шагX){
+    if(нольВидно && Math.abs(i)<шагX/9) continue;         // ноль подпишем один раз
+    const [sx]=toScreen(i,0);
+    ctx.fillText(подпись(i),sx,экрY+(снизу?7:-7));
+  }
+  ctx.textAlign=слева?'right':'left'; ctx.textBaseline='middle';
+  for(let j=Math.ceil(y0/шагY)*шагY;j<=y1;j+=шагY){
+    if(нольВидно && Math.abs(j)<шагY/9) continue;
+    const [,sy]=toScreen(0,j);
+    ctx.fillText(подпись(j),экрX+(слева?-7:7),sy);
+  }
+  if(нольВидно){                                          // общий ноль в начале координат
+    const [zx,zy]=toScreen(0,0);
+    ctx.textAlign='right'; ctx.textBaseline='top';
+    ctx.fillText('0',zx-4,zy+4);
+  }
+  ctx.restore();
 }
 /* Семейство и кегль подписей на сцене — из настроек оформления. */
 const SCENE_FONTS={mono:'ui-monospace,monospace',sans:'system-ui,sans-serif',serif:'Georgia,serif'};
@@ -518,7 +613,11 @@ function drawAll(){
   const showW = w && S.settings.events!==false;
   if((showW?w:'')!==wb.dataset.msg){ wb.dataset.msg=showW?w:''; wb.textContent=showW?w:''; wb.classList.toggle('hidden',!showW); }
   updateHud(a);
-  $('#clock').textContent=`t = ${a.state.t.toFixed(2)} c`;
+  /* Часы в шапке — там же, где и остальное время: если от него ничего не
+     зависит, бегущий счётчик только создаёт впечатление идущего процесса. */
+  const часы=$('#clock');
+  часы.classList.toggle('hidden', a.def.timeless || prefGet('clockShow')===false);
+  if(!a.def.timeless) часы.textContent=`t = ${a.state.t.toFixed(2)} c`;
 }
 
 /* ================= ОБВЯЗКА СЦЕНЫ =================
@@ -663,7 +762,14 @@ function updateHud(a){
 /* ------------------------------- ГРАФИКИ -------------------------------- */
 function buildGraphs(){
   const box=$('#gbox'), a=A(); box.innerHTML=''; gcanvas=[];
-  if(!a||!a.def.graphs) return;
+  /* Кнопку графиков прячем там, где графиков не бывает: все они строятся по
+     времени, а у симуляций с признаком timeless от времени ничего не зависит —
+     получилась бы горизонтальная прямая и ложное впечатление, что процесс
+     идёт. Прятать надо именно кнопку, иначе она включает пустую панель. */
+  const бывают = !!(a && a.def.graphs && a.def.graphs.length && !a.def.timeless);
+  const кн=$('#btn-graph'); if(кн) кн.classList.toggle('hidden',!бывают);
+  box.classList.toggle('off',!бывают || !S.graphOn);
+  if(!бывают) return;
   a.def.graphs.forEach((g,i)=>{
     const two=a.params.bodies==='2';
     const names=g.series||['тело 1','тело 2'];
@@ -911,6 +1017,9 @@ function updateEnergyBox(a){
   box.classList.remove('hidden');
 }
 function record(a){
+  /* Записывать нечего: у таких симуляций ни одно показание не меняется со
+     временем, и лента снимков только ела бы память. */
+  if(a.def.timeless) return;
   if(a.def.graphs){
     a.hist.push({t:a.state.t, v:a.def.graphs.map(g=>g.get(a.state,a.params))});
     /* Переполнение истории раньше выбрасывало САМЫЕ СТАРЫЕ точки: на длинном
@@ -1493,7 +1602,11 @@ function restart(a){
    всё как было. Похоже на таймлайн видеоредактора. */
 function updateTimeline(){
   const a=A(), tl=$('#timeline'); if(!tl) return;
-  const on=prefGet('timeline')!==false && !!a;
+  /* У симуляций с признаком timeless показания и графики от времени не
+     зависят: перематывать нечего, и шкала только сбивала бы с толку —
+     казалось бы, что процесс идёт во времени, хотя на сцене просто
+     иллюстрация. */
+  const on=prefGet('timeline')!==false && !!a && !a.def.timeless;
   tl.classList.toggle('hidden',!on);
   if(!on) return;
   const tape=a.tape||[];
@@ -2437,7 +2550,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
   serifNotes:false,toasts:true,dockSize:'norm',intro:true,winMode:'window',
-  gridStepMode:'auto',gridLabels:true,hudSide:'left',hudScale:1,numPrec:2,
+  gridStepMode:'auto',gridLabels:true,axisTicks:true,hudSide:'left',hudScale:1,numPrec:2,
   clockShow:true,fpsShow:true,
   eventPause:true,zoomInvert:false,zoomSens:1,keyZoomStep:1.8,defSpeed:1,
   autoFit:true,mAutoOpen:true,
@@ -2492,6 +2605,8 @@ const PREFS=[
    options:[['auto','Автоматически'],['coarse','Крупнее'],['fine','Мельче']]},
   {cat:'scene',key:'gridLabels',type:'toggle',def:true,
    name:'Подпись шага сетки',desc:'Надпись «сетка N м» в углу сцены.'},
+  {cat:'scene',key:'axisTicks',type:'toggle',def:true,
+   name:'Оси с делениями',desc:'Оси координат, риски на них и числа у рисок. По ним координату можно прочитать, а не отсчитывать клетки от начала.'},
   {cat:'scene',key:'hudSide',type:'select',def:'left',
    name:'Сторона панели показаний',desc:'Слева — классика; справа может мешать PV-диаграмме и панели энергии.',
    options:[['left','Слева'],['right','Справа']]},
