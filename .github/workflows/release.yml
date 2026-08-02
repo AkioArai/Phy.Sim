@@ -91,6 +91,12 @@ jobs:
         with:
           path: packaging/android/.tools
           key: android-tools-v1
+      # Выравнивание и подпись v1+v2+v3. Без v2 пакет не ставится при
+      # targetSdkVersion 30+, а Play Protect зовёт его вредоносным.
+      # На образе GitHub эти инструменты есть в Android SDK, но не в PATH —
+      # пакеты ставим, чтобы сборка не зависела от состава образа.
+      - name: Install apksigner and zipalign
+        run: sudo apt-get update && sudo apt-get install -y apksigner zipalign
       # Ключ подписи берётся из секрета репозитория: Android ставит обновление
       # поверх старой версии, только если обе подписаны одним ключом, иначе
       # придётся удалять приложение — вместе с прогрессом ученика.

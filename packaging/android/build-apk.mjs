@@ -10,9 +10,25 @@
      • android-all          — android.jar для компиляции (org.robolectric);
      • android-framework.jar— ресурсы системы для aapt2, тоже из apktool-lib.
 
-   Подпись ставится jarsigner из JDK (схема v1). Этого достаточно, потому что
-   манифест объявляет targetSdkVersion=29: требование «только v2 и выше»
-   Android предъявляет к приложениям с targetSdk 30+.
+   Выравнивание и подпись — системными zipalign и apksigner:
+
+     apt install apksigner zipalign      (либо Android SDK build-tools)
+
+   Раньше подпись ставил jarsigner из JDK, а он умеет только схему v1 —
+   подписи отдельных файлов внутри архива. Для сегодняшнего Android этого
+   мало, и именно отсюда росли жалобы «приложение не ставится»:
+
+     • Play Protect показывает «вредоносная программа» тем охотнее, чем
+       старее подпись и целевой SDK;
+     • установщики Xiaomi, Huawei и Samsung отклоняют пакеты только с v1;
+     • с targetSdkVersion 30 и выше Android вообще откажется ставить пакет
+       без подписи v2 — из-за этого целевой SDK и застрял на 29, а низкий
+       targetSdk сам по себе повод для предупреждения на Android 14+.
+
+   Теперь ставятся v1 + v2 + v3 сразу: v1 нужна Android 5 и 6, v2 — всем
+   современным, v3 добавляет поддержку смены ключа. Схемы v2 и v3
+   подписывают архив целиком, поэтому перед ними обязателен zipalign:
+   resources.arsc должен лежать несжатым и по границе 4 байт.
 
    Запуск:  npm run build:apk
    Итог:    packaging/android/out/phy-sim.apk
@@ -48,7 +64,11 @@ const APP = {
   versionCode: String(MAJ * 10000 + MIN * 100 + PAT),
   versionName: VERSION,
   minSdk: '21',
-  targetSdk: '29',
+  /* 34 — актуальный целевой SDK. Держать его низким больше нельзя: Android 14
+     предупреждает о приложениях со старым targetSdk, а магазины и вовсе их не
+     принимают. Возможным это стало после перехода на apksigner: подпись v2 —
+     ровно то, чего Android требует начиная с targetSdk 30. */
+  targetSdk: '34',
 };
 
 const run = (cmd, args, opts = {}) => {
@@ -243,16 +263,65 @@ function keystore() {
   return ks;
 }
 
+/* Ищем инструмент сначала в PATH, потом в build-tools Android SDK: на
+   виртуалках GitHub Actions SDK уже стоит, а в PATH его нет. */
+function findTool(name) {
+  try { return run('which', [name]).trim(); } catch (_) {}
+  for (const sdk of [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, '/usr/lib/android-sdk']) {
+    const bt = sdk && join(sdk, 'build-tools');
+    if (!bt || !existsSync(bt)) continue;
+    // берём самую свежую версию build-tools
+    for (const v of readdirSync(bt).sort().reverse()) {
+      const p = join(bt, v, name);
+      if (existsSync(p)) return p;
+    }
+  }
+  throw new Error(
+    `не найден ${name}. Он нужен, чтобы пакет ставился на современные Android.\n` +
+    `  Ubuntu/Debian:  sudo apt install apksigner zipalign\n` +
+    `  либо поставьте Android SDK и укажите ANDROID_HOME.`);
+}
+
 function assemble(baseApk, dex) {
   mkdirSync(out, { recursive: true });
   const apk = join(out, 'phy-sim.apk');
+  const raw = join(work, 'unaligned.apk');
   rmSync(apk, { force: true });
-  run('cp', [baseApk, apk]);
+  run('cp', [baseApk, raw]);
   step('добавляю classes.dex');
-  run('zip', ['-q', '-X', '-j', apk, dex]);
-  step('подпись (jarsigner, схема v1)');
-  run('jarsigner', ['-keystore', keystore(), '-storepass', KEY.pass, '-keypass', KEY.pass,
-    '-sigalg', 'SHA256withRSA', '-digestalg', 'SHA-256', apk, KEY.alias]);
+  run('zip', ['-q', '-X', '-j', raw, dex]);
+
+  /* Выравнивание. Без него resources.arsc лежит по случайному смещению, и
+     Android с targetSdkVersion 30+ отказывается ставить пакет. Делать это
+     нужно ДО подписи: zipalign двигает данные внутри архива, а подписи v2/v3
+     считаются по всему файлу целиком и после сдвига стали бы недействительны.
+     Флаг -p кладёт несжатыми ещё и .so — своих у нас нет, но так правильнее. */
+  const aligned = join(work, 'aligned.apk');
+  step('zipalign — выравнивание по 4 байта');
+  run(findTool('zipalign'), ['-f', '-p', '4', raw, aligned]);
+
+  step('подпись apksigner — схемы v1, v2 и v3');
+  run(findTool('apksigner'), ['sign',
+    '--ks', keystore(),
+    '--ks-pass', 'pass:' + KEY.pass,
+    '--key-pass', 'pass:' + KEY.pass,
+    '--ks-key-alias', KEY.alias,
+    '--min-sdk-version', APP.minSdk,
+    '--v1-signing-enabled', 'true',
+    '--v2-signing-enabled', 'true',
+    '--v3-signing-enabled', 'true',
+    '--out', apk, aligned]);
+
+  /* Проверяем то, что получилось, а не то, что задумали: подпись легко
+     объявить включённой и всё равно получить пакет без неё. */
+  step('проверка подписи');
+  const v = run(findTool('apksigner'), ['verify', '--verbose', apk]);
+  const схемы = ['v1', 'v2', 'v3'].filter(s =>
+    new RegExp(`Verified using ${s} scheme[^:]*:\\s*true`).test(v));
+  if (схемы.length < 3)
+    throw new Error(`подпись неполная, подтвердились только: ${схемы.join(', ') || 'ничего'}`);
+  step(`подписи на месте: ${схемы.join(' + ')}`);
+  run(findTool('zipalign'), ['-c', '4', apk]);   // упадёт, если выравнивание сбилось
   return apk;
 }
 

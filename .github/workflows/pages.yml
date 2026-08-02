@@ -1,0 +1,54 @@
+name: Publish web app
+
+# Выкладывает пособие на GitHub Pages. Оттуда его можно не только открыть в
+# браузере, но и УСТАНОВИТЬ: рядом лежат manifest.webmanifest и sw.js, поэтому
+# браузер сам предлагает «Установить приложение» — ярлык на главном экране,
+# работа без интернета, никаких магазинов и сервисов Google.
+#
+# Чтобы это заработало, владельцу репозитория нужно один раз включить Pages:
+#   Settings → Pages → Build and deployment → Source: GitHub Actions.
+#
+# Адрес получится вида https://<владелец>.github.io/<репозиторий>/
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Параллельные выкладки друг другу мешают: незачем, публикуем по очереди.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Копируем ровно то, что нужно странице. Упаковку .apk/.exe, тесты и
+      # исходники иконок не выкладываем: на сайте они не нужны, а весят много.
+      - name: Собрать сайт
+        run: |
+          mkdir -p site
+          cp -r index.html manifest.webmanifest sw.js icons css js vendor site/
+          cp phy-sim-standalone.html site/
+          # Пусть Pages не пытается прогнать файлы через Jekyll: он выкидывает
+          # каталоги, начинающиеся с подчёркивания, и ломает шрифты KaTeX.
+          touch site/.nojekyll
+          du -sh site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

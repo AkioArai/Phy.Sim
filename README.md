@@ -54,13 +54,24 @@ double-click it, done. No console, no toolchain, nothing to compile.
 | **Windows 10/11** | `Phy.Sim-Setup-1.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
 | **Windows, no install** | `Phy.Sim-portable-1.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
 | **Fedora** | `Phy.Sim-1.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
-| **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions. |
+| **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
+| **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
 
 > The installers are attached to the release rather than committed to the
 > repository: each one is ~80 MB, and a git repository keeps every copy of every
 > file forever. The **Code** tab holds the source; the **Releases** page holds the
 > ready-made builds.
+
+### Installing without an app store
+
+The repository ships `manifest.webmanifest` and `sw.js`, so the page served over
+HTTPS is an installable web app. The `Publish web app` workflow puts it on GitHub
+Pages; the owner enables it once under **Settings → Pages → Source: GitHub
+Actions**. After that the address is `https://<owner>.github.io/<repo>/` — open it
+on a phone and use *Install app* (Chrome) or *Share → Add to Home Screen*
+(Safari). Everything is cached on first visit, so it opens with no network
+afterwards.
 
 Running from source needs nothing at all: `git clone` → open `index.html`.
 No build step, no dependencies, no sign-in, no telemetry, no network requests —

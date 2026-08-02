@@ -5,20 +5,24 @@
   Пособие целиком лежит в assets/ и открывается в WebView по file://.
   Интернет приложению не нужен: KaTeX, стили и все 76 симуляций внутри.
 
-  targetSdkVersion=29 выбран намеренно: при 30 и выше Android требует
-  выровненный несжатый resources.arsc и подпись схемы v2, а сборка ведётся
-  без Android SDK (без zipalign и apksigner) — см. build-apk.mjs. Для
-  раздачи учебника это ни на что не влияет: приложение ставится на все
-  версии Android от 5.0 до последних.
+  Версии SDK задаёт build-apk.mjs (флаги aapt2), здесь их намеренно нет:
+  атрибут в манифесте молча перебивает флаги. Сейчас это minSdk 21
+  (Android 5.0) и targetSdk 34.
+
+  Приложению не нужно ни одного разрешения и ни одной аппаратной
+  возможности: ни камеры, ни сети, ни дополненной реальности. Проверить
+  это можно на собранном пакете:
+
+      aapt2 dump badging out/phy-sim.apk
+
+  в выводе не должно быть ни uses-permission, ни ничего про
+  com.google.ar — приложение работает на устройствах вообще без сервисов
+  Google.
 -->
-<!-- Версии здесь нет намеренно: её подставляет aapt2 из корневого
-     package.json (флаги version-code и version-name в build-apk.mjs).
-     Атрибут в манифесте молча перебивал эти флаги, и apk выходил с
-     версией 1.0 независимо от версии проекта. -->
+<!-- Номер версии здесь тоже не пишем: его подставляет aapt2 из корневого
+     package.json (флаги version-code и version-name в build-apk.mjs). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="ru.physim.app">
-
-  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29"/>
 
   <!-- Разрешений нет вообще: приложение не выходит в сеть и не читает файлы. -->
 
