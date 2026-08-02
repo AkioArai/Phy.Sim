@@ -271,6 +271,31 @@ function applyWorld(ctx){
   ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,CW,CH);
   ctx.setTransform(k*DPR,0,0,-k*DPR,(CW/2-v.x*k)*DPR,(CH/2+v.y*k)*DPR);
 }
+/* Есть ли у сцены масштаб в метрах.
+
+   Метрическая сетка и числа на осях — обещание: одна клетка равна стольким-то
+   метрам. У большей части симуляций так и есть, тело действительно стоит в
+   точке x = 3 м. Но добрая половина сцен — не пространство:
+
+     • схемы: цепь, батарея, генератор — там нет никаких метров;
+     • графики: PV-диаграмма Карно, кривая нагрева, спектр, разложение Фурье —
+       там свои оси со своими величинами;
+     • сцены в чужом масштабе: орбита (клетка — тысяча километров), ядро
+       (фемтометры), атом Бора, частица в ящике (нанометры).
+
+   Подписать всё это метрами — значит соврать, причём убедительно: число у
+   риски выглядит как измерение. Поэтому симуляция объявляет о себе сама
+   признаком schema, и на таких сценах ни осей с числами, ни надписи
+   «сетка N м» не рисуется. Сама сетка остаётся: как фон она никому не мешает
+   и никакой величины не утверждает. */
+function метрическая(){
+  const a=A();
+  return !(a && a.def && a.def.schema);
+}
+/* Единица длины для линейки, размера, площади и координат под курсором.
+   На схеме числа остаются (расстояние на картинке — тоже расстояние), но без
+   «м»: приписать метры к отрезку на электрической схеме было бы неправдой. */
+function едДлины(){ return метрическая()?' м':''; }
 function drawGrid(ctx){
   const k=ppm(), step=gridStep();
   const [x0,y1]=toWorld(0,0), [x1,y0]=toWorld(CW,CH);
@@ -289,8 +314,8 @@ function drawGrid(ctx){
     ctx.beginPath(); ctx.moveTo(x0,j); ctx.lineTo(x1,j); ctx.stroke();
   }
   ctx.restore();
-  if(prefGet('axisTicks')!==false) drawAxes(ctx,step,x0,x1,y0,y1);
-  if(S.settings.gridLabels!==false)
+  if(prefGet('axisTicks')!==false && метрическая()) drawAxes(ctx,step,x0,x1,y0,y1);
+  if(S.settings.gridLabels!==false && метрическая())
     VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
 }
 
@@ -428,7 +453,7 @@ function drawAll(){
       const [x1,y1,x2,y2]=an.p, d=Math.hypot(x2-x1,y2-y1);
       octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
       octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
-      VIEW.label(octx,`${d.toFixed(2)} м`,(x1+x2)/2,(y1+y2)/2,6,-8,AC);
+      VIEW.label(octx,`${d.toFixed(2)}${едДлины()}`,(x1+x2)/2,(y1+y2)/2,6,-8,AC);
     } else if(an.type==='vector'){
       const [x1,y1,x2,y2]=an.p;
       octx.lineWidth=VIEW.lw(AW);
@@ -448,7 +473,7 @@ function drawAll(){
       octx.stroke(); octx.setLineDash(EMPTY_DASH);
       VIEW.arrow(octx,ax,ay,bx,by,AC);
       VIEW.arrow(octx,bx,by,ax,ay,AC);
-      VIEW.label(octx,`${L.toFixed(2)} м`,(ax+bx)/2,(ay+by)/2,-16,-8,AC);
+      VIEW.label(octx,`${L.toFixed(2)}${едДлины()}`,(ax+bx)/2,(ay+by)/2,-16,-8,AC);
     } else if(an.type==='circle'){
       const [cx0,cy0,px2,py2]=an.p, R=Math.hypot(px2-cx0,py2-cy0);
       octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
@@ -456,7 +481,7 @@ function drawAll(){
       octx.setLineDash([VIEW.lw(3),VIEW.lw(3)]);
       octx.beginPath(); octx.moveTo(cx0,cy0); octx.lineTo(px2,py2); octx.stroke();
       octx.setLineDash(EMPTY_DASH);
-      VIEW.label(octx,`R = ${R.toFixed(2)} м   S = ${(Math.PI*R*R).toFixed(2)} м²`,cx0,cy0,8,-10,AC);
+      VIEW.label(octx,`R = ${R.toFixed(2)}${едДлины()}   S = ${(Math.PI*R*R).toFixed(2)}${метрическая()?' м²':''}`,cx0,cy0,8,-10,AC);
     } else if(an.type==='angle'&&an.pts.length>=2){
       // транспортир: вершина — вторая точка
       const P=an.pts, col=AC;
@@ -486,7 +511,7 @@ function drawAll(){
         let S2=0, cx0=0, cy0=0;
         for(let i=0;i<P.length;i++){ const j=(i+1)%P.length; S2+=P[i][0]*P[j][1]-P[j][0]*P[i][1]; cx0+=P[i][0]; cy0+=P[i][1]; }
         let per=0; for(let i=0;i<P.length;i++){ const j=(i+1)%P.length; per+=Math.hypot(P[j][0]-P[i][0],P[j][1]-P[i][1]); }
-        VIEW.label(octx,`S = ${Math.abs(S2/2).toFixed(2)} м²   P = ${per.toFixed(2)} м`,
+        VIEW.label(octx,`S = ${Math.abs(S2/2).toFixed(2)}${метрическая()?' м²':''}   P = ${per.toFixed(2)}${едДлины()}`,
           cx0/P.length,cy0/P.length,-40,0,col);
       }
     } else if(an.type==='note'){
@@ -522,7 +547,7 @@ function drawAll(){
     octx.beginPath();
     octx.moveTo(wx0,y); octx.lineTo(wx1,y); octx.moveTo(x,wy0); octx.lineTo(x,wy1);
     octx.stroke(); octx.setLineDash(EMPTY_DASH); octx.globalAlpha=1;
-    VIEW.label(octx,`${x.toFixed(2)} ; ${y.toFixed(2)} м`,x,y,10,-10,col);
+    VIEW.label(octx,`${x.toFixed(2)} ; ${y.toFixed(2)}${едДлины()}`,x,y,10,-10,col);
   }
   // отметка пробника
   if(S.probe){
@@ -1739,7 +1764,10 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   // Панорама остаётся на Shift, средней кнопке и протягивании пустого места.
   // держим указатель за собой: жест не теряется, если увели за край сцены
   try{ e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId); }catch(_){}
-  if((a.def.clickAt || a.def.wireStart) && e.button===0){   // строит ТОЛЬКО левая кнопка; ПКМ — меню
+  /* Пробник — исключение: его выбирают осознанно, чтобы измерить потенциал
+     узла, и рисовать в этот момент не хотят. Без этой оговорки конструктор
+     перехватывал бы нажатие всегда, и пробник в нём просто не работал. */
+  if((a.def.clickAt || a.def.wireStart) && e.button===0 && S.tool!=='probe'){   // строит ТОЛЬКО левая кнопка; ПКМ — меню
     if(a.def.wireStart){
       const h=a.def.wireStart(a.params,wx,wy);       // попали в узел → тянем провод
       if(h){ drag={mode:'simdraw',handle:h}; return; }
@@ -1795,7 +1823,7 @@ $('#cwrap').addEventListener('pointerdown',e=>{
 /* Пробник: показывает координаты точки и величины симуляции в ней */
 function probeAt(wx,wy){
   const a=A(); if(!a) return;
-  const parts=[`x = ${wx.toFixed(3)} м`,`y = ${wy.toFixed(3)} м`];
+  const parts=[`x = ${wx.toFixed(3)}${едДлины()}`,`y = ${wy.toFixed(3)}${едДлины()}`];
   if(a.def.probe){ try{ for(const [l,v,u] of a.def.probe(a.state,a.params,wx,wy)) parts.push(`${l} = ${fmt(v)} ${u||''}`.trim()); }catch(_){} }
   const txt=parts.join('   ');
   S.probe={x:wx,y:wy,text:txt};
@@ -2604,9 +2632,10 @@ const PREFS=[
    name:'Крупность сетки',desc:'Автоматика подбирает шаг под текущий зум; крупная и мелкая сдвигают его на один шаг в свою сторону.',
    options:[['auto','Автоматически'],['coarse','Крупнее'],['fine','Мельче']]},
   {cat:'scene',key:'gridLabels',type:'toggle',def:true,
-   name:'Подпись шага сетки',desc:'Надпись «сетка N м» в углу сцены.'},
+   name:'Подпись шага сетки',desc:'Надпись «сетка N м» в углу сцены. На схемах и графиках не показывается: там клетка ничего не измеряет.'},
   {cat:'scene',key:'axisTicks',type:'toggle',def:true,
-   name:'Оси с делениями',desc:'Оси координат, риски на них и числа у рисок. По ним координату можно прочитать, а не отсчитывать клетки от начала.'},
+   name:'Числовые оси (риски с числами)',
+   desc:'Оси координат с делениями и числами у делений: по ним координату видно сразу, а не через счёт клеток от начала. Выключите, если числа мешают смотреть на саму картину. На схемах и графиках — цепи, PV-диаграмме, спектрах — таких осей нет в любом случае: там сцена не измеряется в метрах.'},
   {cat:'scene',key:'hudSide',type:'select',def:'left',
    name:'Сторона панели показаний',desc:'Слева — классика; справа может мешать PV-диаграмме и панели энергии.',
    options:[['left','Слева'],['right','Справа']]},

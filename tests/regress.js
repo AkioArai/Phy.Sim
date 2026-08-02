@@ -76,6 +76,36 @@ async function boot(b, url, ui) {
     ok('все симуляции считаются и рисуются', sims.бросили.length === 0, sims.бросили.slice(0, 5));
     ok('показания конечны', sims.NaN.length === 0, sims.NaN.slice(0, 5));
 
+    /* Числовые оси. Считаем непрозрачные пиксели на слое, где нарисована ОДНА
+       сетка: если оси с числами рисуются, чернил заметно больше. Проверяем две
+       вещи — что настройка их и вправду убирает там, где они уместны, и что на
+       схемах и графиках (schema) их нет ни при каком положении настройки:
+       метрам на электрической схеме или PV-диаграмме взяться неоткуда. */
+    const оси = await p.evaluate(() => {
+      const чернила = (id, вкл) => {
+        const a = A();
+        S.settings.grid = true; S.settings.gridLabels = true; S.settings.axisTicks = вкл;
+        resize();
+        if (a.def.fit) Object.assign(a.view, a.def.fit(a.params, { W: scene.clientWidth, H: scene.clientHeight }));
+        applyWorld(sctx); drawGrid(sctx);
+        const d = sctx.getImageData(0, 0, scene.width, scene.height).data;
+        let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++;
+        return n;
+      };
+      const нет = [], неубралось = [];
+      for (const id of Object.keys(SIMS)) {
+        openSim(id);
+        const с = чернила(id, true), без = чернила(id, false);
+        if (SIMS[id].schema) { if (с !== без) нет.push(id); }
+        else if (!(с > без)) неубралось.push(id);
+      }
+      const схем = Object.keys(SIMS).filter(id => SIMS[id].schema).length;
+      return { нет, неубралось, схем };
+    });
+    ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
+    ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
+    ok('схемы размечены', оси.схем === 42, оси.схем);
+
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
       let over = 0, seen = 0;
