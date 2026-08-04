@@ -51,9 +51,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.2.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.2.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.2.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.2.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -103,7 +103,7 @@ sets each and checks that none of them throws, returns a non-number, is unanswer
 for every input, compares a switch against a value the simulation doesn't have, or —
 above level 1 — simply equals a number already shown in the readouts panel.
 
-It also reports — as information, not as errors — the 82 problems whose answer is
+It also reports — as information, not as errors — the 83 problems whose answer is
 deliberately parameter-independent (the conceptual ones: "how much work does the
 tension do over one revolution?" — always zero), the level-1 problems that *are*
 meant to be answered by reading the panel, and every answer that is proportional to
@@ -112,7 +112,7 @@ knowing when you set homework.
 
 ### Every simulation checked against the textbook
 
-`npm run physics` is a separate harness: **504 checks** that take a simulation's
+`npm run physics` is a separate harness: **530 checks** that take a simulation's
 readouts and compare them with a number computed from the closed-form solution,
 written out independently of the simulation's own code. Parameters are deliberately
 un-round (a wrong coefficient hides behind a nice number), the reference constants
@@ -238,7 +238,7 @@ email, put on a flash drive, or open by double-clicking.
 ```
 index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
-tests/physics.mjs     504 checks of readouts against closed-form solutions
+tests/physics.mjs     530 checks of readouts against closed-form solutions
 tests/answers.mjs     all 384 problems against 40 random parameter sets each
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
