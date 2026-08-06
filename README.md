@@ -4,7 +4,7 @@
 
 **An interactive physics textbook where every formula has a live simulation next to it.**
 
-Read the theory, change the numbers, watch what happens. 77 simulations, 389 problems
+Read the theory, change the numbers, watch what happens. 78 simulations, 394 problems
 and the whole course from kinematics to quarks — in a single HTML file that runs
 offline, with no install and no account.
 
@@ -83,14 +83,14 @@ KaTeX and its fonts ship inside the repository.
 
 |  |  |
 |---|---|
-| **77** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear · **the maths itself** |
+| **78** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear · **the maths itself** |
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
-| **35** topics in **8** sections | full lecture notes, written to be read, not skimmed |
+| **36** topics in **8** sections | full lecture notes, written to be read, not skimmed |
 | **derivations, not just formulas** | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
 | **prerequisites, stated** | each topic names what you must know first and offers a one-minute check; the maths chapter that a topic leans on sits right before it |
 | **252** key formulas | each one opens the simulation that shows it working |
-| **389** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
+| **394** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
 | **133** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
 | **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **57** settings | theme, density, scene decorations, performance, recording |
@@ -100,7 +100,7 @@ KaTeX and its fonts ship inside the repository.
 
 Most answers are computed from the **current parameters of the linked simulation**.
 Change the mass and the answer changes — so your neighbour's answer is different.
-An audit (`npm run audit`) runs all 389 problems against 40 randomised parameter
+An audit (`npm run audit`) runs all 394 problems against 40 randomised parameter
 sets each and checks that none of them throws, returns a non-number, is unanswerable
 for every input, compares a switch against a value the simulation doesn't have, or —
 above level 1 — simply equals a number already shown in the readouts panel.
@@ -241,12 +241,12 @@ email, put on a flash drive, or open by double-clicking.
 index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
 tests/physics.mjs     549 checks of readouts against closed-form solutions
-tests/answers.mjs     all 389 problems against 40 random parameter sets each
+tests/answers.mjs     all 394 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, and that used maths is declared
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
-js/sims/*.js          the 77 simulations, grouped by branch of physics
-js/sims/math.js       the maths itself: the unit circle, and more to come
+js/sims/*.js          the 78 simulations, grouped by branch of physics
+js/sims/math.js       the maths itself: the unit circle, vectors, more to come
 js/topics.js          course content: notes, derivations, formulas, worked
                       examples, mistakes, self-checks, links, problems
 js/app.js             the core: state, canvases, render loop, the entire UI

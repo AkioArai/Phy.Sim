@@ -11,6 +11,276 @@
 'use strict';
 Object.assign(SIMS,{
 
+/* ================== ВЕКТОРЫ ================= */
+/* Вектор в школе — «отрезок со стрелкой», и этого хватает ровно до того
+   места, где появляются скалярное и векторное произведения. Дальше начинается
+   путаница: работа — число, момент — вектор, и почему так, неясно.
+
+   Здесь оба произведения показаны геометрически на одной картинке: скалярное
+   как проекция одного вектора на другой, векторное как площадь построенного
+   на них параллелограмма. Векторы двигаются мышью, и видно, при каких углах
+   произведения обращаются в ноль — а это и есть содержание половины задач. */
+vectors:{
+  title:'Векторы: сложение, проекции и два произведения',
+  /* Сцена — чертёж: по осям безразмерные числа, вектор здесь не «столько-то
+     метров», а просто пара чисел. Поэтому ни метрических осей, ни «сетки N м». */
+  schema:true,
+  // Математика без времени: векторы задают мышью и ползунками, они не «текут».
+  timeless:true,
+  params:[
+    {key:'mode',label:'Что показываем',type:'select',default:'sum',
+     options:[{v:'sum',  t:'Сложение и разложение на составляющие'},
+              {v:'dot',  t:'Скалярное произведение: проекция'},
+              {v:'cross',t:'Векторное произведение: площадь'}]},
+
+    {type:'group',label:'Вектор a (можно тянуть мышью)'},
+    {key:'ax',label:'a: составляющая по x',min:-6,max:6,step:0.1,default:3},
+    {key:'ay',label:'a: составляющая по y',min:-6,max:6,step:0.1,default:1},
+
+    {type:'group',label:'Вектор b (можно тянуть мышью)'},
+    {key:'bx',label:'b: составляющая по x',min:-6,max:6,step:0.1,default:1},
+    {key:'by',label:'b: составляющая по y',min:-6,max:6,step:0.1,default:2.5},
+
+    {type:'group',label:'Показывать'},
+    {key:'comp', label:'Составляющие по осям',type:'check',default:true},
+    {key:'par',  label:'Правило параллелограмма',type:'check',default:true},
+    {key:'diff', label:'Разность a − b',type:'check',default:false},
+    {key:'ang',  label:'Угол между векторами',type:'check',default:true}
+  ],
+
+  /* Модуль, угол к оси x и угол между — вся арифметика векторов в трёх
+     строчках. Дальше по тексту эти же функции пользуются везде. */
+  A(p){ return {x:p.ax,y:p.ay}; },
+  B(p){ return {x:p.bx,y:p.by}; },
+  mod(v){ return Math.hypot(v.x,v.y); },
+  ugol(v){ return Math.atan2(v.y,v.x)*180/Math.PI; },
+  dot(a,b){ return a.x*b.x+a.y*b.y; },
+  cross(a,b){ return a.x*b.y-a.y*b.x; },      // на плоскости это одно число — проекция на z
+  mezhdu(a,b){
+    const m=this.mod(a)*this.mod(b);
+    if(m<1e-12) return NaN;
+    return Math.acos(clamp(this.dot(a,b)/m,-1,1))*180/Math.PI;
+  },
+
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){ s.t+=dt; },                   // время идёт, но ни на что не влияет
+  dragPoints(p){ return [{x:p.ax,y:p.ay},{x:p.bx,y:p.by}]; },
+  dragMove(p,idx,x,y){
+    const r=v=>clamp(Math.round(v*10)/10,-6,6);
+    if(idx===0){ p.ax=r(x); p.ay=r(y); } else { p.bx=r(x); p.by=r(y); }
+  },
+  anchors(s,p){ return [{x:0,y:0},{x:p.ax,y:p.ay},{x:p.bx,y:p.by}]; },
+
+  readouts(s,p){
+    const a=this.A(p), b=this.B(p);
+    const ma=this.mod(a), mb=this.mod(b), θ=this.mezhdu(a,b);
+    const ск=this.dot(a,b), вект=this.cross(a,b);
+    const out=[
+      ['модуль |a| = √(aₓ² + a_y²)',ma,''],
+      ['направление a к оси x',this.ugol(a),'°'],
+      ['модуль |b|',mb,''],
+      ['направление b к оси x',this.ugol(b),'°'],
+      ['угол между a и b',θ,'°'],
+      ['сумма: (a+b)ₓ',a.x+b.x,''],
+      ['сумма: (a+b)_y',a.y+b.y,''],
+      ['модуль суммы |a+b|',this.mod({x:a.x+b.x,y:a.y+b.y}),
+       ' — вообще не |a|+|b|, если векторы не сонаправлены'],
+      ['для сравнения |a| + |b|',ma+mb,'']
+    ];
+    if(p.mode==='dot'||p.mode==='sum')
+      out.push(['скалярное a·b = aₓbₓ + a_yb_y',ск,''],
+               ['оно же |a||b|cos θ',ma*mb*Math.cos(θ*Math.PI/180),' — то же число'],
+               ['проекция a на b = a·b/|b|',mb>1e-12?ск/mb:NaN,''],
+               ['знак произведения',Math.sign(ск),
+                ск>0?'— угол острый':ск<0?'— угол тупой':'— векторы перпендикулярны']);
+    if(p.mode==='cross'||p.mode==='sum')
+      out.push(['векторное aₓb_y − a_yb_x',вект,''],
+               ['оно же |a||b|sin θ',ma*mb*Math.sin(θ*Math.PI/180),' — то же число'],
+               ['площадь параллелограмма',Math.abs(вект),''],
+               ['площадь треугольника на a и b',Math.abs(вект)/2,''],
+               ['направление по правилу буравчика',Math.sign(вект),
+                вект>0?'— на нас (⊙)':вект<0?'— от нас (⊗)':'— векторы параллельны']);
+    if(p.diff)
+      out.push(['разность: (a−b)ₓ',a.x-b.x,''],
+               ['разность: (a−b)_y',a.y-b.y,''],
+               ['модуль разности |a−b|',this.mod({x:a.x-b.x,y:a.y-b.y}),'']);
+    return out;
+  },
+
+  graphs:[],
+  presets:[
+    {name:'Сложение по правилу параллелограмма',
+     values:{mode:'sum',ax:3,ay:1,bx:1,by:2.5,par:true,comp:true,ang:true,diff:false}},
+    {name:'Модуль суммы меньше суммы модулей',
+     values:{mode:'sum',ax:3,ay:0,bx:-1.5,by:2.6,par:true,comp:false,ang:true,diff:false}},
+    {name:'Перпендикулярные: скалярное равно нулю',
+     values:{mode:'dot',ax:3,ay:0,bx:0,by:2.5,par:false,comp:true,ang:true,diff:false}},
+    {name:'Тупой угол: скалярное отрицательно (сила тормозит)',
+     values:{mode:'dot',ax:3,ay:0,bx:-2,by:1.2,par:false,comp:false,ang:true,diff:false}},
+    {name:'Сонаправленные: скалярное максимально, векторное ноль',
+     values:{mode:'cross',ax:3,ay:1.5,bx:2,by:1,par:false,comp:false,ang:true,diff:false}},
+    {name:'Векторное произведение: площадь параллелограмма',
+     values:{mode:'cross',ax:4,ay:0.5,bx:1,by:3,par:true,comp:false,ang:true,diff:false}},
+    {name:'Разность a − b: вектор из конца b в конец a',
+     values:{mode:'sum',ax:3.5,ay:2.5,bx:-1,by:2,diff:true,par:false,comp:false,ang:false}}
+  ],
+
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-70)/(15*PX_PER_M),(H-70)/(13*PX_PER_M)),0.002,30);
+    return {x:0.5,y:0.5,scale};
+  },
+
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const a=this.A(p), b=this.B(p);
+    const mid=t=>-Math.round(String(t).length*3.05);
+    const чис=x=>(Math.abs(x)<5e-3?0:x).toFixed(2);
+
+    // ---- оси чертежа
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1.2);
+    ctx.beginPath();
+    ctx.moveTo(-7,0); ctx.lineTo(7,0); ctx.moveTo(0,-6); ctx.lineTo(0,6);
+    ctx.stroke(); ctx.globalAlpha=1;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+    for(let k=-6;k<=6;k++){
+      if(!k) continue;
+      ctx.beginPath(); ctx.moveTo(k,-0.12); ctx.lineTo(k,0.12); ctx.stroke();
+      if(Math.abs(k)<=6){ ctx.beginPath(); ctx.moveTo(-0.12,k); ctx.lineTo(0.12,k); ctx.stroke(); }
+      if(k%2===0){ v.label(ctx,`${k}`,k,0,-3,16,ink3); v.label(ctx,`${k}`,0,k,10,-4,ink3); }
+    }
+    v.label(ctx,'x',7,0,-8,16,ink3);
+    v.label(ctx,'y',0,6,10,-2,ink3);
+
+    /* ---- ПАРАЛЛЕЛОГРАММ. Правило треугольника и правило параллелограмма —
+       одно и то же: перенесённый вектор b даёт ту же точку, что и сумма. */
+    if(p.par){
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.2);
+      ctx.setLineDash([v.lw(4),v.lw(4)]);
+      ctx.beginPath();
+      ctx.moveTo(a.x,a.y); ctx.lineTo(a.x+b.x,a.y+b.y); ctx.lineTo(b.x,b.y);
+      ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      // сама сумма
+      ctx.lineWidth=v.lw(2.4);
+      v.arrow(ctx,0,0,a.x+b.x,a.y+b.y,ok);
+      const t=`a + b (${чис(a.x+b.x)}; ${чис(a.y+b.y)})`;
+      v.label(ctx,t,a.x+b.x,a.y+b.y,mid(t),-16,ok);
+    }
+
+    /* ---- РАЗНОСТЬ. Рисуется из конца b в конец a: именно так её и строят,
+       и именно поэтому a − b + b = a. */
+    if(p.diff){
+      ctx.lineWidth=v.lw(2.2);
+      v.arrow(ctx,b.x,b.y,a.x,a.y,dang);
+      const t='a − b';
+      v.label(ctx,t,(a.x+b.x)/2,(a.y+b.y)/2,mid(t),-10,dang);
+    }
+
+    /* ---- СОСТАВЛЯЮЩИЕ. Разложение по осям — то самое, ради чего вектор и
+       заводят: дальше каждую ось считают отдельно, как одномерную задачу. */
+    if(p.comp){
+      for(const [vec,цвет] of [[a,acc],[b,sec]]){
+        ctx.strokeStyle=цвет; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.4);
+        ctx.setLineDash([v.lw(3),v.lw(3)]);
+        ctx.beginPath();
+        ctx.moveTo(vec.x,vec.y); ctx.lineTo(vec.x,0); ctx.moveTo(vec.x,vec.y); ctx.lineTo(0,vec.y);
+        ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+        ctx.lineWidth=v.lw(3);
+        ctx.strokeStyle=цвет; ctx.globalAlpha=.75;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(vec.x,0); ctx.stroke();
+        ctx.globalAlpha=1;
+      }
+      const ta=`aₓ = ${чис(a.x)}`, tb=`a_y = ${чис(a.y)}`;
+      v.label(ctx,ta,a.x/2,0,mid(ta),a.y>=0?20:-10,acc);
+      v.label(ctx,tb,a.x,a.y/2,a.x>=0?12:-46,0,acc);
+    }
+
+    /* ---- УГОЛ МЕЖДУ. Дуга у начала координат: от неё зависят оба
+       произведения, и полезно видеть её всё время. */
+    if(p.ang && this.mod(a)>1e-9 && this.mod(b)>1e-9){
+      const αa=Math.atan2(a.y,a.x), αb=Math.atan2(b.y,b.x);
+      const r=Math.min(1.4,0.45*Math.min(this.mod(a),this.mod(b)));
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2);
+      ctx.beginPath();
+      ctx.arc(0,0,r,Math.min(αa,αb),Math.max(αa,αb),Math.abs(αa-αb)>Math.PI);
+      ctx.stroke();
+      const сер=(αa+αb)/2 + (Math.abs(αa-αb)>Math.PI?Math.PI:0);
+      const θ=this.mezhdu(a,b);
+      const t=`θ = ${θ.toFixed(1)}°`;
+      v.label(ctx,t,(r+0.5)*Math.cos(сер),(r+0.5)*Math.sin(сер),mid(t),-4,meas);
+    }
+
+    /* ---- СКАЛЯРНОЕ: проекция a на b.
+       Работа силы — ровно эта картинка: путь вдоль b, а от силы a берётся
+       только та часть, что смотрит вдоль пути. Перпендикулярная не работает. */
+    if(p.mode==='dot'){
+      const mb=this.mod(b);
+      if(mb>1e-9){
+        const пр=this.dot(a,b)/mb;               // длина проекции со знаком
+        const ex=b.x/mb, ey=b.y/mb;
+        ctx.strokeStyle=meas; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.4);
+        ctx.setLineDash([v.lw(4),v.lw(4)]);
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(пр*ex,пр*ey); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha=1;
+        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(5);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(пр*ex,пр*ey); ctx.stroke();
+        const t=`проекция a на b = ${чис(пр)}`;
+        v.label(ctx,t,пр*ex/2,пр*ey/2,mid(t),пр*ey>=0?24:-16,meas);
+        const t2=`a·b = |b| · (проекция) = ${чис(this.dot(a,b))}`;
+        v.label(ctx,t2,0,-5.2,mid(t2),0,meas);
+      }
+    }
+
+    /* ---- ВЕКТОРНОЕ: площадь параллелограмма.
+       Момент силы — эта же картинка: важно не то, как сильно тянут, а какую
+       площадь заметает плечо. Вдоль плеча тянуть бесполезно — площадь ноль. */
+    if(p.mode==='cross'){
+      const вект=this.cross(a,b);
+      ctx.fillStyle=вект>=0?ok:dang; ctx.globalAlpha=.16;
+      ctx.beginPath();
+      ctx.moveTo(0,0); ctx.lineTo(a.x,a.y); ctx.lineTo(a.x+b.x,a.y+b.y); ctx.lineTo(b.x,b.y);
+      ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+      // высота: |b|·sin θ — вторая половина формулы площади
+      const ma=this.mod(a);
+      if(ma>1e-9){
+        const ex=a.x/ma, ey=a.y/ma, пр=this.dot(b,a)/ma;
+        ctx.strokeStyle=sec; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1.4);
+        ctx.setLineDash([v.lw(3),v.lw(3)]);
+        ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(пр*ex,пр*ey); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha=1;
+        const t=`высота = |b| sin θ = ${чис(Math.abs(вект)/ma)}`;
+        v.label(ctx,t,(b.x+пр*ex)/2,(b.y+пр*ey)/2,mid(t),-20,sec);
+      }
+      /* Подписи разводим по вертикали: в середине параллелограмма и так тесно
+         от подписей самих векторов. */
+      const c=[(a.x+b.x)/2,(a.y+b.y)/2];
+      const t=`площадь = |a×b| = ${чис(Math.abs(вект))}`;
+      v.label(ctx,t,c[0],c[1],mid(t),22,вект>=0?ok:dang);
+      // направление результата — перпендикулярно плоскости
+      v.outOfPlane(ctx,c[0],c[1],вект>=0,вект>=0?ok:dang);
+      const t2=вект>=0?'a×b смотрит на нас (⊙)':'a×b смотрит от нас (⊗)';
+      v.label(ctx,t2,0,-5.2,mid(t2),0,вект>=0?ok:dang);
+    }
+
+    // ---- сами векторы поверх всего
+    ctx.lineWidth=v.lw(2.8);
+    v.arrow(ctx,0,0,a.x,a.y,acc);
+    v.arrow(ctx,0,0,b.x,b.y,sec);
+    const ta=`a (${чис(a.x)}; ${чис(a.y)}), |a| = ${чис(this.mod(a))}`;
+    const tb=`b (${чис(b.x)}; ${чис(b.y)}), |b| = ${чис(this.mod(b))}`;
+    v.label(ctx,ta,a.x,a.y,mid(ta),a.y>=0?-16:18,acc);
+    v.label(ctx,tb,b.x,b.y,mid(tb),b.y>=0?-16:18,sec);
+
+    const подпись = p.mode==='dot'
+        ? 'скалярное произведение — это длина проекции, умноженная на длину второго вектора'
+      : p.mode==='cross'
+        ? 'векторное произведение — это площадь параллелограмма, и оно вектор, а не число'
+      : 'концы векторов можно тянуть мышью';
+    v.label(ctx,подпись,0,-5.9,mid(подпись),0,ink3);
+  }
+},
+
 /* ================== ЕДИНИЧНАЯ ОКРУЖНОСТЬ ================= */
 /* Синус и косинус вводят тремя разными способами — как отношение сторон в
    прямоугольном треугольнике, как координаты точки на окружности и как

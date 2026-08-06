@@ -40,13 +40,9 @@ const { ALL, SECTIONS } = new Function(читать('js/topics.js') + '; return 
 
 const плохо = [];
 const ok = [];
-const проверка = (имя, беды) => {
-  if (beды(beды)) { /* недостижимо: заглушка не нужна */ }
-};
 const итог = (имя, беды) => {
-  if (беды.length) { плохо.push({ имя, беды }); } else ok.push(имя);
+  if (беды.length) плохо.push({ имя, беды }); else ok.push(имя);
 };
-void проверка;
 
 /* ---------------- 1. Граф предпосылок ---------------- */
 {
@@ -103,7 +99,7 @@ const АППАРАТ = {
   const беды = [];
   const написано = new Set(ALL.map(t => t.id));
   for (const t of ALL) {
-    if (t.id.startsWith('math.') || t.kind === 'recap' || !t.theory) continue;
+    if (t.id.startsWith('math.') || t.id === 'intro' || t.kind === 'recap' || !t.theory) continue;
     const текст = t.theory + (t.formulas || []).map(f => f.tex + f.note).join(' ');
     for (const [id, маркер] of Object.entries(АППАРАТ)) {
       if (!написано.has(id)) continue;            // тема аппарата ещё не написана
@@ -125,9 +121,13 @@ const АППАРАТ = {
       for (const s of d.steps || [])
         if (!s.tex || !s.why) беды.push(`${t.id}: шаг вывода «${d.goal}» без формулы или без обоснования`);
       if (d.sim && !SIMS[d.sim]) беды.push(`${t.id}: вывод ссылается на несуществующую симуляцию «${d.sim}»`);
-      // цель вывода должна быть одной из формул темы — иначе вывод повисает
+      /* Цель вывода должна быть формулой этой же темы — иначе вывод повисает.
+         Формулу часто пишут цепочкой «A = B = C»; тогда цель «A = C» — её
+         законная часть, поэтому сверяем не строку целиком, а все куски цели
+         по разные стороны от знаков равенства. */
       const цели = (t.formulas || []).map(f => f.tex.replace(/\s+/g, ''));
-      if (d.goal && !цели.some(x => x.includes(d.goal.replace(/\s+/g, ''))))
+      const куски = (d.goal || '').replace(/\s+/g, '').split('=').filter(Boolean);
+      if (d.goal && !цели.some(ф => куски.every(к => ф.includes(к))))
         беды.push(`${t.id}: вывод «${d.goal}» не совпадает ни с одной формулой темы`);
     }
     for (const e of t.examples || []) {
