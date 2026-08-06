@@ -256,6 +256,75 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .qa-a{display:none;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line);
   line-height:1.65;font-size:.95em;color:var(--ink-2)}
 .qa.open .qa-a{display:block}
+/* ---------------------------------------------------------------------------
+   БЛОКИ УЧЕБНОГО ПОСОБИЯ: зачем, предпосылки, вывод, разобранный пример.
+   Оформление намеренно тише конспекта: это опоры вокруг текста, а не текст.
+   --------------------------------------------------------------------------- */
+.why{border-left:2px solid var(--accent);background:var(--panel-2);padding:12px 15px;
+  border-radius:0 var(--radius) var(--radius) 0;margin:0 0 16px;line-height:1.65;font-size:.95em;color:var(--ink-2)}
+.why-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
+  font-weight:600;margin-bottom:6px}
+
+.needs{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px}
+.needs-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;margin-bottom:9px}
+.need-row{display:flex;flex-wrap:wrap;gap:7px}
+.need{display:flex;flex-direction:column;gap:2px;text-align:left;padding:7px 11px;
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2)}
+.need:hover{border-color:var(--accent)}
+.need-t{font-size:12.5px;font-weight:550;color:var(--ink-2)}
+.need:hover .need-t{color:var(--accent)}
+.need-s{font-size:10.5px;color:var(--ink-3)}
+.needs-go{font-size:12px;padding:5px 10px;margin-top:10px}
+.needs-q{display:none;margin-top:11px}
+.needs.open .needs-q{display:block}
+.needs.open .needs-go{display:none}
+.needs-tail{font-size:12px;color:var(--ink-3);line-height:1.55;margin-top:4px}
+.qa-from{margin-top:6px;font-size:11px;color:var(--ink-3)}
+
+.deriv{border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;margin:10px 0}
+.dv-goal{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dv-tag{flex:0 0 auto;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--accent);font-weight:600}
+.dv-tex{flex:1 1 auto;min-width:0}
+.dv-tex .katex-display{margin:2px 0}
+.dv-from{font-size:12px;color:var(--ink-3);margin:2px 0 4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dv-f{padding:2px 7px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2)}
+.dv-steps{margin:6px 0}
+/* Шаг закрыт, пока до него не дошли: смысл вывода в том, чтобы попробовать
+   продолжить самому, а раскрытый целиком он читается глазами и не запоминается. */
+.dv-step{display:none;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px dashed var(--line)}
+.dv-step.on{display:flex}
+.dv-n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--panel-2);color:var(--ink-3);
+  font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;margin-top:3px}
+.dv-body{flex:1 1 auto;min-width:0}
+.dv-eq{display:block}
+.dv-eq .katex-display{margin:2px 0}
+.dv-why{display:block;font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-top:3px}
+.dv-ctl{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.dv-ctl .btn{font-size:12px;padding:5px 10px}
+
+.f-kind{position:absolute;top:8px;right:10px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:1px 7px;background:var(--panel)}
+.f-kind.закон{color:var(--accent);border-color:var(--accent)}
+.f-kind.определение{color:var(--second);border-color:var(--second)}
+
+.example{border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;margin:10px 0}
+.ex-task{line-height:1.65;font-size:.97em}
+.ex-method{display:flex;gap:8px;align-items:center;margin:9px 0;font-size:12.5px;color:var(--ink-2)}
+.ex-method span{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.ex-go{font-size:12px;padding:5px 10px}
+.ex-body{display:none;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+.example.open .ex-body{display:block}
+.ex-step{display:flex;gap:10px;align-items:flex-start;padding:7px 0;line-height:1.6;font-size:.95em;color:var(--ink-2)}
+.ex-n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--panel-2);color:var(--ink-3);
+  font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.ex-eq .katex-display{margin:4px 0}
+.ex-ans{display:flex;gap:9px;align-items:baseline;margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--line);font-weight:550}
+.ex-ans span{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ok);font-weight:600}
+.ex-check{font-size:12px;color:var(--ink-3);margin-top:7px;line-height:1.55}
+
 .fsheet{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;overflow:hidden}
 .fs-h{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;
   padding:8px 13px;background:var(--panel-2);font-size:12.5px;font-weight:550;color:var(--ink-2);text-align:left}

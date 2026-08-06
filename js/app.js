@@ -1201,6 +1201,161 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   if(isNarrow()) paneTop();
 });
 
+/* =============================================================================
+   АНАТОМИЯ ТЕМЫ УЧЕБНОГО ПОСОБИЯ
+
+   Конспект отвечает на вопрос «что верно». Пособие обязано отвечать ещё на
+   четыре: зачем это читать, что нужно знать заранее, откуда взялась формула
+   и как ею пользоваться. Поэтому у темы девять блоков в жёстком порядке:
+
+     1. Зачем            why          вопрос, на который отвечает тема
+     2. Что нужно знать  needs        темы-предпосылки + быстрая проверка
+     3. Конспект         theory       (было и раньше)
+     4. Вывод формул     derivations  по шагам, каждый шаг с обоснованием
+     5. Формулы          formulas     (+ kind: закон / определение / следствие)
+     6. Разобранный пример examples   полное решение с названным методом
+     7. Типичные ошибки  mistakes     (было и раньше)
+     8. Задачи           problems     (было и раньше, отдельная вкладка)
+     9. Проверь себя     checks       пять вопросов с раскрывающимся ответом
+        и сквозные связи links
+
+   Порядок не декоративный: пока не сказано, зачем читать, читать не станут;
+   пока не названы предпосылки, ученик спотыкается о производную в третьем
+   абзаце и решает, что физика не для него; а формула без вывода запоминается
+   как заклинание и забывается через неделю.
+   ============================================================================= */
+
+/* Что за формула перед нами. Различие не педантизм: определение выводить
+   бессмысленно (его вводят соглашением), закон выводится из более общего,
+   следствие — из соседних формул этой же темы. */
+const FKIND={закон:'закон',определение:'определение',следствие:'следствие'};
+
+/* ---------- 1. Зачем ---------- */
+function whyHTML(t){
+  if(!t.why) return '';
+  return `<div class="why"><div class="why-h">Зачем эта тема</div><div>${t.why}</div></div>`;
+}
+
+/* ---------- 2. Что нужно знать ----------
+   Чипы с темами-предпосылками и три вопроса из их «Проверь себя».
+   Проверка НЕ запирает тему: она подсказывает, что стоит освежить. Жёсткий
+   замок в школьном пособии — способ потерять ученика на первой же теме. */
+function needsHTML(t){
+  const ns=(t.needs||[]).map(id=>ALL.find(x=>x.id===id)).filter(Boolean);
+  if(!ns.length) return '';
+  const чипы=ns.map(d=>`<button class="need" data-to="${d.id}">
+      <span class="need-t">${d.ch?d.ch+'. ':''}${d.title}</span>
+      <span class="need-s">${d.section}</span></button>`).join('');
+  const вопросы=ns.flatMap(d=>(d.checks||[]).map(q=>({...q,from:d.title}))).slice(0,3);
+  return `<div class="needs">
+    <div class="needs-h">Чтобы читать дальше, нужно понимать</div>
+    <div class="need-row">${чипы}</div>
+    ${вопросы.length?`<button class="btn needs-go">Проверить за минуту</button>
+      <div class="needs-q">${вопросы.map((q,i)=>`<div class="qa" data-i="${i}">
+        <div class="qa-q"><span class="qa-n">${i+1}</span><span>${q.q}</span></div>
+        <button class="btn qa-btn">Показать ответ</button>
+        <div class="qa-a">${q.a}<div class="qa-from">${q.from}</div></div>
+      </div>`).join('')}
+      <div class="needs-tail">Не ответили — откройте тему выше и вернитесь. Ответили — читайте дальше.</div>
+      </div>`:''}
+  </div>`;
+}
+
+/* ---------- 4. Вывод формул ----------
+   Шаги раскрываются по одному. Смысл именно в этом: увидев цель и первый
+   шаг, есть шанс продолжить самому, а готовый вывод целиком читается глазами
+   и не оставляет следа. Кнопка «показать целиком» для тех, кто вернулся
+   повторить. */
+function derivHTML(t){
+  if(!t.derivations||!t.derivations.length) return '';
+  return `<h2 class="sect">Откуда берутся формулы</h2>
+    ${t.derivations.map((d,i)=>`<div class="deriv" data-d="${i}">
+      <div class="dv-goal">
+        <span class="dv-tag">вывести</span>
+        <span class="dv-tex">$$${d.goal}$$</span>
+      </div>
+      ${d.from&&d.from.length?`<div class="dv-from">исходим из:
+        ${d.from.map(f=>`<span class="dv-f">$${f}$</span>`).join('')}</div>`:''}
+      <div class="dv-steps">
+        ${d.steps.map((s,k)=>`<div class="dv-step" data-k="${k}">
+          <span class="dv-n">${k+1}</span>
+          <span class="dv-body"><span class="dv-eq">$$${s.tex}$$</span>
+          <span class="dv-why">${s.why}</span></span>
+        </div>`).join('')}
+      </div>
+      <div class="dv-ctl">
+        <button class="btn primary dv-next">Первый шаг</button>
+        <button class="btn dv-all">Показать целиком</button>
+        ${d.sim&&SIMS[d.sim]?`<button class="btn dv-sim" data-sim="${d.sim}">Проверить в симуляции</button>`:''}
+      </div>
+    </div>`).join('')}`;
+}
+
+/* ---------- 6. Разобранный пример ----------
+   Отличается от задачи тем, что решение показано целиком и у него названо
+   ИМЯ метода. Ученик, который видел «энергетический подход» три раза подряд,
+   начинает узнавать его в новой задаче — а без имени приём не переносится. */
+function examplesHTML(t){
+  if(!t.examples||!t.examples.length) return '';
+  return `<h2 class="sect">Разобранный пример</h2>
+    ${t.examples.map((e,i)=>`<div class="example" data-e="${i}">
+      <div class="ex-task">${e.task}</div>
+      ${e.method?`<div class="ex-method"><span>метод</span>${e.method}</div>`:''}
+      <button class="btn primary ex-go">Показать решение</button>
+      <div class="ex-body">
+        ${e.steps.map((s,k)=>`<div class="ex-step"><span class="ex-n">${k+1}</span>
+          <span>${s.text}${s.tex?`<div class="ex-eq">$$${s.tex}$$</div>`:''}</span></div>`).join('')}
+        <div class="ex-ans"><span>ответ</span>${e.answer}</div>
+        ${e.check?`<div class="ex-check">Проверка: ${e.check}</div>`:''}
+      </div>
+    </div>`).join('')}`;
+}
+
+/* ---------- 9. Проверь себя ----------
+   Вопросы без вычислений: если ответ формулируется своими словами, тема
+   усвоена. Те же карточки потом всплывают в повторении. */
+function checksHTML(t){
+  if(!t.checks||!t.checks.length) return '';
+  return `<h2 class="sect">Проверьте себя</h2>
+    <p class="qa-lead">Без вычислений. Ответьте своими словами, потом сверьтесь.</p>
+    ${t.checks.map((q,i)=>`<div class="qa" data-i="${i}">
+      <div class="qa-q"><span class="qa-n">${i+1}</span><span>${q.q}</span></div>
+      <button class="btn qa-btn">Показать ответ</button>
+      <div class="qa-a">${q.a}</div>
+    </div>`).join('')}`;
+}
+
+/* Общая проводка новых блоков: раскрытие ответов, шагов вывода и решений. */
+function wireLesson(pane){
+  pane.querySelectorAll('.qa').forEach(el=>{
+    const b=el.querySelector('.qa-btn'); if(!b) return;
+    b.onclick=()=>{ const on=el.classList.toggle('open'); b.textContent=on?'Скрыть ответ':'Показать ответ'; };
+  });
+  pane.querySelectorAll('.need').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.to); autoCloseRail(); });
+  const ng=pane.querySelector('.needs-go');
+  if(ng) ng.onclick=()=>{ pane.querySelector('.needs').classList.add('open'); ng.remove(); };
+  pane.querySelectorAll('.deriv').forEach(el=>{
+    const шаги=[...el.querySelectorAll('.dv-step')];
+    const next=el.querySelector('.dv-next'), all=el.querySelector('.dv-all');
+    let открыто=0;
+    const обновить=()=>{
+      шаги.forEach((s,i)=>s.classList.toggle('on',i<открыто));
+      next.textContent = открыто===0?'Первый шаг'
+        : открыто>=шаги.length?'Вывод закончен' : `Следующий шаг (${открыто}/${шаги.length})`;
+      next.disabled = открыто>=шаги.length;
+    };
+    next.onclick=()=>{ открыто=Math.min(шаги.length,открыто+1); обновить(); };
+    all.onclick=()=>{ открыто=шаги.length; обновить(); };
+    const sm=el.querySelector('.dv-sim');
+    if(sm) sm.onclick=()=>{ openSim(sm.dataset.sim); if(isNarrow()) openSimMobile(); };
+    обновить();
+  });
+  pane.querySelectorAll('.example').forEach(el=>{
+    const b=el.querySelector('.ex-go');
+    b.onclick=()=>{ const on=el.classList.toggle('open'); b.textContent=on?'Скрыть решение':'Показать решение'; };
+  });
+}
+
 /* ---------- Типичные ошибки ----------
    Конспект показывает только правильный путь, и ученик не узнаёт своей ошибки
    в лицо. Здесь ошибка названа вслух: сначала соблазнительная неверная мысль,
@@ -1282,18 +1437,27 @@ function renderPane(){
       вообще не имеет корректного наглядного изображения. Опирайтесь на формулы и текст, а картинку
       воспринимайте как подсказку для интуиции, а не как портрет реальности.
       </span></div>` : '';
+    /* Девять блоков темы в неизменном порядке. Пустые поля просто не дают
+       разметки, поэтому старые темы без why/needs/derivations выглядят ровно
+       как раньше — переход на новую анатомию идёт темами, а не рывком. */
     pane.innerHTML=`<article>${hardNote}
+      ${whyHTML(t)}
+      ${needsHTML(t)}
       <h2 class="sect">Конспект</h2>${t.theory}
+      ${derivHTML(t)}
       <h2 class="sect">Основные формулы</h2>
       ${t.formulas.map((f,i)=>`
         <div class="formula" data-f="${i}">
+          ${f.kind?`<span class="f-kind ${f.kind}">${FKIND[f.kind]||f.kind}</span>`:''}
           <div>$$${f.tex}$$</div>
           ${f.note?`<div class="note">${f.note}</div>`:''}
         </div>`).join('')}
+      ${examplesHTML(t)}
       ${mistakesHTML(t)}
+      ${checksHTML(t)}
       ${linksHTML(t)}
     </article>`;
-    wireLinks(pane);
+    wireLinks(pane); wireLesson(pane);
   } else {
     if(!t.problems.length){ pane.innerHTML='<div class="empty">Задач по этой главе пока нет.</div>'; return; }
     const dots=n=>`<span class="dots">${'<i class="f"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;

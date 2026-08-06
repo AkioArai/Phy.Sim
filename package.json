@@ -9,7 +9,8 @@
     "build:exe": "cd packaging/windows && npm install && npm run dist",
     "test": "node tests/regress.js",
     "audit": "node tests/answers.mjs",
-    "physics": "node tests/physics.mjs"
+    "physics": "node tests/physics.mjs",
+    "curriculum": "node tests/curriculum.mjs"
   },
   "repository": {
     "type": "git",

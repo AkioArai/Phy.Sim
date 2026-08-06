@@ -292,6 +292,75 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .qa-a{display:none;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line);
   line-height:1.65;font-size:.95em;color:var(--ink-2)}
 .qa.open .qa-a{display:block}
+/* ---------------------------------------------------------------------------
+   БЛОКИ УЧЕБНОГО ПОСОБИЯ: зачем, предпосылки, вывод, разобранный пример.
+   Оформление намеренно тише конспекта: это опоры вокруг текста, а не текст.
+   --------------------------------------------------------------------------- */
+.why{border-left:2px solid var(--accent);background:var(--panel-2);padding:12px 15px;
+  border-radius:0 var(--radius) var(--radius) 0;margin:0 0 16px;line-height:1.65;font-size:.95em;color:var(--ink-2)}
+.why-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
+  font-weight:600;margin-bottom:6px}
+
+.needs{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px}
+.needs-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;margin-bottom:9px}
+.need-row{display:flex;flex-wrap:wrap;gap:7px}
+.need{display:flex;flex-direction:column;gap:2px;text-align:left;padding:7px 11px;
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2)}
+.need:hover{border-color:var(--accent)}
+.need-t{font-size:12.5px;font-weight:550;color:var(--ink-2)}
+.need:hover .need-t{color:var(--accent)}
+.need-s{font-size:10.5px;color:var(--ink-3)}
+.needs-go{font-size:12px;padding:5px 10px;margin-top:10px}
+.needs-q{display:none;margin-top:11px}
+.needs.open .needs-q{display:block}
+.needs.open .needs-go{display:none}
+.needs-tail{font-size:12px;color:var(--ink-3);line-height:1.55;margin-top:4px}
+.qa-from{margin-top:6px;font-size:11px;color:var(--ink-3)}
+
+.deriv{border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;margin:10px 0}
+.dv-goal{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dv-tag{flex:0 0 auto;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--accent);font-weight:600}
+.dv-tex{flex:1 1 auto;min-width:0}
+.dv-tex .katex-display{margin:2px 0}
+.dv-from{font-size:12px;color:var(--ink-3);margin:2px 0 4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dv-f{padding:2px 7px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2)}
+.dv-steps{margin:6px 0}
+/* Шаг закрыт, пока до него не дошли: смысл вывода в том, чтобы попробовать
+   продолжить самому, а раскрытый целиком он читается глазами и не запоминается. */
+.dv-step{display:none;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px dashed var(--line)}
+.dv-step.on{display:flex}
+.dv-n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--panel-2);color:var(--ink-3);
+  font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;margin-top:3px}
+.dv-body{flex:1 1 auto;min-width:0}
+.dv-eq{display:block}
+.dv-eq .katex-display{margin:2px 0}
+.dv-why{display:block;font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-top:3px}
+.dv-ctl{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.dv-ctl .btn{font-size:12px;padding:5px 10px}
+
+.f-kind{position:absolute;top:8px;right:10px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:1px 7px;background:var(--panel)}
+.f-kind.закон{color:var(--accent);border-color:var(--accent)}
+.f-kind.определение{color:var(--second);border-color:var(--second)}
+
+.example{border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;margin:10px 0}
+.ex-task{line-height:1.65;font-size:.97em}
+.ex-method{display:flex;gap:8px;align-items:center;margin:9px 0;font-size:12.5px;color:var(--ink-2)}
+.ex-method span{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.ex-go{font-size:12px;padding:5px 10px}
+.ex-body{display:none;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+.example.open .ex-body{display:block}
+.ex-step{display:flex;gap:10px;align-items:flex-start;padding:7px 0;line-height:1.6;font-size:.95em;color:var(--ink-2)}
+.ex-n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--panel-2);color:var(--ink-3);
+  font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.ex-eq .katex-display{margin:4px 0}
+.ex-ans{display:flex;gap:9px;align-items:baseline;margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--line);font-weight:550}
+.ex-ans span{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ok);font-weight:600}
+.ex-check{font-size:12px;color:var(--ink-3);margin-top:7px;line-height:1.55}
+
 .fsheet{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;overflow:hidden}
 .fs-h{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;
   padding:8px 13px;background:var(--panel-2);font-size:12.5px;font-weight:550;color:var(--ink-2);text-align:left}
@@ -1596,6 +1665,299 @@ const EMPTY_DASH=[];                 // переиспользуем: setLineDas
 
 /* Реестр симуляций: каждый файл js/sims/* добавляет сюда свои определения. */
 const SIMS={};
+
+;
+/* =============================================================================
+   МАТЕМАТИЧЕСКИЙ АППАРАТ
+
+   Симуляции этого файла ничего не моделируют в природе: они показывают саму
+   математику, которой пользуются остальные главы. Смысл тот же, что и у
+   физических моделей, — покрутить и увидеть, а не поверить на слово.
+
+   Сцены здесь безразмерные (единичная окружность, график функции), поэтому
+   у всех стоит schema: метрических осей и подписи «сетка N м» быть не должно.
+   ============================================================================= */
+'use strict';
+Object.assign(SIMS,{
+
+/* ================== ЕДИНИЧНАЯ ОКРУЖНОСТЬ ================= */
+/* Синус и косинус вводят тремя разными способами — как отношение сторон в
+   прямоугольном треугольнике, как координаты точки на окружности и как
+   функцию времени. Ученик обычно знает первый, физике нужны второй и третий,
+   и связь между ними не очевидна. Здесь все три показаны одной картинкой:
+   точка бежит по окружности, её тень на осях — это cos и sin, а развёртка
+   этой тени по времени — синусоида, с которой начинается глава о колебаниях. */
+unitcircle:{
+  title:'Единичная окружность: синус, косинус и радианы',
+  /* Сцена — математический чертёж: по осям не метры, а числа от −1 до 1.
+     Поэтому ни осей с числами в метрах, ни надписи «сетка N м». */
+  schema:true,
+  params:[
+    {key:'mode',label:'Что показываем',type:'select',default:'circle',
+     options:[{v:'circle', t:'Окружность: cos и sin как проекции'},
+              {v:'unwrap', t:'Развёртка: та же точка как синусоида'},
+              {v:'small',  t:'Малые углы: когда sin θ ≈ θ'}]},
+    {key:'ang',label:'Угол φ₀',unit:'°',min:-360,max:360,step:1,default:35},
+    {key:'w',  label:'Угловая скорость ω',unit:'рад/с',min:0,max:3,step:0.05,default:0},
+
+    {type:'group',label:'Показывать'},
+    {key:'proj',  label:'Проекции на оси (cos и sin)',type:'check',default:true},
+    {key:'arc',   label:'Дугу и её длину в радианах',type:'check',default:true},
+    {key:'tang',  label:'Тангенс как отрезок касательной',type:'check',default:false},
+    {key:'ident', label:'Треугольник основного тождества',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+
+  /* Текущий угол в радианах: начальный плюс набежавший за время. При ω = 0
+     картинка стоит, и углом управляет ползунок — так удобнее разбираться. */
+  phi(s,p){ return p.ang*Math.PI/180 + p.w*(s?s.t:0); },
+  RAD:2.6,                                   // радиус окружности на сцене
+
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
+      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+  },
+  anchors(s,p){
+    const R=this.RAD, f=this.phi(s,p);
+    return [{x:0,y:0},{x:R*Math.cos(f),y:R*Math.sin(f)}];
+  },
+
+  readouts(s,p){
+    const f=this.phi(s,p), c=Math.cos(f), sn=Math.sin(f);
+    const град=f*180/Math.PI;
+    const out=[
+      ['угол φ',град,'°'],
+      ['он же в радианах',f,'рад'],
+      ['длина дуги при R = 1',Math.abs(f),'— вот что такое радиан'],
+      ['cos φ (проекция на x)',c,''],
+      ['sin φ (проекция на y)',sn,''],
+      ['sin²φ + cos²φ',sn*sn+c*c,'— всегда единица, это теорема Пифагора']
+    ];
+    if(p.tang){
+      const tg=Math.abs(c)<1e-9?Infinity:sn/c;
+      out.push(['tg φ = sin φ / cos φ',tg,'']);
+    }
+    if(p.mode==='small'){
+      /* Приближение sin θ ≈ θ — рабочая лошадь всей физики малых колебаний.
+         Показываем не только «примерно равно», но и цену приближения. */
+      const θ=Math.abs(f), sθ=Math.abs(sn);
+      const ошибка=θ>1e-12?100*(θ-sθ)/θ:0;
+      out.push(['θ в радианах',θ,'рад'],
+               ['sin θ',sθ,''],
+               ['ошибка замены sin θ → θ',ошибка,'%'],
+               ['она же для cos θ → 1 − θ²/2',
+                θ>1e-12?100*Math.abs(Math.cos(f)-(1-θ*θ/2))/Math.abs(Math.cos(f)):0,'%']);
+    }
+    return out;
+  },
+
+  graphs:[
+    {label:'Проекции точки: cos φ и sin φ',unit:'',series:['cos','sin'],
+     get(s,p){ const f=SIMS.unitcircle.phi(s,p); return [Math.cos(f),Math.sin(f)]; }},
+    {label:'Угол φ',unit:'рад',series:['φ'],
+     get(s,p){ return [SIMS.unitcircle.phi(s,p),null]; }}
+  ],
+
+  presets:[
+    {name:'Радиан — это длина дуги, равная радиусу',
+     values:{mode:'circle',ang:57,w:0,arc:true,proj:true,ident:false,tang:false}},
+    {name:'Синус — высота, косинус — ширина',
+     values:{mode:'circle',ang:35,w:0,proj:true,ident:true,arc:true,tang:false}},
+    {name:'Знакомые углы: 30°, 45°, 60°',
+     values:{mode:'circle',ang:45,w:0,proj:true,ident:true,arc:false,tang:false}},
+    {name:'Тангенс — отрезок на касательной',
+     values:{mode:'circle',ang:60,w:0,tang:true,proj:true,ident:false,arc:false}},
+    {name:'Развёртка: откуда берётся синусоида',
+     values:{mode:'unwrap',ang:0,w:1,proj:true,arc:false,ident:false,tang:false}},
+    {name:'Малые углы: 10° — ошибка меньше 0,5 %',
+     values:{mode:'small',ang:10,w:0,proj:true,arc:true,ident:false,tang:false}},
+    {name:'Малые углы: 60° — приближение уже врёт на 17 %',
+     values:{mode:'small',ang:60,w:0,proj:true,arc:true,ident:false,tang:false}}
+  ],
+
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const ш=p.mode==='unwrap'?15:9.5, в=p.mode==='unwrap'?8.6:8.6;
+    const scale=clamp(Math.min((W-60)/(ш*PX_PER_M),(H-60)/(в*PX_PER_M)),0.002,30);
+    return {x:p.mode==='unwrap'?3.3:0,y:0,scale};
+  },
+
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
+          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const R=this.RAD, f=this.phi(s,p);
+    const c=Math.cos(f), sn=Math.sin(f), X=R*c, Y=R*sn;
+    const mid=t=>-Math.round(String(t).length*3.05);
+
+    // ---- оси чертежа: они свои, а не метрические
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.7; ctx.lineWidth=v.lw(1.2);
+    ctx.beginPath();
+    ctx.moveTo(-R-0.7,0); ctx.lineTo(R+0.9,0);
+    ctx.moveTo(0,-R-0.7); ctx.lineTo(0,R+0.9);
+    ctx.stroke(); ctx.globalAlpha=1;
+    v.label(ctx,'cos φ',R+0.9,0,-24,16,ink3);
+    v.label(ctx,'sin φ',0,R+0.9,8,-4,ink3);
+    // деления −1 и +1: масштаб чертежа задаётся радиусом, а не сеткой
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+    for(const [x,y,t] of [[R,0,'1'],[-R,0,'−1'],[0,R,'1'],[0,-R,'−1']]){
+      ctx.beginPath();
+      if(y===0){ ctx.moveTo(x,-0.12); ctx.lineTo(x,0.12); }
+      else     { ctx.moveTo(-0.12,y); ctx.lineTo(0.12,y); }
+      ctx.stroke();
+      v.label(ctx,t,x,y,y===0?-3:10,y===0?16:-4,ink3);
+    }
+
+    // ---- сама окружность
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.8);
+    ctx.beginPath(); ctx.arc(0,0,R,0,7); ctx.stroke();
+
+    /* ---- дуга от нуля до точки. Её длина при R = 1 и ЕСТЬ угол в радианах —
+       это единственное определение радиана, которое не нужно запоминать. */
+    if(p.arc){
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(3.4);
+      ctx.beginPath(); ctx.arc(0,0,R,Math.min(0,f),Math.max(0,f)); ctx.stroke();
+      /* Подпись выносим ЗА окружность: внутри она ложится на треугольник
+         основного тождества и на подпись гипотенузы. */
+      const серед=f/2, t=`дуга = ${Math.abs(f).toFixed(3)}`;
+      v.label(ctx,t,(R+1.15)*Math.cos(серед),(R+1.15)*Math.sin(серед),mid(t),-6,acc);
+    }
+
+    // ---- радиус к точке
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(X,Y); ctx.stroke();
+
+    /* ---- проекции: пунктиры до осей. Это и есть определение косинуса и
+       синуса, годное для любого угла, а не только для острого. */
+    if(p.proj){
+      ctx.setLineDash([v.lw(4),v.lw(4)]); ctx.lineWidth=v.lw(1.4);
+      ctx.strokeStyle=meas;
+      ctx.beginPath(); ctx.moveTo(X,Y); ctx.lineTo(X,0); ctx.stroke();
+      ctx.strokeStyle=sec;
+      ctx.beginPath(); ctx.moveTo(X,Y); ctx.lineTo(0,Y); ctx.stroke();
+      ctx.setLineDash([]);
+      // сами отрезки-проекции — жирнее пунктира
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(3.4);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(X,0); ctx.stroke();
+      ctx.strokeStyle=sec;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,Y); ctx.stroke();
+      const tc=`cos φ = ${c.toFixed(3)}`, ts=`sin φ = ${sn.toFixed(3)}`;
+      v.label(ctx,tc,X/2,0,mid(tc),Y>=0?20:-10,meas);
+      v.label(ctx,ts,0,Y/2,X>=0?-Math.round(ts.length*6.1)-10:12,0,sec);
+    }
+
+    /* ---- прямоугольный треугольник: гипотенуза 1, катеты cos и sin.
+       Теорема Пифагора для него и есть sin² + cos² = 1 — тождество, которое
+       обычно заучивают, хотя выводится оно в одну строку. */
+    if(p.ident){
+      ctx.strokeStyle=acc; ctx.globalAlpha=.16;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(X,0); ctx.lineTo(X,Y); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1;
+      // прямой угол
+      const зн=Math.sign(Y)||1, знx=Math.sign(X)||1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.2);
+      ctx.beginPath();
+      ctx.moveTo(X-0.22*знx,0); ctx.lineTo(X-0.22*знx,0.22*зн); ctx.lineTo(X,0.22*зн);
+      ctx.stroke();
+      /* Подпись гипотенузы сдвигаем к центру и наружу от треугольника: на
+         середине она наезжала и на подпись синуса, и на дугу. */
+      const t='гипотенуза = 1';
+      v.label(ctx,t,X*0.55,Y*0.42,mid(t),4,acc);
+    }
+
+    /* ---- тангенс: отрезок касательной от оси до продолжения радиуса.
+       Отсюда видно, почему он уходит в бесконечность при φ → 90°. */
+    if(p.tang && Math.abs(c)>1e-3){
+      const tg=sn/c;
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.2); ctx.globalAlpha=.5;
+      ctx.setLineDash([v.lw(3),v.lw(3)]);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(R*1.6*Math.sign(c),R*1.6*tg*Math.sign(c)); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(3.4);
+      ctx.beginPath(); ctx.moveTo(R*Math.sign(c),0); ctx.lineTo(R*Math.sign(c),R*tg*Math.sign(c)); ctx.stroke();
+      const t=`tg φ = ${tg.toFixed(3)}`;
+      v.label(ctx,t,R*Math.sign(c),R*tg*Math.sign(c)/2,12*Math.sign(c),0,dang);
+    }
+
+    // ---- сама точка
+    ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(X,Y,v.lw(5),0,7); ctx.fill();
+    const tф=`φ = ${(f*180/Math.PI).toFixed(1)}° = ${f.toFixed(3)} рад`;
+    v.label(ctx,tф,X,Y,mid(tф),Y>=0?-24:22,acc);
+
+    /* ---- РАЗВЁРТКА. Тень точки по вертикали, отложенная вправо по мере
+       поворота, рисует синусоиду. Это переход от «синус — сторона
+       треугольника» к «синус — функция времени», с которого начинается
+       описание любых колебаний. */
+    if(p.mode==='unwrap'){
+      const X0=R+1.3, L=7.0;                      // где и насколько широко разворачиваем
+      const к=1.15;                               // единиц сцены на один радиан
+      const окно=L/к;                             // сколько радиан помещается
+      /* Окно едет за точкой: пока углов мало, кривая растёт слева направо, а
+         дальше начинает прокручиваться. Подписи делений показывают НАСТОЯЩИЙ
+         угол, а не расстояние от начала кривой — иначе ось врала бы. */
+      const φ0=Math.max(0,f-окно);
+      const x=φ=>X0+(φ-φ0)*к;
+
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X0+L,0); ctx.stroke();
+      ctx.globalAlpha=1;
+      for(let k=Math.ceil(φ0);k<=f;k++){
+        ctx.beginPath(); ctx.moveTo(x(k),-0.1); ctx.lineTo(x(k),0.1); ctx.stroke();
+        v.label(ctx,`${k}`,x(k),0,-3,16,ink3);
+      }
+      v.label(ctx,'угол φ, рад',X0+L*0.5,0,-42,30,ink3);
+
+      // сама синусоида на видимом участке
+      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.4);
+      ctx.beginPath();
+      for(let i=0;i<=300;i++){
+        const φ=φ0+(f-φ0)*i/300;
+        i?ctx.lineTo(x(φ),R*Math.sin(φ)):ctx.moveTo(x(φ),R*Math.sin(φ));
+      }
+      ctx.stroke();
+      // связь: горизонтальный пунктир от точки на круге к концу синусоиды
+      ctx.strokeStyle=sec; ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1.2);
+      ctx.setLineDash([v.lw(4),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(X,Y); ctx.lineTo(x(f),Y); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(x(f),Y,v.lw(4),0,7); ctx.fill();
+      const t='высота точки = sin φ';
+      v.label(ctx,t,x(f),Y,mid(t),Y>=0?-16:18,sec);
+    }
+
+    /* ---- МАЛЫЕ УГЛЫ. Дуга (это θ), её хорда и высота (это sin θ) при малом
+       угле почти совпадают. Показываем обе величины рядом с увеличением. */
+    if(p.mode==='small'){
+      const θ=Math.abs(f);
+      const ошибка=θ>1e-12?100*(θ-Math.abs(sn))/θ:0;
+      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(3.4);
+      ctx.beginPath(); ctx.moveTo(X,0); ctx.lineTo(X,Y); ctx.stroke();
+      const t1=`θ (дуга) = ${θ.toFixed(4)}`;
+      const t2=`sin θ (высота) = ${Math.abs(sn).toFixed(4)}`;
+      /* Порог не один, а два: до процента приближением пользуются молча,
+         до пяти — с оговоркой «оценка», дальше оно просто врёт. */
+      const вывод = ошибка<1 ? ' — приближение годится' :
+                    ошибка<5 ? ' — годится только для грубой оценки' : ' — так уже нельзя';
+      const t3=`разница ${ошибка.toFixed(2)} %${вывод}`;
+      v.label(ctx,t1,0,-R-1.0,mid(t1),0,acc);
+      v.label(ctx,t2,0,-R-1.0,mid(t2),16,sec);
+      v.label(ctx,t3,0,-R-1.0,mid(t3),32,ошибка<1?v.c('--ok'):ошибка<5?meas:dang);
+    }
+
+    // ---- подпись режима внизу
+    const подпись = p.mode==='unwrap' ? 'поворот по кругу → синусоида: это одно и то же движение'
+      : p.mode==='small' ? 'при малом угле дуга и её высота почти совпадают'
+      : 'точка на окружности радиуса 1: её координаты — это cos φ и sin φ';
+    v.label(ctx,подпись,0,-R-1.9,mid(подпись),0,ink3);
+  }
+}
+
+});
 
 ;
 'use strict';
@@ -16430,6 +16792,251 @@ const wip=(id,ch,title)=>({id,ch,title,theory:'',formulas:[],problems:[]});
    числом: задачам нужна сама величина. */
 const LIQ_RHO=p=>({water:1000,oil:900,sea:1025,merc:13546})[p.liq]||1000;
 
+/* =============================================================================
+   МАТЕМАТИЧЕСКИЙ АППАРАТ
+
+   Раздел не отвлечённый: сюда вынесено ровно то, чем пользуются физические
+   главы, и ни строчкой больше. Каждая тема стоит перед той главой, которая
+   первой её просит, и заканчивается физической задачей — иначе математика
+   читается как повинность.
+   ============================================================================= */
+const T_mtrig={
+  id:'math.trig', ch:'М4', title:'Тригонометрия: углы, синус и косинус',
+  time:40,
+  needs:[],
+  gives:['радиан','синус как проекция','малые углы'],
+  why:`Синус и косинус в школе вводят как отношения сторон прямоугольного треугольника — и с этим
+    определением дальше первого раздела физики не уйти: угол в нём не бывает больше $90^\\circ$, а
+    физике нужны углы любые, в том числе растущие со временем. Здесь то же самое определяется иначе —
+    <strong>через координаты точки на окружности</strong>. Определение шире, работает для любого угла,
+    и из него сразу видно, почему колебание маятника, переменный ток и волна описываются одной и той
+    же функцией.`,
+  theory:`
+  <h3 class="sub">Зачем менять определение</h3>
+  <p>В прямоугольном треугольнике $\\sin\\alpha$ — это отношение противолежащего катета к гипотенузе.
+  Определение честное, но у него есть жёсткая граница: катет не бывает длиннее гипотенузы, а угол в
+  треугольнике не бывает больше прямого. Что такое $\\sin 200^\\circ$ — оно не говорит.</p>
+  <p>Физике этого мало. Маятник качается туда и обратно, колесо крутится без остановки, фаза волны
+  растёт неограниченно. Нужен синус любого угла, в том числе отрицательного и большего полного
+  оборота.</p>
+
+  <h3 class="sub">Единичная окружность</h3>
+  <p>Возьмём окружность радиуса $1$ с центром в начале координат. Отложим от положительного
+  направления оси $x$ угол $\\varphi$ против часовой стрелки и поставим точку $P$ на окружности.
+  Тогда по определению</p>
+  <p>$$\\cos\\varphi = x_P,\\qquad \\sin\\varphi = y_P.$$</p>
+  <p>То есть <strong>косинус — это горизонтальная координата точки, синус — вертикальная</strong>.
+  Никаких ограничений на угол больше нет: точку можно гонять по кругу сколько угодно, в любую сторону.</p>
+  <div class="callout"><strong>Согласуется ли это со школьным определением?</strong> Да. Для острого
+  угла опустите из $P$ перпендикуляр на ось $x$ — получится прямоугольный треугольник с гипотенузой $1$
+  (это радиус), горизонтальным катетом $x_P$ и вертикальным $y_P$. Отношение противолежащего катета к
+  гипотенузе равно $y_P/1=y_P$. Ровно то же число.</div>
+
+  <h3 class="sub">Радиан: угол, измеренный длиной</h3>
+  <p>Градус — величина условная: делить полный оборот на 360 частей придумали в Вавилоне, и никакой
+  математики за этим числом нет. Есть мера естественная: измерять угол <strong>длиной дуги</strong>,
+  которую он вырезает на окружности радиуса $1$.</p>
+  <p>Угол в один <strong>радиан</strong> — это угол, вырезающий дугу длиной в один радиус. Полная
+  окружность имеет длину $2\\pi R$, значит в полном обороте $2\\pi$ радиан:</p>
+  <p>$$360^\\circ = 2\\pi\\ \\text{рад},\\qquad 1\\ \\text{рад} = \\frac{180^\\circ}{\\pi} \\approx 57{,}3^\\circ.$$</p>
+  <p>Для дуги радиуса $R$ длина равна $\\ell = R\\varphi$ — но <em>только если $\\varphi$ в радианах</em>.
+  Эта формула и есть причина, по которой вся физика пользуется радианами: в градусах в неё пришлось бы
+  вписывать множитель $\\pi/180$, и он тянулся бы дальше во все производные и интегралы.</p>
+  <div class="callout"><strong>Практическое правило.</strong> Увидели в формуле угол без градусного
+  значка — это радианы. Особенно в аргументе синуса: $\\sin(\\omega t)$ имеет смысл только тогда, когда
+  $\\omega t$ — число в радианах.</div>
+
+  <h3 class="sub">Основное тождество — это теорема Пифагора</h3>
+  <p>Точка $P$ лежит на окружности радиуса $1$, значит расстояние от неё до центра равно единице.
+  По теореме Пифагора $x_P^2+y_P^2=1$, то есть</p>
+  <p>$$\\sin^2\\varphi + \\cos^2\\varphi = 1.$$</p>
+  <p>Это тождество обычно заучивают. Заучивать нечего: это Пифагор для треугольника с гипотенузой $1$.</p>
+
+  <h3 class="sub">Знаки по четвертям</h3>
+  <p>Знаки не нужно запоминать таблицей — они читаются с картинки. Косинус — это $x$, синус — это $y$:</p>
+  <ul>
+    <li>первая четверть ($0$…$90^\\circ$): обе координаты положительны;</li>
+    <li>вторая ($90$…$180^\\circ$): $x&lt;0$, $y&gt;0$ — косинус отрицателен, синус положителен;</li>
+    <li>третья ($180$…$270^\\circ$): обе отрицательны;</li>
+    <li>четвёртая ($270$…$360^\\circ$): $x&gt;0$, $y&lt;0$.</li>
+  </ul>
+
+  <h3 class="sub">Поворот во времени: откуда берётся синусоида</h3>
+  <p>Пусть точка бежит по окружности с постоянной угловой скоростью $\\omega$ (радиан в секунду). Тогда
+  угол растёт линейно: $\\varphi=\\omega t$, а координаты становятся функциями времени:</p>
+  <p>$$x(t)=\\cos\\omega t,\\qquad y(t)=\\sin\\omega t.$$</p>
+  <p>Если откладывать вправо время, а вверх — вертикальную координату, получится знакомая волнистая
+  кривая. <strong>Синусоида — это тень равномерного вращения.</strong> В симуляции включите режим
+  «Развёртка» и посмотрите, как одно превращается в другое.</p>
+  <p>Отсюда весь словарь колебаний: $\\omega$ — циклическая частота (рад/с), период $T=2\\pi/\\omega$ —
+  время одного оборота, частота $\\nu=1/T$ — сколько оборотов в секунду. Начальный угол $\\varphi_0$
+  называют <strong>начальной фазой</strong>: он говорит, из какой точки круга стартовали.</p>
+  <div class="callout"><strong>Косинус — это сдвинутый синус.</strong> $\\cos\\varphi=\\sin(\\varphi+90^\\circ)$.
+  Обе функции — одна и та же кривая, только смотрят на неё с разных сторон круга. Поэтому колебание
+  можно писать и через синус, и через косинус: разница уходит в начальную фазу.</div>
+
+  <h3 class="sub">Малые углы: приближение, на котором стоит полкурса</h3>
+  <p>При малом угле дуга и её вертикальная проекция почти совпадают — глазом не отличить. Формально:</p>
+  <p>$$\\sin\\theta\\approx\\theta,\\qquad \\tan\\theta\\approx\\theta,\\qquad
+     \\cos\\theta\\approx 1-\\frac{\\theta^2}{2}\\qquad (\\theta\\ \\text{в радианах!}).$$</p>
+  <p>Насколько «почти»? При $\\theta=10^\\circ$ замена $\\sin\\theta\\to\\theta$ врёт на $0{,}5\\,\\%$,
+  при $20^\\circ$ — на $2\\,\\%$, при $30^\\circ$ — на $4{,}5\\,\\%$, при $60^\\circ$ — уже на $17\\,\\%$. Это не «математическая условность»:
+  именно на этом приближении держится формула периода маятника, вывод закона преломления для тонкой
+  линзы и условие интерференционных максимумов. Всюду там маленькими буквами написано «при малых
+  углах», и теперь понятно, чем за это платят.</p>
+  <div class="callout"><strong>Почему приближение работает только в радианах.</strong> В градусах
+  $\\sin 10^\\circ = 0{,}17$, а «$\\theta$» было бы $10$ — не похоже совсем. Радиан потому и естественная
+  мера, что в ней угол и синус угла — числа одного порядка.</div>
+  `,
+  derivations:[
+    {
+      goal:'\\sin^2\\varphi+\\cos^2\\varphi=1',
+      from:['x_P=\\cos\\varphi','y_P=\\sin\\varphi','a^2+b^2=c^2'],
+      steps:[
+        {tex:'x_P^2+y_P^2=R^2',
+         why:'теорема Пифагора для прямоугольного треугольника с катетами $x_P$, $y_P$ и гипотенузой — радиусом'},
+        {tex:'R=1',
+         why:'окружность единичная — это и есть всё, чем она особенная'},
+        {tex:'\\cos^2\\varphi+\\sin^2\\varphi=1',
+         why:'подставили определения координат'}
+      ],
+      sim:'unitcircle'
+    },
+    {
+      goal:'\\ell = R\\varphi',
+      from:['\\text{длина окружности}=2\\pi R'],
+      steps:[
+        {tex:'\\dfrac{\\ell}{2\\pi R}=\\dfrac{\\varphi}{2\\pi}',
+         why:'дуга относится ко всей окружности так же, как угол — к полному обороту'},
+        {tex:'\\ell = R\\varphi',
+         why:'сократили $2\\pi$. Формула верна только для угла в радианах — именно так радиан и определён'}
+      ],
+      sim:'unitcircle'
+    },
+    {
+      goal:'\\sin\\theta\\approx\\theta',
+      from:['\\ell = R\\theta','\\sin\\theta = y_P'],
+      steps:[
+        {tex:'\\ell=\\theta\\quad\\text{при}\\ R=1',
+         why:'длина дуги при единичном радиусе численно равна углу в радианах'},
+        {tex:'y_P=\\sin\\theta',
+         why:'высота той же точки — это синус'},
+        {tex:'\\theta\\to 0:\\ \\ \\ell\\to y_P',
+         why:'дуга выпрямляется и прижимается к вертикальному отрезку: чем меньше угол, тем меньше между ними разницы'},
+        {tex:'\\sin\\theta\\approx\\theta',
+         why:'сама разность $\\theta-\\sin\\theta$ растёт как $\\theta^3/6$, а относительная ошибка — как $\\theta^2/6$ — поэтому при $10^\\circ$ она всего полпроцента, а при $60^\\circ$ уже семнадцать'}
+      ],
+      sim:'unitcircle'
+    }
+  ],
+  formulas:[
+    {tex:'\\cos\\varphi=x_P,\\qquad \\sin\\varphi=y_P', kind:'определение',
+     note:'Координаты точки на окружности радиуса 1. Работает для любого угла, в том числе больше $90^\\circ$ и отрицательного.', sim:'unitcircle'},
+    {tex:'360^\\circ=2\\pi\\ \\text{рад},\\qquad 1\\ \\text{рад}\\approx 57{,}3^\\circ', kind:'определение',
+     note:'Радиан — угол, вырезающий дугу длиной в один радиус.', sim:'unitcircle'},
+    {tex:'\\ell=R\\varphi', kind:'следствие',
+     note:'Длина дуги. Только для радиан: в градусах появился бы множитель $\\pi/180$.', sim:'unitcircle'},
+    {tex:'\\sin^2\\varphi+\\cos^2\\varphi=1', kind:'следствие',
+     note:'Основное тождество. Это теорема Пифагора для треугольника с гипотенузой 1.', sim:'unitcircle'},
+    {tex:'\\operatorname{tg}\\varphi=\\dfrac{\\sin\\varphi}{\\cos\\varphi}', kind:'определение',
+     note:'Обращается в бесконечность там, где $\\cos\\varphi=0$, то есть при $90^\\circ$ и $270^\\circ$.', sim:'unitcircle'},
+    {tex:'\\cos\\varphi=\\sin\\left(\\varphi+\\dfrac{\\pi}{2}\\right)', kind:'следствие',
+     note:'Косинус — тот же синус, сдвинутый на четверть оборота. Разница между ними уходит в начальную фазу.', sim:'unitcircle'},
+    {tex:'x(t)=\\cos\\omega t,\\qquad y(t)=\\sin\\omega t', kind:'следствие',
+     note:'Равномерное вращение с угловой скоростью $\\omega$. Тень такого движения на ось — синусоида.', sim:'unitcircle'},
+    {tex:'\\sin\\theta\\approx\\theta,\\qquad \\cos\\theta\\approx 1-\\dfrac{\\theta^2}{2}', kind:'следствие',
+     note:'Малые углы, $\\theta$ в радианах. Относительная ошибка $\\approx\\theta^2/6$: при $10^\\circ$ — 0,5 %, при $30^\\circ$ — 4,5 %, при $60^\\circ$ — 17 %.', sim:'unitcircle'}
+  ],
+  examples:[
+    {
+      task:`Маятник отклонили на $\\theta = 12^\\circ$. Найдите возвращающую силу для груза массой
+        $m = 0{,}5$ кг двумя способами — точно ($mg\\sin\\theta$) и в приближении малых углов
+        ($mg\\theta$) — и оцените, какую ошибку вносит приближение.`,
+      method:'перевод в радианы и приближение малых углов',
+      steps:[
+        {text:'Переводим угол в радианы: это единственная мера, в которой приближение вообще имеет смысл.',
+         tex:'\\theta = 12^\\circ\\cdot\\dfrac{\\pi}{180^\\circ} = 0{,}2094\\ \\text{рад}'},
+        {text:'Точное значение возвращающей силы:',
+         tex:'F = mg\\sin\\theta = 0{,}5\\cdot 9{,}8\\cdot\\sin 0{,}2094 = 0{,}5\\cdot 9{,}8\\cdot 0{,}2079 = 1{,}019\\ \\text{Н}'},
+        {text:'Приближённое — заменяем синус самим углом:',
+         tex:'F_{\\text{прибл}} = mg\\theta = 0{,}5\\cdot 9{,}8\\cdot 0{,}2094 = 1{,}026\\ \\text{Н}'},
+        {text:'Относительная ошибка:',
+         tex:'\\dfrac{1{,}026-1{,}019}{1{,}019} = 0{,}007 = 0{,}7\\,\\%'}
+      ],
+      answer:'$F = 1{,}019$ Н точно и $1{,}026$ Н в приближении; ошибка $0{,}7\\,\\%$ — меньше, чем погрешность, с которой вы отмерите сам угол.',
+      check:'в симуляции поставьте режим «Малые углы» и угол $12^\\circ$ — показание «ошибка замены sin θ → θ» даст те же 0,7 %.',
+      sim:'unitcircle'
+    }
+  ],
+  mistakes:[
+    {wrong:'$\\sin 30 = 0{,}5$ — это же известное значение.',
+     right:'$\\sin 30^\\circ=0{,}5$, но $\\sin 30 = -0{,}988$: без градусного значка число считается радианами.',
+     why:'30 радиан — это почти пять полных оборотов, точка оказывается совсем в другом месте окружности. Ошибка живучая, потому что калькулятор молча считает в том режиме, в котором его оставили. Правило простое: в физической формуле аргумент синуса всегда в радианах, и если в условии дан угол в градусах — переводите сразу, а не в конце.'},
+    {wrong:'Приближение $\\sin\\theta\\approx\\theta$ — математическая условность, на ответ почти не влияет.',
+     right:'Влияет ровно настолько, насколько велик угол: при $10^\\circ$ — полпроцента, при $30^\\circ$ — четыре с половиной, при $60^\\circ$ — семнадцать.',
+     why:'Ошибка растёт как куб угла, поэтому «малый» и «немалый» разделены не резкой границей, а быстрым ростом. Полезно знать порог: до $14^\\circ$ приближение точнее одного процента — это лучше, чем обычно измеряют в школьном опыте.'},
+    {wrong:'Синус бывает только у острого угла — у тупого катета уже нет.',
+     right:'Синус определён для любого угла, включая тупой, отрицательный и больше полного оборота.',
+     why:'Это следствие старого школьного определения через треугольник. Определение через окружность снимает вопрос: точку можно поставить где угодно, а координаты у неё есть всегда. Для тупого угла косинус просто отрицателен — точка ушла влево от оси $y$.'},
+    {wrong:'Раз $\\sin^2\\varphi+\\cos^2\\varphi=1$, то $\\sin\\varphi+\\cos\\varphi=1$.',
+     right:'Сумма синуса и косинуса не постоянна: она меняется от $-\\sqrt2$ до $\\sqrt2$.',
+     why:'Квадраты убрать нельзя: $(a+b)^2\\ne a^2+b^2$. Проверить можно за секунду — при $\\varphi=45^\\circ$ обе функции равны $0{,}707$, и сумма даёт $1{,}41$, а не единицу. В симуляции выведите оба показания и покрутите угол.'}
+  ],
+  checks:[
+    {q:'Почему определение через окружность лучше определения через прямоугольный треугольник?',
+     a:'Оно работает для любого угла. В треугольнике угол не бывает больше прямого, а физике нужны углы растущие — фаза колебания $\\omega t$ уходит в бесконечность.'},
+    {q:'Что такое радиан, если объяснить одной фразой?',
+     a:'Угол, вырезающий на окружности дугу длиной в один радиус. Отсюда $\\ell=R\\varphi$ и $2\\pi$ радиан в полном обороте.'},
+    {q:'Откуда берётся тождество $\\sin^2+\\cos^2=1$?',
+     a:'Из теоремы Пифагора: точка лежит на окружности радиуса 1, её координаты — катеты, радиус — гипотенуза.'},
+    {q:'Что общего у вращения колеса и колебания маятника?',
+     a:'Синусоида — это тень равномерного вращения. Проекция точки, бегущей по кругу, движется ровно так же, как груз на пружине.'},
+    {q:'До какого угла можно писать $\\sin\\theta\\approx\\theta$?',
+     a:'Ровно до $14^\\circ$: там ошибка достигает одного процента. При $30^\\circ$ — уже 4,5 %, при $60^\\circ$ — 17 %. И только в радианах.'}
+  ],
+  links:[
+    {to:'mech.2d', text:'Разложение вектора на составляющие — это и есть проекции: $a_x=a\\cos\\alpha$, $a_y=a\\sin\\alpha$. Та же картинка, только вместо радиуса — вектор.'},
+    {to:'mech.osc', text:'Колебание $x=A\\cos\\omega t$ — это в точности горизонтальная координата точки, бегущей по окружности радиуса $A$. Оттуда же приходит приближение малых углов в формуле периода маятника.'},
+    {to:'op.interf', text:'Условие интерференционных максимумов выводится через $\\sin\\theta$, а на экране измеряют смещение — переход между ними держится на приближении малых углов.'}
+  ],
+  problems:[
+    {level:1, sim:'unitcircle', unit:'рад',
+     statement:`Переведите угол $\\varphi_0$, заданный в параметрах симуляции, из градусов в радианы.`,
+     hint:'Полный оборот — это $360^\\circ$ и $2\\pi$ радиан одновременно.',
+     answer:p=>p.ang*Math.PI/180},
+
+    {level:2, sim:'unitcircle', unit:'',
+     statement:`Точка стоит под углом $\\varphi_0$. Чему равна её горизонтальная координата,
+       то есть $\\cos\\varphi_0$? Ответ — число от $-1$ до $1$.`,
+     hint:'Косинус — это проекция на ось $x$; радиус равен единице.',
+     answer:p=>Math.cos(p.ang*Math.PI/180)},
+
+    {level:3, sim:'unitcircle', unit:'',
+     statement:`Найдите <strong>сумму</strong> $\\sin\\varphi_0+\\cos\\varphi_0$ при текущем угле.
+       Проверьте себя: единице она не равна — из тождества $\\sin^2+\\cos^2=1$ это никак
+       не следует, и путать их — самая частая ошибка в этой теме.`,
+     hint:'Квадраты убрать нельзя: $(a+b)^2\\ne a^2+b^2$. Считайте оба слагаемых по отдельности.',
+     answer:p=>{ const f=p.ang*Math.PI/180; return Math.sin(f)+Math.cos(f); }},
+
+    {level:4, sim:'unitcircle', unit:'%',
+     statement:`Какую относительную ошибку (в процентах) даёт замена $\\sin\\theta\\to\\theta$
+       при текущем угле $\\varphi_0$? Считайте угол по модулю.`,
+     hint:'Ошибка — это $(\\theta-\\sin\\theta)/\\theta$, выраженная в процентах.',
+     answer:p=>{ const θ=Math.abs(p.ang*Math.PI/180);
+       return θ<1e-9?0:100*(θ-Math.abs(Math.sin(θ)))/θ; }},
+
+    {level:5, sim:'unitcircle', unit:'°',
+     statement:`Начиная с какого угла (в градусах) приближение $\\sin\\theta\\approx\\theta$ врёт
+       больше чем на <strong>один процент</strong>? Ответ не зависит от параметров — это
+       универсальная граница, которую полезно помнить.`,
+     hint:'Ошибка растёт как $\\theta^2/6$: приравняйте её к 0,01 и переведите в градусы.',
+     answer:()=>{ let lo=0, hi=1.5;                       // делим пополам: ошибка растёт монотонно
+       for(let i=0;i<80;i++){ const m=(lo+hi)/2;
+         if((m-Math.sin(m))/m>0.01) hi=m; else lo=m; }
+       return (lo+hi)/2*180/Math.PI; }}
+  ]
+};
+
 const T_1d={
   id:'mech.1d', ch:'1', title:'Одномерное движение',
   theory:`
@@ -16638,6 +17245,7 @@ const T_1d={
 
 const T_2d={
   id:'mech.2d', ch:'2', title:'Двумерное движение',
+  needs:['math.trig'],
   theory:`
   <h3 class="sub">Главная идея: движение расщепляется на два независимых</h3>
   <p>Стробоскопические снимки шарика, вылетающего из пушки, показывают: если пушку везти с постоянной
@@ -17034,6 +17642,7 @@ const T_intro={
 
 const T_dyn={
   id:'mech.dyn', ch:'3', title:'Динамика',
+  needs:['math.trig'],
   theory:`
   <p>Кинематика описывала движение, ничего не спрашивая о его причине. Динамика отвечает на вопрос
   <strong>почему</strong> тело движется именно так. Весь ответ умещается в одну строчку — второй закон Ньютона —
@@ -17616,6 +18225,7 @@ const T_grav={
 
 const T_work={
   id:'mech.work', ch:'5', title:'Работа и энергия',
+  needs:['math.trig'],
   theory:`
   <p>Иногда решать задачу через $\\vec F=m\\vec a$ и траекторию слишком долго. Понятие <strong>энергии</strong>
   даёт обходной путь: часто ответ можно получить, вообще не вычисляя, как движется тело со временем —
@@ -18048,6 +18658,7 @@ const T_econs={
 
 const T_rot={
   id:'mech.rot', ch:'7', title:'Статика: равновесие тел',
+  needs:['math.trig'],
   theory:`
   <p>До сих пор мы рассматривали тела как точки. Но мост, лестница или подъёмный кран — это протяжённые тела,
   и для них мало потребовать «сумма сил равна нулю»: тело может не двигаться как целое, но при этом
@@ -18302,6 +18913,18 @@ const T_rot={
 
 const T_osc={
   id:'mech.osc', ch:'8', title:'Колебательное движение',
+  time:60,
+  /* Тема опирается на три вещи: синус как проекцию (math.trig), второй закон
+     Ньютона (mech.dyn) и потенциальную яму (mech.work). Без первого не понять,
+     откуда синусоида; без второго — откуда уравнение; без третьего — почему
+     колебания встречаются повсюду, а не только у пружины. */
+  needs:['math.trig','mech.dyn','mech.work'],
+  gives:['гармоническое колебание','период и частота','резонанс'],
+  why:`Часы, качели, струна, атом в кристалле, ток в антенне, мост под шагами роты — всё это
+    описывается <strong>одним</strong> уравнением. Причина не в совпадении: вблизи любого устойчивого
+    равновесия сила возврата пропорциональна смещению, а из этого сразу следует синусоида. Эта тема
+    отвечает на вопрос, почему природа так любит именно колебания, и даёт формулу периода, которая
+    не зависит от того, насколько сильно вы качнули.`,
   theory:`
   <p>До сих пор мы изучали движение с постоянным ускорением или под действием тяготения. Здесь речь пойдёт о
   движении, которое повторяется во времени по <strong>синусоидальному закону</strong>. Такие колебания —
@@ -18409,27 +19032,100 @@ const T_osc={
     <li>Постройте кривую резонанса: меняя частоту внешней силы, следите за амплитудой. Затем увеличьте
     трение — пик осядет и расплывётся.</li>
   </ul>`,
+  derivations:[
+    {
+      goal:'T=2\\pi\\sqrt{\\dfrac{m}{k}}',
+      from:['F=-kx','ma=F','x=A\\cos\\omega t'],
+      steps:[
+        {tex:'m\\ddot x=-kx',
+         why:'второй закон Ньютона, в который подставлена сила Гука. Ускорение — вторая производная координаты по времени'},
+        {tex:'\\ddot x=-\\dfrac{k}{m}\\,x',
+         why:'разделили на массу. Уравнение говорит: ускорение всегда направлено к равновесию и тем больше, чем дальше ушли'},
+        {tex:'\\ddot x=-\\omega^2 x,\\qquad \\omega^2=\\dfrac{k}{m}',
+         why:'обозначение, а не новый шаг: коэффициент положителен, поэтому его удобно назвать квадратом'},
+        {tex:'x=A\\cos\\omega t\\ \\Rightarrow\\ \\ddot x=-\\omega^2 A\\cos\\omega t=-\\omega^2 x',
+         why:'проверка подстановкой: косинус, продифференцированный дважды, воспроизводит сам себя со знаком минус. Значит он и есть решение'},
+        {tex:'T=\\dfrac{2\\pi}{\\omega}=2\\pi\\sqrt{\\dfrac{m}{k}}',
+         why:'период косинуса по аргументу равен $2\\pi$, а аргумент растёт со скоростью $\\omega$. Амплитуда $A$ в ответ не вошла — вот откуда изохронность'}
+      ],
+      sim:'spring'
+    },
+    {
+      goal:'T=2\\pi\\sqrt{\\dfrac{L}{g}}',
+      from:['F=-mg\\sin\\theta','\\sin\\theta\\approx\\theta','x=L\\theta'],
+      steps:[
+        {tex:'F_\\tau=-mg\\sin\\theta',
+         why:'вдоль дуги действует только составляющая тяжести; нить компенсирует остальное'},
+        {tex:'F_\\tau\\approx-mg\\theta',
+         why:'приближение малых углов из темы о тригонометрии. Именно здесь возникает оговорка «при малых колебаниях»'},
+        {tex:'x=L\\theta\\ \\Rightarrow\\ F_\\tau\\approx-\\dfrac{mg}{L}\\,x',
+         why:'перешли от угла к смещению по дуге. Получился закон Гука с жёсткостью $k=mg/L$'},
+        {tex:'T=2\\pi\\sqrt{\\dfrac{m}{k}}=2\\pi\\sqrt{\\dfrac{mL}{mg}}=2\\pi\\sqrt{\\dfrac{L}{g}}',
+         why:'подставили в уже выведенную формулу. Масса сократилась — период маятника от неё не зависит'}
+      ],
+      sim:'pendulum'
+    },
+    {
+      goal:'U(x)\\approx U_{\\min}+\\tfrac12 k x^2\\ \\Rightarrow\\ F=-kx',
+      from:['F=-\\dfrac{dU}{dx}'],
+      steps:[
+        {tex:'\\left.\\dfrac{dU}{dx}\\right|_{x=0}=0',
+         why:'в точке равновесия сила равна нулю, а сила — это минус производная потенциальной энергии'},
+        {tex:'U(x)\\approx U_{\\min}+\\tfrac12 U\'\'(0)\\,x^2',
+         why:'вблизи минимума любая гладкая кривая похожа на параболу: линейного слагаемого нет по предыдущему шагу'},
+        {tex:'F=-\\dfrac{dU}{dx}\\approx-U\'\'(0)\\,x\\equiv-kx',
+         why:'продифференцировали. Получился закон Гука — с жёсткостью, равной кривизне ямы'},
+        {tex:'\\omega=\\sqrt{U\'\'(0)/m}',
+         why:'отсюда и универсальность: любое тело у дна любой ямы колеблется гармонически, пока не отошло далеко'}
+      ],
+      sim:'spring'
+    }
+  ],
   formulas:[
-    {tex:'F=-kx',
+    {tex:'F=-kx', kind:'закон',
      note:'Закон Гука: гармоническая сила пропорциональна смещению и направлена к равновесию.', sim:'spring'},
-    {tex:'x=A\\cos(\\omega t),\\qquad \\omega=\\dfrac{2\\pi}{T}=2\\pi\\nu',
+    {tex:'x=A\\cos(\\omega t),\\qquad \\omega=\\dfrac{2\\pi}{T}=2\\pi\\nu', kind:'определение',
      note:'Синусоидальное колебание. $A$ — амплитуда, $\\omega$ — циклическая частота.', sim:'spring'},
-    {tex:'T=2\\pi\\sqrt{\\dfrac{m}{k}}',
+    {tex:'T=2\\pi\\sqrt{\\dfrac{m}{k}}', kind:'следствие',
      note:'Период пружинного маятника. Не зависит от амплитуды (изохронность).', sim:'spring'},
-    {tex:'T=2\\pi\\sqrt{\\dfrac{L}{g}}',
+    {tex:'T=2\\pi\\sqrt{\\dfrac{L}{g}}', kind:'следствие',
      note:'Период математического маятника. Не зависит ни от массы, ни от амплитуды (при малых углах).', sim:'pendulum'},
-    {tex:'T=2\\pi\\sqrt{\\dfrac{I}{mgd}}',
+    {tex:'T=2\\pi\\sqrt{\\dfrac{I}{mgd}}', kind:'следствие',
      note:'Период физического маятника. $I$ — момент инерции, $d$ — расстояние от оси до центра масс.', sim:'physpend'},
-    {tex:'E=\\tfrac12 kA^2=\\tfrac12 mv^2+\\tfrac12 kx^2',
+    {tex:'E=\\tfrac12 kA^2=\\tfrac12 mv^2+\\tfrac12 kx^2', kind:'следствие',
      note:'Полная энергия колебаний постоянна и пропорциональна квадрату амплитуды.', sim:'spring'},
-    {tex:'v=\\omega\\sqrt{A^2-x^2}',
+    {tex:'v=\\omega\\sqrt{A^2-x^2}', kind:'следствие',
      note:'Скорость в произвольной точке: максимальна в равновесии, ноль в точках поворота.', sim:'pendulum'},
-    {tex:'m\\ddot x+b\\dot x+kx=0',
+    {tex:'m\\ddot x+b\\dot x+kx=0', kind:'закон',
      note:'Колебания с трением. Затухание $\\gamma=b/2m$: амплитуда падает как $e^{-\\gamma t}$.', sim:'damped'},
-    {tex:'A(\\omega)=\\dfrac{F_0/m}{\\sqrt{(\\omega_0^2-\\omega^2)^2+(2\\gamma\\omega)^2}}',
+    {tex:'A(\\omega)=\\dfrac{F_0/m}{\\sqrt{(\\omega_0^2-\\omega^2)^2+(2\\gamma\\omega)^2}}', kind:'следствие',
      note:'Вынужденные колебания: у частоты $\\omega_{\\text{рез}}=\\sqrt{\\omega_0^2-2\\gamma^2}$ амплитуда максимальна — резонанс.', sim:'damped'},
-    {tex:'U(x)\\approx U_{\\min}+\\tfrac12 k x^2\\ \\Rightarrow\\ F=-kx',
+    {tex:'U(x)\\approx U_{\\min}+\\tfrac12 k x^2\\ \\Rightarrow\\ F=-kx', kind:'следствие',
      note:'Почему колебания встречаются везде: вблизи любого минимума потенциальная кривая похожа на параболу, а парабола даёт закон Гука.', sim:'spring'}
+  ],
+  examples:[
+    {
+      task:`Груз массой $m=0{,}8$ кг на пружине жёсткости $k=50$ Н/м оттянули на $A=6$ см
+        и отпустили. Найдите период, максимальную скорость груза и его скорость в точке
+        $x=3$ см от равновесия.`,
+      method:'сначала период, затем закон сохранения энергии',
+      steps:[
+        {text:'Период считаем прямо по выведенной формуле — амплитуда в неё не входит.',
+         tex:'T=2\\pi\\sqrt{\\dfrac{m}{k}}=2\\pi\\sqrt{\\dfrac{0{,}8}{50}}=2\\pi\\cdot 0{,}1265=0{,}795\\ \\text{с}'},
+        {text:'Максимальная скорость — в положении равновесия. Туда переходит вся энергия пружины:',
+         tex:'\\tfrac12 kA^2=\\tfrac12 mv_{\\max}^2\\ \\Rightarrow\\ v_{\\max}=A\\sqrt{\\dfrac{k}{m}}=0{,}06\\sqrt{\\dfrac{50}{0{,}8}}=0{,}474\\ \\text{м/с}'},
+        {text:'В произвольной точке часть энергии осталась в пружине. Пишем сохранение целиком:',
+         tex:'\\tfrac12 kA^2=\\tfrac12 mv^2+\\tfrac12 kx^2'},
+        {text:'Выражаем скорость и подставляем $x=0{,}03$ м:',
+         tex:'v=\\sqrt{\\dfrac{k}{m}}\\sqrt{A^2-x^2}=7{,}906\\cdot\\sqrt{0{,}06^2-0{,}03^2}'},
+        {text:'Считаем корень и произведение:',
+         tex:'v=7{,}906\\cdot 0{,}05196=0{,}411\\ \\text{м/с}'},
+        {text:'Проверка на разумность: в середине пути по координате скорость составила $0{,}411/0{,}474=87\\,\\%$ от максимальной. Так и должно быть — вблизи равновесия скорость меняется медленно.'}
+      ],
+      answer:'$T=0{,}795\\ \\text{с}$,  $v_{\\max}=0{,}474\\ \\text{м/с}$,  $v(3\\ \\text{см})=0{,}411\\ \\text{м/с}$',
+      check:'поставьте в симуляции $m=0{,}8$, $k=50$, $x_0=0{,}06$ и сравните показания «период T» и «скорость v» в момент прохождения равновесия.',
+      sim:'spring'
+    }
   ],
   mistakes:[
     {wrong:'Чем сильнее раскачать маятник, тем дольше будет длиться одно колебание.',
@@ -18447,6 +19143,18 @@ const T_osc={
     {wrong:'При резонансе система колеблется со своей собственной частотой.',
      right:'Она колеблется с частотой внешней силы. Собственная частота лишь указывает, при какой внешней частоте отклик будет наибольшим.',
      why:'Собственная частота живёт в свободных колебаниях; при вынужденных систему ведёт внешняя сила. Резонанс — это не совпадение частот колебания, а совпадение частоты <em>воздействия</em> с собственной. Радиоприёмник настраивается именно так: меняют $\\omega_0$ контура, пока она не совпадёт с частотой станции.'}
+  ],
+  checks:[
+    {q:'Почему период пружинного маятника не зависит от амплитуды?',
+     a:'Амплитуда сокращается при выводе: она входит и в путь, и в скорость. Формально — потому что уравнение $\\ddot x=-\\omega^2x$ линейно, и его решение с любой амплитудой имеет одну и ту же частоту.'},
+    {q:'Откуда в формуле маятника берётся оговорка «при малых углах»?',
+     a:'Из замены $\\sin\\theta\\to\\theta$. Без неё уравнение перестаёт быть линейным, и период начинает зависеть от амплитуды: при $30^\\circ$ — уже на 1,7 %.'},
+    {q:'Где у колеблющегося груза максимальна скорость, а где — ускорение?',
+     a:'Скорость максимальна в равновесии, где сила равна нулю. Ускорение максимально в точках поворота, где скорость равна нулю. Они всегда в противофазе.'},
+    {q:'Почему гармонические колебания встречаются буквально везде?',
+     a:'Вблизи минимума любая потенциальная кривая похожа на параболу, а парабола даёт силу $F=-kx$. Пока отклонение мало, любая устойчивая система — гармонический осциллятор.'},
+    {q:'При резонансе система колеблется на своей частоте или на частоте внешней силы?',
+     a:'На частоте внешней силы. Собственная частота лишь указывает, при какой внешней отклик будет наибольшим.'}
   ],
   links:[
     {to:'mech.work', text:'Гармонические колебания — прямое следствие того, что вблизи минимума потенциальной энергии кривая $U(x)$ похожа на параболу. Прочитайте раздел об энергетической яме — и формулу $F=-kx$ уже не придётся запоминать.'},
@@ -19669,6 +20377,7 @@ const T_potential={
 
 const T_current={
   id:'el.current', ch:'14', title:'Электрический ток и магнитная сила',
+  needs:['math.trig'],
   theory:`
   <p>До сих пор заряды у нас покоились. Стоит им прийти в движение — возникает <strong>электрический ток</strong>,
   а вместе с ним совершенно новое явление: <strong>магнетизм</strong>. Эта глава связывает электричество и магнетизм
@@ -20213,6 +20922,7 @@ const T_magfields={
 
 const T_induction={
   id:'em.induction', ch:'16', title:'Электромагнитная индукция',
+  needs:['math.trig'],
   theory:`
   <p>Мы знаем, что ток создаёт магнитное поле. Фарадей задался обратным вопросом: <strong>может ли магнитное поле
   создать ток?</strong> Ответ оказался одним из важнейших открытий в истории физики — и на нём работает
@@ -20456,6 +21166,7 @@ const T_induction={
 
 const T_radiation={
   id:'em.radiation', ch:'17', title:'Электромагнитное излучение и волны',
+  needs:['math.trig'],
   theory:`
   <p>Мы собрали почти все законы электричества и магнетизма. Максвелл заметил в них одну недостающую деталь — и,
   добавив её, обнаружил нечто поразительное: уравнения предсказывают существование <strong>волн</strong>, бегущих
@@ -20821,6 +21532,7 @@ const T_radiation={
 
 const T_optics={
   id:'op.optics', ch:'20', title:'Оптика',
+  needs:['math.trig'],
   theory:`
   <p>Свет — электромагнитная волна, но когда препятствия и приборы намного больше длины волны, о волновой природе
   можно забыть и считать, что свет распространяется <strong>лучами</strong>. Этот раздел называют
@@ -21107,6 +21819,7 @@ const T_optics={
 
 const T_matter={
   id:'op.matter', ch:'18', title:'Взаимодействие излучения с веществом',
+  needs:['math.trig'],
   theory:`
   <p>Мы выяснили, как рождается электромагнитная волна. Теперь посмотрим, что происходит, когда она встречает
   вещество: почему свет давит на препятствие, почему в стекле он идёт медленнее и преломляется, и почему радиоволны
@@ -21358,6 +22071,7 @@ const T_matter={
 
 const T_interf={
   id:'op.interf', ch:'19', title:'Интерференция волн',
+  needs:['math.trig'],
   theory:`
   <p>До сих пор мы имели дело с одним источником волн. Теперь посмотрим, что будет, если источников несколько.
   Волны не мешают друг другу и не сталкиваются — они просто <strong>складываются</strong>: смещения в каждой точке
@@ -21591,6 +22305,7 @@ const T_interf={
 
 const T_qwave={
   id:'q.wave', ch:'21', title:'Волновая природа вещества',
+  needs:['math.trig'],
   theory:`
   <p>К концу XIX века физика выглядела завершённой: механика Ньютона описывала частицы, уравнения Максвелла —
   волны, и казалось, что осталось лишь уточнять детали. Но несколько упрямых опытов не желали укладываться в эту
@@ -21825,6 +22540,7 @@ const T_qwave={
 
 const T_qm={
   id:'q.qm', ch:'22', title:'Квантовая механика',
+  needs:['math.trig'],
   theory:`
   <p>Мы выяснили, что частице отвечает волна с длиной $\\lambda=h/p$. Но волна чего? И как с ней обращаться?
   Ответ дала квантовая механика — теория, которая описывает микромир с поразительной точностью, хотя и требует
@@ -22254,11 +22970,14 @@ const T_hydrogen={
      answer:()=>4},
 
     {level:4, sim:'orbital', unit:'',
-     statement:`Чему равен модуль орбитального момента импульса выбранного состояния
-       в единицах $\\hbar$? (То есть найдите $\\sqrt{l(l+1)}$.)`,
-     hint:'$L=\\sqrt{l(l+1)}\\,\\hbar$.',
-     answer:p=>{ const l={'1s':0,'2s':0,'2p':1}[p.state];
-       return Math.sqrt(l*(l+1)); }},
+     /* Момент выбранного состояния показан на панели, поэтому спрашиваем про
+        состояние, которого в симуляции нет: формулу надо применить, а не
+        списать. */
+     statement:`Модуль орбитального момента равен $L=\\sqrt{l(l+1)}\\,\\hbar$. Чему он равен
+       в единицах $\\hbar$ для состояния <strong>3d</strong> ($n=3$, $l=2$)? Такого состояния
+       в симуляции нет — примените формулу сами, а на панели проверьте её на 2p.`,
+     hint:'Подставьте $l=2$. Обратите внимание: ответ не равен двум — момент никогда не бывает ровно $l\\hbar$.',
+     answer:()=>Math.sqrt(2*3)},
 
     {level:5, sim:'orbital', unit:'',
      statement:`Какова вероятность обнаружить электрон в состоянии 1s <strong>внутри</strong>
@@ -23186,6 +23905,12 @@ const T_particles={
 /* Разделы и темы — строго по оглавлению Дж. Орира «Физика» (т. 1–2, 1981) */
 const SECTIONS=[
  {id:'intro', title:'Phy.Sim', topics:[ T_intro ]},
+ /* Математика идёт отдельным разделом, но читается не подряд: каждая её тема
+    стоит перед той главой физики, которая первой её просит. Ссылки «что нужно
+    знать» в начале физических тем и ведут сюда. */
+ {id:'math', title:'Математика', topics:[
+   T_mtrig
+ ]},
  {id:'mech', title:'Механика', topics:[
    T_1d,
    T_2d,
@@ -24899,6 +25624,161 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   if(isNarrow()) paneTop();
 });
 
+/* =============================================================================
+   АНАТОМИЯ ТЕМЫ УЧЕБНОГО ПОСОБИЯ
+
+   Конспект отвечает на вопрос «что верно». Пособие обязано отвечать ещё на
+   четыре: зачем это читать, что нужно знать заранее, откуда взялась формула
+   и как ею пользоваться. Поэтому у темы девять блоков в жёстком порядке:
+
+     1. Зачем            why          вопрос, на который отвечает тема
+     2. Что нужно знать  needs        темы-предпосылки + быстрая проверка
+     3. Конспект         theory       (было и раньше)
+     4. Вывод формул     derivations  по шагам, каждый шаг с обоснованием
+     5. Формулы          formulas     (+ kind: закон / определение / следствие)
+     6. Разобранный пример examples   полное решение с названным методом
+     7. Типичные ошибки  mistakes     (было и раньше)
+     8. Задачи           problems     (было и раньше, отдельная вкладка)
+     9. Проверь себя     checks       пять вопросов с раскрывающимся ответом
+        и сквозные связи links
+
+   Порядок не декоративный: пока не сказано, зачем читать, читать не станут;
+   пока не названы предпосылки, ученик спотыкается о производную в третьем
+   абзаце и решает, что физика не для него; а формула без вывода запоминается
+   как заклинание и забывается через неделю.
+   ============================================================================= */
+
+/* Что за формула перед нами. Различие не педантизм: определение выводить
+   бессмысленно (его вводят соглашением), закон выводится из более общего,
+   следствие — из соседних формул этой же темы. */
+const FKIND={закон:'закон',определение:'определение',следствие:'следствие'};
+
+/* ---------- 1. Зачем ---------- */
+function whyHTML(t){
+  if(!t.why) return '';
+  return `<div class="why"><div class="why-h">Зачем эта тема</div><div>${t.why}</div></div>`;
+}
+
+/* ---------- 2. Что нужно знать ----------
+   Чипы с темами-предпосылками и три вопроса из их «Проверь себя».
+   Проверка НЕ запирает тему: она подсказывает, что стоит освежить. Жёсткий
+   замок в школьном пособии — способ потерять ученика на первой же теме. */
+function needsHTML(t){
+  const ns=(t.needs||[]).map(id=>ALL.find(x=>x.id===id)).filter(Boolean);
+  if(!ns.length) return '';
+  const чипы=ns.map(d=>`<button class="need" data-to="${d.id}">
+      <span class="need-t">${d.ch?d.ch+'. ':''}${d.title}</span>
+      <span class="need-s">${d.section}</span></button>`).join('');
+  const вопросы=ns.flatMap(d=>(d.checks||[]).map(q=>({...q,from:d.title}))).slice(0,3);
+  return `<div class="needs">
+    <div class="needs-h">Чтобы читать дальше, нужно понимать</div>
+    <div class="need-row">${чипы}</div>
+    ${вопросы.length?`<button class="btn needs-go">Проверить за минуту</button>
+      <div class="needs-q">${вопросы.map((q,i)=>`<div class="qa" data-i="${i}">
+        <div class="qa-q"><span class="qa-n">${i+1}</span><span>${q.q}</span></div>
+        <button class="btn qa-btn">Показать ответ</button>
+        <div class="qa-a">${q.a}<div class="qa-from">${q.from}</div></div>
+      </div>`).join('')}
+      <div class="needs-tail">Не ответили — откройте тему выше и вернитесь. Ответили — читайте дальше.</div>
+      </div>`:''}
+  </div>`;
+}
+
+/* ---------- 4. Вывод формул ----------
+   Шаги раскрываются по одному. Смысл именно в этом: увидев цель и первый
+   шаг, есть шанс продолжить самому, а готовый вывод целиком читается глазами
+   и не оставляет следа. Кнопка «показать целиком» для тех, кто вернулся
+   повторить. */
+function derivHTML(t){
+  if(!t.derivations||!t.derivations.length) return '';
+  return `<h2 class="sect">Откуда берутся формулы</h2>
+    ${t.derivations.map((d,i)=>`<div class="deriv" data-d="${i}">
+      <div class="dv-goal">
+        <span class="dv-tag">вывести</span>
+        <span class="dv-tex">$$${d.goal}$$</span>
+      </div>
+      ${d.from&&d.from.length?`<div class="dv-from">исходим из:
+        ${d.from.map(f=>`<span class="dv-f">$${f}$</span>`).join('')}</div>`:''}
+      <div class="dv-steps">
+        ${d.steps.map((s,k)=>`<div class="dv-step" data-k="${k}">
+          <span class="dv-n">${k+1}</span>
+          <span class="dv-body"><span class="dv-eq">$$${s.tex}$$</span>
+          <span class="dv-why">${s.why}</span></span>
+        </div>`).join('')}
+      </div>
+      <div class="dv-ctl">
+        <button class="btn primary dv-next">Первый шаг</button>
+        <button class="btn dv-all">Показать целиком</button>
+        ${d.sim&&SIMS[d.sim]?`<button class="btn dv-sim" data-sim="${d.sim}">Проверить в симуляции</button>`:''}
+      </div>
+    </div>`).join('')}`;
+}
+
+/* ---------- 6. Разобранный пример ----------
+   Отличается от задачи тем, что решение показано целиком и у него названо
+   ИМЯ метода. Ученик, который видел «энергетический подход» три раза подряд,
+   начинает узнавать его в новой задаче — а без имени приём не переносится. */
+function examplesHTML(t){
+  if(!t.examples||!t.examples.length) return '';
+  return `<h2 class="sect">Разобранный пример</h2>
+    ${t.examples.map((e,i)=>`<div class="example" data-e="${i}">
+      <div class="ex-task">${e.task}</div>
+      ${e.method?`<div class="ex-method"><span>метод</span>${e.method}</div>`:''}
+      <button class="btn primary ex-go">Показать решение</button>
+      <div class="ex-body">
+        ${e.steps.map((s,k)=>`<div class="ex-step"><span class="ex-n">${k+1}</span>
+          <span>${s.text}${s.tex?`<div class="ex-eq">$$${s.tex}$$</div>`:''}</span></div>`).join('')}
+        <div class="ex-ans"><span>ответ</span>${e.answer}</div>
+        ${e.check?`<div class="ex-check">Проверка: ${e.check}</div>`:''}
+      </div>
+    </div>`).join('')}`;
+}
+
+/* ---------- 9. Проверь себя ----------
+   Вопросы без вычислений: если ответ формулируется своими словами, тема
+   усвоена. Те же карточки потом всплывают в повторении. */
+function checksHTML(t){
+  if(!t.checks||!t.checks.length) return '';
+  return `<h2 class="sect">Проверьте себя</h2>
+    <p class="qa-lead">Без вычислений. Ответьте своими словами, потом сверьтесь.</p>
+    ${t.checks.map((q,i)=>`<div class="qa" data-i="${i}">
+      <div class="qa-q"><span class="qa-n">${i+1}</span><span>${q.q}</span></div>
+      <button class="btn qa-btn">Показать ответ</button>
+      <div class="qa-a">${q.a}</div>
+    </div>`).join('')}`;
+}
+
+/* Общая проводка новых блоков: раскрытие ответов, шагов вывода и решений. */
+function wireLesson(pane){
+  pane.querySelectorAll('.qa').forEach(el=>{
+    const b=el.querySelector('.qa-btn'); if(!b) return;
+    b.onclick=()=>{ const on=el.classList.toggle('open'); b.textContent=on?'Скрыть ответ':'Показать ответ'; };
+  });
+  pane.querySelectorAll('.need').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.to); autoCloseRail(); });
+  const ng=pane.querySelector('.needs-go');
+  if(ng) ng.onclick=()=>{ pane.querySelector('.needs').classList.add('open'); ng.remove(); };
+  pane.querySelectorAll('.deriv').forEach(el=>{
+    const шаги=[...el.querySelectorAll('.dv-step')];
+    const next=el.querySelector('.dv-next'), all=el.querySelector('.dv-all');
+    let открыто=0;
+    const обновить=()=>{
+      шаги.forEach((s,i)=>s.classList.toggle('on',i<открыто));
+      next.textContent = открыто===0?'Первый шаг'
+        : открыто>=шаги.length?'Вывод закончен' : `Следующий шаг (${открыто}/${шаги.length})`;
+      next.disabled = открыто>=шаги.length;
+    };
+    next.onclick=()=>{ открыто=Math.min(шаги.length,открыто+1); обновить(); };
+    all.onclick=()=>{ открыто=шаги.length; обновить(); };
+    const sm=el.querySelector('.dv-sim');
+    if(sm) sm.onclick=()=>{ openSim(sm.dataset.sim); if(isNarrow()) openSimMobile(); };
+    обновить();
+  });
+  pane.querySelectorAll('.example').forEach(el=>{
+    const b=el.querySelector('.ex-go');
+    b.onclick=()=>{ const on=el.classList.toggle('open'); b.textContent=on?'Скрыть решение':'Показать решение'; };
+  });
+}
+
 /* ---------- Типичные ошибки ----------
    Конспект показывает только правильный путь, и ученик не узнаёт своей ошибки
    в лицо. Здесь ошибка названа вслух: сначала соблазнительная неверная мысль,
@@ -24980,18 +25860,27 @@ function renderPane(){
       вообще не имеет корректного наглядного изображения. Опирайтесь на формулы и текст, а картинку
       воспринимайте как подсказку для интуиции, а не как портрет реальности.
       </span></div>` : '';
+    /* Девять блоков темы в неизменном порядке. Пустые поля просто не дают
+       разметки, поэтому старые темы без why/needs/derivations выглядят ровно
+       как раньше — переход на новую анатомию идёт темами, а не рывком. */
     pane.innerHTML=`<article>${hardNote}
+      ${whyHTML(t)}
+      ${needsHTML(t)}
       <h2 class="sect">Конспект</h2>${t.theory}
+      ${derivHTML(t)}
       <h2 class="sect">Основные формулы</h2>
       ${t.formulas.map((f,i)=>`
         <div class="formula" data-f="${i}">
+          ${f.kind?`<span class="f-kind ${f.kind}">${FKIND[f.kind]||f.kind}</span>`:''}
           <div>$$${f.tex}$$</div>
           ${f.note?`<div class="note">${f.note}</div>`:''}
         </div>`).join('')}
+      ${examplesHTML(t)}
       ${mistakesHTML(t)}
+      ${checksHTML(t)}
       ${linksHTML(t)}
     </article>`;
-    wireLinks(pane);
+    wireLinks(pane); wireLesson(pane);
   } else {
     if(!t.problems.length){ pane.innerHTML='<div class="empty">Задач по этой главе пока нет.</div>'; return; }
     const dots=n=>`<span class="dots">${'<i class="f"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
