@@ -2,10 +2,13 @@
 
 # Phy.Sim
 
-**An interactive physics textbook where every formula has a live simulation next to it.**
+**A physics course you revise by running it.** The simulation comes first; the notes
+are what you read when the simulation surprises you.
 
-Read the theory, change the numbers, watch what happens. 76 simulations, 384 problems
-and the whole course from kinematics to quarks — in a single HTML file that runs
+This is not a course that teaches physics from zero — it is a **full revision** of one,
+from kinematics to quarks. Every topic opens with three things to try in a live
+simulation, five points worth remembering, and the derivations behind the formulas.
+76 simulations, 78 derivations and 384 problems, in a single HTML file that runs
 offline, with no install and no account.
 
 > The course content is in **Russian** (it follows J. Orear's *Physics*, vols. 1–2).
@@ -51,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.2.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.2.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.2.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.2.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.3.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.3.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.3.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.3.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -86,13 +89,17 @@ KaTeX and its fonts ship inside the repository.
 | **76** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear |
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
-| **34** topics in **7** sections | full lecture notes, written to be read, not skimmed |
-| **derivations, not just formulas** | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
+| **34** topics in **7** sections | each one opens with what to try, then five points to remember; the full notes are one click below, collapsed |
+| **81** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
+| **135** points to remember | the five sentences per topic you would want on an exam morning |
+| **78** derivations, **306** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
 | **prerequisites, stated** | a topic names what you must know first and offers a one-minute check before you start reading |
-| **252** key formulas | each one opens the simulation that shows it working |
+| **252** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
 | **384** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
 | **133** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
+| **83** self-checks | three questions per topic, answers hidden until you have tried |
 | **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
+| **reference sheet** | symbols, constants and units in Settings — the thing you would otherwise keep a browser tab open for |
 | **57** settings | theme, density, scene decorations, performance, recording |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
 
