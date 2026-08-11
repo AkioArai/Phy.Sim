@@ -1,6 +1,6 @@
 {
   "name": "phy.sim",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Phy.Sim — an interactive physics textbook: notes, formulas, problems and 76 live simulations, from kinematics to particle physics. Runs in the browser, offline.",
   "main": "index.html",
   "scripts": {

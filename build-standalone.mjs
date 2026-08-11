@@ -54,8 +54,36 @@ function checkContentEscaping(topicsSrc){
   void bad;
 }
 
+/* ---------------- Одиночный слеш в формуле ----------------
+   Второй способ незаметно испортить формулу: написать в шаблонной строке
+   `$\dfrac{a}{b}$` с ОДНИМ слешем. JS съедает его до KaTeX: \dfrac → dfrac
+   (набор курсивных букв), \varepsilon → arepsilon, а \v, \b, \t вообще
+   становятся управляющими символами. KaTeX при этом чаще всего не падает —
+   он честно рисует буквы, — поэтому ошибка живёт до первой жалобы на
+   «текст не отрендерился». Так уехали блоки «Главное» и «Покрутите сами».
+
+   Проверяем ИСХОДНЫЙ текст, а не значение строки: внутри $…$ каждый слеш
+   обязан быть удвоен. Экранирование кавычек (\' \" \`) разрешено — это
+   синтаксис самой строки, а не формулы. */
+function checkSingleBackslash(topicsSrc){
+  const hits=[];
+  const re=/\$([^$\n]*)\$/g; let m;
+  while((m=re.exec(topicsSrc))){
+    const остаток=m[1].replace(/\\\\/g,'').replace(/\\['"`]/g,'');
+    if(остаток.includes('\\')) hits.push(m[0].slice(0,70));
+  }
+  if(hits.length){
+    console.error('\nСБОРКА ОСТАНОВЛЕНА — в формуле одиночный обратный слеш:');
+    hits.slice(0,10).forEach(h=>console.error('  • '+h));
+    if(hits.length>10) console.error('  … и ещё '+(hits.length-10));
+    console.error('Внутри строки слеш надо удваивать: \\\\dfrac, \\\\varepsilon.\n');
+    process.exit(1);
+  }
+}
+
 const JS_FILES = jsFilesFromHtml(read('index.html'));
 checkContentEscaping(read('js/topics.js'));
+checkSingleBackslash(read('js/topics.js'));
 const bundle = JS_FILES.map((f) => read(f)).join('\n;\n').replace(/<\/script>/gi, '<\\/script>');
 const css = read('css/style.css');
 

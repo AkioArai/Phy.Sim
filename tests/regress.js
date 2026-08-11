@@ -122,6 +122,57 @@ async function boot(b, url, ui) {
     });
     ok('формулы влезают в колонку', wide.over === 0 && wide.seen > 200, wide);
 
+    /* Формула может не упасть, а тихо превратиться в набор букв: одиночный
+       слеш в шаблонной строке JS съедает до KaTeX, и «\dfrac» приезжает как
+       «dfrac». Сборка ловит это в исходнике, здесь — в готовых данных: гоняем
+       каждый кусок через KaTeX с throwOnError и отдельно ищем имена команд,
+       оставшиеся без слеша. Внутренности \text{} и \mathrm{} пропускаем —
+       там «max» и «tg» стоят законно. */
+    const тех = await p.evaluate(() => {
+      const КОМАНДЫ = ['dfrac', 'tfrac', 'frac', 'sqrt', 'sum', 'int', 'oint', 'vec', 'times',
+        'cdot', 'alpha', 'beta', 'gamma', 'delta', 'Delta', 'theta', 'lambda', 'varphi',
+        'varepsilon', 'omega', 'Omega', 'hbar', 'approx', 'propto', 'perp', 'text', 'mathrm',
+        'left', 'right', 'quad', 'qquad', 'partial', 'infty', 'rightarrow', 'ddot', 'langle'];
+      const плохо = [];
+      const txt = s => { const d = document.createElement('div'); d.innerHTML = s; return d.textContent; };
+      const куски = s => { const o = []; const re = /\$\$([\s\S]+?)\$\$|\$([^$]+?)\$/g; let m;
+        while ((m = re.exec(s))) o.push([m[1] || m[2], !!m[1]]); return o; };
+      const проба = (id, сырое, dm) => {
+        if (typeof сырое !== 'string') return;
+        /* Как и в приложении: строка едет через innerHTML, поэтому «&lt;»
+           доходит до KaTeX уже как «<». Сравниваем то же, что увидит он. */
+        const tex = txt(сырое);
+        try { katex.renderToString(tex, { displayMode: dm, throwOnError: true }); }
+        catch (e) { плохо.push(id + ': ' + tex.slice(0, 50) + ' — ' + e.message.slice(0, 60)); return; }
+        const голый = tex.replace(/\\(?:text|mathrm|operatorname)\{[^}]*\}/g, '');
+        for (const k of КОМАНДЫ)
+          if (new RegExp('(^|[^\\\\A-Za-z])' + k + '(?![A-Za-z])').test(голый))
+            { плохо.push(id + ': ' + tex.slice(0, 50) + ' — потерян слеш перед «' + k + '»'); return; }
+        if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(tex))
+          плохо.push(id + ': управляющий символ вместо \\v/\\b/\\t');
+      };
+      const поле = (id, s) => { if (typeof s === 'string') for (const [x, dm] of куски(txt(s))) проба(id, x, dm); };
+      let всего = 0;
+      for (const t of ALL) {
+        for (const f of t.formulas || []) { всего++; проба(t.id, f.tex, true); }
+        for (const d of t.derivations || []) {
+          всего++; проба(t.id, d.goal, true);
+          for (const x of d.from || []) { всего++; проба(t.id, x, false); }
+          for (const s of d.steps || []) { всего++; проба(t.id, s.tex, true); поле(t.id, s.why); }
+        }
+        for (const k of t.key || []) { всего++; поле(t.id, k); }
+        for (const e of t.explore || []) { всего++; поле(t.id, e.do); поле(t.id, e.see); }
+        for (const q of t.checks || []) { поле(t.id, q.q); поле(t.id, q.a); }
+        for (const m of t.mistakes || []) { поле(t.id, m.wrong); поле(t.id, m.right); поле(t.id, m.why); }
+        for (const l of t.links || []) поле(t.id, l.text);
+        for (const pr of t.problems || []) { поле(t.id, pr.statement); поле(t.id, pr.hint); }
+        поле(t.id, t.why); поле(t.id, t.theory);
+      }
+      return { всего, плохо };
+    });
+    ok('формулы не потеряли обратный слеш', тех.плохо.length === 0 && тех.всего > 600,
+      тех.плохо.length ? тех.плохо.slice(0, 6) : тех.всего);
+
     /* Блоки пособия. Проверяем не наличие полей в данных (это делает
        curriculum.mjs), а что они дошли до экрана и работают: шаги вывода
        раскрываются по одному, решение примера открывается кнопкой. */
