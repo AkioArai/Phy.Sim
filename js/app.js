@@ -638,6 +638,7 @@ function drawAll(){
   const showW = w && S.settings.events!==false;
   if((showW?w:'')!==wb.dataset.msg){ wb.dataset.msg=showW?w:''; wb.textContent=showW?w:''; wb.classList.toggle('hidden',!showW); }
   updateHud(a);
+  if(isNarrow()) renderSheetReadouts();   // та же величина в шапке листа
   /* Часы в шапке — там же, где и остальное время: если от него ничего не
      зависит, бегущий счётчик только создаёт впечатление идущего процесса. */
   const часы=$('#clock');
@@ -758,8 +759,16 @@ function fmtShort(v){
    показано, а про остальные честно сказано в последней строке. */
 function updateHud(a){
   const body=$('#hud-body'), panel=$('#hud'); if(!body||!panel) return;
-  const rows=a.def.readouts(a.state,a.params)
-    .map(([l,v,u])=>`${l.padEnd(14)} ${fmt(v).padStart(9)} ${u}`);
+  /* Показания — две колонки, а не выровненный пробелами текст. Раньше строка
+     собиралась как `padEnd(14) + padStart(9) + единица`: при длинном названии
+     или широкой единице она вылезала за панель и обрезалась на полуслове.
+     Колонки решают это сами: подпись слева ужимается, число справа стоит на
+     месте и не прыгает, когда меняется знак. */
+  const данные=a.def.readouts(a.state,a.params);
+  const rows=данные.map(([l,v,u])=>
+    `<div class="ro"><span class="ro-l">${esc(l)}</span>` +
+    `<span class="ro-v">${esc(fmt(v))}</span>` +
+    `<span class="ro-u">${esc(u||'')}</span></div>`);
   const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
   /* Обрезаем строки, только если размер панели чем-то ОГРАНИЧЕН: явной высотой
      (пользователь потянул за уголок) или max-height из темы (на телефоне).
@@ -780,8 +789,8 @@ function updateHud(a){
     const fits=Math.floor(avail/lh);
     if(fits<rows.length) n=Math.max(1,fits-1);       // строка «ещё N» тоже место занимает
   }
-  body.textContent = n>=rows.length ? rows.join('\n')
-    : rows.slice(0,n).concat([`… ещё ${rows.length-n} — растяните панель`]).join('\n');
+  body.innerHTML = n>=rows.length ? rows.join('')
+    : rows.slice(0,n).concat([`<div class="ro ro-more">… ещё ${rows.length-n} — растяните панель</div>`]).join('');
 }
 
 /* ------------------------------- ГРАФИКИ -------------------------------- */
@@ -3323,6 +3332,62 @@ function applyUiMode(){
 }
 applyUiMode();
 const isNarrow=()=>document.documentElement.dataset.ui==='mobile';
+
+/* ---------------- Стенд: раскладка компьютера ----------------
+   Сцена стала фоном страницы, и нижняя строка состояния как отдельная полоса
+   больше не нужна: она отнимала у сцены 40 пикселей ради кнопок, которым
+   место в двух накладках. Разносим её содержимое один раз при запуске —
+   узлы те же, обработчики висят на id и переезд их не трогает.
+
+   Вверх уходит состояние (скорость, масштаб, вписать) — то, что отвечает на
+   вопрос «как я смотрю». Вниз, к шкале времени, уходит транспорт — то, что
+   отвечает на вопрос «что происходит». Раньше и то и другое лежало вперемешку
+   в одной строке. */
+function собратьСтенд(){
+  if(isNarrow() || document.body.dataset.stand) return;
+  const строка=$('.statusbar'), верх=$('.topbar'), низ=$('#timeline');
+  if(!строка||!верх||!низ) return;
+  const гр=[...строка.querySelectorAll('.group')];
+  const транспорт=гр.find(g=>g.querySelector('#btn-play'));
+  const скорость =гр.find(g=>g.querySelector('#speedval'));
+  const масштаб  =гр.find(g=>g.querySelector('#zoomval'));
+
+  /* Слева вверху — марка и настройки, перед кнопкой списка тем. */
+  const марка=строка.querySelector('.brand'), шест=$('#btn-settings');
+  if(марка) верх.insertBefore(марка,верх.firstChild);
+  if(шест)  верх.insertBefore(шест, $('#btn-rail'));
+
+  /* Справа вверху — состояние вида, перед меню симуляции. */
+  const якорь=$('#btn-simmenu');
+  for(const узел of [скорость,масштаб,$('#btn-fit')])
+    if(узел&&якорь) верх.insertBefore(узел,якорь);
+
+  /* Внизу — транспорт перед шагами по кадрам, счётчик кадров в самый конец. */
+  if(транспорт) низ.insertBefore(транспорт,низ.firstChild);
+  const fps=строка.querySelector('#fps'); if(fps) низ.appendChild(fps);
+
+  /* Шапка сцены как отдельная полоса исчезла: выбор симуляции — это третий
+     уровень хлебных крошек (раздел / тема / симуляция), а часы и графики —
+     то же состояние вида, что скорость и масштаб. */
+  for(const узел of [$('#simsel'),$('#btn-makeout')])
+    if(узел) верх.insertBefore(узел,$('#crumb').nextSibling);
+  for(const узел of [$('#clock'),$('#btn-graph')])
+    if(узел&&якорь) верх.insertBefore(узел,якорь);
+
+  document.body.dataset.stand='1';
+
+  /* Панели раньше запоминали своё место в старой раскладке, где сцена была
+     колонкой в 470 пикселей. В новой те же координаты уводят их за край или
+     под другую панель, поэтому один раз сбрасываем сохранённое расположение. */
+  if(!LS.get('standMigrated',false)){
+    LS.set('panels',{});
+    for(const id of FPANELS){
+      const el=document.getElementById(id); if(!el) continue;
+      el.style.left=el.style.top=el.style.right=el.style.bottom=el.style.width=el.style.height='';
+    }
+    LS.set('standMigrated',true);
+  }
+}
 function closeSimMobile(){
   mSheet(false);                          // на всякий случай закрываем шторку параметров
   $('#simpane').classList.add('hidden');
@@ -3458,15 +3523,19 @@ function fillToolsPop(){
 
 /* ===== МОБИЛЬНОЕ УПРАВЛЕНИЕ: плавающий док + шторка параметров/графиков =====
    Кнопки дока проксируют на существующие обработчики — логика не дублируется. */
+/* Шторка параметров стала вкладкой листа. Имя функции оставлено: её зовут
+   из десятка мест (кнопка панели, аппаратная «назад», переход к конспекту),
+   и все они по-прежнему означают «показать/убрать параметры». */
 function mSheet(open){
-  const sb=$('#simbottom'); if(!sb) return;
-  const now = open===undefined ? !sb.classList.contains('msheet-open') : open;
-  sb.classList.toggle('msheet-open', now);
-  $('#msheet-bg').classList.toggle('show', now);
-  if(now) requestAnimationFrame(resize);   // графики в раскрытой шторке получают размер
+  if(!isNarrow()) return;
+  const сейчас = sheetTab()==='params' && detent()!=='peek';
+  const надо = open===undefined ? !сейчас : !!open;
+  if(надо){ LS.set('sheetTab','params'); if(detent()==='peek') setDetent('half',true); }
+  else setDetent('peek',true);
+  syncSheet();
+  requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
 }
 $('#msheet-close').onclick=()=>mSheet(false);
-$('#msheet-bg').onclick=()=>mSheet(false);
 $('#m-settings').onclick=()=>openPrefs();
 $('#m-cmdk').onclick=()=>cmdkOpen('');
 popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
@@ -3557,7 +3626,12 @@ function syncMbar(){
      и останавливать её, не уходя с текста, — ровно то, что нужно. */
   const show = isNarrow() && !!A();
   $('#mbar').classList.toggle('show', show);
-  if(!show){ $('#mbar2').classList.remove('show'); $('#mbar').classList.remove('hide'); }
+  /* Строка транспорта — дно листа, а не всплывающая панель: на телефоне она
+     видна всегда, пока есть что запускать. Раньше её открывали отдельной
+     кнопкой, и пуск/стоп оказывался в двух касаниях от пальца. */
+  $('#mbar2').classList.toggle('show', show);
+  if(!show){ $('#mbar').classList.remove('hide'); $('#mbar2').classList.remove('hide'); }
+  try{ syncSheet(); }catch(_){}
   syncBottomInset();
 }
 /* Сколько снизу занято панелью управления — в пикселях, в --mbot.
@@ -3581,6 +3655,89 @@ function syncBottomInset(){
   document.documentElement.style.setProperty('--mbot', MBOT+'px');
   return MBOT;
 }
+/* ---------------- Лист телефона: три положения ----------------
+   Край / половина / полный. Лист не накрывает сцену, а отбирает у неё высоту,
+   поэтому после каждой смены положения сцена пересчитывает вписывание — иначе
+   тело осталось бы за кадром.
+
+   Положение и вкладка — единственное, что добавилось к состоянию приложения;
+   всё остальное (тема, параметры, время, масштаб) уже было. */
+const ДЕТЕНТЫ=['peek','half','full'];
+function detent(){ return document.documentElement.dataset.detent||'peek'; }
+function setDetent(d,тихо){
+  if(!ДЕТЕНТЫ.includes(d)) return;
+  document.documentElement.dataset.detent=d;
+  LS.set('detent',d);
+  syncSheet();
+  /* Сцена получила другую коробку — вписываем её заново. Так и задумано в
+     макете: лист отбирает высоту, и то, что было видно, обязано остаться
+     видимым; иначе смысл «сцена никогда не уходит с экрана» теряется. */
+  if(!тихо) requestAnimationFrame(()=>{ resize(); fitView(); syncBottomInset(); });
+}
+function cycleDetent(вверх){
+  const i=ДЕТЕНТЫ.indexOf(detent());
+  setDetent(ДЕТЕНТЫ[clamp(i+(вверх?1:-1),0,ДЕТЕНТЫ.length-1)]);
+}
+/* Какая вкладка листа открыта: параметры, конспект или задачи. */
+function sheetTab(){ return LS.get('sheetTab','params'); }
+function setSheetTab(t){
+  LS.set('sheetTab',t);
+  if(t!=='params'){ S.tab = t==='problems'?'problems':'notes'; renderPane(); }
+  if(detent()==='peek') setDetent('half',true);
+  syncSheet();
+  requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
+}
+function syncSheet(){
+  if(!isNarrow()) return;
+  const t=sheetTab(), d=detent();
+  for(const b of document.querySelectorAll('#msheet-tabs button'))
+    b.classList.toggle('on', b.dataset.sheet===t);
+  const пара=d!=='peek' && t==='params';
+  const текст=d!=='peek' && t!=='params';
+  $('#simbottom').style.display = пара ? '' : 'none';
+  $('#content').style.display   = текст ? '' : 'none';
+  /* Высоту строки транспорта меряем, а не задаём: она разная у пилюли и у
+     полноширинной строки, а тело листа обязано кончаться ровно над ней. */
+  const m2=$('#mbar2'), тл=$('#timeline');
+  const h=(m2&&m2.classList.contains('show'))?m2.offsetHeight:0;
+  const ht=(тл&&!тл.classList.contains('hidden'))?тл.offsetHeight:0;
+  document.documentElement.style.setProperty('--mbar2h',h+'px');
+  document.documentElement.style.setProperty('--foot',(h+ht)+'px');
+  const sh=$('#simhead-h'); void sh;
+  const шапка=document.querySelector('.simhead');
+  if(шапка) document.documentElement.style.setProperty('--simhead-h',(шапка.offsetHeight||36)+'px');
+  renderSheetReadouts();
+}
+/* Строка показаний в шапке листа: четыре величины, дальше — прокруткой. */
+function renderSheetReadouts(){
+  const box=$('#msheet-ro'); if(!box||!isNarrow()) return;
+  const a=A();
+  if(!a||!a.def.readouts){ box.innerHTML=''; return; }
+  box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>
+    `<div class="sr"><span class="sr-l">${esc(l)}${u?', '+esc(u):''}</span>` +
+    `<span class="sr-v">${esc(fmt(v))}</span></div>`).join('');
+}
+/* Ручка листа: тянут — меняется положение, короткий тап — следующее. */
+(function листРучка(){
+  const g=$('#msheet-grab'); if(!g) return;
+  let y0=0,t0=0,двигали=false;
+  g.addEventListener('pointerdown',e=>{ y0=e.clientY; t0=Date.now(); двигали=false; g.setPointerCapture(e.pointerId); });
+  g.addEventListener('pointermove',e=>{
+    if(!g.hasPointerCapture(e.pointerId)) return;
+    const dy=y0-e.clientY;
+    if(Math.abs(dy)<28) return;
+    двигали=true; y0=e.clientY;
+    cycleDetent(dy>0);                       // вверх — раскрыть, вниз — свернуть
+  });
+  g.addEventListener('pointerup',e=>{
+    if(g.hasPointerCapture(e.pointerId)) g.releasePointerCapture(e.pointerId);
+    if(!двигали && Date.now()-t0<400)
+      setDetent(detent()==='full' ? 'peek' : ДЕТЕНТЫ[ДЕТЕНТЫ.indexOf(detent())+1]);
+  });
+})();
+for(const b of document.querySelectorAll('#msheet-tabs button'))
+  b.onclick=()=>setSheetTab(b.dataset.sheet);
+
 $('#mb-play').onclick=()=>$('#btn-play').click();
 $('#mb-play2').onclick=()=>$('#btn-play').click();
 $('#mb-back').onclick=()=>$('#tl-prev').click();
@@ -3633,6 +3790,7 @@ popup($('#mb-tools'),$('#pop-tools'));
 let lastNarrow=isNarrow();
 function onViewportChange(){
   applyUiMode();                       // мышь подключили, окно растянули — режим мог смениться
+  собратьСтенд();                      // переехали с телефона на компьютер — собрать накладки
   const now=isNarrow();
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
@@ -4465,6 +4623,15 @@ applySettings();
 // дальше applySettings вызывается уже по действию пользователя
 S.__ready=true;
 setTool('pan'); renderTree(); renderParams();
+собратьСтенд();
+/* Лист телефона открывается там же, где его закрыли в прошлый раз. */
+document.documentElement.dataset.detent=LS.get('detent','peek');
+/* Лист занимает высоту не сразу: строку транспорта и перемотку надо сперва
+   измерить. Поэтому первое вписывание делаем после первой раскладки. */
+if(isNarrow()) requestAnimationFrame(()=>{ try{ syncSheet(); resize(); fitView(); }catch(_){} });
+/* Дерево тем на стенде — накладка поверх сцены, а не колонка. Открытым по
+   умолчанию оно закрывало бы треть сцены при каждом запуске. */
+if(!isNarrow()) toggleSidebar(true);
 // при следующем запуске откроем ту же тему, если это разрешено в настройках
 if(isNarrow()) closeSimMobile();          // на телефоне начинаем с конспекта
 openTopic((S.settings.restore!==false && LS.get('lastTopic',null) && ALL.some(t=>t.id===LS.get('lastTopic',null)))

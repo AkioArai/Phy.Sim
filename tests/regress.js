@@ -288,6 +288,32 @@ async function boot(b, url, ui) {
     });
     ok('F11 переключает режим окна', wm.join(',') === 'full,window,full,window', wm);
 
+    /* Стенд: сцена — фон страницы, конспект едет полосой справа.
+       Проверяем не пиксели оформления, а само правило раскладки: сцена
+       начинается от левого края и кончается там, где начинается полоса, а
+       нижняя строка состояния свёрнута в две накладки. Если кто-то вернёт
+       пристыкованную колонку, эти три числа разойдутся. */
+    const стенд = await p.evaluate(() => {
+      const r = s => { const e = document.querySelector(s); return e ? e.getBoundingClientRect() : null; };
+      const сцена = r('#simpane'), полоса = r('#content');
+      const верх = document.querySelector('.topbar'), низ = document.querySelector('#timeline');
+      const строка = document.querySelector('.statusbar');
+      return {
+        сценаСлева: Math.round(сцена.left),
+        стык: Math.round(полоса.left - сцена.right),      // сцена кончается ровно у полосы
+        ширинаПолосы: Math.round(полоса.width),
+        полосаДоНиза: Math.round(полоса.bottom - полоса.top) === Math.round(innerHeight),
+        строкаСвёрнута: !строка || getComputedStyle(строка).display === 'none',
+        пускВнизу: !!(низ && низ.contains(document.querySelector('#btn-play'))),
+        масштабВверху: !!(верх && верх.contains(document.querySelector('#zoomval'))),
+        докПлавает: getComputedStyle(document.querySelector('.rail')).position === 'absolute',
+      };
+    });
+    ok('стенд: сцена — фон, конспект полосой справа',
+      стенд.сценаСлева === 0 && стенд.стык === 0 && стенд.ширинаПолосы === 392 &&
+      стенд.полосаДоНиза && стенд.строкаСвёрнута && стенд.пускВнизу &&
+      стенд.масштабВверху && стенд.докПлавает, стенд);
+
     // Выделение текста: запрещено везде, кроме полей ввода.
     const sel = await p.evaluate(() => {
       const i = document.createElement('input'); document.body.appendChild(i);
@@ -349,6 +375,32 @@ async function boot(b, url, ui) {
                цветов: document.querySelectorAll('#pb-colors .pb-color').length };
     });
     ok('карандаш на телефоне', mpen.видна && mpen.вКадре && mpen.цветов === 6, mpen);
+
+    /* Лист: три положения, и ни в одном он не накрывает сцену.
+       Это и есть главное обещание мобильного макета, поэтому проверяем его
+       буквально: верх листа никогда не заходит на низ холста, а сцена при
+       раскрытии ужимается — в полном положении до живой полосы 88 px. */
+    const лист = await m.p.evaluate(async () => {
+      const жди = () => new Promise(r => setTimeout(r, 400));
+      const мерка = () => {
+        const c = document.querySelector('#cwrap').getBoundingClientRect();
+        const s = document.querySelector('#msheet').getBoundingClientRect();
+        return { сцена: Math.round(c.height), листСверху: Math.round(s.top),
+                 накрывает: Math.round(c.bottom) > Math.round(s.top) + 1 };
+      };
+      const out = {};
+      for (const d of ['peek', 'half', 'full']) { setDetent(d); await жди(); out[d] = мерка(); }
+      setDetent('peek'); await жди();
+      out.вкладки = [...document.querySelectorAll('#msheet-tabs button')].map(b => b.dataset.sheet);
+      out.показания = document.querySelectorAll('#msheet-ro .sr').length;
+      out.док = getComputedStyle(document.querySelector('#mb-tools')).display !== 'none';
+      return out;
+    });
+    ok('лист: три положения, сцена не закрыта',
+      !лист.peek.накрывает && !лист.half.накрывает && !лист.full.накрывает &&
+      лист.peek.сцена > лист.half.сцена && лист.half.сцена > лист.full.сцена &&
+      лист.full.сцена === 88 && лист.вкладки.join(',') === 'params,notes,problems' &&
+      лист.показания > 3 && лист.док, лист);
 
     await m.p.close();
   }

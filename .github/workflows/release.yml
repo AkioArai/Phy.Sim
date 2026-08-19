@@ -148,6 +148,11 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          This release is a redesign. On a computer the simulation is now the page
+          itself, edge to edge, with the notes in a rail over it. On a phone the scene
+          never leaves the screen: everything else is a sheet with three positions that
+          takes height from the scene instead of covering it.
+
           ### Must read
 
           This application was developed by the creator Somi together with Claude. The AI

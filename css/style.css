@@ -1,20 +1,50 @@
+/* ==================== ПАЛИТРА ====================
+   Один акцент на всё приложение — линии, отметки, активное состояние.
+   Раньше акцентов было три (синий интерфейс, фиолетовый «второй», оранжевые
+   измерения), и сцена спорила с хромом за внимание. Теперь хром уходит в
+   нейтральные тона, а цвет остаётся смыслом: им отмечено то, что живое.
+
+   Пары -300/-700/-800 нужны потому, что сам акцент слишком тёмен для текста
+   на тёмном фоне и слишком светел для заливки: -300 — акцентный текст,
+   -700 — заливка (прогресс, пройдено), -800 — тихая акцентная граница.
+
+   Четыре тона хрома (ground/well/chrome/rail) различаются на несколько
+   процентов и делают ровно одно: показывают, что лежит на чём, без единой
+   лишней рамки. Сцена — ground, конспект — well, плавающие панели — chrome. */
 :root{
   --bg:#f6f7f8; --panel:#fff; --panel-2:#eef0f2; --line:#d7dbe0; --line-soft:#e7eaee;
   --ink:#171a1f; --ink-2:#5c6570; --ink-3:#8b939d;
-  --accent:#2f5ea8; --accent-soft:#2f5ea81a; --second:#7a4fa3; --measure:#c07615; --danger:#b3452f;
+  --accent:#5d5294; --accent-soft:#5d52941a;
+  --accent-300:#4b4180; --accent-700:#7a6fc0; --accent-800:#d9d5f0;
+  --second:#7a4fa3; --measure:#c07615; --danger:#b3452f;
   --grid:#dfe3e8; --grid-major:#c9cfd6; --canvas:#fbfcfd;
   --ok:#2e7d4f;                       /* «верно», прирост величины */
-  --radius:7px; --fs:12pt;
+  --ground:#eceef2; --well:#f2f3f6; --chrome:#ffffff; --rail:#f7f8fa;
+  --divider:#171a1f29;
+  --shadow-md:0 6px 18px -8px #171a1f40;
+  --shadow-lg:0 18px 44px -16px #171a1f4d;
+  --radius:8px; --radius-sm:6px; --fs:12pt;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
   --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
 }
 [data-theme="dark"]{
-  --bg:#101216; --panel:#171a1f; --panel-2:#1e222a; --line:#2a2f38; --line-soft:#22262d;
-  --ink:#e6e9ed; --ink-2:#9aa3ae; --ink-3:#6d757f;
-  --accent:#6fa2e8; --accent-soft:#6fa2e824; --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62;
-  --grid:#232830; --grid-major:#2d333d; --canvas:#14171c;
+  --bg:#161826; --panel:#232532; --panel-2:#2b2d3c; --line:#3f424d; --line-soft:#292b31;
+  --ink:#e9e9ed; --ink-2:#b2b6ca; --ink-3:#75798c;
+  --accent:#9184d9; --accent-soft:#9184d92e;
+  --accent-300:#d2cefd; --accent-700:#5d5294; --accent-800:#423a6a;
+  --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62;
+  --grid:#242739; --grid-major:#2f3346; --canvas:#12141f;
   --ok:#6fcf97;
+  --ground:#12141f; --well:#13151f; --chrome:#1d1f2c; --rail:#191b28;
+  --divider:#e9e9ed29;
+  --shadow-md:0 8px 22px -10px #05060acc;
+  --shadow-lg:0 20px 50px -18px #05060ae6;
 }
+/* Черта, гаснущая на концах, — подпись этой системы. Ею разделяются группы
+   внутри панели, где сплошная линия читалась бы как граница блока. */
+.rule{height:1px;border:0;flex:0 0 1px;
+  background:linear-gradient(to right,transparent,var(--divider) 48px,
+    var(--divider) calc(100% - 48px),transparent)}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{font-family:var(--sans);font-size:var(--fs);color:var(--ink);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased;
@@ -1003,15 +1033,12 @@ table.ref tr:last-child td{border-bottom:0}
   line-height:1;color:var(--ink-3);padding:2px 5px;border-radius:4px}
 .fp-head .fp-fold:active{background:var(--panel-2);color:var(--ink)}
 [data-ui="mobile"] .fp-head .fp-fold{font-size:13px;padding:3px 8px}
-/* размер тянут пальцем неудобно — только перетаскивание *//* ---- Шторка параметров снизу ---- */
-[data-ui="mobile"] #simbottom{position:fixed;left:0;right:0;bottom:0;z-index:126;height:auto!important;
-    max-height:min(74dvh,74vh);
-    background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
-    box-shadow:0 -12px 34px -14px #0009;overflow-y:auto;
-    transform:translateY(110%);transition:transform .26s cubic-bezier(.4,0,.2,1);
-    padding-bottom:calc(16px + env(safe-area-inset-bottom) + var(--vvbottom,0px))}
-[data-ui="mobile"] #simbottom.msheet-open{transform:none}
-[data-ui="mobile"] #simbottom.collapsed{height:auto!important}
+/* размер тянут пальцем неудобно — только перетаскивание */
+/* ---- Тело листа ----
+   Раньше параметры выезжали шторкой ПОВЕРХ сцены (transform:translateY) и
+   закрывали ровно то, ради чего их и крутят. Теперь коробку задаёт лист:
+   правила лежат ниже, в разделе «ЛИСТ». Здесь остались только отступы. */
+[data-ui="mobile"] #simbottom{padding-bottom:12px}
 [data-ui="mobile"] .gbox.off{display:none}
 [data-ui="mobile"] .msheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;position:sticky;top:0;
     background:var(--panel);border-bottom:1px solid var(--line-soft);z-index:1}
@@ -1019,9 +1046,8 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .msheet-head .iconbtn{width:34px;height:34px}
 [data-ui="mobile"] .msheet-grip{position:absolute;top:6px;left:50%;transform:translateX(-50%);
     width:38px;height:4px;border-radius:2px;background:var(--line)}
-[data-ui="mobile"] .msheet-bg{display:block;position:fixed;inset:0;z-index:125;background:#0006;opacity:0;
-    pointer-events:none;transition:opacity .26s}
-[data-ui="mobile"] .msheet-bg.show{opacity:1;pointer-events:auto}
+/* Затемнение под шторкой больше не нужно: лист не накрывает сцену. */
+[data-ui="mobile"] .msheet-bg{display:none}
 /* ---- Плавающая панель управления ----
      Держится над нижним краем ВИДИМОЙ области: --vvbottom — это высота того,
      что браузер (адресная строка, клавиатура) отъел снизу. Без этой поправки
@@ -1153,7 +1179,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .m2val{height:28px;font-size:12px;min-width:44px}
 [data-ui="mobile"] .m2fps{display:none}
 [data-ui="mobile"] .mbplay{width:40px;height:40px}
-[data-ui="mobile"] #simbottom{max-height:min(92dvh,92vh)}
+
 }
 
 
@@ -1219,3 +1245,323 @@ table.ref tr:last-child td{border-bottom:0}
   .ws-topic,.ws-meta,.ws-ans{color:#555}
   @page{margin:16mm}
 }
+
+/* ==================================================================
+   СТЕНД — раскладка компьютера (макет 1c)
+   ==================================================================
+   Правило, которое всё определяет: сначала симуляция, потом текст.
+
+   Раньше окно делилось на пять пристыкованных колонок: рельс, дерево тем,
+   конспект, сцена, параметры. Сцена получала около трети ширины и читалась
+   как иллюстрация к тексту. Теперь наоборот: сцена — фон приложения во всю
+   страницу, а конспект едет справа полосой 392 px поверх неё. Всё остальное
+   (инструменты, показания, шкала времени) плавает над сценой и занимает
+   ровно столько, сколько нужно.
+
+   Технически это тот же DOM: меняется только позиционирование. JS про
+   раскладку почти ничего не знает — он работает с содержимым. */
+
+[data-ui="desktop"] #app{background:var(--ground)}
+[data-ui="desktop"] .body{position:relative;display:block}
+
+/* --- сцена: фон страницы --- */
+/* Сцена кончается там, где начинается полоса конспекта. Если пустить её под
+   полосу, симуляция впишется в 1280 пикселей, из которых 392 не видно, и тело
+   спокойно улетит под текст. Вписывание считает по видимой области. */
+[data-ui="desktop"] .simpane{position:absolute;left:0;top:0;bottom:0;right:392px;
+  width:auto;flex:none;z-index:1}
+[data-ui="desktop"] #app.simfull .simpane{right:0}
+[data-ui="desktop"] .canvas-wrap{border:0;border-radius:0;background:var(--canvas)}
+/* Заголовок сцены не нужен отдельной полосой — его содержимое переехало
+   в верхнюю накладку и в полосу времени. Оставляем узлы: на них висят
+   обработчики и мобильная раскладка. */
+[data-ui="desktop"] .simhead{position:absolute;z-index:32;top:0;right:392px;height:40px;
+  border:0;background:none;padding:0 12px 0 0;gap:6px;
+  width:auto;left:auto;display:flex;align-items:center;pointer-events:auto}
+[data-ui="desktop"] #app.simfull .simhead{right:0}
+[data-ui="desktop"] .simhead-lbl,[data-ui="desktop"] .simhead .spacer{display:none}
+
+/* --- верхняя накладка: хлебные крошки слева, состояние справа --- */
+[data-ui="desktop"] .topbar{position:absolute;z-index:31;top:0;left:0;right:0;height:40px;
+  border:0;padding:0 10px;gap:4px;
+  background:linear-gradient(to bottom,var(--ground),color-mix(in srgb,var(--ground) 55%,transparent) 62%,transparent)}
+[data-ui="desktop"] .topbar .crumb{font-size:11px;letter-spacing:.02em;text-transform:none;
+  color:var(--ink-2);font-family:var(--mono)}
+[data-ui="desktop"] .topbar .sep{background:var(--line)}
+[data-ui="desktop"] .clock{font-family:var(--mono);font-size:11px;color:var(--ink-2);letter-spacing:.02em}
+
+/* --- док инструментов: плавающий, а не пристыкованный рельс --- */
+[data-ui="desktop"] .rail{position:absolute;z-index:33;left:16px;top:64px;
+  width:44px;flex:none;border:1px solid var(--line);border-radius:24px;
+  background:color-mix(in srgb,var(--chrome) 92%,transparent);backdrop-filter:blur(9px);
+  box-shadow:var(--shadow-md);padding:6px 0;gap:2px;max-height:calc(100% - 176px)}
+[data-ui="desktop"] .rail .iconbtn{width:32px;height:32px;border-radius:16px}
+[data-ui="desktop"] .rail .sep-h{width:18px;background:var(--divider)}
+[data-ui="desktop"] .railgrp .grpbody{background:none;border:0}
+
+/* --- дерево тем: накладка слева, а не колонка --- */
+[data-ui="desktop"] .sidebar{position:absolute;z-index:40;left:72px;top:64px;bottom:96px;
+  width:280px;flex:none;border:1px solid var(--line);border-radius:var(--radius);
+  background:color-mix(in srgb,var(--chrome) 96%,transparent);backdrop-filter:blur(10px);
+  box-shadow:var(--shadow-lg);overflow:hidden}
+
+/* --- конспект: полоса справа --- */
+[data-ui="desktop"] .content{position:absolute;z-index:20;right:0;top:0;bottom:0;
+  width:392px;flex:none;background:var(--well);border-left:1px solid var(--line)}
+[data-ui="desktop"] .chead{padding:52px 26px 0}
+[data-ui="desktop"] .chead h1{font-size:26px;letter-spacing:-.02em;line-height:1.16}
+[data-ui="desktop"] .chead .sub{font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin-top:9px}
+[data-ui="desktop"] .pane{padding:18px 26px 96px}
+/* Верхняя накладка идёт поверх всей ширины, поэтому её левая часть должна
+   кончаться там, где начинается полоса конспекта. */
+[data-ui="desktop"] .topbar{right:392px}
+/* Чтение без сцены (кнопка H): полоса разворачивается в обычный документ. */
+[data-ui="desktop"] .simpane.hidden{display:none}
+[data-ui="desktop"] .content.wide{position:static;width:auto;border:0;background:var(--well);
+  backdrop-filter:none;height:100%;display:flex;flex-direction:column}
+[data-ui="desktop"] .content.wide .chead{padding:34px 12vw 0}
+[data-ui="desktop"] .content.wide .pane{padding:22px 12vw 64px}
+[data-ui="desktop"] .splitter{display:none}
+/* Сцена во весь экран (кнопка F): полоса конспекта уходит. */
+[data-ui="desktop"] #app.simfull .content{display:none}
+[data-ui="desktop"] #app.simfull .topbar{right:0}
+
+/* --- вкладки полосы: пилюли --- */
+[data-ui="desktop"] .chead .tabs{gap:6px;margin-top:16px;border:0}
+[data-ui="desktop"] .tabs button{border:1px solid var(--line);border-radius:999px;
+  padding:6px 13px;font-size:12px;color:var(--ink-2);background:none}
+[data-ui="desktop"] .tabs button:hover{color:var(--ink);border-color:var(--ink-3)}
+[data-ui="desktop"] .tabs button.on{border-color:var(--accent-700);color:var(--accent-300);
+  background:color-mix(in srgb,var(--accent) 12%,transparent)}
+
+/* --- показания: плавающая панель у нижнего левого угла --- */
+/* Показания стоят рядом с доком, а не под ним: док с двумя десятками
+   инструментов вырастает почти во всю высоту и накрыл бы панель. */
+[data-ui="desktop"] .hud{left:72px;top:auto;bottom:96px;width:198px;
+  border-radius:var(--radius);box-shadow:var(--shadow-md);
+  background:color-mix(in srgb,var(--chrome) 92%,transparent);backdrop-filter:blur(9px)}
+
+/* --- шкала времени: полоса, гаснущая вверх --- */
+[data-ui="desktop"] .timeline{position:absolute;z-index:25;left:0;right:0;bottom:0;height:80px;
+  border:0;padding:0 22px 22px;gap:12px;align-items:flex-end;
+  background:linear-gradient(to top,var(--ground),color-mix(in srgb,var(--ground) 62%,transparent) 55%,transparent)}
+[data-ui="desktop"] .timeline .tl-btn{width:30px;height:30px;border-radius:15px;
+  border:1px solid var(--line);background:var(--chrome)}
+[data-ui="desktop"] .timeline .tl-range{height:34px}
+[data-ui="desktop"] .timeline .tl-time{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+
+/* --- параметры: плавающая панель, а не пристыкованный низ ---
+   Макет 1c параметров не показывает вовсе, но менять числа и смотреть, что
+   выйдет, — это и есть смысл приложения. Панель сделана в том же языке, что
+   показания: плавает над сценой, сворачивается заголовком, помнит состояние. */
+[data-ui="desktop"] .simbottom{position:absolute;z-index:24;left:282px;bottom:96px;right:auto;
+  width:300px;height:auto;max-height:min(46%,380px);flex:none;
+  border:1px solid var(--line);border-radius:var(--radius);
+  background:color-mix(in srgb,var(--chrome) 93%,transparent);backdrop-filter:blur(9px);
+  box-shadow:var(--shadow-md);overflow:auto}
+[data-ui="desktop"] .simbottom.collapsed{max-height:none}
+[data-ui="desktop"] #hsplit{display:none}
+[data-ui="desktop"] .msheet-head{display:flex;align-items:center;gap:8px;
+  padding:9px 12px 8px;position:sticky;top:0;z-index:2;
+  background:color-mix(in srgb,var(--chrome) 96%,transparent);
+  border-bottom:1px solid var(--divider);
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+[data-ui="desktop"] .msheet-head b{font:inherit;flex:1}
+[data-ui="desktop"] .msheet-grip{display:none}
+[data-ui="desktop"] .simbottom.collapsed .gbox,
+[data-ui="desktop"] .simbottom.collapsed .pbox{display:none}
+
+/* --- полоса стиля инструмента: рядом с доком, а не по центру снизу --- */
+[data-ui="desktop"] .penbar{left:76px;top:64px;bottom:auto;transform:none;
+  border-radius:22px;padding:6px 12px;box-shadow:var(--shadow-md);
+  background:color-mix(in srgb,var(--chrome) 92%,transparent);backdrop-filter:blur(9px)}
+
+/* Числа — всегда моноширинные. Одно это правило держит половину системы:
+   показания, время, счётчики и подписи осей выстраиваются в колонку и
+   перестают дёргаться при каждом изменении цифры. */
+[data-ui="desktop"] .nprob,[data-ui="desktop"] .pv-num,[data-ui="desktop"] .p-val{font-family:var(--mono)}
+
+/* --- нижняя полоса: транспорт слева, перемотка справа ---
+   Круглая кнопка пуска — самая крупная цель на экране: её жмут чаще всего. */
+[data-ui="desktop"] .statusbar{display:none}
+[data-ui="desktop"] .timeline .group{display:flex;align-items:center;gap:4px;
+  padding:3px;border:1px solid var(--line);border-radius:22px;
+  background:color-mix(in srgb,var(--chrome) 92%,transparent);backdrop-filter:blur(9px);
+  box-shadow:var(--shadow-md)}
+[data-ui="desktop"] .timeline .group .iconbtn{width:30px;height:30px;border-radius:15px;border:0}
+[data-ui="desktop"] .timeline #btn-play{width:34px;height:34px;border-radius:17px;
+  background:var(--accent-800);color:var(--accent-300)}
+[data-ui="desktop"] .timeline #btn-play:hover{background:var(--accent-700);color:#fff}
+[data-ui="desktop"] .timeline #fps{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+/* Полоса перемотки: тонкий трек, метка воспроизведения — 2 px акцента. */
+[data-ui="desktop"] .timeline .tl-range{accent-color:var(--accent)}
+
+/* --- верхняя накладка: состояние вида справа --- */
+[data-ui="desktop"] .topbar .brand{font-family:var(--mono);font-weight:700;font-size:12px;
+  letter-spacing:.01em;padding:0 6px 0 2px}
+[data-ui="desktop"] .topbar .brand span{color:var(--accent)}
+[data-ui="desktop"] .topbar .group{display:flex;align-items:center;gap:2px}
+[data-ui="desktop"] .topbar .zoomval{width:52px;text-align:center;font-family:var(--mono);
+  font-size:10.5px;background:none;border:1px solid transparent;border-radius:5px;
+  color:var(--ink-2);padding:3px 0}
+[data-ui="desktop"] .topbar .zoomval:hover{border-color:var(--line)}
+[data-ui="desktop"] .topbar .iconbtn{width:28px;height:28px}
+[data-ui="desktop"] .topbar .iconbtn svg{width:15px;height:15px}
+
+/* Мелочи полосы конспекта: моношрифтовый счётчик задач в пилюле. */
+[data-ui="desktop"] .tabs .nprob{font-family:var(--mono);font-size:10px;margin-left:6px;
+  padding:1px 5px;border-radius:8px;background:var(--accent-800);color:var(--accent-300)}
+
+/* --- верхняя накладка: три зоны без наложений --- */
+[data-ui="desktop"] .topbar{display:flex;align-items:center;flex-wrap:nowrap;overflow:hidden}
+[data-ui="desktop"] .topbar #crumb{flex:0 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+/* Выбор симуляции — третий уровень крошек, поэтому и выглядит как крошка:
+   без рамки, с шевроном, а не как поле формы. */
+[data-ui="desktop"] .topbar #simsel{max-width:190px;background:none;border:0;
+  font-family:var(--mono);font-size:11px;color:var(--ink-2);padding:2px 2px 2px 6px}
+[data-ui="desktop"] .topbar #simsel:hover{color:var(--ink)}
+[data-ui="desktop"] .topbar #clock{margin-left:8px}
+[data-ui="desktop"] .simhead{display:none}
+
+/* Параметры выше графиков: числа крутят постоянно, графики смотрят изредка. */
+[data-ui="desktop"] .simbottom{display:flex;flex-direction:column}
+[data-ui="desktop"] .simbottom .msheet-head{order:0}
+[data-ui="desktop"] .simbottom .pbox{order:1}
+[data-ui="desktop"] .simbottom .gbox{order:2}
+
+/* --- показания: подпись слева, число справа ---
+   Колонка чисел стоит на месте при любой длине подписи, поэтому глаз ловит
+   изменение величины, а не прыжок строки. Единица отдельной колонкой и
+   приглушена: она не меняется, а место занимает. */
+.hud-body{white-space:normal!important;padding:7px 10px 8px;display:flex;flex-direction:column;gap:1px}
+.ro{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;gap:8px;
+  font-family:var(--mono);line-height:1.5}
+.ro-l{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ro-v{color:var(--ink);font-variant-numeric:tabular-nums}
+.ro-u{color:var(--ink-3);min-width:2.2em}
+.ro-more{display:block;color:var(--ink-3);opacity:.8}
+
+/* ==================================================================
+   ЛИСТ — раскладка телефона (макеты 2a–2c)
+   ==================================================================
+   Одна мысль: сцена никогда не уходит с экрана. Раньше параметры выезжали
+   шторкой ПОВЕРХ сцены, и в момент, когда крутишь число, результата не
+   видно — то есть ровно тогда, когда он и нужен. Теперь лист не накрывает
+   сцену, а отбирает у неё высоту: сцена ужимается и пересчитывает вписывание.
+
+   Три положения:
+     край     172 px — показания, перемотка, транспорт;
+     половина 436 px — вкладка целиком (параметры, конспект или задача);
+     полный          — чтение во весь лист, сцена сжимается в живую полосу
+                       88 px под шапкой и продолжает идти.
+
+   Высота листа — единственное, что анимируется. */
+.msheet{display:none}
+/* В положении «край» лист ровно такой, какой нужен его содержимому:
+   ручка, показания, перемотка и транспорт. Числом высоту не задать — строка
+   транспорта на разных телефонах разной высоты. */
+[data-ui="mobile"]{--sheet-head:76px;--sheet:calc(var(--sheet-head) + var(--foot,150px))}
+[data-ui="mobile"][data-detent="half"]{--sheet:436px;--sheet-head:122px}
+[data-ui="mobile"][data-detent="full"]{--sheet:calc(100% - 88px - var(--simhead-h,36px));--sheet-head:122px}
+
+/* Сцена: ужимается, а не закрывается. */
+[data-ui="mobile"] .simpane{padding-bottom:calc(var(--sheet) + var(--vvbottom,0px));
+  transition:padding-bottom .22s cubic-bezier(.32,.72,0,1)}
+[data-ui="mobile"][data-detent="full"] .canvas-wrap{flex:0 0 88px;min-height:88px}
+
+/* Шапка листа: ручка, показания, вкладки. */
+[data-ui="mobile"] .msheet{display:flex;flex-direction:column;position:fixed;z-index:126;
+  left:0;right:0;height:var(--sheet-head);
+  bottom:calc(var(--sheet) - var(--sheet-head) + var(--vvbottom,0px));
+  background:var(--chrome);border-top:1px solid var(--line);
+  border-radius:20px 20px 0 0;box-shadow:var(--shadow-lg);
+  transition:bottom .22s cubic-bezier(.32,.72,0,1)}
+[data-ui="mobile"] .msheet-grab{flex:0 0 18px;display:grid;place-items:center;position:relative}
+[data-ui="mobile"] .msheet-grab::after{content:"";width:36px;height:4px;border-radius:2px;background:var(--line)}
+/* Зона захвата шире, чем полоска: пальцем в 4 пикселя не попадают. */
+[data-ui="mobile"] .msheet-grab::before{content:"";position:absolute;left:0;right:0;top:-6px;height:44px}
+
+/* Показания строкой: подпись сверху мелким моно, значение снизу крупным. */
+[data-ui="mobile"] .msheet-ro{flex:0 0 56px;display:flex;gap:22px;align-items:center;
+  padding:0 16px;overflow-x:auto;scrollbar-width:none}
+[data-ui="mobile"] .msheet-ro::-webkit-scrollbar{display:none}
+[data-ui="mobile"] .msheet-ro .sr{flex:0 0 auto;display:flex;flex-direction:column;gap:2px}
+[data-ui="mobile"] .msheet-ro .sr-l{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);white-space:nowrap}
+[data-ui="mobile"] .msheet-ro .sr-v{font-family:var(--mono);font-size:19px;color:var(--ink);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Вкладки листа — пилюли, видны с половины и выше. */
+[data-ui="mobile"] .msheet-tabs{display:none;gap:8px;padding:0 12px 10px}
+[data-ui="mobile"]:not([data-detent="peek"]) .msheet-tabs{display:flex}
+[data-ui="mobile"] .msheet-tabs button{flex:1;height:44px;border-radius:12px;border:1px solid transparent;
+  font-size:14.5px;color:var(--ink-2);background:none}
+[data-ui="mobile"] .msheet-tabs button.on{background:var(--accent-800);color:var(--accent-300)}
+[data-ui="mobile"] .msheet-tabs .nprob{font-family:var(--mono);font-size:11px;margin-left:6px;color:var(--ink-3)}
+
+/* Тело листа: параметры или конспект — в одной и той же коробке. */
+[data-ui="mobile"] #simbottom,
+[data-ui="mobile"][data-detent="full"] .content,
+[data-ui="mobile"][data-detent="half"] .content{
+  position:fixed;z-index:125;left:0;right:0;
+  bottom:calc(var(--foot,150px) + var(--vvbottom,0px));
+  height:calc(var(--sheet) - var(--sheet-head) - var(--foot,150px));
+  max-height:none;min-height:0;transform:none;border-radius:0;border:0;
+  background:var(--chrome);overflow-y:auto;box-shadow:none;
+  transition:height .22s cubic-bezier(.32,.72,0,1)}
+[data-ui="mobile"][data-detent="peek"] #simbottom,
+[data-ui="mobile"][data-detent="peek"] .content{display:none}
+[data-ui="mobile"] .msheet-head{display:none}
+/* На листе заголовок темы и её собственные вкладки не нужны: тему называет
+   шапка приложения, а вкладки — сам лист. */
+[data-ui="mobile"][data-detent="half"] .chead,
+[data-ui="mobile"][data-detent="full"] .chead{display:none}
+[data-ui="mobile"] .content .pane{padding:14px 16px 28px}
+
+/* Транспорт остаётся у нижнего края во всех положениях — это дно листа. */
+[data-ui="mobile"] .mbar2.show{display:block;z-index:127;border-radius:0;box-shadow:none;
+  border-top:1px solid var(--divider)}
+/* Пилюля из шести кнопок над сценой закрывала как раз то, ради чего сцену и
+   открывают: транспорт переехал на дно листа, а от пилюли осталась одна
+   круглая кнопка инструментов — у большого пальца, где ей и место (макет 2d).
+   Она держится над листом и уезжает вместе с ним. */
+[data-ui="mobile"] .mbar{left:auto;right:14px;transform:none;padding:0;border:0;background:none;box-shadow:none;
+  bottom:calc(var(--sheet) + var(--vvbottom,0px) + 18px)}
+[data-ui="mobile"] .mbar.hide{transform:translateY(10px)}
+[data-ui="mobile"] .mbar>*{display:none}
+[data-ui="mobile"] .mbar #mb-tools{display:grid;width:56px;height:56px;border-radius:28px;
+  background:var(--chrome);border:1px solid var(--line);box-shadow:var(--shadow-lg);color:var(--ink)}
+[data-ui="mobile"] .mbar #mb-tools svg{width:24px;height:24px}
+[data-ui="mobile"] .mbar #mb-tools:active{background:var(--accent-800);color:var(--accent-300);transform:scale(.92)}
+
+/* Параметры: значение — само себе ползунок.
+   Тянуть пальцем по узкому бегунку неудобно, поэтому горизонтальный протяг
+   ловится всей строкой, а число подчёркнуто пунктиром — знак, что его тянут. */
+[data-ui="mobile"] .p-row{min-height:52px}
+[data-ui="mobile"] .p-num{font-family:var(--mono);font-size:16px;color:var(--accent-300);
+  border-bottom:1px dashed var(--accent-700);touch-action:pan-y}
+
+/* Перемотка — часть дна листа: она отвечает на вопрос «где я во времени»,
+   и стоять ей рядом с пуском, а не отдельной полосой над сценой. */
+[data-ui="mobile"] .timeline{display:flex!important;position:fixed;z-index:127;
+  left:0;right:0;bottom:calc(var(--mbar2h,0px) + var(--vvbottom,0px));
+  height:46px;padding:0 12px;gap:10px;border:0;
+  background:var(--chrome);border-top:1px solid var(--divider)}
+[data-ui="mobile"] .timeline .tl-btn{width:44px;height:44px;border-radius:22px}
+[data-ui="mobile"] .timeline .tl-range{flex:1;height:44px;accent-color:var(--accent)}
+[data-ui="mobile"] .timeline .tl-time{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+[data-ui="mobile"] .timeline #tl-loop{display:none}
+/* Плавающая панель показаний на телефоне больше не нужна: те же величины
+   стоят в шапке листа и не закрывают сцену. */
+[data-ui="mobile"] .hud{display:none!important}
+
+/* Параметры выше графиков и на телефоне: числа крутят постоянно, графики
+   смотрят изредка, а прокручивать до них каждый раз — лишний жест. */
+[data-ui="mobile"] #simbottom{display:flex;flex-direction:column}
+[data-ui="mobile"] #simbottom .pbox{order:1}
+[data-ui="mobile"] #simbottom .gbox{order:2}
+/* Подсказки и плашка события поднимаются НАД листом, а не над старой
+   плавающей панелью: лист выше и его высота меняется. */
+[data-ui="mobile"] .toast{bottom:calc(var(--sheet) + var(--vvbottom,0px) + 12px)}
+[data-ui="mobile"] .eventflag{bottom:calc(var(--sheet) + var(--vvbottom,0px) + 8px)}

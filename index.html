@@ -134,6 +134,22 @@
     <!-- затемнение под ящиком: тап по нему возвращает к чтению -->
     <div class="drawer-bg" id="drawer-bg"></div>
 
+    <!-- ============ ТЕЛЕФОН: шапка листа ============
+         Лист снизу имеет три положения (край / половина / полный), и его
+         верхняя часть одна на все три: полоска-ручка, строка показаний и
+         вкладки. Сцена при этом не закрывается, а ужимается — в полном
+         положении она остаётся живой полосой под шапкой.
+         На компьютере элемент выключен целиком. -->
+    <div class="msheet" id="msheet">
+      <button class="msheet-grab" id="msheet-grab" title="Потяните: край / половина / полный лист"></button>
+      <div class="msheet-ro" id="msheet-ro"></div>
+      <div class="msheet-tabs" id="msheet-tabs">
+        <button data-sheet="params" class="on">Параметры</button>
+        <button data-sheet="notes">Конспект</button>
+        <button data-sheet="problems">Задачи<span class="nprob" id="nprob2"></span></button>
+      </div>
+    </div>
+
     <main class="content" id="content">
       <div class="chead">
         <h1 id="t-title">—</h1>
