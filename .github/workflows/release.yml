@@ -148,10 +148,16 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          New in this release: **compiled graphs**. The panel graph is a tape recorded at
+          frame rate between play and pause; this runs the simulation again from the
+          initial conditions at a fixed step and samples on an even time grid, then saves
+          the result as SVG, PNG or JPEG. The same interval and parameters always give the
+          same picture. Checked against closed-form solutions — zero deviation for
+          projectile motion, 1.5e-6 m for the spring pendulum at the finest step.
+
           On a phone the scene never leaves the screen: everything else is a sheet with
           three positions that takes height from the scene instead of covering it. On a
-          computer the familiar docked layout is back — 1.4.0 replaced it with a
-          full-bleed one that turned out to be worse to work in.
+          computer the familiar docked layout.
 
           ### Must read
 

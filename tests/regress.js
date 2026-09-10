@@ -173,6 +173,70 @@ async function boot(b, url, ui) {
     ok('формулы не потеряли обратный слеш', тех.плохо.length === 0 && тех.всего > 600,
       тех.плохо.length ? тех.плохо.slice(0, 6) : тех.всего);
 
+    /* Компиляция графика. Обещание тут сильное — «математически достоверный
+       результат», — поэтому и проверяем его не на глаз, а против замкнутых
+       формул, которые записаны здесь отдельно от кода симуляций.
+
+       Баллистика: y(t) = y₀ + v₀sinθ·t − gt²/2 — её график считается по
+       формуле, расхождение обязано быть нулевым.
+       Пружина: x(t) = A·cos(ωt), ω = √(k/m) — здесь идёт настоящее
+       интегрирование, поэтому проверяем и то, что мельче шаг — точнее ответ.
+       И отдельно: два запуска подряд дают побитово одно и то же. */
+    const комп = await p.evaluate(() => {
+      const из = {};
+      openSim('proj2d');
+      const a = A();
+      Object.assign(a.params, { bodies: '1', x01: 0, y01: 40, v01: 23.7, a01: 37,
+                                ay: -9.8, stopLand: false, stopHit: false, tStop: 0 });
+      const gi = a.def.graphs.findIndex(g => /высот/i.test(g.label));
+      const бал = собратьРяд(a.def, a.params, 0, 3, 301, 16);
+      const th = 37 * Math.PI / 180;
+      из.баллистика = 0;
+      бал.ts.forEach((t, i) => { const y = бал.ys[gi][0][i];
+        if (y === null || !isFinite(y)) return;
+        из.баллистика = Math.max(из.баллистика, Math.abs(y - (40 + 23.7 * Math.sin(th) * t - 9.8 * t * t / 2))); });
+
+      const п1 = собратьРяд(a.def, a.params, 0, 2, 101, 4);
+      const п2 = собратьРяд(a.def, a.params, 0, 2, 101, 4);
+      из.повторяется = JSON.stringify(п1) === JSON.stringify(п2);
+
+      openSim('spring');
+      const b = A();
+      Object.assign(b.params, { m: 0.8, k: 50, A: 0.6, damp: false, periods: 0, tStop: 0 });
+      const gj = b.def.graphs.findIndex(g => /Смещение/i.test(g.label));
+      const w = Math.sqrt(50 / 0.8);
+      const мера = дробь => { const р = собратьРяд(b.def, b.params, 0, 2, 201, дробь); let м = 0;
+        р.ts.forEach((t, i) => { const y = р.ys[gj][0][i]; if (y === null || !isFinite(y)) return;
+          м = Math.max(м, Math.abs(y - 0.6 * Math.cos(w * t))); }); return м; };
+      из.пружина1 = мера(1); из.пружина4 = мера(4); из.пружина16 = мера(16);
+
+      // событие обрывает кривую там же, где его считает физика: 2v₀sinθ/g
+      openSim('proj2d');
+      const c = A();
+      Object.assign(c.params, { bodies: '1', y01: 0, v01: 25, a01: 45, ay: -9.8,
+                                stopLand: true, tStop: 0 });
+      const соб = собратьРяд(c.def, c.params, 0, 20, 400, 1);
+      из.падение = соб.stop ? +соб.stop.t.toFixed(2) : null;
+      из.падениеЖдём = +(2 * 25 * Math.sin(Math.PI / 4) / 9.8).toFixed(2);
+
+      // ни одна симуляция с графиками по времени не должна падать при компиляции
+      из.бросили = [];
+      for (const id of Object.keys(SIMS)) {
+        const d = SIMS[id];
+        if (!d.graphs || !d.graphs.length || d.timeless) continue;
+        try { openSim(id); const x = A();
+          const р = собратьРяд(x.def, x.params, 0, 2, 40, 1);
+          графикВКартинку({ a: x, ряд: р, какие: [0], W: 600, Hодного: 360, формат: 'svg', светлая: true });
+        } catch (e) { из.бросили.push(id + ': ' + e.message); }
+      }
+      return из;
+    });
+    ok('компиляция графика сходится с формулой',
+      комп.баллистика === 0 && комп.повторяется &&
+      комп.пружина16 < 5e-6 && комп.пружина4 < комп.пружина1 / 4 &&
+      комп.падение === комп.падениеЖдём && комп.бросили.length === 0,
+      { ...комп, бросили: комп.бросили.slice(0, 3) });
+
     /* Блоки пособия. Проверяем не наличие полей в данных (это делает
        curriculum.mjs), а что они дошли до экрана и работают: шаги вывода
        раскрываются по одному, решение примера открывается кнопкой. */

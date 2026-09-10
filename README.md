@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.4.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.4.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.4.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.4.2.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.4.2.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.4.2.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.2.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -118,6 +118,30 @@ tension do over one revolution?" — always zero), the level-1 problems that *ar
 meant to be answered by reading the panel, and every answer that is proportional to
 a single parameter, so its unit can be checked against that parameter's. Worth
 knowing when you set homework.
+
+### Graphs you can put in a report
+
+The graph on the panel is a tape the render loop keeps: it starts where you pressed
+play, is written at frame rate and ends where you paused. Fine for watching a process,
+useless for a document — two runs with the same parameters give two different pictures.
+
+**Menu → Скомпилировать график** does something else: it runs the simulation again
+from the initial conditions, at a fixed step of its own, and samples the values on an
+even time grid. Pick the interval, the number of points, the integration step, the
+size and the format — **SVG, PNG or JPEG** — and you get a file. The same interval and
+the same parameters always give the same image, down to the last digit.
+
+Accuracy is the simulation's own integrator, and the step can be taken finer than the
+one used on screen. Measured against `x = A·cos(ωt)` on the spring pendulum: at 1/240 s
+the largest deviation is 3.8·10⁻⁴ m, four times finer 2.4·10⁻⁵, sixteen times finer
+1.5·10⁻⁶ — on an amplitude of 0.6 m. The error falls as the *square* of the step. For
+projectile motion the deviation from `y = y₀ + v₀sinθ·t − gt²/2` is exactly zero: that
+graph is computed in closed form rather than integrated. Both checks run in
+`npm test`.
+
+Events are honoured: if the body lands, the curve stops there and the moment is marked
+— the landing time matches `2v₀sinθ/g` to the digit. The plot has real margins on every
+side, so the curve never touches the frame and the axis numbers are never clipped.
 
 ### Every simulation checked against the textbook
 

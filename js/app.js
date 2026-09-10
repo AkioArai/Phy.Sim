@@ -3634,6 +3634,13 @@ function setSheetTab(t){
 }
 function syncSheet(){
   if(!isNarrow()) return;
+  /* Нет симуляции — нечего и показывать: лист с пустой строкой показаний
+     просто отъедал бы низ экрана у конспекта. */
+  const есть=!!A() && !$('#simpane').classList.contains('hidden');
+  $('#msheet').classList.toggle('hidden',!есть);
+  if(!есть){ document.documentElement.style.setProperty('--foot','0px');
+             document.documentElement.style.setProperty('--sheet','0px'); return; }
+  document.documentElement.style.removeProperty('--sheet');
   const t=sheetTab(), d=detent();
   for(const b of document.querySelectorAll('#msheet-tabs button'))
     b.classList.toggle('on', b.dataset.sheet===t);
@@ -4148,6 +4155,7 @@ const CMDS=[
   {k:'Симуляция',t:'Ускорить время',     hint:']',     run:()=>stepSpeed(1)},
   {k:'Симуляция',t:'Замедлить время',    hint:'[',     run:()=>stepSpeed(-1)},
   {k:'Симуляция',t:'Снимок кадра (PNG)', run:()=>$('#mi-png').click()},
+  {k:'Симуляция',t:'Скомпилировать график (PNG/SVG)', run:()=>открытьКомпиляцию()},
   {k:'Симуляция',t:'Записать видео (WebM)', run:()=>$('#mi-rec').click()},
   {k:'Симуляция',t:'Сохранить параметры как набор', run:()=>$('#mi-save').click()},
   {k:'Симуляция',t:'Снимок для сравнения', hint:'Ctrl+D', run:()=>takeSnapshot()},
@@ -4615,3 +4623,277 @@ addEventListener('load',()=>{ typeset($('#pane')); resize(); });
   sp.addEventListener('pointerdown',open);
   addEventListener('keydown',open,{once:true});
 })();
+
+/* ====================== КОМПИЛЯЦИЯ ГРАФИКА ==============================
+   График на панели — это лента, которую ведёт цикл отрисовки: она начинается
+   там, где включили расчёт, пишется с частотой кадров, прореживается через
+   `graphEvery` и обрывается там, где нажали паузу. Смотреть по ней за
+   процессом удобно, а вот вставить её в отчёт нельзя: у двух запусков с теми
+   же параметрами получаются разные картинки.
+
+   Здесь другое: симуляция считается заново от начальных условий, своим
+   постоянным шагом, и значения снимаются на равномерной сетке времени.
+   Результат зависит только от параметров и промежутка — при тех же входных
+   данных он повторяется до последней цифры.
+
+   Точность ограничена интегратором самой симуляции, поэтому шаг можно взять
+   мельче штатного. Замерено на пружинном маятнике против x = A·cos(ωt):
+   при шаге 1/240 наибольшее расхождение 3,8·10⁻⁴ м, вчетверо мельче —
+   2,4·10⁻⁵, в шестнадцать раз мельче — 1,5·10⁻⁶ (амплитуда 0,6 м). То есть
+   ошибка падает как КВАДРАТ шага: вчетверо мельче — в шестнадцать раз точнее.
+   У баллистики расхождение ровно нулевое: её график считается по замкнутой
+   формуле, а не численно. Обе проверки — в tests/regress.js.               */
+
+/* Считаем ряд точек для всех графиков симуляции.
+   Возвращает {ts:[…], ys:[график][серия][…], stop:{t,текст}|null, dt}. */
+function собратьРяд(def, params, t0, t1, точек, дробь){
+  const st=def.init(params);
+  const dt=DT/Math.max(1,дробь|0);
+  /* Ограничитель шагов: при промежутке в часы и мелком шаге браузер иначе
+     просто встанет. Лучше честно огрубить шаг, чем повесить вкладку. */
+  const МАКС=4e6;
+  const нужно=Math.ceil((t1-(st.t||0))/dt);
+  const шаг = нужно>МАКС ? (t1-(st.t||0))/МАКС : dt;
+  const ts=[], ys=def.graphs.map(()=>[[],[]]);
+  let stop=null;
+  const снять=t=>{
+    ts.push(t);
+    def.graphs.forEach((g,gi)=>{
+      const v=g.get(st,params);
+      ys[gi][0].push(v[0]); ys[gi][1].push(v.length>1?v[1]:null);
+    });
+  };
+  const шагПоСетке=(t1-t0)/Math.max(1,точек-1);
+  let следующий=t0;
+  if((st.t||0)>=t0-1e-12) { снять(st.t||0); следующий=t0+шагПоСетке; }
+  /* Идём вперёд постоянным шагом и снимаем показания, когда перешли через
+     очередной узел сетки. Интерполировать между узлами нельзя: у события
+     (удар, падение) состояние меняется скачком. */
+  let охрана=0;
+  while(st.t<t1-1e-12 && охрана++<МАКС+10){
+    def.step(st,шаг,params);
+    if(st.t>=следующий-1e-12 && st.t<=t1+1e-9){
+      снять(st.t);
+      while(следующий<=st.t+1e-12) следующий+=шагПоСетке;
+    }
+    if(st.__stop){ stop={t:st.t,текст:String(st.__stop)}; снять(st.t); break; }
+  }
+  return {ts,ys,stop,dt:шаг};
+}
+
+/* Рисование не знает, куда рисует: два движка (холст и SVG) отвечают на один
+   и тот же набор вызовов. Иначе пришлось бы держать две копии одной разметки
+   и чинить отступы дважды. */
+function холстовыйДвижок(ctx,k){
+  const S=v=>v*k;
+  return {
+    rect:(x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(S(x),S(y),S(w),S(h)); },
+    line:(x1,y1,x2,y2,c,w,dash)=>{ ctx.strokeStyle=c; ctx.lineWidth=S(w);
+      ctx.setLineDash((dash||[]).map(S)); ctx.beginPath();
+      ctx.moveTo(S(x1),S(y1)); ctx.lineTo(S(x2),S(y2)); ctx.stroke(); ctx.setLineDash([]); },
+    poly:(pts,c,w,dash)=>{ if(pts.length<2) return; ctx.strokeStyle=c; ctx.lineWidth=S(w);
+      ctx.lineJoin='round'; ctx.lineCap='round';
+      ctx.setLineDash((dash||[]).map(S)); ctx.beginPath();
+      pts.forEach(([x,y],i)=>i?ctx.lineTo(S(x),S(y)):ctx.moveTo(S(x),S(y)));
+      ctx.stroke(); ctx.setLineDash([]); },
+    text:(s,x,y,c,px,ank,mono)=>{ ctx.fillStyle=c;
+      ctx.font=`${S(px)}px ${mono?'ui-monospace,Menlo,monospace':'Inter,system-ui,sans-serif'}`;
+      ctx.textAlign=ank||'left'; ctx.textBaseline='alphabetic';
+      ctx.fillText(s,S(x),S(y)); ctx.textAlign='left'; },
+  };
+}
+function svgДвижок(куски){
+  const q=s=>esc(s);
+  const n=v=>Math.round(v*100)/100;
+  return {
+    rect:(x,y,w,h,c)=>куски.push(`<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="${c}"/>`),
+    line:(x1,y1,x2,y2,c,w,dash)=>куски.push(
+      `<line x1="${n(x1)}" y1="${n(y1)}" x2="${n(x2)}" y2="${n(y2)}" stroke="${c}" stroke-width="${w}"`+
+      (dash&&dash.length?` stroke-dasharray="${dash.join(' ')}"`:'')+`/>`),
+    poly:(pts,c,w,dash)=>{ if(pts.length<2) return;
+      куски.push(`<polyline fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`+
+        (dash&&dash.length?` stroke-dasharray="${dash.join(' ')}"`:'')+
+        ` points="${pts.map(([x,y])=>n(x)+','+n(y)).join(' ')}"/>`); },
+    text:(s,x,y,c,px,ank,mono)=>куски.push(
+      `<text x="${n(x)}" y="${n(y)}" fill="${c}" font-size="${px}"`+
+      ` font-family="${mono?'ui-monospace, Menlo, monospace':'Inter, system-ui, sans-serif'}"`+
+      (ank==='end'?' text-anchor="end"':ank==='center'?' text-anchor="middle"':'')+`>${q(s)}</text>`),
+  };
+}
+
+/* Красивые деления: 1, 2, 5 на порядок. Иначе на оси появляются подписи
+   вида 0.31 / 0.62 / 0.93, по которым ничего не прочитать. */
+function делениеОси(размах, сколько){
+  const грубо=размах/Math.max(1,сколько);
+  const порядок=Math.pow(10,Math.floor(Math.log10(грубо)));
+  const m=грубо/порядок;
+  return (m<1.5?1:m<3?2:m<7?5:10)*порядок;
+}
+
+/* Одна картинка: рамка, оси с делениями, кривые, легенда, подпись.
+   ОТСТУПЫ. Поля вокруг поля построения заданы явно и с запасом: кривая
+   никогда не касается края картинки, а подписи осей не срезаются. Раньше
+   график на панели рисовался с отступом в два пикселя, и крайняя точка
+   сливалась с рамкой. */
+function рисоватьГрафик(dr, o){
+  const {W,H,график,ряд,gi,подпись,светлая}=o;
+  const C = светлая
+    ? {фон:'#ffffff',сетка:'#e6e8ee',ось:'#9aa0ae',текст:'#1b1d24',тихий:'#6b7180',линия:'#4b3fa0',вторая:'#b06a1f',событие:'#c0392b'}
+    : {фон:'#12141f',сетка:'#262a3a',ось:'#6f748a',текст:'#e9e9ed',тихий:'#9397ab',линия:'#9184d9',вторая:'#e0a44a',событие:'#e07a62'};
+  /* Поля: слева место числам оси Y, снизу — оси времени, сверху — заголовку
+     с легендой, справа — последней подписи на оси времени. */
+  const M={l:82,r:34,t:56,b:60};
+  const px=M.l, py=M.t, pw=W-M.l-M.r, ph=H-M.t-M.b;
+
+  dr.rect(0,0,W,H,C.фон);
+
+  const ts=ряд.ts;
+  const t0=ts[0], t1=ts[ts.length-1];
+  const tSpan=Math.max(t1-t0,1e-9);
+  let lo=Infinity, hi=-Infinity;
+  for(const серия of ряд.ys[gi]) for(const y of серия)
+    if(y!==null&&isFinite(y)){ if(y<lo)lo=y; if(y>hi)hi=y; }
+  if(!isFinite(lo)){ lo=0; hi=1; }
+  if(hi-lo<1e-9){ hi+=0.5; lo-=0.5; }
+  const запас=(hi-lo)*0.08; lo-=запас; hi+=запас;   // кривая не липнет к рамке
+
+  const X=t=>px+(t-t0)/tSpan*pw;
+  const Y=y=>py+ph-(y-lo)/(hi-lo)*ph;
+
+  // сетка и деления
+  const шагY=делениеОси(hi-lo,5), шагX=делениеОси(tSpan,6);
+  for(let v=Math.ceil(lo/шагY)*шагY; v<=hi+1e-9; v+=шагY){
+    dr.line(px,Y(v),px+pw,Y(v),C.сетка,1);
+    dr.text(fmt(v),px-10,Y(v)+4,C.тихий,12,'end',true);
+  }
+  for(let v=Math.ceil(t0/шагX)*шагX; v<=t1+1e-9; v+=шагX){
+    dr.line(X(v),py,X(v),py+ph,C.сетка,1);
+    dr.text(fmt(v),X(v),py+ph+22,C.тихий,12,'center',true);
+  }
+  if(lo<0&&hi>0) dr.line(px,Y(0),px+pw,Y(0),C.ось,1.4);
+  dr.line(px,py,px,py+ph,C.ось,1.4);
+  dr.line(px,py+ph,px+pw,py+ph,C.ось,1.4);
+
+  // кривые
+  const имена=график.series||['тело 1','тело 2'];
+  for(let s=0;s<2;s++){
+    const серия=ряд.ys[gi][s];
+    if(!серия.some(y=>y!==null&&isFinite(y))) continue;
+    const pts=[];
+    серия.forEach((y,i)=>{ if(y!==null&&isFinite(y)) pts.push([X(ts[i]),Y(y)]); });
+    dr.poly(pts,s?C.вторая:C.линия,s?2:2.4,s?[7,5]:null);
+  }
+  // отметка события (падение, удар): дальше кривой просто нет
+  if(ряд.stop && ряд.stop.t<=t1+1e-9){
+    dr.line(X(ряд.stop.t),py,X(ряд.stop.t),py+ph,C.событие,1.4,[5,4]);
+    dr.text(ряд.stop.текст,X(ряд.stop.t)-8,py+14,C.событие,11.5,'end');
+  }
+
+  // заголовок, легенда и подпись под осью
+  dr.text(`${график.label}, ${график.unit}`,px,py-26,C.текст,17);
+  let lx=px;
+  for(let s=0;s<2;s++){
+    const серия=ряд.ys[gi][s];
+    if(!серия.some(y=>y!==null&&isFinite(y))) continue;
+    dr.line(lx,py-9,lx+22,py-9,s?C.вторая:C.линия,2.4,s?[7,5]:null);
+    dr.text(имена[s],lx+28,py-5,C.тихий,12);
+    lx+=28+имена[s].length*7+18;
+  }
+  dr.text('t, с',px+pw,py+ph+42,C.тихий,12,'end',true);
+  dr.text(подпись,px,H-16,C.тихий,11);
+}
+
+/* Собрать картинку целиком: несколько графиков — один под другим. */
+function графикВКартинку(o){
+  const {a,ряд,какие,W,Hодного,формат,светлая}=o;
+  const N=какие.length;
+  const H=Hодного*N;
+  const подпись=`${a.def.title} · шаг ${ряд.dt.toFixed(5)} с · `+
+    `${ряд.ts.length} точек · ${ряд.ts[0].toFixed(2)}…${ряд.ts[ряд.ts.length-1].toFixed(2)} с`;
+  if(формат==='svg'){
+    const куски=[];
+    куски.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
+    какие.forEach((gi,k)=>{
+      куски.push(`<g transform="translate(0 ${k*Hодного})">`);
+      рисоватьГрафик(svgДвижок(куски),
+        {W,H:Hодного,график:a.def.graphs[gi],ряд,gi,подпись,светлая});
+      куски.push('</g>');
+    });
+    куски.push('</svg>');
+    return {текст:куски.join('\n'),mime:'image/svg+xml',ext:'svg'};
+  }
+  const k=2;                                   // рисуем вдвое крупнее — не мылится
+  const cv=document.createElement('canvas');
+  cv.width=W*k; cv.height=H*k;
+  const ctx=cv.getContext('2d');
+  какие.forEach((gi,idx)=>{
+    ctx.save(); ctx.translate(0,idx*Hодного*k);
+    рисоватьГрафик(холстовыйДвижок(ctx,k),
+      {W,H:Hодного,график:a.def.graphs[gi],ряд,gi,подпись,светлая});
+    ctx.restore();
+  });
+  return {холст:cv,mime:формат==='jpeg'?'image/jpeg':'image/png',ext:формат==='jpeg'?'jpg':'png'};
+}
+
+function скачать(имя,blob){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=имя; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+
+function открытьКомпиляцию(){
+  const a=A();
+  if(!a){ toast('Сначала откройте симуляцию'); return; }
+  if(!a.def.graphs||!a.def.graphs.length||a.def.timeless){
+    toast('У этой симуляции графиков по времени нет'); return;
+  }
+  const sel=$('#pl-which'); sel.innerHTML='';
+  const о=document.createElement('option'); о.value='all'; о.textContent='все графики, один под другим';
+  sel.append(о);
+  a.def.graphs.forEach((g,i)=>{
+    const x=document.createElement('option'); x.value=String(i);
+    x.textContent=`${g.label}, ${g.unit}`; sel.append(x);
+  });
+  /* Конец промежутка по умолчанию — сколько уже насчитано, но не меньше
+     пяти секунд: на односекундном окне у большинства процессов не видно
+     ничего, кроме начала. */
+  $('#pl-t1').value=String(Math.max(5,Math.ceil(a.state.t||0)));
+  $('#pl-note').textContent='';
+  $('#modal-plot').classList.remove('hidden');
+}
+
+function выполнитьКомпиляцию(){
+  const a=A(); if(!a) return;
+  const чис=(id,по)=>{ const v=parseFloat(String($(id).value).replace(',','.')); return isFinite(v)?v:по; };
+  const t0=чис('#pl-t0',0), t1=чис('#pl-t1',10);
+  if(!(t1>t0)){ $('#pl-note').textContent='Конец промежутка должен быть больше начала.'; return; }
+  const точек=clamp(Math.round(чис('#pl-pts',800)),2,20000);
+  const дробь=+$('#pl-acc').value||1;
+  const W=clamp(Math.round(чис('#pl-w',1200)),320,4000);
+  const Hодного=clamp(Math.round(чис('#pl-h',720)),240,4000);
+  const формат=$('#pl-fmt').value;
+  const светлая=$('#pl-light').checked;
+  const какие = $('#pl-which').value==='all'
+    ? a.def.graphs.map((_,i)=>i) : [+$('#pl-which').value];
+
+  $('#pl-note').textContent='Считаю…';
+  /* Даём кадр на отрисовку надписи: пересчёт синхронный и на длинном
+     промежутке занимает заметное время. */
+  requestAnimationFrame(()=>{
+    let ряд;
+    try{ ряд=собратьРяд(a.def,a.params,t0,t1,точек,дробь); }
+    catch(e){ $('#pl-note').textContent='Не сошлось: '+e.message; return; }
+    if(ряд.ts.length<2){ $('#pl-note').textContent='На этом промежутке точек не набралось.'; return; }
+    const из=графикВКартинку({a,ряд,какие,W,Hодного,формат,светлая});
+    const имя=`${S.active}-график.${из.ext}`;
+    if(из.текст) скачать(имя,new Blob([из.текст],{type:из.mime}));
+    else из.холст.toBlob(b=>скачать(имя,b), из.mime, из.mime==='image/jpeg'?0.94:undefined);
+    $('#modal-plot').classList.add('hidden');
+    toast(`График сохранён · шаг ${ряд.dt.toFixed(5)} с`+(ряд.stop?' · '+ряд.stop.текст:''));
+  });
+}
+
+$('#mi-plot').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьКомпиляцию(); };
+$('#pl-cancel').onclick=()=>$('#modal-plot').classList.add('hidden');
+$('#pl-go').onclick=выполнитьКомпиляцию;
+$('#modal-plot').onclick=e=>{ if(e.target.id==='modal-plot') $('#modal-plot').classList.add('hidden'); };

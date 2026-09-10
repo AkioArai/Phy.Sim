@@ -1380,3 +1380,24 @@ table.ref tr:last-child td{border-bottom:0}
    плавающей панелью: лист выше и его высота меняется. */
 [data-ui="mobile"] .toast{bottom:calc(var(--sheet) + var(--vvbottom,0px) + 12px)}
 [data-ui="mobile"] .eventflag{bottom:calc(var(--sheet) + var(--vvbottom,0px) + 8px)}
+
+/* ---- Диалог компиляции графика ---- */
+.modal.plot{width:min(520px,94vw)}
+.pl-lead{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:-4px 0 16px}
+.pl-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.pl-row>label{flex:1;font-size:13px;color:var(--ink-2)}
+.pl-row select,.pl-row input[type=text]{background:var(--panel-2);border:1px solid var(--line);
+  border-radius:var(--radius-sm,6px);color:var(--ink);padding:7px 9px;font-size:13px}
+.pl-row select{flex:0 1 260px;min-width:0}
+.pl-row input[type=text]{width:96px;font-family:var(--mono);text-align:right}
+.pl-pair{display:flex;align-items:center;gap:8px}
+.pl-pair i{font-style:normal;color:var(--ink-3);font-family:var(--mono)}
+.pl-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.pl-note{min-height:18px;font-size:12.5px;color:var(--ink-3);margin-top:6px}
+
+/* Диалоги на телефоне не должны заезжать под лист: он всегда занимает низ
+   экрана, и кнопки «Отмена / ОК» оказывались под ним — нажать нельзя. */
+[data-ui="mobile"] .modal-bg{padding:12px 12px calc(var(--sheet,0px) + 12px)}
+[data-ui="mobile"] .modal{max-height:calc(100dvh - var(--sheet,0px) - 40px)}
+/* Пока симуляция не открыта, листу нечего показывать. */
+[data-ui="mobile"] .msheet.hidden{display:none}
