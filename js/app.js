@@ -3333,61 +3333,6 @@ function applyUiMode(){
 applyUiMode();
 const isNarrow=()=>document.documentElement.dataset.ui==='mobile';
 
-/* ---------------- Стенд: раскладка компьютера ----------------
-   Сцена стала фоном страницы, и нижняя строка состояния как отдельная полоса
-   больше не нужна: она отнимала у сцены 40 пикселей ради кнопок, которым
-   место в двух накладках. Разносим её содержимое один раз при запуске —
-   узлы те же, обработчики висят на id и переезд их не трогает.
-
-   Вверх уходит состояние (скорость, масштаб, вписать) — то, что отвечает на
-   вопрос «как я смотрю». Вниз, к шкале времени, уходит транспорт — то, что
-   отвечает на вопрос «что происходит». Раньше и то и другое лежало вперемешку
-   в одной строке. */
-function собратьСтенд(){
-  if(isNarrow() || document.body.dataset.stand) return;
-  const строка=$('.statusbar'), верх=$('.topbar'), низ=$('#timeline');
-  if(!строка||!верх||!низ) return;
-  const гр=[...строка.querySelectorAll('.group')];
-  const транспорт=гр.find(g=>g.querySelector('#btn-play'));
-  const скорость =гр.find(g=>g.querySelector('#speedval'));
-  const масштаб  =гр.find(g=>g.querySelector('#zoomval'));
-
-  /* Слева вверху — марка и настройки, перед кнопкой списка тем. */
-  const марка=строка.querySelector('.brand'), шест=$('#btn-settings');
-  if(марка) верх.insertBefore(марка,верх.firstChild);
-  if(шест)  верх.insertBefore(шест, $('#btn-rail'));
-
-  /* Справа вверху — состояние вида, перед меню симуляции. */
-  const якорь=$('#btn-simmenu');
-  for(const узел of [скорость,масштаб,$('#btn-fit')])
-    if(узел&&якорь) верх.insertBefore(узел,якорь);
-
-  /* Внизу — транспорт перед шагами по кадрам, счётчик кадров в самый конец. */
-  if(транспорт) низ.insertBefore(транспорт,низ.firstChild);
-  const fps=строка.querySelector('#fps'); if(fps) низ.appendChild(fps);
-
-  /* Шапка сцены как отдельная полоса исчезла: выбор симуляции — это третий
-     уровень хлебных крошек (раздел / тема / симуляция), а часы и графики —
-     то же состояние вида, что скорость и масштаб. */
-  for(const узел of [$('#simsel'),$('#btn-makeout')])
-    if(узел) верх.insertBefore(узел,$('#crumb').nextSibling);
-  for(const узел of [$('#clock'),$('#btn-graph')])
-    if(узел&&якорь) верх.insertBefore(узел,якорь);
-
-  document.body.dataset.stand='1';
-
-  /* Панели раньше запоминали своё место в старой раскладке, где сцена была
-     колонкой в 470 пикселей. В новой те же координаты уводят их за край или
-     под другую панель, поэтому один раз сбрасываем сохранённое расположение. */
-  if(!LS.get('standMigrated',false)){
-    LS.set('panels',{});
-    for(const id of FPANELS){
-      const el=document.getElementById(id); if(!el) continue;
-      el.style.left=el.style.top=el.style.right=el.style.bottom=el.style.width=el.style.height='';
-    }
-    LS.set('standMigrated',true);
-  }
-}
 function closeSimMobile(){
   mSheet(false);                          // на всякий случай закрываем шторку параметров
   $('#simpane').classList.add('hidden');
@@ -3790,7 +3735,6 @@ popup($('#mb-tools'),$('#pop-tools'));
 let lastNarrow=isNarrow();
 function onViewportChange(){
   applyUiMode();                       // мышь подключили, окно растянули — режим мог смениться
-  собратьСтенд();                      // переехали с телефона на компьютер — собрать накладки
   const now=isNarrow();
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
@@ -4623,15 +4567,11 @@ applySettings();
 // дальше applySettings вызывается уже по действию пользователя
 S.__ready=true;
 setTool('pan'); renderTree(); renderParams();
-собратьСтенд();
 /* Лист телефона открывается там же, где его закрыли в прошлый раз. */
 document.documentElement.dataset.detent=LS.get('detent','peek');
 /* Лист занимает высоту не сразу: строку транспорта и перемотку надо сперва
    измерить. Поэтому первое вписывание делаем после первой раскладки. */
 if(isNarrow()) requestAnimationFrame(()=>{ try{ syncSheet(); resize(); fitView(); }catch(_){} });
-/* Дерево тем на стенде — накладка поверх сцены, а не колонка. Открытым по
-   умолчанию оно закрывало бы треть сцены при каждом запуске. */
-if(!isNarrow()) toggleSidebar(true);
 // при следующем запуске откроем ту же тему, если это разрешено в настройках
 if(isNarrow()) closeSimMobile();          // на телефоне начинаем с конспекта
 openTopic((S.settings.restore!==false && LS.get('lastTopic',null) && ALL.some(t=>t.id===LS.get('lastTopic',null)))

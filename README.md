@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.4.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.4.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.4.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.4.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.4.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.4.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -137,19 +137,6 @@ the whole run, and separately at whether it ever **grows** where it must only de
 <p align="center">
   <img src="docs/media/02-problems.png" width="900" alt="Problems tab with progress tracking">
 </p>
-
-### The scene is the page
-
-The simulation is not a picture beside the text — it *is* the background of the
-application, edge to edge. The notes ride over it in a 392 px rail on the right;
-the tools float in a dock on the left; the readouts and the parameters are panels
-over the scene, not columns stealing width from it. The whole bottom is one strip:
-a round play button and a scrub track. The old five-column dock is gone, and with
-it the 40 px status bar — its contents split between the two strips, view state
-above (speed, zoom, fit), transport below.
-
-`H` drops the scene and gives the notes the full page. `F` drops the notes and
-gives the scene the full page. Neither is a mode you can get stuck in.
 
 ### A real instrument, not a slideshow
 

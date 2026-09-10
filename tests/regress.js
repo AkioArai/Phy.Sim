@@ -288,31 +288,6 @@ async function boot(b, url, ui) {
     });
     ok('F11 переключает режим окна', wm.join(',') === 'full,window,full,window', wm);
 
-    /* Стенд: сцена — фон страницы, конспект едет полосой справа.
-       Проверяем не пиксели оформления, а само правило раскладки: сцена
-       начинается от левого края и кончается там, где начинается полоса, а
-       нижняя строка состояния свёрнута в две накладки. Если кто-то вернёт
-       пристыкованную колонку, эти три числа разойдутся. */
-    const стенд = await p.evaluate(() => {
-      const r = s => { const e = document.querySelector(s); return e ? e.getBoundingClientRect() : null; };
-      const сцена = r('#simpane'), полоса = r('#content');
-      const верх = document.querySelector('.topbar'), низ = document.querySelector('#timeline');
-      const строка = document.querySelector('.statusbar');
-      return {
-        сценаСлева: Math.round(сцена.left),
-        стык: Math.round(полоса.left - сцена.right),      // сцена кончается ровно у полосы
-        ширинаПолосы: Math.round(полоса.width),
-        полосаДоНиза: Math.round(полоса.bottom - полоса.top) === Math.round(innerHeight),
-        строкаСвёрнута: !строка || getComputedStyle(строка).display === 'none',
-        пускВнизу: !!(низ && низ.contains(document.querySelector('#btn-play'))),
-        масштабВверху: !!(верх && верх.contains(document.querySelector('#zoomval'))),
-        докПлавает: getComputedStyle(document.querySelector('.rail')).position === 'absolute',
-      };
-    });
-    ok('стенд: сцена — фон, конспект полосой справа',
-      стенд.сценаСлева === 0 && стенд.стык === 0 && стенд.ширинаПолосы === 392 &&
-      стенд.полосаДоНиза && стенд.строкаСвёрнута && стенд.пускВнизу &&
-      стенд.масштабВверху && стенд.докПлавает, стенд);
 
     // Выделение текста: запрещено везде, кроме полей ввода.
     const sel = await p.evaluate(() => {
