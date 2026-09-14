@@ -148,11 +148,21 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          New in this release: **compiled graphs**. The panel graph is a tape recorded at
-          frame rate between play and pause; this runs the simulation again from the
-          initial conditions at a fixed step and samples on an even time grid, then saves
-          the result as SVG, PNG or JPEG. The same interval and parameters always give the
-          same picture. Checked against closed-form solutions — zero deviation for
+          This release is about mobile. Compiling a graph, saving a frame, recording and
+          exporting data did nothing inside the Android app: a WebView without a download
+          listener silently ignores `blob:` and `data:` links. The shell now writes files
+          itself, into Downloads, still asking for zero permissions. Pictures are also
+          sized to the browser's canvas limit — four graphs stacked came to 13.8
+          megapixels, which a phone renders blank without any error — and long intervals
+          are integrated in slices with a progress readout instead of freezing the tab.
+
+          Splitters no longer stutter under a finger: the browser was taking the drag for
+          a scroll and cancelling it halfway. This is what you hit on a tablet in desktop
+          mode.
+
+          Compiled graphs themselves are unchanged: the simulation is run again from the
+          initial conditions at a fixed step and sampled on an even time grid, then saved
+          as SVG, PNG or JPEG. Checked against closed-form solutions — zero deviation for
           projectile motion, 1.5e-6 m for the spring pendulum at the finest step.
 
           On a phone the scene never leaves the screen: everything else is a sheet with

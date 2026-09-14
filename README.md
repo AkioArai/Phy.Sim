@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.4.2.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.4.2.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.4.2.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.2.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.4.3.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.4.3.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.4.3.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.3.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -142,6 +142,14 @@ graph is computed in closed form rather than integrated. Both checks run in
 Events are honoured: if the body lands, the curve stops there and the moment is marked
 — the landing time matches `2v₀sinθ/g` to the digit. The plot has real margins on every
 side, so the curve never touches the frame and the axis numbers are never clipped.
+
+On a phone the picture is sized to fit the browser's canvas limit — four graphs stacked
+at double scale come to 13.8 megapixels, and a phone will render that **blank** without
+raising a single error. Long intervals are integrated in 40 ms slices with a progress
+readout instead of freezing the tab. Inside the Android app files are written by the
+shell itself: a WebView without a download listener silently ignores `blob:` and
+`data:` links, which is why compiling a graph, saving a frame, recording and exporting
+data all did nothing there.
 
 ### Every simulation checked against the textbook
 

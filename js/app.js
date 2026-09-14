@@ -2778,34 +2778,65 @@ $('#btn-makeout').onclick=()=>{
 $('#btn-graph').onclick=()=>{ S.graphOn=!S.graphOn; $('#gbox').classList.toggle('off',!S.graphOn);
   $('#btn-graph').setAttribute('aria-pressed',String(S.graphOn)); requestAnimationFrame(resize); };
 
+/* ---------------- Разделители панелей ----------------
+   Пальцем разделители тянулись рывками. Три причины, все три лечатся здесь.
+
+   1. Без `touch-action:none` браузер считает протяг по узкой полоске началом
+      прокрутки, перехватывает жест и присылает `pointercancel` — палец едет,
+      панель стоит, потом скачком догоняет. Именно это видно на планшете в
+      режиме компьютера, где разделители вообще доступны пальцу.
+   2. Без захвата указателя события теряются, стоит пальцу соскользнуть с
+      полоски в пять пикселей — а соскальзывает он всегда.
+   3. `resize()` на каждом `pointermove` пересобирает холсты и перерисовывает
+      сцену. Палец шлёт до 240 событий в секунду, кадров при этом 60: три
+      четверти работы выбрасывалось, а очередь ввода забивалась. Теперь
+      раскладка пересчитывается один раз в кадр.
+
+   Двойной клик по разделителю сворачивает панель — на это не влияет. */
+function тянуть(ручка, начать, вести){
+  let тяга=null, ждёт=false;
+  const кадр=()=>{ if(ждёт) return; ждёт=true;
+    requestAnimationFrame(()=>{ ждёт=false; if(тяга) resize(); }); };
+  ручка.addEventListener('pointerdown',e=>{
+    if(e.button!==undefined && e.button!==0) return;
+    тяга=начать(e); ручка.classList.add('drag');
+    try{ ручка.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault();
+  });
+  ручка.addEventListener('pointermove',e=>{ if(!тяга) return; вести(e,тяга); кадр(); });
+  const конец=e=>{
+    if(!тяга) return;
+    тяга=null; ручка.classList.remove('drag');
+    try{ ручка.releasePointerCapture(e.pointerId); }catch(_){}
+    requestAnimationFrame(resize);
+  };
+  ручка.addEventListener('pointerup',конец);
+  ручка.addEventListener('pointercancel',конец);   // браузер отобрал жест
+  ручка.addEventListener('lostpointercapture',конец);
+}
+
 /* нижняя панель симуляции: перетаскивание высоты + сворачивание двойным кликом */
-let hdrag=null;
 const bottom=$('#simbottom'), hsplit=$('#hsplit');
-hsplit.addEventListener('pointerdown',e=>{
-  hdrag={y:e.clientY,h:bottom.getBoundingClientRect().height};
-  hsplit.classList.add('drag'); e.preventDefault();
-});
-addEventListener('pointermove',e=>{
-  if(!hdrag) return;
-  const max=$('#simpane').getBoundingClientRect().height-180;
-  const h=clamp(hdrag.h-(e.clientY-hdrag.y),0,Math.max(60,max));
-  bottom.classList.toggle('collapsed',h<24);
-  bottom.style.height=h+'px';
-  resize();
-});
-addEventListener('pointerup',()=>{ if(hdrag){ hdrag=null; hsplit.classList.remove('drag'); requestAnimationFrame(resize); } });
+тянуть(hsplit,
+  e=>({y:e.clientY,h:bottom.getBoundingClientRect().height}),
+  (e,т)=>{
+    const max=$('#simpane').getBoundingClientRect().height-180;
+    const h=clamp(т.h-(e.clientY-т.y),0,Math.max(60,max));
+    bottom.classList.toggle('collapsed',h<24);
+    bottom.style.height=h+'px';
+  });
 hsplit.addEventListener('dblclick',()=>{
   const col=bottom.classList.toggle('collapsed');
   if(!col) bottom.style.height='300px';
   requestAnimationFrame(resize);
 });
 
-let sdrag=false;
-$('#splitter').addEventListener('pointerdown',e=>{ sdrag=true; $('#splitter').classList.add('drag'); e.preventDefault(); });
-addEventListener('pointermove',e=>{ if(!sdrag) return;
-  const w=clamp(innerWidth-e.clientX,340,innerWidth-440);
-  $('#simpane').style.flex=`0 0 ${w}px`; $('#simpane').style.width=w+'px'; resize(); });
-addEventListener('pointerup',()=>{ sdrag=false; $('#splitter').classList.remove('drag'); });
+тянуть($('#splitter'),
+  ()=>({}),
+  e=>{
+    const w=clamp(innerWidth-e.clientX,340,innerWidth-440);
+    $('#simpane').style.flex=`0 0 ${w}px`; $('#simpane').style.width=w+'px';
+  });
 
 function popup(btn,pop){
   btn.onclick=e=>{
@@ -2849,8 +2880,9 @@ $('#mi-png').onclick=()=>{
   const o=document.createElement('canvas'); o.width=scene.width; o.height=scene.height;
   const c=o.getContext('2d'); c.fillStyle=css('--canvas'); c.fillRect(0,0,o.width,o.height);
   c.drawImage(scene,0,0); c.drawImage(overlay,0,0);
-  const a=document.createElement('a'); a.download=S.active+'.png'; a.href=o.toDataURL(); a.click();
-  toast('Кадр сохранён');
+  /* Через общий путь сохранения, а не ссылкой: в Android-обёртке ссылка
+     молчит, и «снимок кадра» там никогда не работал. */
+  o.toBlob(b=>{ if(b) сохранитьФайл(S.active+'.png',b); else toast('Не вышло собрать снимок'); },'image/png');
 };
 const VQ={low:{b:2.5e6,fps:24,k:1},med:{b:8e6,fps:30,k:1},high:{b:16e6,fps:60,k:1},max:{b:40e6,fps:60,k:2}};
 $('#mi-rec').onclick=()=>{
@@ -2870,8 +2902,7 @@ $('#mi-rec').onclick=()=>{
   const chunks=[];
   rec.ondataavailable=e=>chunks.push(e.data);
   rec.onstop=()=>{ alive=false; S.rec=null; $('#rec-label').textContent='Записать симуляцию (WebM)';
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(chunks,{type:'video/webm'}));
-    a.download=S.active+'.webm'; a.click(); toast('Запись сохранена'); };
+    сохранитьФайл(S.active+'.webm',new Blob(chunks,{type:'video/webm'})); };
   rec.start(); S.rec=rec; $('#rec-label').textContent='Остановить запись'; toast('Идёт запись…');
 };
 function loadPreset(values){
@@ -3206,10 +3237,7 @@ function renderPrefs(){
       const data=JSON.stringify({app:'physim',v:2,settings:S.settings,
         presets:LS.get('presets',{}),marks:S.marks,
         solved:S.solved,favs:S.favs,tstyle:S.tstyle,recent:S.recent},null,1);
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
-      a.download='physim-данные.json'; a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+      сохранитьФайл('physim-данные.json',new Blob([data],{type:'application/json'}));
       toast(`Сохранено: решённых задач ${solved}`);
     };
     $('#pref-import').onclick=()=>$('#pref-import-file').click();
@@ -4681,6 +4709,53 @@ function собратьРяд(def, params, t0, t1, точек, дробь){
   return {ts,ys,stop,dt:шаг};
 }
 
+/* То же самое, но кусками по 40 мс, с отдачей управления между ними.
+   Синхронная петля на длинном промежутке подвешивала вкладку: на телефоне
+   это выглядит как «нажал — ничего не произошло», а Android через несколько
+   секунд предлагает закрыть страницу. Теперь между кусками успевает
+   отрисоваться прогресс, и жест «отмена» доходит. */
+function собратьРядПостепенно(def, params, t0, t1, точек, дробь, прогресс){
+  return new Promise((готово,беда)=>{
+    const st=def.init(params);
+    const dt=DT/Math.max(1,дробь|0);
+    const МАКС=4e6;
+    const нужно=Math.ceil((t1-(st.t||0))/dt);
+    const шаг = нужно>МАКС ? (t1-(st.t||0))/МАКС : dt;
+    const ts=[], ys=def.graphs.map(()=>[[],[]]);
+    let stop=null, охрана=0;
+    const снять=t=>{
+      ts.push(t);
+      def.graphs.forEach((g,gi)=>{
+        const v=g.get(st,params);
+        ys[gi][0].push(v[0]); ys[gi][1].push(v.length>1?v[1]:null);
+      });
+    };
+    const шагПоСетке=(t1-t0)/Math.max(1,точек-1);
+    let следующий=t0;
+    if((st.t||0)>=t0-1e-12){ снять(st.t||0); следующий=t0+шагПоСетке; }
+    const начало=t0;
+    const кусок=()=>{
+      const край=performance.now()+40;
+      try{
+        while(st.t<t1-1e-12 && охрана++<МАКС+10){
+          def.step(st,шаг,params);
+          if(st.t>=следующий-1e-12 && st.t<=t1+1e-9){
+            снять(st.t);
+            while(следующий<=st.t+1e-12) следующий+=шагПоСетке;
+          }
+          if(st.__stop){ stop={t:st.t,текст:String(st.__stop)}; снять(st.t); break; }
+          if(performance.now()>край) break;
+        }
+      }catch(e){ беда(e); return; }
+      if(st.t<t1-1e-12 && !stop && охрана<МАКС+10){
+        if(прогресс) прогресс((st.t-начало)/Math.max(1e-9,t1-начало));
+        setTimeout(кусок,0);
+      } else готово({ts,ys,stop,dt:шаг});
+    };
+    кусок();
+  });
+}
+
 /* Рисование не знает, куда рисует: два движка (холст и SVG) отвечают на один
    и тот же набор вызовов. Иначе пришлось бы держать две копии одной разметки
    и чинить отступы дважды. */
@@ -4822,24 +4897,100 @@ function графикВКартинку(o){
     куски.push('</svg>');
     return {текст:куски.join('\n'),mime:'image/svg+xml',ext:'svg'};
   }
-  const k=2;                                   // рисуем вдвое крупнее — не мылится
+  /* ПРЕДЕЛ ХОЛСТА. Браузер не отдаёт ошибку, если холст слишком велик, — он
+     молча рисует пустоту. На телефоне предел заметно ниже, чем на компьютере
+     (у iOS при малой памяти это вообще 5 Мпикс), а четыре графика стопкой при
+     удвоении дают 13,8 Мпикс и 53 МБ. Отсюда и «компиляция не работает»:
+     файл сохранялся, но был пустым.
+
+     Поэтому масштаб подбираем под площадь: сперва пробуем вдвое крупнее,
+     не влезло — рисуем один к одному, не влезло и это — ужимаем картинку
+     целиком. Лучше отдать график помельче, чем белый лист. */
+  const пределМпикс = matchMedia('(pointer:coarse)').matches ? 6 : 16;
+  const предел=пределМпикс*1e6;
+  let k=2, масштаб=1;
+  if(W*H*k*k>предел) k=1;
+  if(W*H>предел) масштаб=Math.sqrt(предел/(W*H));
+  const cw=Math.max(1,Math.round(W*k*масштаб)), ch=Math.max(1,Math.round(H*k*масштаб));
   const cv=document.createElement('canvas');
-  cv.width=W*k; cv.height=H*k;
+  cv.width=cw; cv.height=ch;
   const ctx=cv.getContext('2d');
+  const s=k*масштаб;
   какие.forEach((gi,idx)=>{
-    ctx.save(); ctx.translate(0,idx*Hодного*k);
-    рисоватьГрафик(холстовыйДвижок(ctx,k),
+    ctx.save(); ctx.translate(0,idx*Hодного*s);
+    рисоватьГрафик(холстовыйДвижок(ctx,s),
       {W,H:Hодного,график:a.def.graphs[gi],ряд,gi,подпись,светлая});
     ctx.restore();
   });
-  return {холст:cv,mime:формат==='jpeg'?'image/jpeg':'image/png',ext:формат==='jpeg'?'jpg':'png'};
+  return {холст:cv,масштаб:+s.toFixed(3),
+          mime:формат==='jpeg'?'image/jpeg':'image/png',ext:формат==='jpeg'?'jpg':'png'};
 }
 
-function скачать(имя,blob){
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=имя; a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),4000);
+/* Холст мог не нарисоваться: браузер молча отдаёт прозрачный. Проверяем по
+   углу — там заведомо лежит фон, а не пустота. */
+function холстНеПустой(cv){
+  try{
+    const d=cv.getContext('2d').getImageData(2,2,1,1).data;
+    return d[3]>0;
+  }catch(_){ return true; }        // getImageData могли запретить — не придираемся
 }
+
+/* ------------------------- СОХРАНЕНИЕ ФАЙЛА -------------------------
+   `<a download>` работает не везде, и там, где не работает, он не сообщает
+   об этом — просто ничего не происходит. Два таких места важны для нас:
+
+   • Android-обёртка. WebView без DownloadListener не скачивает ничего:
+     ни blob:, ни data:. Именно поэтому в .apk «не работали» и компиляция
+     графика, и снимок кадра, и запись, и выгрузка данных. Теперь оболочка
+     даёт мост PhySim.saveFile — файл пишется из Java в «Загрузки».
+   • Safari на iPhone: атрибут download у blob-ссылки игнорирует и открывает
+     файл вместо сохранения. Там спасает системный «Поделиться».
+
+   Порядок: мост оболочки → системный «Поделиться» → обычная ссылка →
+   открыть в новой вкладке, чтобы человек сохранил вручную. Каждый шаг
+   честно сообщает, чем кончилось. */
+function blobВBase64(blob){
+  return new Promise((r,j)=>{ const f=new FileReader();
+    f.onload=()=>r(String(f.result).split(',')[1]||'');
+    f.onerror=()=>j(new Error('не прочитался')); f.readAsDataURL(blob); });
+}
+async function сохранитьФайл(имя,blob){
+  const мост = typeof window!=='undefined' && window.PhySim && window.PhySim.saveFile;
+  if(мост){
+    try{
+      const где=window.PhySim.saveFile(имя,blob.type||'application/octet-stream',
+                                       await blobВBase64(blob));
+      if(где){ toast('Сохранено: '+где); return 'мост'; }
+    }catch(e){ /* мост есть, но не сработал — идём дальше */ }
+  }
+  /* Системный лист «Поделиться»: на телефоне это и есть «сохранить в файлы». */
+  try{
+    if(navigator.canShare && navigator.share){
+      const f=new File([blob],имя,{type:blob.type||'application/octet-stream'});
+      if(navigator.canShare({files:[f]})){
+        await navigator.share({files:[f],title:имя});
+        return 'поделиться';
+      }
+    }
+  }catch(e){
+    if(e && e.name==='AbortError') return 'отменено';   // человек закрыл лист
+  }
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  if('download' in a){
+    a.href=url; a.download=имя; a.rel='noopener'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),8000);
+    return 'ссылка';
+  }
+  /* Последний рубеж: открыть картинку, человек сохранит её сам. */
+  const w=window.open(url,'_blank');
+  setTimeout(()=>URL.revokeObjectURL(url),20000);
+  if(!w){ toast('Браузер не дал сохранить файл — разрешите всплывающие окна'); return 'нет'; }
+  toast('Файл открыт в новой вкладке — сохраните его оттуда');
+  return 'вкладка';
+}
+/* Старое имя оставлено: им пользуются снимок кадра, запись и выгрузка данных. */
+function скачать(имя,blob){ сохранитьФайл(имя,blob); }
 
 function открытьКомпиляцию(){
   const a=A();
@@ -4854,12 +5005,26 @@ function открытьКомпиляцию(){
     const x=document.createElement('option'); x.value=String(i);
     x.textContent=`${g.label}, ${g.unit}`; sel.append(x);
   });
+  /* Настройки диалога помним между запусками: компилируют обычно не один
+     график, а серию — с одним размером и в одном формате. Каждый раз
+     перенабирать их заново было бы мелкой, но регулярной пыткой.
+     Промежуток — исключение: он свой у каждой симуляции. */
+  const п=LS.get('plotOpts',{});
+  for(const [id,кл] of [['#pl-pts','pts'],['#pl-w','w'],['#pl-h','h']])
+    if(п[кл]!==undefined) $(id).value=String(п[кл]);
+  if(п.acc!==undefined) $('#pl-acc').value=String(п.acc);
+  if(п.fmt!==undefined) $('#pl-fmt').value=String(п.fmt);
+  if(п.light!==undefined) $('#pl-light').checked=!!п.light;
+  $('#pl-t0').value='0';
   /* Конец промежутка по умолчанию — сколько уже насчитано, но не меньше
      пяти секунд: на односекундном окне у большинства процессов не видно
      ничего, кроме начала. */
   $('#pl-t1').value=String(Math.max(5,Math.ceil(a.state.t||0)));
   $('#pl-note').textContent='';
   $('#modal-plot').classList.remove('hidden');
+  /* Фокус на кнопку, а не в поле: Enter тогда сразу компилирует, а Esc
+     закрывает — диалог отвечает клавиатуре так же, как остальные. */
+  setTimeout(()=>{ try{ $('#pl-go').focus(); }catch(_){} },0);
 }
 
 function выполнитьКомпиляцию(){
@@ -4873,27 +5038,46 @@ function выполнитьКомпиляцию(){
   const Hодного=clamp(Math.round(чис('#pl-h',720)),240,4000);
   const формат=$('#pl-fmt').value;
   const светлая=$('#pl-light').checked;
+  LS.set('plotOpts',{pts:точек,w:W,h:Hодного,acc:дробь,fmt:формат,light:светлая});
   const какие = $('#pl-which').value==='all'
     ? a.def.graphs.map((_,i)=>i) : [+$('#pl-which').value];
 
+  const кн=$('#pl-go'); кн.disabled=true;
   $('#pl-note').textContent='Считаю…';
-  /* Даём кадр на отрисовку надписи: пересчёт синхронный и на длинном
-     промежутке занимает заметное время. */
-  requestAnimationFrame(()=>{
-    let ряд;
-    try{ ряд=собратьРяд(a.def,a.params,t0,t1,точек,дробь); }
-    catch(e){ $('#pl-note').textContent='Не сошлось: '+e.message; return; }
-    if(ряд.ts.length<2){ $('#pl-note').textContent='На этом промежутке точек не набралось.'; return; }
-    const из=графикВКартинку({a,ряд,какие,W,Hодного,формат,светлая});
-    const имя=`${S.active}-график.${из.ext}`;
-    if(из.текст) скачать(имя,new Blob([из.текст],{type:из.mime}));
-    else из.холст.toBlob(b=>скачать(имя,b), из.mime, из.mime==='image/jpeg'?0.94:undefined);
-    $('#modal-plot').classList.add('hidden');
-    toast(`График сохранён · шаг ${ряд.dt.toFixed(5)} с`+(ряд.stop?' · '+ряд.stop.текст:''));
-  });
+  собратьРядПостепенно(a.def,a.params,t0,t1,точек,дробь,
+      д=>{ $('#pl-note').textContent='Считаю… '+Math.round(д*100)+' %'; })
+    .then(async ряд=>{
+      if(ряд.ts.length<2) throw new Error('на этом промежутке точек не набралось');
+      $('#pl-note').textContent='Рисую…';
+      await new Promise(r=>requestAnimationFrame(r));
+      const из=графикВКартинку({a,ряд,какие,W,Hодного,формат,светлая});
+      const имя=`${S.active}-график.${из.ext}`;
+      let blob;
+      if(из.текст) blob=new Blob([из.текст],{type:из.mime});
+      else {
+        if(!холстНеПустой(из.холст))
+          throw new Error('картинка такого размера не поместилась в память — уменьшите размер или число графиков');
+        blob=await new Promise(r=>из.холст.toBlob(r,из.mime,
+              из.mime==='image/jpeg'?0.94:undefined));
+        if(!blob) throw new Error('браузер не собрал картинку — уменьшите размер');
+      }
+      $('#modal-plot').classList.add('hidden');
+      const как=await сохранитьФайл(имя,blob);
+      if(как==='отменено') return;
+      const ужали = из.масштаб && из.масштаб<2 ? ` · ужато до ${Math.round(из.масштаб*100/2)} %` : '';
+      if(как!=='мост'&&как!=='вкладка'&&как!=='нет')
+        toast(`График сохранён · шаг ${ряд.dt.toFixed(5)} с`+(ряд.stop?' · '+ряд.stop.текст:'')+ужали);
+    })
+    .catch(e=>{ $('#pl-note').textContent='Не вышло: '+(e&&e.message||e); })
+    .finally(()=>{ кн.disabled=false; });
 }
 
 $('#mi-plot').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьКомпиляцию(); };
 $('#pl-cancel').onclick=()=>$('#modal-plot').classList.add('hidden');
 $('#pl-go').onclick=выполнитьКомпиляцию;
 $('#modal-plot').onclick=e=>{ if(e.target.id==='modal-plot') $('#modal-plot').classList.add('hidden'); };
+$('#modal-plot').addEventListener('keydown',e=>{
+  if(e.key==='Enter' && !$('#pl-go').disabled){ e.preventDefault(); выполнитьКомпиляцию(); }
+  if(e.key==='Escape'){ e.preventDefault(); $('#modal-plot').classList.add('hidden'); }
+  e.stopPropagation();                      // горячие клавиши сцены тут не нужны
+});

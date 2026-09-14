@@ -2,16 +2,25 @@ package ru.physim.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ContentValues;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Base64;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 
 /**
  * Единственный экран приложения: WebView на весь экран, в нём — то же самое
@@ -64,6 +73,11 @@ public class MainActivity extends Activity {
       }
     });
 
+    // Мост для сохранения файлов. Без него WebView не скачивает ничего:
+    // ни blob:, ни data: — ссылка с download просто молчит, и в приложении
+    // «не работали» ни компиляция графика, ни снимок кадра, ни выгрузка.
+    web.addJavascriptInterface(new Saver(), "PhySim");
+
     setContentView(web);
     web.loadUrl("file:///android_asset/index.html");
   }
@@ -85,6 +99,53 @@ public class MainActivity extends Activity {
             if (!"1".equals(value)) finish();
           }
         });
+  }
+
+  /**
+   * Сохранение файла из страницы. Страница отдаёт содержимое в base64,
+   * здесь оно пишется на диск и возвращается путь — его показывают человеку.
+   *
+   * Разрешений не просим и не добавляем: на Android 10 и новее запись в
+   * общие «Загрузки» идёт через MediaStore и разрешения не требует, а на
+   * более старых пишем в собственную папку приложения на внешней памяти —
+   * туда тоже можно без разрешений. Ноль разрешений у пакета — обещание,
+   * которое дороже удобства пути.
+   */
+  public class Saver {
+    @JavascriptInterface
+    public String saveFile(String name, String mime, String base64) {
+      if (name == null || base64 == null) return null;
+      name = name.replaceAll("[\\\\/:*?\"<>|]", "_");
+      byte[] data;
+      try { data = Base64.decode(base64, Base64.DEFAULT); }
+      catch (Exception e) { return null; }
+      try {
+        if (Build.VERSION.SDK_INT >= 29) {
+          ContentValues v = new ContentValues();
+          v.put(MediaStore.Downloads.DISPLAY_NAME, name);
+          if (mime != null && mime.length() > 0) v.put(MediaStore.Downloads.MIME_TYPE, mime);
+          v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+          v.put(MediaStore.Downloads.IS_PENDING, 1);
+          Uri item = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+          if (item == null) return null;
+          OutputStream out = getContentResolver().openOutputStream(item);
+          if (out == null) return null;
+          out.write(data); out.close();
+          v.clear(); v.put(MediaStore.Downloads.IS_PENDING, 0);
+          getContentResolver().update(item, v, null, null);
+          return "Загрузки/" + name;
+        }
+        File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        if (dir == null) return null;
+        if (!dir.exists() && !dir.mkdirs()) return null;
+        File f = new File(dir, name);
+        FileOutputStream out = new FileOutputStream(f);
+        out.write(data); out.close();
+        return f.getAbsolutePath();
+      } catch (Exception e) {
+        return null;
+      }
+    }
   }
 
   /** Аппаратная клавиатура/геймпад: те же клавиши, что и в браузере. */

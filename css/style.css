@@ -455,7 +455,10 @@ table.ref tr:last-child td{border-bottom:0}
 .verdict{font-size:12.5px;font-family:var(--mono)}
 .verdict.ok{color:var(--ok)}.verdict.no{color:var(--danger)}
 
-.splitter{width:5px;flex:0 0 5px;cursor:col-resize;background:var(--line-soft);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+/* touch-action:none обязателен, как и у плавающих панелей: иначе браузер
+   принимает протяг по разделителю за прокрутку и отбирает жест на полпути. */
+.splitter{width:5px;flex:0 0 5px;cursor:col-resize;background:var(--line-soft);
+  border-left:1px solid var(--line);border-right:1px solid var(--line);touch-action:none}
 .splitter:hover,.splitter.drag{background:var(--accent)}
 .simpane{width:470px;flex:0 0 470px;display:flex;flex-direction:column;min-width:0}
 .simpane.hidden,.splitter.hidden{display:none}
@@ -545,7 +548,17 @@ table.ref tr:last-child td{border-bottom:0}
 .hud.hidden{display:none}
 .eventflag{position:absolute;right:8px;bottom:8px;transition:bottom .18s;font-family:var(--mono);font-size:11px;color:#fff;background:var(--measure);padding:4px 8px;border-radius:5px;pointer-events:none}
 .eventflag.hidden{display:none}
-.hsplit{height:6px;flex:0 0 6px;cursor:row-resize;background:var(--line-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.hsplit{height:6px;flex:0 0 6px;cursor:row-resize;background:var(--line-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  touch-action:none;position:relative}
+/* Полоска в шесть пикселей мышью берётся, пальцем — нет. Зону захвата
+   расширяем невидимой накладкой, не трогая саму полоску: на планшете в режиме
+   компьютера разделитель иначе приходится ловить с третьего раза. */
+@media (pointer:coarse){
+  .hsplit::before,.splitter::before{content:'';position:absolute;z-index:1}
+  .hsplit::before{left:0;right:0;top:-11px;bottom:-11px}
+  .splitter{position:relative}
+  .splitter::before{top:0;bottom:0;left:-11px;right:-11px}
+}
 .hsplit::after{content:'';width:34px;height:2px;border-radius:2px;background:var(--ink-3);opacity:.45}
 .hsplit:hover,.hsplit.drag{background:var(--accent)}
 .hsplit:hover::after,.hsplit.drag::after{background:#fff;opacity:.9}
