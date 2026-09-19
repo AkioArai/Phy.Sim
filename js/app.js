@@ -3111,6 +3111,9 @@ function popup(btn,pop){
     e.stopPropagation();
     document.querySelectorAll('.pop').forEach(p=>{ if(p!==pop) p.classList.add('hidden'); });
     if(!pop.classList.contains('hidden')){ pop.classList.add('hidden'); return; }
+    // содержимое — до замера: иначе размер считается по старой разметке,
+    // а меню сцены открывалось вообще без вкладок
+    if(pop.id==='pop-simmenu') собратьМенюСцены();
     const r=btn.getBoundingClientRect();
     pop.style.visibility='hidden'; pop.classList.remove('hidden');
     const h=pop.offsetHeight,w=pop.offsetWidth;
@@ -4262,7 +4265,12 @@ function setMenuTab(id){
   document.querySelectorAll('#simmenu-tabs .mt-t')
     .forEach(b=>b.classList.toggle('on',b.dataset.tab===id));
 }
-function openSimMenu(clientX,clientY){
+/* Содержимое меню собирается ЗАНОВО перед каждым показом: набор вкладок
+   зависит от симуляции, а детали конструктора — от её текущего состояния.
+   Вызывать это обязан КАЖДЫЙ путь открытия, включая `popup()`: он только
+   снимает класс hidden, и без сборки в меню оставалась одна вкладка «Сцена»,
+   потому что остальные страницы лежат в разметке скрытыми. */
+function собратьМенюСцены(){
   const pop=$('#pop-simmenu');
   // инструменты конструктора (если симуляция их объявляет)
   const tl=$('#simmenu-tools');
@@ -4287,6 +4295,10 @@ function openSimMenu(clientX,clientY){
     tabs.appendChild(b);
   }
   setMenuTab(менюВкладка[менюРежим]);
+}
+function openSimMenu(clientX,clientY){
+  const pop=$('#pop-simmenu');
+  собратьМенюСцены();
   document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden'));
   pop.style.visibility='hidden'; pop.classList.remove('hidden');
   const w=pop.offsetWidth, h=pop.offsetHeight;

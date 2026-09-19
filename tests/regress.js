@@ -426,6 +426,23 @@ async function boot(b, url, ui) {
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
         && menu.цепь.деталей > 0, menu.цепь);
 
+    /* Меню открывают КНОПКОЙ, а не вызовом openSimMenu из теста. Кнопка идёт
+       через общий popup(), который только снимает класс hidden: без сборки
+       содержимого в меню оставалась одна вкладка «Сцена», а остальные
+       команды исчезали. Проверка именно этого пути. */
+    await p.evaluate(async () => { openSim('kin1d'); await new Promise(z => setTimeout(z, 200)); });
+    await p.click('#btn-simmenu');
+    await p.waitForTimeout(150);
+    const кнопкой = await p.evaluate(() => ({
+      вкладок: document.querySelectorAll('#simmenu-tabs .mt-t').length,
+      всего: document.querySelectorAll('#pop-simmenu .item').length,
+      видно: document.querySelectorAll('#pop-simmenu .mt-page:not(.hidden) .item').length,
+      открыто: !document.querySelector('#pop-simmenu').classList.contains('hidden') }));
+    ok('кнопка ⋮ открывает меню со всеми вкладками',
+        кнопкой.открыто && кнопкой.вкладок === 4 && кнопкой.всего >= 12
+        && кнопкой.видно >= 4, кнопкой);
+    await p.evaluate(() => document.querySelectorAll('.pop').forEach(x => x.classList.add('hidden')));
+
     // Режим учителя: варианты различаются, ключ сходится с пересчётом.
     const teach = await p.evaluate(() => {
       const topics = ALL.filter(t => (t.problems || []).length).map(t => t.id);
@@ -515,6 +532,43 @@ async function boot(b, url, ui) {
                цветов: document.querySelectorAll('#pb-colors .pb-color').length };
     });
     ok('карандаш на телефоне', mpen.видна && mpen.вКадре && mpen.цветов === 7, mpen);
+
+    /* На телефоне меню сцены открывают три разные кнопки, и каждая обязана
+       собрать его заново: одна из них шла через общий popup() и оставляла
+       меню без вкладок. */
+    const мменю = await m.p.evaluate(async () => {
+      const r = {};
+      for (const s of ['#m-menu', '#m-more', '#mb-menu']) {
+        document.querySelectorAll('.pop').forEach(x => x.classList.add('hidden'));
+        document.querySelector('#simmenu-tabs').innerHTML = '';    // чистый лист перед каждой
+        const b = document.querySelector(s); if (!b) { r[s] = null; continue; }
+        b.click(); await new Promise(z => setTimeout(z, 60));
+        r[s] = { вкладок: document.querySelectorAll('#simmenu-tabs .mt-t').length,
+                 команд: document.querySelectorAll('#pop-simmenu .item').length };
+      }
+      document.querySelectorAll('.pop').forEach(x => x.classList.add('hidden'));
+      return r;
+    });
+    ok('каждая кнопка меню на телефоне собирает вкладки',
+        Object.values(мменю).every(v => v && v.вкладок === 4 && v.команд >= 12), мменю);
+
+    /* Настройки во весь экран обязаны накрывать закреплённую обвязку: лист
+       показаний лежал поперёк открытых настроек, потому что его слой (126)
+       выше, чем был у настроек (120). */
+    const поверх = await m.p.evaluate(async () => {
+      openPrefs(); await new Promise(z => setTimeout(z, 250));
+      const плохие = [];
+      for (const s of ['#mbar', '#mbar2', '#msheet', '#timeline', '#stripctl']) {
+        const e = document.querySelector(s); if (!e) continue;
+        const q = e.getBoundingClientRect(); if (!q.height) continue;
+        const t = document.elementFromPoint(Math.round(q.left + q.width / 2),
+                                            Math.round(q.top + q.height / 2));
+        if (t && !t.closest('#prefs')) плохие.push({ панель: s, сверху: t.id || String(t.className) });
+      }
+      closePrefs(); await new Promise(z => setTimeout(z, 120));
+      return плохие;
+    });
+    ok('нижние панели не лезут поверх настроек', поверх.length === 0, поверх);
 
     /* Лист: три положения, и ни в одном он не накрывает сцену.
        Это и есть главное обещание мобильного макета, поэтому проверяем его

@@ -148,6 +148,18 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          **Fix: the scene menu opened with only one tab's worth of commands.** Three of
+          the four ways to open it — the ⋮ button on a computer and both buttons on a
+          phone — go through the shared popup helper, which only unhides the panel. It
+          never built the tab strip, so everything outside the first tab was unreachable.
+          Every path now builds the menu before showing it, and a test opens it by the
+          buttons rather than by calling the function.
+
+          **Fix: on a phone the readouts strip lay across the open settings.** The strip is
+          pinned to the page root at layer 126 and settings were at 120, so it drew on top
+          of them. Full-screen screens now sit above the pinned chrome; the topics drawer
+          did the same thing and is fixed with it.
+
           **Every drawing tool is now fully customisable.** Colour was six presets and a
           width; everything else was baked into the drawing code. Each tool now offers the
           six theme colours plus a colour picker, four widths, a line style (solid, dashed,

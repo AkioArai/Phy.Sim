@@ -657,7 +657,11 @@ table.ref tr:last-child td{border-bottom:0}
 /* ===== ПОЛНОЭКРАННЫЕ НАСТРОЙКИ =====
    Раскладка привычная по редакторам: слева разделы, сверху поиск,
    справа список параметров с названием, пояснением и управлением. */
-.prefs{position:fixed;inset:0;z-index:120;display:flex;background:var(--bg);animation:prefsIn .14s ease}
+/* z-index 140 — ВЫШЕ закреплённой обвязки телефона (панели 124…128). На
+   120 лист показаний (126) лежал поперёк открытых настроек: он закреплён у
+   корня страницы, а не внутри #simpane, поэтому свой слой считает от корня.
+   Экран во весь экран обязан накрывать обвязку целиком. */
+.prefs{position:fixed;inset:0;z-index:140;display:flex;background:var(--bg);animation:prefsIn .14s ease}
 .prefs.hidden{display:none}
 @keyframes prefsIn{from{opacity:0;transform:scale(.995)}to{opacity:1;transform:none}}
 .prefs-side{width:238px;flex-shrink:0;border-right:1px solid var(--line);background:var(--panel);
@@ -964,7 +968,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* весь верхний и нижний UI компьютера убран */
 [data-ui="mobile"] .mtop{display:flex}
 [data-ui="mobile"] .body{min-height:0}
-[data-ui="mobile"] .sidebar{position:fixed;z-index:120;top:0;bottom:0;left:0;width:min(78vw,320px);
+[data-ui="mobile"] .sidebar{position:fixed;z-index:141;top:0;bottom:0;left:0;width:min(78vw,320px);
     height:auto;display:flex;flex-direction:column;
     background:var(--panel);border-right:1px solid var(--line);
     box-shadow:8px 0 34px -14px #0009;
@@ -976,7 +980,9 @@ table.ref tr:last-child td{border-bottom:0}
     border-top:1px solid var(--line-soft)}
 [data-ui="mobile"] .drawer-foot .brand{font-family:var(--mono);font-weight:700;letter-spacing:.02em}
 [data-ui="mobile"] .drawer-foot .brand span{color:var(--accent)}
-[data-ui="mobile"] .drawer-bg{display:block;position:fixed;inset:0;z-index:119;background:#0007;
+/* Ящик тем и его затемнение — тоже выше обвязки: иначе панели снизу
+   оставались нажимаемыми поверх открытого ящика. */
+[data-ui="mobile"] .drawer-bg{display:block;position:fixed;inset:0;z-index:140;background:#0007;
     opacity:0;pointer-events:none;transition:opacity .26s}
 [data-ui="mobile"] .drawer-bg.show{opacity:1;pointer-events:auto}
 [data-ui="mobile"] .splitter{display:none}
