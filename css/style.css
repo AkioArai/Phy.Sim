@@ -586,7 +586,23 @@ table.ref tr:last-child td{border-bottom:0}
 .param .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer;flex:1}
 .param .chk input{accent-color:var(--accent);width:15px;height:15px}
 .param select{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);font-size:12.5px;min-width:150px}
-.pgroup{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:12px 0 4px;border-bottom:1px solid var(--line-soft)}
+/* ГРУППЫ ПАРАМЕТРОВ. Складываются: у «Второго закона» двадцать семь полей,
+   и без этого нужное поле приходилось искать прокруткой каждый раз заново.
+   Счётчик на заголовке показывает, сколько внутри и сколько уже правлено —
+   чтобы свёрнутая группа не прятала изменения молча. */
+.pgroup{border-bottom:1px solid var(--line-soft)}
+.pg-h{display:flex;align-items:center;gap:6px;width:100%;text-align:left;
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);padding:12px 0 5px}
+.pg-h:hover{color:var(--ink-2)}
+.pg-c{width:8px;height:8px;border-right:1.4px solid currentColor;border-bottom:1.4px solid currentColor;
+  transform:rotate(45deg) translate(-2px,-2px);transition:transform .12s;flex:0 0 auto}
+.pgroup.closed .pg-c{transform:rotate(-45deg) translate(-1px,1px)}
+.pg-n{margin-left:auto;font-weight:400;color:var(--ink-3);opacity:.7;text-transform:none;letter-spacing:0}
+.pg-n.hot{color:var(--accent);opacity:1}
+.pgroup.closed .pg-b{display:none}
+.pgroup.found .pg-b{display:block}
+.pgroup.found .pg-c{opacity:.35}
 
 .statusbar{height:40px;flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 8px;border-top:1px solid var(--line)}
 .brand{font-family:var(--mono);font-weight:600;font-size:13px}
@@ -608,6 +624,17 @@ table.ref tr:last-child td{border-bottom:0}
 .pop .field{padding:6px 9px 10px}
 .pop .field select{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2);font-size:13px}
 .pop .field input[type=range]{width:100%;accent-color:var(--accent)}
+/* МЕНЮ СЦЕНЫ ВКЛАДКАМИ. Одиннадцать строк подряд не читались: глаз искал
+   нужную перебором. Вкладки держат на виду 3–5 строк одного смысла, а высота
+   окна перестаёт зависеть от того, сколько команд накопилось всего. */
+.popmenu{min-width:268px;padding:0}
+.mt-tabs{display:flex;gap:2px;padding:5px 5px 0;border-bottom:1px solid var(--line-soft);overflow-x:auto;scrollbar-width:none}
+.mt-tabs::-webkit-scrollbar{display:none}
+.mt-t{padding:7px 10px 6px;font-size:12px;color:var(--ink-3);border-bottom:2px solid transparent;white-space:nowrap;border-radius:5px 5px 0 0}
+.mt-t:hover{color:var(--ink-2);background:var(--panel-2)}
+.mt-t.on{color:var(--accent);border-bottom-color:var(--accent)}
+.mt-body{padding:5px}
+.mt-page.hidden{display:none}
 .seg{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
 .seg button{flex:1;padding:5px;font-size:12px;color:var(--ink-2)}
 .seg button.on{background:var(--accent);color:#fff}
@@ -770,6 +797,13 @@ table.ref tr:last-child td{border-bottom:0}
 .pbox-head .pbox-btn{width:24px;height:22px}
 .param.hide{display:none}
 .param.changed .name::after{content:'•';color:var(--accent);margin-left:5px;font-weight:700}
+/* Возврат к исходному значению прямо в строке: раньше это умела только
+   средняя кнопка мыши — на телефоне её нет, а на компьютере о ней не знали. */
+.p-undo{flex:0 0 auto;width:20px;height:20px;border-radius:5px;font-size:12px;
+  color:var(--ink-3);opacity:0;transition:opacity .12s}
+.param:hover .p-undo,.p-undo:focus-visible{opacity:1}
+.p-undo:hover{color:var(--accent);background:var(--accent-soft)}
+@media (pointer:coarse){.p-undo{opacity:.75}}
 
 /* ==================== КОМАНДНАЯ ПАЛИТРА (Ctrl+P) ==================== */
 .cmdk{position:fixed;inset:0;z-index:300;background:#0006;display:flex;
@@ -1449,3 +1483,37 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"][data-detent="full"] .mbar2.show,
 [data-ui="mobile"][data-detent="full"] .timeline{display:none!important}
 [data-ui="mobile"][data-detent="full"] .mbar{display:none}
+
+/* ---- Панель настроек инструмента: сегменты ----
+   Настраиваемых свойств стало вдвое больше (тип линии, прозрачность,
+   стрелки, заливка, выноски, подпись, кегль), и каждое — не галочка, а
+   выбор из нескольких. Сегменты показывают сразу все варианты и текущий:
+   это быстрее, чем перебирать состояния одной кнопки. */
+.pb-seg{display:flex;align-items:center;gap:0;border:1px solid var(--line);
+  border-radius:7px;overflow:hidden}
+.pb-s{min-width:26px;height:22px;display:grid;place-items:center;
+  font-size:11px;color:var(--ink-2);padding:0 5px;border-right:1px solid var(--line)}
+.pb-s:last-child{border-right:0}
+.pb-s:hover{background:var(--panel-2);color:var(--ink)}
+.pb-s.on{background:var(--accent-soft);color:var(--accent)}
+.pb-s i.ln-solid,.pb-s i.ln-dash,.pb-s i.ln-dot{display:block;width:17px;height:0;
+  border-top:2px solid currentColor}
+.pb-s i.ln-dash{border-top-style:dashed}
+.pb-s i.ln-dot{border-top-style:dotted;border-top-width:3px}
+.pb-s i.al{display:block;width:15px;height:8px;border-radius:2px;background:currentColor}
+.pb-s i.fl{display:block;width:13px;height:13px;border-radius:3px;
+  border:2px solid currentColor}
+.pb-s i.fl.on{background:currentColor;opacity:.55}
+/* Свой цвет: кружок как у пресетов, но с системным выбором внутри. */
+.pb-custom{position:relative;overflow:hidden;display:grid;place-items:center;
+  background:conic-gradient(#e14,#fa0,#2d5,#2af,#84f,#e14)}
+.pb-custom.on{border-color:var(--ink);transform:scale(1.12)}
+.pb-custom input{position:absolute;inset:-6px;opacity:0;cursor:pointer;border:0;padding:0}
+.pb-reset{width:24px;height:22px;border-radius:6px;color:var(--ink-3);font-size:13px;line-height:1}
+.pb-reset:hover{background:var(--panel-2);color:var(--ink)}
+[data-ui="mobile"] .pb-s{min-width:32px;height:30px;font-size:12px}
+[data-ui="mobile"] .pb-reset{width:30px;height:30px}
+/* Полоса стала шире — на телефоне даём ей прокрутку, а не перенос. */
+[data-ui="mobile"] .penbar{max-width:calc(100vw - 20px);overflow-x:auto;
+  scrollbar-width:none;justify-content:flex-start}
+[data-ui="mobile"] .penbar::-webkit-scrollbar{display:none}

@@ -148,34 +148,38 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **Fix: the notes were invisible on a phone.** The bottom-sheet rules hid the
-          notes element at the peek position — which is the default one, and the only one
-          there is when no simulation is open. The text rendered fine; the element was
-          simply display:none. Half the application could not be read on a phone.
+          **Every drawing tool is now fully customisable.** Colour was six presets and a
+          width; everything else was baked into the drawing code. Each tool now offers the
+          six theme colours plus a colour picker, four widths, a line style (solid, dashed,
+          dotted), three opacities — and whatever else that particular tool can actually
+          do: arrowheads for the vector, fill for the circle and the polygon, type size for
+          the note, extension lines for the ruler, and a switch for the measured number.
+          A `⟲` button puts a tool back to how it started.
 
-          With it, three things the bug exposed. Each sheet tab now opens at the position
-          that suits it: parameters at half, reading at full — on half, reading got 158
-          pixels, about three lines. At full the transport row and the scrub strip step
-          aside and play moves onto the live strip, which turns 158 pixels of text into
-          600. And the 88-pixel strip drops scene labels and axis numbers: they are drawn
-          for a full-size scene and at that height collapsed into a heap.
+          The dimension line is gone as a separate tool. It measured the same distance the
+          ruler measures and differed only in how it drew the ends, which is now a ruler
+          setting; `D` selects the ruler with extension lines already on. Drawings made
+          with the old tool open exactly as before.
 
-          Before that release: compiling a graph, saving a frame, recording and
-          exporting data did nothing inside the Android app: a WebView without a download
-          listener silently ignores `blob:` and `data:` links. The shell now writes files
-          itself, into Downloads, still asking for zero permissions. Pictures are also
-          sized to the browser's canvas limit — four graphs stacked came to 13.8
-          megapixels, which a phone renders blank without any error — and long intervals
-          are integrated in slices with a progress readout instead of freezing the tab.
+          **Shift and Alt now do what they do everywhere else.** While a drawing tool is
+          selected, Shift holds the direction at 0°, 45° or 90° instead of panning the
+          scene — panning stays on the middle and right buttons — and Alt + click erases
+          the mark under the cursor without a trip to the eraser.
 
-          Splitters no longer stutter under a finger: the browser was taking the drag for
-          a scroll and cancelling it halfway. This is what you hit on a tablet in desktop
-          mode.
+          **The scene menu is split into tabs.** Eleven commands in one column read as a
+          pile: Scene, Data, Sets and More, plus Constructor for the simulations you build
+          with the mouse, which opens on that tab first.
 
-          Compiled graphs themselves are unchanged: the simulation is run again from the
-          initial conditions at a fixed step and sampled on an even time grid, then saved
-          as SVG, PNG or JPEG. Checked against closed-form solutions — zero deviation for
-          projectile motion, 1.5e-6 m for the spring pendulum at the finest step.
+          **Parameter groups fold.** Newton's second law has 27 fields; every visit began
+          by scrolling to the one you wanted. Groups now collapse, remember their state per
+          simulation, and a folded group says how many fields are inside and how many you
+          have already changed, so nothing hides silently. A `⟲` in a row restores that
+          parameter alone — until now only the middle mouse button did that, which a phone
+          does not have.
+
+          The introduction had a made-up definition of a model, an outdated list of what a
+          topic contains, and pointed at a help icon that does not exist. All of it is
+          corrected, and the introduction and the About panel now say who wrote this.
 
           On a phone the scene never leaves the screen: everything else is a sheet with
           three positions that takes height from the scene instead of covering it. On a

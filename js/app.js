@@ -305,22 +305,53 @@ function метрическая(){
    На схеме числа остаются (расстояние на картинке — тоже расстояние), но без
    «м»: приписать метры к отрезку на электрической схеме было бы неправдой. */
 function едДлины(){ return метрическая()?' м':''; }
+/* Чем заполнен фон сцены.
+   Метрическая решётка — это утверждение: «клетка равна стольким-то метрам».
+   На 42 сценах из 76 такого масштаба нет вовсе — это схемы (цепь, генератор),
+   графики (PV-диаграмма, спектр, Фурье) и сцены в чужих единицах (орбита в
+   тысячах километров, ядро в фемтометрах). Раньше сетка рисовалась и там:
+   в коде стояло оправдание «как фон она никому не мешает». Мешает — клетчатое
+   поле читается как система координат и навязывает схеме структуру, которой
+   у неё нет.
+
+   Поэтому фон выбирается по смыслу сцены: где метры есть — решётка, где их
+   нет — редкие точки (они держат ощущение глубины и масштаба движения, но
+   ничего не измеряют) или чистый фон. Настройка `sceneBg` перекрывает выбор
+   вручную, значение `auto` — описанное правило. */
+function фонСцены(){
+  const режим=prefGet('gridKind')||'auto';
+  if(режим!=='auto') return режим;
+  return метрическая() ? 'grid' : 'dots';
+}
 function drawGrid(ctx){
   const k=ppm(), step=gridStep();
   const [x0,y1]=toWorld(0,0), [x1,y0]=toWorld(CW,CH);
   ctx.lineWidth=1/k;
   const minor=S.settings.quality==='high';
   const ga=+prefGet('gridAlpha')||1;                     // насыщенность сетки из настроек
+  const вид=фонСцены();
   ctx.save(); ctx.globalAlpha=Math.min(1,ga);
-  for(let i=Math.floor(x0/step)*step;i<=x1;i+=step){
-    const maj=Math.abs(i%(step*5))<step/9; if(!minor&&!maj) continue;
-    ctx.strokeStyle=maj?css('--grid-major'):css('--grid');
-    ctx.beginPath(); ctx.moveTo(i,y0); ctx.lineTo(i,y1); ctx.stroke();
-  }
-  for(let j=Math.floor(y0/step)*step;j<=y1;j+=step){
-    const maj=Math.abs(j%(step*5))<step/9; if(!minor&&!maj) continue;
-    ctx.strokeStyle=maj?css('--grid-major'):css('--grid');
-    ctx.beginPath(); ctx.moveTo(x0,j); ctx.lineTo(x1,j); ctx.stroke();
+  if(вид==='dots'){
+    /* Точки ставим в узлах КРУПНОЙ клетки: мелкая при отдалении сливается в
+       серый шум. Радиус — в экранных пикселях, иначе зум превращал бы точки
+       то в пятна, то в ничто. */
+    const ш=step*5, r=1.1/k;
+    ctx.fillStyle=css('--grid-major');
+    for(let i=Math.floor(x0/ш)*ш;i<=x1;i+=ш)
+      for(let j=Math.floor(y0/ш)*ш;j<=y1;j+=ш){
+        ctx.beginPath(); ctx.arc(i,j,r,0,7); ctx.fill();
+      }
+  } else if(вид==='grid'){
+    for(let i=Math.floor(x0/step)*step;i<=x1;i+=step){
+      const maj=Math.abs(i%(step*5))<step/9; if(!minor&&!maj) continue;
+      ctx.strokeStyle=maj?css('--grid-major'):css('--grid');
+      ctx.beginPath(); ctx.moveTo(i,y0); ctx.lineTo(i,y1); ctx.stroke();
+    }
+    for(let j=Math.floor(y0/step)*step;j<=y1;j+=step){
+      const maj=Math.abs(j%(step*5))<step/9; if(!minor&&!maj) continue;
+      ctx.strokeStyle=maj?css('--grid-major'):css('--grid');
+      ctx.beginPath(); ctx.moveTo(x0,j); ctx.lineTo(x1,j); ctx.stroke();
+    }
   }
   ctx.restore();
   if(prefGet('axisTicks')!==false && метрическая() && !сценаПолоска())
@@ -455,20 +486,51 @@ function drawAll(){
        из старых версий полей нет, поэтому падаем на прежние умолчания. */
     const D=TOOL_STYLE[an.type]||{}, AC=css(an.c||D.c||'--accent'), AW=an.w||D.base||1;
     const ADASH=an.dash!==undefined?an.dash:D.dash;
+    /* Стиль пометки применяем целиком и одинаково: линия, прозрачность,
+       подпись, заливка. Каждая пометка помнит его с момента создания. */
+    const ALINE=lineOf(an,D), ADS=dashOf(ALINE,AW);
+    const AA=an.a!==undefined?an.a:1;
+    const подпись=an.lbl!==false;
+    const ставим=(txt,x,y,dx,dy)=>{ if(подпись) VIEW.label(octx,txt,x,y,dx,dy,AC); };
+    octx.save(); octx.globalAlpha=AA;
     if(an.type==='pencil'){
       octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
-      octx.lineJoin='round'; octx.lineCap='round';
+      octx.lineJoin='round'; octx.lineCap=ALINE==='dot'?'round':'round';
+      octx.setLineDash(ADS);
       octx.beginPath(); an.pts.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1])); octx.stroke();
+      octx.setLineDash(EMPTY_DASH);
     } else if(an.type==='ruler'){
       const [x1,y1,x2,y2]=an.p, d=Math.hypot(x2-x1,y2-y1);
-      octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
-      octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
-      VIEW.label(octx,`${d.toFixed(2)}${едДлины()}`,(x1+x2)/2,(y1+y2)/2,6,-8,AC);
+      octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW); octx.setLineDash(ADS);
+      if(an.ext){
+        /* Линейка «с выносками» — то, чем раньше был отдельный инструмент
+           «размерная линия»: то же измерение, другое оформление. */
+        const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1e-9;
+        const nx=-dy/L, ny=dx/L, off=VIEW.lw(14);
+        const ax=x1+nx*off, ay=y1+ny*off, bx=x2+nx*off, by=y2+ny*off;
+        octx.beginPath();
+        octx.moveTo(x1,y1); octx.lineTo(ax+nx*off*0.25,ay+ny*off*0.25);
+        octx.moveTo(x2,y2); octx.lineTo(bx+nx*off*0.25,by+ny*off*0.25);
+        octx.stroke(); octx.setLineDash(EMPTY_DASH);
+        VIEW.arrow(octx,ax,ay,bx,by,AC); VIEW.arrow(octx,bx,by,ax,ay,AC);
+        ставим(`${d.toFixed(2)}${едДлины()}`,(ax+bx)/2,(ay+by)/2,-16,-8);
+      } else {
+        octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
+        octx.setLineDash(EMPTY_DASH);
+        ставим(`${d.toFixed(2)}${едДлины()}`,(x1+x2)/2,(y1+y2)/2,6,-8);
+      }
     } else if(an.type==='vector'){
       const [x1,y1,x2,y2]=an.p;
-      octx.lineWidth=VIEW.lw(AW);
-      VIEW.arrow(octx,x1,y1,x2,y2,AC);
-      VIEW.label(octx,`${Math.hypot(x2-x1,y2-y1).toFixed(2)} ∠${(Math.atan2(y2-y1,x2-x1)*180/Math.PI).toFixed(0)}°`,x2,y2,8,-8,AC);
+      const стрелки=an.arr||'end';
+      octx.lineWidth=VIEW.lw(AW); octx.strokeStyle=AC; octx.setLineDash(ADS);
+      if(стрелки==='none'){
+        octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
+      } else {
+        VIEW.arrow(octx,x1,y1,x2,y2,AC);
+        if(стрелки==='both') VIEW.arrow(octx,x2,y2,x1,y1,AC);
+      }
+      octx.setLineDash(EMPTY_DASH);
+      ставим(`${Math.hypot(x2-x1,y2-y1).toFixed(2)} ∠${(Math.atan2(y2-y1,x2-x1)*180/Math.PI).toFixed(0)}°`,x2,y2,8,-8);
     } else if(an.type==='dim'){
       /* Размерная линия как в чертеже: сама линия со стрелками на концах
          и две выноски-перпендикуляра от измеряемых точек. */
@@ -483,20 +545,23 @@ function drawAll(){
       octx.stroke(); octx.setLineDash(EMPTY_DASH);
       VIEW.arrow(octx,ax,ay,bx,by,AC);
       VIEW.arrow(octx,bx,by,ax,ay,AC);
-      VIEW.label(octx,`${L.toFixed(2)}${едДлины()}`,(ax+bx)/2,(ay+by)/2,-16,-8,AC);
+      ставим(`${L.toFixed(2)}${едДлины()}`,(ax+bx)/2,(ay+by)/2,-16,-8);
     } else if(an.type==='circle'){
       const [cx0,cy0,px2,py2]=an.p, R=Math.hypot(px2-cx0,py2-cy0);
       octx.strokeStyle=AC; octx.lineWidth=VIEW.lw(AW);
-      octx.beginPath(); octx.arc(cx0,cy0,R,0,7); octx.stroke();
+      octx.beginPath(); octx.arc(cx0,cy0,R,0,7);
+      if(an.fill!==false){ octx.fillStyle=AC; octx.globalAlpha=AA*0.14; octx.fill(); octx.globalAlpha=AA; }
+      octx.setLineDash(ADS); octx.stroke(); octx.setLineDash(EMPTY_DASH);
       octx.setLineDash([VIEW.lw(3),VIEW.lw(3)]);
       octx.beginPath(); octx.moveTo(cx0,cy0); octx.lineTo(px2,py2); octx.stroke();
       octx.setLineDash(EMPTY_DASH);
-      VIEW.label(octx,`R = ${R.toFixed(2)}${едДлины()}   S = ${(Math.PI*R*R).toFixed(2)}${метрическая()?' м²':''}`,cx0,cy0,8,-10,AC);
+      ставим(`R = ${R.toFixed(2)}${едДлины()}   S = ${(Math.PI*R*R).toFixed(2)}${метрическая()?' м²':''}`,cx0,cy0,8,-10);
     } else if(an.type==='angle'&&an.pts.length>=2){
       // транспортир: вершина — вторая точка
       const P=an.pts, col=AC;
-      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(AW);
+      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(AW); octx.setLineDash(ADS);
       octx.beginPath(); P.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1])); octx.stroke();
+      octx.setLineDash(EMPTY_DASH);
       if(P.length>=3){
         const [A1,V0,B1]=P;
         const a1=Math.atan2(A1[1]-V0[1],A1[0]-V0[0]), a2=Math.atan2(B1[1]-V0[1],B1[0]-V0[0]);
@@ -505,39 +570,47 @@ function drawAll(){
         octx.beginPath();
         for(let i=0;i<=30;i++){ const t=a1+d*i/30, x=V0[0]+R*Math.cos(t), y=V0[1]+R*Math.sin(t); i?octx.lineTo(x,y):octx.moveTo(x,y); }
         octx.stroke();
-        VIEW.label(octx,`${Math.abs(d*180/Math.PI).toFixed(1)}°`,V0[0]+R*Math.cos(a1+d/2),V0[1]+R*Math.sin(a1+d/2),8,-6,col);
+        ставим(`${Math.abs(d*180/Math.PI).toFixed(1)}°`,V0[0]+R*Math.cos(a1+d/2),V0[1]+R*Math.sin(a1+d/2),8,-6);
       }
     } else if(an.type==='area'&&an.pts.length>=2){
       const P=an.pts, col=AC;
-      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(AW);
+      octx.strokeStyle=col; octx.lineWidth=VIEW.lw(AW); octx.setLineDash(ADS);
       octx.beginPath(); P.forEach((q,i)=>i?octx.lineTo(q[0],q[1]):octx.moveTo(q[0],q[1]));
       if(P.length>=3){
         octx.closePath();
-        octx.fillStyle=col; octx.globalAlpha=.14; octx.fill(); octx.globalAlpha=1;
+        if(an.fill!==false){ octx.fillStyle=col; octx.globalAlpha=AA*0.14; octx.fill(); octx.globalAlpha=AA; }
       }
-      octx.stroke();
+      octx.stroke(); octx.setLineDash(EMPTY_DASH);
       if(P.length>=3){
         // площадь по формуле шнурования (Гаусса)
         let S2=0, cx0=0, cy0=0;
         for(let i=0;i<P.length;i++){ const j=(i+1)%P.length; S2+=P[i][0]*P[j][1]-P[j][0]*P[i][1]; cx0+=P[i][0]; cy0+=P[i][1]; }
         let per=0; for(let i=0;i<P.length;i++){ const j=(i+1)%P.length; per+=Math.hypot(P[j][0]-P[i][0],P[j][1]-P[i][1]); }
-        VIEW.label(octx,`S = ${Math.abs(S2/2).toFixed(2)}${метрическая()?' м²':''}   P = ${per.toFixed(2)}${едДлины()}`,
-          cx0/P.length,cy0/P.length,-40,0,col);
+        ставим(`S = ${Math.abs(S2/2).toFixed(2)}${метрическая()?' м²':''}   P = ${per.toFixed(2)}${едДлины()}`,
+          cx0/P.length,cy0/P.length,-40,0);
       }
     } else if(an.type==='note'){
       const [x,y]=an.p, col=AC;
       octx.fillStyle=col; octx.beginPath(); octx.arc(x,y,VIEW.lw(1.5*AW),0,7); octx.fill();
-      VIEW.label(octx,an.text,x,y,10,-8,col);
+      /* Кегль заметки — свой: подпись к телу и абзац пояснения на сцене
+         требуют разного размера, а раньше он был один на всё. */
+      const кегль=+prefGet('labelSize')||11;
+      if(an.fs&&an.fs!==1){
+        const был=S.settings.labelSize;
+        S.settings.labelSize=Math.round(кегль*an.fs*10)/10;
+        VIEW.label(octx,an.text,x,y,10,-8,col);
+        S.settings.labelSize=был;
+      } else VIEW.label(octx,an.text,x,y,10,-8,col);
     } else if(an.type==='guide'){
       const [x,y]=an.p;
       const [wx0,wy1]=toWorld(0,0), [wx1,wy0]=toWorld(CW,CH);
-      octx.strokeStyle=AC; octx.globalAlpha=.55;
+      octx.strokeStyle=AC; octx.globalAlpha=AA*.55;
       octx.lineWidth=VIEW.lw(AW);
-      if(ADASH) octx.setLineDash([VIEW.lw(6),VIEW.lw(4)]);
+      octx.setLineDash(ADS);
       octx.beginPath();
       if(an.dir==='v'){ octx.moveTo(x,wy0); octx.lineTo(x,wy1); }
       else { octx.moveTo(wx0,y); octx.lineTo(wx1,y); }
-      octx.stroke(); octx.setLineDash(EMPTY_DASH); octx.globalAlpha=1;
+      octx.stroke(); octx.setLineDash(EMPTY_DASH); octx.globalAlpha=AA;
       VIEW.label(octx,an.dir==='v'?`x = ${x.toFixed(2)}`:`y = ${y.toFixed(2)}`,
         an.dir==='v'?x:wx0, an.dir==='v'?wy0:y, 6, -6, AC);
     } else if(an.type==='marquee'){
@@ -547,6 +620,7 @@ function drawAll(){
       octx.strokeRect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));
       octx.setLineDash(EMPTY_DASH);
     }
+    octx.restore();
   }
   // координаты под курсором
   if(S.coords&&S.mouse){
@@ -1868,16 +1942,42 @@ function openSim(id){
   try{ syncMbar(); }catch(_){}
   requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
 }
+/* Свёрнутые группы параметров запоминаются по симуляции: на «Втором законе»
+   двадцать семь полей, и держать их все развёрнутыми — значит прокручивать
+   панель к нужному после каждого открытия. */
+function групповойКлюч(a,label){ return (a?a.def.id||S.active:'?')+'/'+label; }
+function группаСвёрнута(a,label,номер,полей){
+  const св=LS.get('pgroups',{}), k=групповойКлюч(a,label);
+  if(k in св) return !!св[k];
+  // по умолчанию сворачиваем только то, что заведомо не влезет на экран
+  return полей>12 && номер>=2;
+}
+function свернутьГруппу(a,label,как){
+  const св=LS.get('pgroups',{}); св[групповойКлюч(a,label)]=как; LS.set('pgroups',св);
+}
 function renderParams(){
   const box=$('#params'), a=A(); box.innerHTML='';
   if(!a){ box.innerHTML='<div class="empty" style="padding:10px 0">Симуляция не открыта.</div>'; return; }
   const two=a.params.bodies==='2';
   let skip=false;
+  const всегоПолей=a.def.params.filter(p=>p.type!=='group').length;
+  let тело=box, номерГруппы=0;
   for(const p of a.def.params){
     if(p.type==='group'){
       skip = (p.label==='Тело 2' && !two);
       if(skip) continue;
-      const g=document.createElement('div'); g.className='pgroup'; g.textContent=p.label; box.append(g); continue;
+      const g=document.createElement('div'); g.className='pgroup';
+      const h=document.createElement('button');
+      h.type='button'; h.className='pg-h';
+      h.innerHTML=`<i class="pg-c"></i><span>${p.label}</span><b class="pg-n"></b>`;
+      const b=document.createElement('div'); b.className='pg-b';
+      g.append(h,b); box.append(g);
+      const свёрнута=группаСвёрнута(a,p.label,номерГруппы++,всегоПолей);
+      g.classList.toggle('closed',свёрнута);
+      h.onclick=()=>{ const теперь=!g.classList.contains('closed');
+                      g.classList.toggle('closed',теперь);
+                      свернутьГруппу(a,p.label,теперь); пометитьГруппы(); };
+      тело=b; continue;
     }
     if(skip) continue;
     const d=document.createElement('div'); d.className='param';
@@ -1933,13 +2033,32 @@ function renderParams(){
       d.addEventListener('auxclick',e=>{ if(e.button===1){ e.preventDefault(); put(p.default); toast(p.label+': по умолчанию'); } });
       d.title=`допустимый диапазон: ${p.min} … ${p.max}\nможно вписать выражение (2*9.8), стрелки и колесо меняют шагами, средняя кнопка — сброс`;
     }
-    // помечаем параметры, изменённые относительно значения по умолчанию
-    if(p.default!==undefined && String(a.params[p.key])!==String(p.default))
+    // помечаем параметры, изменённые относительно значения по умолчанию,
+    // и даём вернуть исходное щелчком: средняя кнопка мыши делала это и
+    // раньше, но о ней никто не догадывался, а на телефоне её попросту нет
+    if(p.default!==undefined && String(a.params[p.key])!==String(p.default)){
       d.classList.add('changed');
+      const r=document.createElement('button');
+      r.type='button'; r.className='p-undo'; r.textContent='⟲';
+      r.title=`Вернуть исходное: ${p.default}${p.unit?' '+p.unit:''}`;
+      r.onclick=()=>{ commit(p.key,p.default); renderParams(); buildGraphs(); };
+      d.append(r);
+    }
     d.dataset.search=(p.label+' '+(p.unit||'')).toLowerCase();
-    box.append(d);
+    тело.append(d);
   }
   applyParamFilter();
+}
+/* Счётчик на заголовке: сколько полей внутри и сколько из них уведено от
+   исходного значения. Без него свёрнутая группа прячет правки молча. */
+function пометитьГруппы(){
+  document.querySelectorAll('#params .pgroup').forEach(g=>{
+    const все=[...g.querySelectorAll('.param')].filter(d=>!d.classList.contains('hide'));
+    const правлено=все.filter(d=>d.classList.contains('changed')).length;
+    const n=g.querySelector('.pg-n');
+    if(n) n.textContent=правлено?`${правлено} из ${все.length} изменено`:String(все.length);
+    if(n) n.classList.toggle('hot',!!правлено);
+  });
 }
 /* Фильтр по названию параметра — у симуляций с полусотней полей это спасает. */
 function applyParamFilter(){
@@ -1947,17 +2066,14 @@ function applyParamFilter(){
   document.querySelectorAll('#params .param').forEach(d=>{
     d.classList.toggle('hide', !!q && !(d.dataset.search||'').includes(q));
   });
-  // заголовки групп прячем, если в группе ничего не осталось
-  const kids=[...document.querySelectorAll('#params > *')];
-  kids.forEach((el,i)=>{
-    if(!el.classList.contains('pgroup')) return;
-    let any=false;
-    for(let j=i+1;j<kids.length;j++){
-      if(kids[j].classList.contains('pgroup')) break;
-      if(!kids[j].classList.contains('hide')){ any=true; break; }
-    }
-    el.style.display=any?'':'none';
+  // группу целиком прячем, если в ней ничего не осталось; при поиске
+  // раскрываем — иначе найденное лежало бы в свёрнутой группе
+  document.querySelectorAll('#params .pgroup').forEach(g=>{
+    const есть=[...g.querySelectorAll('.param')].some(d=>!d.classList.contains('hide'));
+    g.style.display=есть?'':'none';
+    g.classList.toggle('found',!!q&&есть);
   });
+  пометитьГруппы();
 }
 if($('#pfilter')){
   $('#pfilter').oninput=applyParamFilter;
@@ -2138,8 +2254,10 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   }
   /* Панорама: средняя кнопка, Shift+ЛКМ и ПРАВАЯ кнопка (как в CAD).
      Раньше правая кнопка не панорамировала вовсе, зато успевала схватить
-     точку симуляции и одновременно открыть контекстное меню. */
-  if(e.button===1||e.button===2||e.shiftKey){
+     точку симуляции и одновременно открыть контекстное меню.
+     Исключение — рисующие инструменты: у них Shift держит направление линии,
+     как в любом редакторе, и панорама остаётся на двух других кнопках. */
+  if(e.button===1||e.button===2||(e.shiftKey&&!РИСУЮЩИЕ.has(S.tool))){
     drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y,rmb:e.button===2,moved:false};
     try{ e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId); }catch(_){}
     return;
@@ -2178,6 +2296,12 @@ $('#cwrap').addEventListener('pointerdown',e=>{
   }
   if(S.tool==='pan'){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
   const [sx,sy]=snapPt(wx,wy);
+  /* Alt+клик — быстрый ластик: убрать одну лишнюю пометку, не уходя за
+     резинкой в стойку и не возвращаясь потом обратно. У направляющей Alt
+     занят направлением, поэтому её не трогаем. */
+  if(e.altKey&&S.tool!=='guide'&&РИСУЮЩИЕ.has(S.tool)){
+    a.draft=null; annSnapshot(a); erase(wx,wy); drag={mode:'erase'}; return;
+  }
   if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]],...markStyle('pencil')}; drag={mode:'draw'}; }
   else if(S.tool==='ruler'||S.tool==='vector'||S.tool==='dim'||S.tool==='circle'){
     a.draft={type:S.tool,p:[sx,sy,sx,sy],...markStyle(S.tool)}; drag={mode:'draw'};
@@ -2198,7 +2322,8 @@ $('#cwrap').addEventListener('pointerdown',e=>{
     /* Многоточечные инструменты: копим вершины кликами, замыкаем двойным
        кликом, клавишей Enter или (для угла) третьей точкой. */
     if(!a.draft||a.draft.type!==S.tool) a.draft={type:S.tool,pts:[],...markStyle(S.tool)};
-    a.draft.pts.push([sx,sy]);
+    const пред=a.draft.pts[a.draft.pts.length-1];
+    a.draft.pts.push(пред?подРавнение(пред[0],пред[1],sx,sy,e.shiftKey):[sx,sy]);
     if(S.tool==='angle'&&a.draft.pts.length===3){ annSnapshot(a); a.annos.push(a.draft); a.draft=null; }
     else if(S.tool==='area'&&e.detail>=2&&a.draft.pts.length>=4){
       a.draft.pts.pop(); annSnapshot(a); a.annos.push(a.draft); a.draft=null;
@@ -2232,8 +2357,18 @@ addEventListener('pointermove',e=>{
   else if(drag.mode==='dragpt'){ a.def.dragMove(a.params,drag.idx,wx,wy); a.state=a.def.init(a.params); }
   else if(drag.mode==='draw'&&a.draft){
     const [sx,sy]=snapPt(wx,wy);
-    if(a.draft.type==='pencil') a.draft.pts.push([wx,wy]);
-    else { a.draft.p[2]=sx; a.draft.p[3]=sy; }
+    if(a.draft.type==='pencil'){
+      /* С зажатым Shift карандаш ведёт прямую от начала штриха: набранное
+         от руки отбрасывается, а отпустив Shift, можно рисовать дальше. */
+      if(e.shiftKey){
+        const [x0,y0]=a.draft.pts[0];
+        a.draft.pts=[[x0,y0],подРавнение(x0,y0,wx,wy,true)];
+      } else a.draft.pts.push([wx,wy]);
+    }
+    else {
+      const [x,y]=подРавнение(a.draft.p[0],a.draft.p[1],sx,sy,e.shiftKey&&a.draft.type!=='circle');
+      a.draft.p[2]=x; a.draft.p[3]=y;
+    }
   } else if(drag.mode==='erase') erase(wx,wy);
   else if(drag.mode==='marquee'&&a.draft){ a.draft.p[2]=wx; a.draft.p[3]=wy; }
 });
@@ -2398,19 +2533,45 @@ document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.to
 const TOOL_COLORS=[['--danger','красный'],['--accent','синий'],['--second','фиолетовый'],
                    ['--measure','оранжевый'],['--ok','зелёный'],['--ink','чёрный']];
 const TOOL_WIDTHS=[[0.5,'тонко'],[1,'обычно'],[1.75,'жирно'],[3,'маркер']];
-/* Базовый вид каждого инструмента — ровно тот, что раньше был зашит в
-   отрисовке. Поле dash есть только у инструментов, которым пунктир к лицу. */
+const TOOL_LINES=[['solid','сплошная'],['dash','пунктир'],['dot','точки']];
+const TOOL_ALPHA=[[1,'плотно'],[0.65,'полупрозрачно'],[0.35,'едва видно']];
+/* Базовый вид каждого инструмента и список того, что у него настраивается.
+   `opts` — не украшение: каждый пункт что-то меняет в отрисовке, поэтому
+   список у инструментов разный. Стрелки нужны вектору и не нужны кругу;
+   заливка — замкнутым фигурам; подпись с числом — измерительным.
+
+   Раньше настраивались только цвет и толщина, да ещё пунктир у двух
+   инструментов; всё остальное было зашито в отрисовке намертво. */
 const TOOL_STYLE={
-  pencil:{c:'--danger',  base:2},
-  ruler: {c:'--measure', base:1.4},
-  vector:{c:'--accent',  base:1.4},
-  dim:   {c:'--measure', base:1,   dash:false},
-  circle:{c:'--second',  base:1.4},
-  angle: {c:'--accent',  base:1.4},
-  area:  {c:'--second',  base:1.4},
-  note:  {c:'--measure', base:2},
-  guide: {c:'--accent',  base:1,   dash:true},
+  pencil:{c:'--danger',  base:2,   opts:['line','alpha']},
+  ruler: {c:'--measure', base:1.4, opts:['line','alpha','label','ext']},
+  vector:{c:'--accent',  base:1.4, opts:['line','alpha','label','arrow']},
+  dim:   {c:'--measure', base:1,   line:'solid', opts:['line','alpha','label']},
+  circle:{c:'--second',  base:1.4, opts:['line','alpha','label','fill']},
+  angle: {c:'--accent',  base:1.4, opts:['line','alpha','label']},
+  area:  {c:'--second',  base:1.4, opts:['line','alpha','label','fill']},
+  note:  {c:'--measure', base:2,   opts:['alpha','size']},
+  guide: {c:'--accent',  base:1,   line:'dash', opts:['line','alpha']},
 };
+/* Инструменты, которые оставляют пометку на сцене. Список нужен не только
+   полосе настроек: у них Shift и Alt заняты рисованием, а не панорамой. */
+const РИСУЮЩИЕ=new Set(Object.keys(TOOL_STYLE));
+/* Shift держит направление: 0°, 45°, 90°. Считаем по мировым координатам —
+   оси сцены равномасштабны, поэтому угол на экране получается тот же. */
+function подРавнение(x0,y0,x,y,держать){
+  if(!держать) return [x,y];
+  const dx=x-x0, dy=y-y0, d=Math.hypot(dx,dy);
+  if(d<1e-9) return [x,y];
+  const шаг=Math.PI/4, a=Math.round(Math.atan2(dy,dx)/шаг)*шаг;
+  return [x0+d*Math.cos(a), y0+d*Math.sin(a)];
+}
+/* Пунктир в мировых единицах: рисунок масштабируется зумом, и постоянный
+   шаг в пикселях на отдалении сливался бы в сплошную. */
+function dashOf(line,w){
+  if(line==='dash') return [VIEW.lw(5*w),VIEW.lw(3.5*w)];
+  if(line==='dot')  return [VIEW.lw(0.1),VIEW.lw(2.8*w)];
+  return EMPTY_DASH;
+}
 /* Разовый перенос со старого ключа pen: у кого карандаш был настроен, тот
    его настройку и получает, остальные — умолчания. */
 if(!S.tstyle){
@@ -2428,20 +2589,40 @@ const tstyle=t=>S.tstyle[t]||{c:(TOOL_STYLE[t]||{}).c,k:1};
 function markStyle(t){
   const d=TOOL_STYLE[t]||{base:1}, s=tstyle(t);
   const o={c:s.c||d.c, w:(d.base||1)*(s.k||1)};
+  const есть=x=>(d.opts||[]).includes(x);
+  if(есть('line'))  o.line = s.line!==undefined ? s.line : (d.line||'solid');
+  if(есть('alpha')) o.a    = s.a!==undefined ? s.a : 1;
+  if(есть('label')) o.lbl  = s.lbl!==undefined ? s.lbl : true;
+  if(есть('fill'))  o.fill = s.fill!==undefined ? s.fill : true;
+  if(есть('arrow')) o.arr  = s.arr!==undefined ? s.arr : 'end';
+  if(есть('size'))  o.fs   = s.fs!==undefined ? s.fs : 1;
+  if(есть('ext'))   o.ext  = s.ext!==undefined ? s.ext : false;
+  /* Старое поле dash держим ради пометок, нарисованных прежними версиями:
+     они хранят его в себе и должны рисоваться как рисовались. */
   if(d.dash!==undefined) o.dash=s.dash!==undefined?s.dash:d.dash;
   return o;
 }
+/* Линия пометки: новое поле line, а если его нет — старое dash. */
+function lineOf(an,D){
+  if(an.line) return an.line;
+  const d=an.dash!==undefined?an.dash:D.dash;
+  return d ? 'dash' : (D.line||'solid');
+}
 function renderToolbar(){
   const bar=$('#penbar'); if(!bar) return;
-  const styleable=!!TOOL_STYLE[S.tool];
-  bar.classList.toggle('hidden', !styleable);
-  $('#cwrap').classList.toggle('has-toolbar', styleable);
-  if(!styleable) return;
-  const s=tstyle(S.tool), def=TOOL_STYLE[S.tool];
+  const def=TOOL_STYLE[S.tool];
+  bar.classList.toggle('hidden', !def);
+  $('#cwrap').classList.toggle('has-toolbar', !!def);
+  if(!def) return;
+  const s=tstyle(S.tool);
   const cols=$('#pb-colors'), ws=$('#pb-widths'), ex=$('#pb-extra');
   cols.innerHTML=''; ws.innerHTML=''; ex.innerHTML='';
   const save=upd=>{ S.tstyle={...S.tstyle,[S.tool]:{...s,...upd}};
                     LS.set('tstyle',S.tstyle); renderToolbar(); };
+  const есть=x=>(def.opts||[]).includes(x);
+
+  /* Цвет. Шесть готовых из темы плюс свой: шести хватает для пометок на
+     уроке, но не хватает, когда к сцене уже подобрали свою палитру. */
   for(const [v,name] of TOOL_COLORS){
     const b=document.createElement('button');
     b.className='pb-color'+((s.c||def.c)===v?' on':''); b.type='button'; b.title=name;
@@ -2449,6 +2630,15 @@ function renderToolbar(){
     b.onclick=()=>save({c:v});
     cols.appendChild(b);
   }
+  const свой=document.createElement('label');
+  свой.className='pb-color pb-custom'+(String(s.c||'').startsWith('#')?' on':'');
+  свой.title='Свой цвет';
+  const цв=String(s.c||'').startsWith('#')?s.c:'#8b5cf6';
+  свой.style.setProperty('--pc',цв);
+  свой.innerHTML=`<input type="color" value="${цв}">`;
+  свой.querySelector('input').oninput=e=>save({c:e.target.value});
+  cols.appendChild(свой);
+
   for(const [v,name] of TOOL_WIDTHS){
     const b=document.createElement('button');
     b.className='pb-width'+((s.k||1)===v?' on':''); b.type='button'; b.title=name;
@@ -2457,15 +2647,72 @@ function renderToolbar(){
     b.onclick=()=>save({k:v});
     ws.appendChild(b);
   }
-  if(def.dash!==undefined){
-    const on=s.dash!==undefined?s.dash:def.dash;
-    const b=document.createElement('button');
-    b.className='pb-dash'+(on?' on':''); b.type='button';
-    b.title=on?'пунктиром':'сплошной';
-    b.innerHTML='<i></i>';
-    b.onclick=()=>save({dash:!on});
-    ex.appendChild(b);
+
+  /* Остальные свойства — сегментами. Показываем только то, что этот
+     инструмент действительно умеет: список объявлен в TOOL_STYLE.opts. */
+  const группа=(титул,пункты,текущее,при)=>{
+    const g=document.createElement('div'); g.className='pb-seg'; g.title=титул;
+    for(const [v,подпись,разметка] of пункты){
+      const b=document.createElement('button');
+      b.type='button'; b.className='pb-s'+(текущее===v?' on':''); b.title=подпись;
+      b.innerHTML=разметка||подпись;
+      b.onclick=()=>при(v);
+      g.appendChild(b);
+    }
+    ex.appendChild(g);
+  };
+  if(есть('line')){
+    const тек=s.line!==undefined?s.line:(def.line||'solid');
+    группа('Тип линии',TOOL_LINES.map(([v,n])=>[v,n,`<i class="ln-${v}"></i>`]),тек,v=>save({line:v}));
   }
+  if(есть('alpha')){
+    const тек=s.a!==undefined?s.a:1;
+    группа('Прозрачность',TOOL_ALPHA.map(([v,n])=>[v,n,`<i class="al" style="opacity:${v}"></i>`]),тек,v=>save({a:v}));
+  }
+  if(есть('arrow')){
+    const тек=s.arr!==undefined?s.arr:'end';
+    группа('Стрелки',[['end','на конце','→'],['both','с обеих сторон','↔'],['none','без стрелок','—']],
+      тек,v=>save({arr:v}));
+  }
+  if(есть('size')){
+    const тек=s.fs!==undefined?s.fs:1;
+    группа('Кегль подписи',[[0.85,'мелко','<span style="font-size:9px">А</span>'],
+                            [1,'обычно','<span style="font-size:12px">А</span>'],
+                            [1.35,'крупно','<span style="font-size:15px">А</span>']],
+      тек,v=>save({fs:v}));
+  }
+  if(есть('fill')){
+    const вкл=s.fill!==false;
+    группа('Заливка',[[true,'с заливкой','<i class="fl on"></i>'],[false,'без заливки','<i class="fl"></i>']],
+      вкл,v=>save({fill:v}));
+  }
+  if(есть('ext')){
+    const вкл=s.ext===true;
+    группа('Выноски как на чертеже',[[false,'простая линия','—'],[true,'с выносками','⟷']],
+      вкл,v=>save({ext:v}));
+  }
+  if(есть('label')){
+    const вкл=s.lbl!==false;
+    группа('Подпись с числом',[[true,'показывать число','1,2'],[false,'без числа','·']],
+      вкл,v=>save({lbl:v}));
+  }
+  /* Сброс к исходному виду: настроек стало много, и вернуть инструмент
+     к заводскому состоянию щелчками было бы долго. */
+  const сброс=document.createElement('button');
+  сброс.type='button'; сброс.className='pb-reset'; сброс.title='Вернуть исходный вид инструмента';
+  сброс.textContent='⟲';
+  сброс.onclick=()=>{ const t={...S.tstyle}; delete t[S.tool];
+                      S.tstyle=t; LS.set('tstyle',S.tstyle); renderToolbar(); };
+  ex.appendChild(сброс);
+}
+/* Размерная линия была отдельным инструментом, хотя строит то же измерение,
+   что и линейка, — отличалась только оформлением концов. Держать ради этого
+   вторую кнопку в стойке незачем: у линейки есть переключатель «с выносками».
+   Старые пометки типа dim продолжают рисоваться как раньше (TOOL_STYLE.dim). */
+function линейкаСВыносками(){
+  S.tstyle={...S.tstyle, ruler:{...tstyle('ruler'), ext:true}};
+  LS.set('tstyle',S.tstyle);
+  setTool('ruler');
 }
 function setTool(t){
   const a=A(); if(a&&a.draft&&a.draft.type!==t) a.draft=null;   // бросаем недорисованное
@@ -2879,6 +3126,10 @@ $('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(
 $('#mi-teacher').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openTeacher(); };
 $('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
 $('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
+$('#mi-fitv').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); if(A()) fitView(); };
+$('#mi-clear').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); $('#btn-clear').click(); };
+$('#mi-keys').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openPrefs('keys'); };
+$('#mi-prefs').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openPrefs(); };
 addEventListener('click',()=>document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden')));
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
 
@@ -2996,7 +3247,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
   serifNotes:false,toasts:true,dockSize:'norm',intro:true,winMode:'window',
-  gridStepMode:'auto',gridLabels:true,axisTicks:true,hudSide:'left',hudScale:1,numPrec:2,
+  gridStepMode:'auto',gridKind:'auto',gridLabels:true,axisTicks:true,hudSide:'left',hudScale:1,numPrec:2,
   clockShow:true,fpsShow:true,
   eventPause:true,zoomInvert:false,zoomSens:1,keyZoomStep:1.8,defSpeed:1,
   autoFit:true,mAutoOpen:true,
@@ -3042,6 +3293,9 @@ const PREFS=[
    name:'Диаграмма энергии',desc:'Столбики кинетической, потенциальной и полной энергии.'},
   {cat:'scene',key:'grid',type:'toggle',def:true,
    name:'Координатная сетка',desc:'Разметка сцены с шагом в метрах. Без неё картинка чище, но труднее оценить масштаб.'},
+  {cat:'scene',key:'gridKind',type:'select',def:'auto',
+   name:'Разметка сцены',desc:'Клетка — это утверждение «клетка равна стольким-то метрам». На схемах, графиках и в чужих единицах метров нет, и решётка там навязывает структуру, которой нет. «По смыслу сцены» ставит клетку там, где метры есть, и редкие точки там, где их нет.',
+   options:[['auto','По смыслу сцены'],['grid','Всегда клетка'],['dots','Всегда точки'],['none','Без разметки']]},
   {cat:'scene',key:'graphs',type:'toggle',def:true,
    name:'Графики под сценой',desc:'Зависимости величин от времени. Отключение немного разгружает слабые машины.'},
   {cat:'scene',key:'lineW',type:'range',def:1,min:0.6,max:2,step:0.1,unit:'×',
@@ -3300,10 +3554,14 @@ function renderPrefs(){
         что произойдёт.<br><br>
         Работает целиком в браузере, без интернета и установки — файл можно носить на флешке
         и открывать на любом компьютере. Всё, что вы настроите или сохраните,
-        остаётся только на этом устройстве.
+        остаётся только на этом устройстве.<br><br>
+        <b>Автор:</b> Бобожонов С.&nbsp;Ш. — студент первого курса факультета ИЯФИТ
+        Ташкентского филиала НИЯУ МИФИ. Об ошибках и о том, чего здесь не хватает,
+        пишите в личные сообщения в Телеграме.
       </div>
       <div class="prefs-links">
         <button class="btn" id="pref-keys">Горячие клавиши</button>
+        <a class="btn" href="https://t.me/TheFirstSomi" target="_blank" rel="noopener">Автор: t.me/TheFirstSomi</a>
         <a class="btn" href="https://telegram.me/SOMITGC" target="_blank" rel="noopener">Telegram-канал</a>
       </div>`;
     const kb=$('#pref-keys'); if(kb) kb.onclick=()=>openPrefs('keys');
@@ -3904,12 +4162,14 @@ const KEYS=[['Ctrl + P','Командная палитра: темы, симул
  ['Ctrl + ,','Настройки'],['Space','Пуск / стоп'],['R','Сбросить симуляцию'],['Ctrl + Z','Параметры: назад'],['Ctrl + Y','Параметры: вперёд'],
  ['V / P / L / Y / E','Курсор / карандаш / линейка / вектор / резинка'],
  ['Q / M','Пробник координат / зум рамкой'],
- ['D / G / C','Размер / транспортир / окружность'],
+ ['D / G / C','Линейка с выносками / транспортир / окружность'],
  ['Shift + A','Площадь многоугольника'],['N / U','Заметка / направляющая'],
+ ['Shift при рисовании','Держать направление: 0°, 45°, 90°'],
+ ['Alt + клик','Стереть пометку под курсором'],
  ['Enter / Esc','Замкнуть / отменить построение'],
  ['T','След за телами'],['K','Координаты под курсором'],['A','Привязка к анкерам и узлам сетки'],
  ['F','Симуляция во весь экран'],['H','Скрыть симуляцию'],['Tab','Скрыть панель тем'],['Ctrl + K','Поиск'],
- ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама'],
+ ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама (кроме рисующих инструментов)'],['Средняя кнопка','Панорама всегда'],
  ['Два пальца','Зум и панорама на сенсоре'],['ПКМ','Меню симуляции']];
 $('#kb-list').innerHTML=KEYS.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('');
 $('#kb-close').onclick=()=>$('#modal-kb').classList.add('hidden');
@@ -3957,7 +4217,7 @@ addEventListener('keydown',e=>{
   const map={
     KeyV:()=>setTool('pan'), KeyP:()=>setTool('pencil'), KeyL:()=>setTool('ruler'),
     KeyY:()=>setTool('vector'), KeyE:()=>setTool('eraser'),
-    KeyQ:()=>setTool('probe'), KeyM:()=>setTool('marquee'), KeyD:()=>setTool('dim'),
+    KeyQ:()=>setTool('probe'), KeyM:()=>setTool('marquee'), KeyD:()=>линейкаСВыносками(),
     KeyG:()=>setTool('angle'), KeyC:()=>setTool('circle'), KeyN:()=>setTool('note'),
     KeyU:()=>setTool('guide'), KeyT:()=>$('#btn-trace').click(),
     KeyK:()=>$('#btn-coords').click(),
@@ -3985,23 +4245,48 @@ addEventListener('keydown',e=>{
    поэтому при панорамировании правой кнопкой меню успевало выскочить в
    начале жеста. Поэтому меню не открывается сразу: запрос запоминается, а
    показывается в pointerup — и только если кнопку не тащили. */
+/* Вкладки меню сцены. Порядок — по тому, как часто в них заходят:
+   сцена (снимок, запись, сброс), данные (график, показания), конструктор
+   (только у собираемых мышью), наборы параметров, всё остальное. */
+const МЕНЮ_ВКЛАДКИ=[['scene','Сцена'],['data','Данные'],['build','Конструктор'],
+                    ['sets','Наборы'],['more','Ещё']];
+/* Вкладку помним отдельно для обычной сцены и для конструктора: в конструктор
+   заходят за деталями, на обычной сцене — за снимком, и подсовывать одно
+   вместо другого каждый раз было бы навязчиво. */
+const менюВкладка={обычная:'scene',конструктор:'build'};
+let менюРежим='обычная';
+function setMenuTab(id){
+  менюВкладка[менюРежим]=id;
+  document.querySelectorAll('#pop-simmenu .mt-page')
+    .forEach(p=>p.classList.toggle('hidden',p.dataset.page!==id));
+  document.querySelectorAll('#simmenu-tabs .mt-t')
+    .forEach(b=>b.classList.toggle('on',b.dataset.tab===id));
+}
 function openSimMenu(clientX,clientY){
   const pop=$('#pop-simmenu');
   // инструменты конструктора (если симуляция их объявляет)
-  let tl=$('#simmenu-tools');
-  if(!tl){ tl=document.createElement('div'); tl.id='simmenu-tools'; pop.prepend(tl); }
+  const tl=$('#simmenu-tools');
   tl.innerHTML='';
   const at=A();
-  if(at&&at.def.ctxTools){
+  const конструктор=!!(at&&at.def.ctxTools);
+  if(конструктор){
     for(const it of at.def.ctxTools(at.params)){
       const b=document.createElement('button'); b.className='item'; b.textContent=it.label;
       b.onclick=()=>{ it.on(at.params); at.state=at.def.init(at.params); pop.classList.add('hidden'); renderSimTools(); };
       tl.appendChild(b);
     }
-    const hr=document.createElement('div');
-    hr.style.cssText='height:1px;background:var(--line-soft);margin:4px 6px';
-    tl.appendChild(hr);
   }
+  const tabs=$('#simmenu-tabs');
+  tabs.innerHTML='';
+  менюРежим=конструктор?'конструктор':'обычная';
+  const видимые=МЕНЮ_ВКЛАДКИ.filter(([id])=>id!=='build'||конструктор);
+  for(const [id,name] of видимые){
+    const b=document.createElement('button');
+    b.type='button'; b.className='mt-t'; b.dataset.tab=id; b.textContent=name;
+    b.onclick=()=>setMenuTab(id);
+    tabs.appendChild(b);
+  }
+  setMenuTab(менюВкладка[менюРежим]);
   document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden'));
   pop.style.visibility='hidden'; pop.classList.remove('hidden');
   const w=pop.offsetWidth, h=pop.offsetHeight;
@@ -4250,7 +4535,7 @@ const CMDS=[
   {k:'Инструмент',t:'Зум рамкой', hint:'M', run:()=>setTool('marquee')},
   {k:'Инструмент',t:'Карандаш', hint:'P', run:()=>setTool('pencil')},
   {k:'Инструмент',t:'Линейка', hint:'L', run:()=>setTool('ruler')},
-  {k:'Инструмент',t:'Размерная линия', hint:'D', run:()=>setTool('dim')},
+  {k:'Инструмент',t:'Линейка с выносками', hint:'D', run:()=>линейкаСВыносками()},
   {k:'Инструмент',t:'Транспортир', hint:'G', run:()=>setTool('angle')},
   {k:'Инструмент',t:'Окружность', hint:'C', run:()=>setTool('circle')},
   {k:'Инструмент',t:'Площадь многоугольника', hint:'Shift+A', run:()=>setTool('area')},

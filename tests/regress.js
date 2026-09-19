@@ -302,7 +302,8 @@ async function boot(b, url, ui) {
       return { видна: !b.classList.contains('hidden') && b.getBoundingClientRect().height > 0,
                цветов: c.length, толщин: w.length, цвет: r(c[4]), толщина: r(w[3]) };
     });
-    ok('полоса настроек инструмента', bar.видна && bar.цветов === 6 && bar.толщин === 4, bar);
+    // Шесть цветов из темы плюс седьмая ячейка «свой цвет» с input type=color.
+    ok('полоса настроек инструмента', bar.видна && bar.цветов === 7 && bar.толщин === 4, bar);
 
     await p.mouse.click(bar.цвет[0], bar.цвет[1]);
     await p.mouse.click(bar.толщина[0], bar.толщина[1]);
@@ -330,23 +331,100 @@ async function boot(b, url, ui) {
     });
     ok('полоса не накрывает шапку панели показателей', hud.свободна, hud);
 
-    // Настройки положены каждому рисующему инструменту, а не одному карандашу.
+    // Настройки положены каждому рисующему инструменту, а не одному карандашу,
+    // и каждому — ровно те, которыми он умеет пользоваться: стрелки только у
+    // вектора, заливка только у замкнутых фигур, кегль только у заметки.
     const tools = await p.evaluate(async () => {
       const r = {};
-      for (const t of ['ruler','vector','dim','circle','angle','area','note','guide','pan','probe']) {
+      for (const t of ['pencil','ruler','vector','circle','angle','area','note','guide','pan','probe']) {
         setTool(t); await new Promise(z => setTimeout(z, 15));
         r[t] = { полоса: !document.querySelector('#penbar').classList.contains('hidden'),
-                 пунктир: document.querySelectorAll('#pb-extra .pb-dash').length };
+                 группы: [...document.querySelectorAll('#pb-extra .pb-seg')].map(g => g.title),
+                 сброс: document.querySelectorAll('#pb-extra .pb-reset').length };
       }
       return r;
     });
+    const рисующие = ['pencil','ruler','vector','circle','angle','area','note','guide'];
     ok('полоса настроек у всех рисующих инструментов',
-        ['ruler','vector','dim','circle','angle','area','note','guide'].every(t => tools[t].полоса)
-        && !tools.pan.полоса && !tools.probe.полоса,
+        рисующие.every(t => tools[t].полоса) && !tools.pan.полоса && !tools.probe.полоса,
         Object.fromEntries(Object.entries(tools).map(([k, v]) => [k, v.полоса])));
-    ok('пунктир предложен направляющей и размерной линии',
-        tools.guide.пунктир === 1 && tools.dim.пунктир === 1 && tools.ruler.пунктир === 0,
-        { направляющая: tools.guide.пунктир, размер: tools.dim.пунктир, линейка: tools.ruler.пунктир });
+    const ждём = {
+      pencil: ['Тип линии','Прозрачность'],
+      ruler:  ['Тип линии','Прозрачность','Выноски как на чертеже','Подпись с числом'],
+      vector: ['Тип линии','Прозрачность','Стрелки','Подпись с числом'],
+      circle: ['Тип линии','Прозрачность','Заливка','Подпись с числом'],
+      angle:  ['Тип линии','Прозрачность','Подпись с числом'],
+      area:   ['Тип линии','Прозрачность','Заливка','Подпись с числом'],
+      note:   ['Прозрачность','Кегль подписи'],
+      guide:  ['Тип линии','Прозрачность'],
+    };
+    const разошлись = рисующие.filter(t => tools[t].группы.join('|') !== ждём[t].join('|'));
+    ok('каждому инструменту — свой набор настроек', разошлись.length === 0,
+        Object.fromEntries(разошлись.map(t => [t, { надо: ждём[t], есть: tools[t].группы }])));
+    ok('сброс к исходному виду есть у каждого рисующего',
+        рисующие.every(t => tools[t].сброс === 1),
+        Object.fromEntries(рисующие.map(t => [t, tools[t].сброс])));
+
+    /* Размерная линия слита с линейкой: отдельной кнопки в стойке больше нет,
+       а клавиша D включает линейку сразу с выносками. */
+    const dim = await p.evaluate(async () => {
+      setTool('pan'); линейкаСВыносками(); await new Promise(z => setTimeout(z, 15));
+      return { кнопка: document.querySelectorAll('#rail [data-tool="dim"]').length,
+               инструмент: S.tool, выноски: markStyle('ruler').ext };
+    });
+    ok('размерная линия слита с линейкой',
+        dim.кнопка === 0 && dim.инструмент === 'ruler' && dim.выноски === true, dim);
+
+    /* Shift при рисовании держит направление, а не панорамирует сцену:
+       раньше Shift+ЛКМ уводил вид, и построить горизонталь было нечем. */
+    const было = await p.evaluate(() => { const a = A(); a.annos = []; setTool('ruler');
+      return { x: a.view.x, y: a.view.y }; });
+    await p.keyboard.down('Shift');
+    await p.mouse.move(scene.cx - 120, scene.cy - 40); await p.mouse.down();
+    for (const d of [40, 90, 140]) await p.mouse.move(scene.cx - 120 + d, scene.cy - 40 + 7);
+    await p.mouse.up();
+    await p.keyboard.up('Shift');
+    const ровно = await p.evaluate(() => { const a = A(), l = a.annos[a.annos.length - 1];
+      return { всего: a.annos.length, тип: l && l.type,
+               угол: l && Math.round(Math.atan2(l.p[3] - l.p[1], l.p[2] - l.p[0]) * 180 / Math.PI),
+               вид: { x: a.view.x, y: a.view.y } }; });
+    ok('Shift держит направление и не уводит сцену',
+        ровно.всего === 1 && ровно.тип === 'ruler' && ровно.угол === 0
+        && ровно.вид.x === было.x && ровно.вид.y === было.y, ровно);
+
+    // Alt+клик стирает пометку, не заставляя уходить за резинкой в стойку.
+    await p.keyboard.down('Alt');
+    await p.mouse.click(scene.cx - 60, scene.cy - 40);
+    await p.keyboard.up('Alt');
+    const стёрли = await p.evaluate(() => ({ осталось: A().annos.length }));
+    ok('Alt+клик стирает пометку под курсором', стёрли.осталось === 0, стёрли);
+
+    /* Меню сцены разложено по вкладкам: на виду одна группа, а не все
+       одиннадцать команд разом. «Конструктор» есть только там, где сцену
+       действительно собирают мышью, и открывается сразу. */
+    const menu = await p.evaluate(async () => {
+      const видно = () => [...document.querySelectorAll('#pop-simmenu .mt-page:not(.hidden) .item')]
+                            .map(i => i.textContent.trim());
+      openSim('kin1d'); await new Promise(z => setTimeout(z, 150));
+      openSimMenu(500, 300);
+      const обычная = { вкладки: [...document.querySelectorAll('#simmenu-tabs .mt-t')].map(t => t.textContent),
+                        сцена: видно() };
+      setMenuTab('more'); обычная.ещё = видно();
+      openSim('resistors'); await new Promise(z => setTimeout(z, 200));
+      openSimMenu(500, 300);
+      const цепь = { вкладки: [...document.querySelectorAll('#simmenu-tabs .mt-t')].map(t => t.textContent),
+                     активна: document.querySelector('#simmenu-tabs .mt-t.on').dataset.tab,
+                     деталей: document.querySelectorAll('#simmenu-tools .item').length };
+      document.querySelector('#pop-simmenu').classList.add('hidden');
+      return { обычная, цепь, всего: document.querySelectorAll('#pop-simmenu .item').length };
+    });
+    ok('меню сцены разложено по вкладкам',
+        menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
+        && menu.обычная.сцена.length === 5 && menu.обычная.ещё.length === 4
+        && menu.всего > menu.обычная.сцена.length, menu.обычная);
+    ok('конструктор получает свою вкладку и открывает её сразу',
+        menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
+        && menu.цепь.деталей > 0, menu.цепь);
 
     // Режим учителя: варианты различаются, ключ сходится с пересчётом.
     const teach = await p.evaluate(() => {
@@ -436,7 +514,7 @@ async function boot(b, url, ui) {
       return { видна: r.height > 0, вКадре: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
                цветов: document.querySelectorAll('#pb-colors .pb-color').length };
     });
-    ok('карандаш на телефоне', mpen.видна && mpen.вКадре && mpen.цветов === 6, mpen);
+    ok('карандаш на телефоне', mpen.видна && mpen.вКадре && mpen.цветов === 7, mpen);
 
     /* Лист: три положения, и ни в одном он не накрывает сцену.
        Это и есть главное обещание мобильного макета, поэтому проверяем его
