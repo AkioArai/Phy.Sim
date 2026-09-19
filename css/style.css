@@ -1328,10 +1328,16 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .msheet-tabs button.on{background:var(--accent-800);color:var(--accent-300)}
 [data-ui="mobile"] .msheet-tabs .nprob{font-family:var(--mono);font-size:11px;margin-left:6px;color:var(--ink-3)}
 
-/* Тело листа: параметры или конспект — в одной и той же коробке. */
+/* Тело листа: параметры или конспект — в одной и той же коробке.
+   ВАЖНО: всё это включается, только когда симуляция открыта (data-sim="on").
+   `#content` — не только вкладка листа, но и обычный экран чтения: когда
+   сцены нет, конспект занимает весь экран сам по себе. Из-за того, что
+   правила ниже были написаны без этой оговорки, на телефоне конспект
+   прятался в положении «край» — то есть по умолчанию и всегда, когда
+   симуляция закрыта. Читать на телефоне было нечего. */
 [data-ui="mobile"] #simbottom,
-[data-ui="mobile"][data-detent="full"] .content,
-[data-ui="mobile"][data-detent="half"] .content{
+[data-ui="mobile"][data-sim="on"][data-detent="full"] .content,
+[data-ui="mobile"][data-sim="on"][data-detent="half"] .content{
   position:fixed;z-index:125;left:0;right:0;
   bottom:calc(var(--foot,150px) + var(--vvbottom,0px));
   height:calc(var(--sheet) - var(--sheet-head) - var(--foot,150px));
@@ -1339,13 +1345,18 @@ table.ref tr:last-child td{border-bottom:0}
   background:var(--chrome);overflow-y:auto;box-shadow:none;
   transition:height .22s cubic-bezier(.32,.72,0,1)}
 [data-ui="mobile"][data-detent="peek"] #simbottom,
-[data-ui="mobile"][data-detent="peek"] .content{display:none}
+[data-ui="mobile"][data-sim="on"][data-detent="peek"] .content{display:none}
 [data-ui="mobile"] .msheet-head{display:none}
 /* На листе заголовок темы и её собственные вкладки не нужны: тему называет
-   шапка приложения, а вкладки — сам лист. */
-[data-ui="mobile"][data-detent="half"] .chead,
-[data-ui="mobile"][data-detent="full"] .chead{display:none}
+   шапка приложения, а вкладки — сам лист. Без сцены заголовок и вкладки
+   возвращаются: иначе непонятно, что читаешь и где задачи. */
+[data-ui="mobile"][data-sim="on"][data-detent="half"] .chead,
+[data-ui="mobile"][data-sim="on"][data-detent="full"] .chead{display:none}
 [data-ui="mobile"] .content .pane{padding:14px 16px 28px}
+/* Экран чтения без сцены: конспект во всю высоту, лист не мешает. */
+[data-ui="mobile"][data-sim="off"] .content{position:static;height:auto;flex:1;
+  z-index:auto;background:none;box-shadow:none}
+[data-ui="mobile"][data-sim="off"] .content .pane{padding-bottom:40px}
 
 /* Транспорт остаётся у нижнего края во всех положениях — это дно листа. */
 [data-ui="mobile"] .mbar2.show{display:block;z-index:127;border-radius:0;box-shadow:none;
@@ -1414,3 +1425,27 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .modal{max-height:calc(100dvh - var(--sheet,0px) - 40px)}
 /* Пока симуляция не открыта, листу нечего показывать. */
 [data-ui="mobile"] .msheet.hidden{display:none}
+
+/* ---- Управление на живой полосе (полное положение листа) ----
+   Читая тему, человек смотрит в текст, а не в транспорт. Поэтому в полном
+   положении строка транспорта и перемотка убираются, а их место отдаётся
+   тексту: было 158 пикселей на чтение, стало больше трёхсот. Пуск и возврат
+   к большой сцене остаются на самой полосе. */
+.stripctl{display:none}
+[data-ui="mobile"][data-detent="full"][data-sim="on"] .stripctl{
+  display:flex;align-items:center;gap:8px;
+  position:fixed;z-index:128;left:10px;top:calc(var(--simhead-h,36px) + 12px)}
+[data-ui="mobile"] .stripctl .sc-play{width:36px;height:36px;border-radius:18px;
+  display:grid;place-items:center;border:1px solid var(--line);
+  background:color-mix(in srgb,var(--chrome) 88%,transparent);color:var(--ink)}
+[data-ui="mobile"] .stripctl .sc-play svg{width:16px;height:16px;stroke:currentColor;fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+[data-ui="mobile"] .stripctl .sc-play:active{background:var(--accent-800);color:var(--accent-300)}
+[data-ui="mobile"] .stripctl .sc-chip{height:30px;padding:0 12px;border-radius:15px;
+  border:1px solid var(--line);background:color-mix(in srgb,var(--chrome) 88%,transparent);
+  color:var(--ink-2);font-size:12px}
+[data-ui="mobile"] .stripctl .sc-chip:active{background:var(--accent-800);color:var(--accent-300)}
+/* В полном положении низ листа освобождается целиком. */
+[data-ui="mobile"][data-detent="full"] .mbar2.show,
+[data-ui="mobile"][data-detent="full"] .timeline{display:none!important}
+[data-ui="mobile"][data-detent="full"] .mbar{display:none}

@@ -148,7 +148,19 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          This release is about mobile. Compiling a graph, saving a frame, recording and
+          **Fix: the notes were invisible on a phone.** The bottom-sheet rules hid the
+          notes element at the peek position — which is the default one, and the only one
+          there is when no simulation is open. The text rendered fine; the element was
+          simply display:none. Half the application could not be read on a phone.
+
+          With it, three things the bug exposed. Each sheet tab now opens at the position
+          that suits it: parameters at half, reading at full — on half, reading got 158
+          pixels, about three lines. At full the transport row and the scrub strip step
+          aside and play moves onto the live strip, which turns 158 pixels of text into
+          600. And the 88-pixel strip drops scene labels and axis numbers: they are drawn
+          for a full-size scene and at that height collapsed into a heap.
+
+          Before that release: compiling a graph, saving a frame, recording and
           exporting data did nothing inside the Android app: a WebView without a download
           listener silently ignores `blob:` and `data:` links. The shell now writes files
           itself, into Downloads, still asking for zero permissions. Pictures are also

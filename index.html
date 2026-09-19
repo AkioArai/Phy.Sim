@@ -186,6 +186,16 @@
         <button class="iconbtn mobile-only" id="m-menu" title="Меню симуляции"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></button>
       </div>
       <div class="warnbar hidden" id="warnbar"></div>
+      <!-- Управление на живой полосе. В полном положении листа транспорт и
+           перемотка уезжают: читают, а не смотрят, и полторы сотни пикселей
+           под кнопками отнимались у текста. Пуск и возврат листа остаются
+           здесь, поверх самой полосы, — как в макете 2c. -->
+      <div class="stripctl" id="stripctl">
+        <button class="sc-play" id="sc-play" title="Пуск / стоп">
+          <svg viewBox="0 0 24 24" id="ic-scplay"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+          <svg viewBox="0 0 24 24" id="ic-scpause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.6"/></svg></button>
+        <button class="sc-chip" id="sc-open">развернуть ↑</button>
+      </div>
       <div class="canvas-wrap" id="cwrap">
         <canvas id="scene"></canvas><canvas id="overlay"></canvas>
         <div class="hud fpanel" id="hud">

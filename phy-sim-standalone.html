@@ -1364,10 +1364,16 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .msheet-tabs button.on{background:var(--accent-800);color:var(--accent-300)}
 [data-ui="mobile"] .msheet-tabs .nprob{font-family:var(--mono);font-size:11px;margin-left:6px;color:var(--ink-3)}
 
-/* Тело листа: параметры или конспект — в одной и той же коробке. */
+/* Тело листа: параметры или конспект — в одной и той же коробке.
+   ВАЖНО: всё это включается, только когда симуляция открыта (data-sim="on").
+   `#content` — не только вкладка листа, но и обычный экран чтения: когда
+   сцены нет, конспект занимает весь экран сам по себе. Из-за того, что
+   правила ниже были написаны без этой оговорки, на телефоне конспект
+   прятался в положении «край» — то есть по умолчанию и всегда, когда
+   симуляция закрыта. Читать на телефоне было нечего. */
 [data-ui="mobile"] #simbottom,
-[data-ui="mobile"][data-detent="full"] .content,
-[data-ui="mobile"][data-detent="half"] .content{
+[data-ui="mobile"][data-sim="on"][data-detent="full"] .content,
+[data-ui="mobile"][data-sim="on"][data-detent="half"] .content{
   position:fixed;z-index:125;left:0;right:0;
   bottom:calc(var(--foot,150px) + var(--vvbottom,0px));
   height:calc(var(--sheet) - var(--sheet-head) - var(--foot,150px));
@@ -1375,13 +1381,18 @@ table.ref tr:last-child td{border-bottom:0}
   background:var(--chrome);overflow-y:auto;box-shadow:none;
   transition:height .22s cubic-bezier(.32,.72,0,1)}
 [data-ui="mobile"][data-detent="peek"] #simbottom,
-[data-ui="mobile"][data-detent="peek"] .content{display:none}
+[data-ui="mobile"][data-sim="on"][data-detent="peek"] .content{display:none}
 [data-ui="mobile"] .msheet-head{display:none}
 /* На листе заголовок темы и её собственные вкладки не нужны: тему называет
-   шапка приложения, а вкладки — сам лист. */
-[data-ui="mobile"][data-detent="half"] .chead,
-[data-ui="mobile"][data-detent="full"] .chead{display:none}
+   шапка приложения, а вкладки — сам лист. Без сцены заголовок и вкладки
+   возвращаются: иначе непонятно, что читаешь и где задачи. */
+[data-ui="mobile"][data-sim="on"][data-detent="half"] .chead,
+[data-ui="mobile"][data-sim="on"][data-detent="full"] .chead{display:none}
 [data-ui="mobile"] .content .pane{padding:14px 16px 28px}
+/* Экран чтения без сцены: конспект во всю высоту, лист не мешает. */
+[data-ui="mobile"][data-sim="off"] .content{position:static;height:auto;flex:1;
+  z-index:auto;background:none;box-shadow:none}
+[data-ui="mobile"][data-sim="off"] .content .pane{padding-bottom:40px}
 
 /* Транспорт остаётся у нижнего края во всех положениях — это дно листа. */
 [data-ui="mobile"] .mbar2.show{display:block;z-index:127;border-radius:0;box-shadow:none;
@@ -1450,6 +1461,30 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .modal{max-height:calc(100dvh - var(--sheet,0px) - 40px)}
 /* Пока симуляция не открыта, листу нечего показывать. */
 [data-ui="mobile"] .msheet.hidden{display:none}
+
+/* ---- Управление на живой полосе (полное положение листа) ----
+   Читая тему, человек смотрит в текст, а не в транспорт. Поэтому в полном
+   положении строка транспорта и перемотка убираются, а их место отдаётся
+   тексту: было 158 пикселей на чтение, стало больше трёхсот. Пуск и возврат
+   к большой сцене остаются на самой полосе. */
+.stripctl{display:none}
+[data-ui="mobile"][data-detent="full"][data-sim="on"] .stripctl{
+  display:flex;align-items:center;gap:8px;
+  position:fixed;z-index:128;left:10px;top:calc(var(--simhead-h,36px) + 12px)}
+[data-ui="mobile"] .stripctl .sc-play{width:36px;height:36px;border-radius:18px;
+  display:grid;place-items:center;border:1px solid var(--line);
+  background:color-mix(in srgb,var(--chrome) 88%,transparent);color:var(--ink)}
+[data-ui="mobile"] .stripctl .sc-play svg{width:16px;height:16px;stroke:currentColor;fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+[data-ui="mobile"] .stripctl .sc-play:active{background:var(--accent-800);color:var(--accent-300)}
+[data-ui="mobile"] .stripctl .sc-chip{height:30px;padding:0 12px;border-radius:15px;
+  border:1px solid var(--line);background:color-mix(in srgb,var(--chrome) 88%,transparent);
+  color:var(--ink-2);font-size:12px}
+[data-ui="mobile"] .stripctl .sc-chip:active{background:var(--accent-800);color:var(--accent-300)}
+/* В полном положении низ листа освобождается целиком. */
+[data-ui="mobile"][data-detent="full"] .mbar2.show,
+[data-ui="mobile"][data-detent="full"] .timeline{display:none!important}
+[data-ui="mobile"][data-detent="full"] .mbar{display:none}
 </style>
 </head>
 <body>
@@ -1592,6 +1627,16 @@ table.ref tr:last-child td{border-bottom:0}
         <button class="iconbtn mobile-only" id="m-menu" title="Меню симуляции"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></button>
       </div>
       <div class="warnbar hidden" id="warnbar"></div>
+      <!-- Управление на живой полосе. В полном положении листа транспорт и
+           перемотка уезжают: читают, а не смотрят, и полторы сотни пикселей
+           под кнопками отнимались у текста. Пуск и возврат листа остаются
+           здесь, поверх самой полосы, — как в макете 2c. -->
+      <div class="stripctl" id="stripctl">
+        <button class="sc-play" id="sc-play" title="Пуск / стоп">
+          <svg viewBox="0 0 24 24" id="ic-scplay"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
+          <svg viewBox="0 0 24 24" id="ic-scpause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.6"/></svg></button>
+        <button class="sc-chip" id="sc-open">развернуть ↑</button>
+      </div>
       <div class="canvas-wrap" id="cwrap">
         <canvas id="scene"></canvas><canvas id="overlay"></canvas>
         <div class="hud fpanel" id="hud">
@@ -26310,6 +26355,15 @@ const toScreen=(x,y)=>{const v=A().view; return [(x-v.x)*ppm()+CW/2, -(y-v.y)*pp
 const toWorld=(px,py)=>{const v=A().view; return [(px-CW/2)/ppm()+v.x, -(py-CH/2)/ppm()+v.y];};
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
+/* Сцена сжата в полоску (полное положение листа на телефоне — 88 пикселей).
+   Подписи, числа осей и надпись про сетку рассчитаны на полноразмерную
+   сцену: в полоске они наезжают друг на друга и превращаются в кашу.
+   Пока сцена ниже этого порога, показываем только тела и траекторию —
+   это взгляд, а не прибор. Настройку «без чисел» при этом не трогаем:
+   человек её не менял. */
+const ПОЛОСКА=140;
+function сценаПолоска(){ return CH>0 && CH<ПОЛОСКА; }
+
 const VIEW={
   get quality(){return S.settings.quality}, c:css,
   lw:px=>px*(S.settings.lineW||1)/ppm(),
@@ -26335,7 +26389,7 @@ const VIEW={
     }
   },
   label(ctx,text,wx,wy,dx=0,dy=0,color){
-    if(S.settings.nums===false){                       // режим «без чисел»
+    if(S.settings.nums===false || сценаПолоска()){     // режим «без чисел» / сцена-полоска
       text=String(text).replace(/=\s*[-+]?[\d.,]+(?:e[-+]?\d+)?\s*[^\s,;]*/gi,'')
                        .replace(/\s{2,}/g,' ').trim();
       if(!text) return;
@@ -26563,8 +26617,9 @@ function drawGrid(ctx){
     ctx.beginPath(); ctx.moveTo(x0,j); ctx.lineTo(x1,j); ctx.stroke();
   }
   ctx.restore();
-  if(prefGet('axisTicks')!==false && метрическая()) drawAxes(ctx,step,x0,x1,y0,y1);
-  if(S.settings.gridLabels!==false && метрическая())
+  if(prefGet('axisTicks')!==false && метрическая() && !сценаПолоска())
+    drawAxes(ctx,step,x0,x1,y0,y1);
+  if(S.settings.gridLabels!==false && метрическая() && !сценаПолоска())
     VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
 }
 
@@ -26611,7 +26666,7 @@ function drawAxes(ctx,step,x0,x1,y0,y1){
   }
   ctx.restore();
 
-  if(S.settings.nums===false) return;            // режим «без чисел» касается и осей
+  if(S.settings.nums===false || сценаПолоска()) return;   // «без чисел» и сцена-полоска
 
   /* Числа. Шаг подписей загрубляем, пока соседние не перестанут наезжать:
      при сильном отдалении рисок много, и все подписать нельзя. */
@@ -27441,6 +27496,16 @@ function openTopic(id){
     } else openSim(sims[0]);
   }
   else if(sims.length) sel.value=S.active;
+  /* На телефоне тема открывается вместе со своей симуляцией, и лист при этом
+     оставался в положении «край» на вкладке «Параметры»: нажал на тему в
+     списке — приехал к ползункам. Открываем лист на конспекте: сверху сцена,
+     снизу текст темы, то есть ровно то, за чем нажимали. */
+  if(isNarrow() && A() && !$('#simpane').classList.contains('hidden')){
+    LS.set('sheetTab','notes');
+    if(detent()!=='full') setDetent('full',true);
+    try{ syncSheet(); }catch(_){}
+    requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
+  }
 }
 /* Прокрутка текста: на компьютере крутится сам .pane, на телефоне —
    весь .content вместе с заголовком и вкладками. Сбрасывать нужно тот,
@@ -29009,7 +29074,8 @@ function setPlayIcon(){
   $('#ic-play').style.display=pl?'none':'block'; $('#ic-pause').style.display=pl?'block':'none';
   /* Та же пара иконок на нижней панели телефона. Раньше её здесь не было,
      и кнопка «пуск» на телефоне не переключалась визуально, хотя симуляция шла. */
-  for(const [a,b] of [['#ic-mbplay','#ic-mbpause'],['#ic-mbplay2','#ic-mbpause2']]){
+  for(const [a,b] of [['#ic-mbplay','#ic-mbpause'],['#ic-mbplay2','#ic-mbpause2'],
+                      ['#ic-scplay','#ic-scpause']]){
     const p=$(a), q=$(b);
     if(p&&q){ p.style.display=pl?'none':'block'; q.style.display=pl?'block':'none'; }
   }
@@ -29905,18 +29971,37 @@ function sheetTab(){ return LS.get('sheetTab','params'); }
 function setSheetTab(t){
   LS.set('sheetTab',t);
   if(t!=='params'){ S.tab = t==='problems'?'problems':'notes'; renderPane(); }
-  if(detent()==='peek') setDetent('half',true);
+  /* У вкладки своё естественное положение листа. Параметрам нужна видимая
+     сцена — они и крутятся ради неё, поэтому половина. Чтению нужен текст,
+     поэтому полный: на половине в окно помещалось полторы сотни пикселей,
+     то есть три строки. Поднимаем только снизу вверх — если человек сам
+     оставил лист развёрнутым, не схлопываем. */
+  const надо = t==='params' ? 'half' : 'full';
+  const сейчас=detent();
+  if(сейчас==='peek' || (надо==='full' && сейчас==='half')) setDetent(надо,true);
   syncSheet();
   requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
 }
 function syncSheet(){
   if(!isNarrow()) return;
   /* Нет симуляции — нечего и показывать: лист с пустой строкой показаний
-     просто отъедал бы низ экрана у конспекта. */
+     просто отъедал бы низ экрана у конспекта.
+
+     Признак выносим в атрибут: от него зависит не только лист, но и то, чем
+     сейчас является `#content` — вкладкой листа или самостоятельным экраном
+     чтения. Без этого различия конспект прятался вместе с листом. */
   const есть=!!A() && !$('#simpane').classList.contains('hidden');
+  document.documentElement.dataset.sim = есть ? 'on' : 'off';
   $('#msheet').classList.toggle('hidden',!есть);
-  if(!есть){ document.documentElement.style.setProperty('--foot','0px');
-             document.documentElement.style.setProperty('--sheet','0px'); return; }
+  if(!есть){
+    document.documentElement.style.setProperty('--foot','0px');
+    document.documentElement.style.setProperty('--sheet','0px');
+    /* Инлайновый display мог остаться от вкладки «параметры»: там конспект
+       прятали руками. Снимаем — иначе экран чтения остаётся пустым. */
+    $('#content').style.display='';
+    $('#simbottom').style.display='';
+    return;
+  }
   document.documentElement.style.removeProperty('--sheet');
   const t=sheetTab(), d=detent();
   for(const b of document.querySelectorAll('#msheet-tabs button'))
@@ -29928,8 +30013,11 @@ function syncSheet(){
   /* Высоту строки транспорта меряем, а не задаём: она разная у пилюли и у
      полноширинной строки, а тело листа обязано кончаться ровно над ней. */
   const m2=$('#mbar2'), тл=$('#timeline');
-  const h=(m2&&m2.classList.contains('show'))?m2.offsetHeight:0;
-  const ht=(тл&&!тл.classList.contains('hidden'))?тл.offsetHeight:0;
+  /* В полном положении транспорт и перемотка спрятаны — значит и место под
+     них резервировать не надо, иначе внизу листа остаётся пустая полоса. */
+  const полный = d==='full';
+  const h=(!полный && m2&&m2.classList.contains('show'))?m2.offsetHeight:0;
+  const ht=(!полный && тл&&!тл.classList.contains('hidden'))?тл.offsetHeight:0;
   document.documentElement.style.setProperty('--mbar2h',h+'px');
   document.documentElement.style.setProperty('--foot',(h+ht)+'px');
   const sh=$('#simhead-h'); void sh;
@@ -29966,6 +30054,8 @@ function renderSheetReadouts(){
 })();
 for(const b of document.querySelectorAll('#msheet-tabs button'))
   b.onclick=()=>setSheetTab(b.dataset.sheet);
+$('#sc-play').onclick=()=>$('#btn-play').click();
+$('#sc-open').onclick=()=>setDetent('peek');
 
 $('#mb-play').onclick=()=>$('#btn-play').click();
 $('#mb-play2').onclick=()=>$('#btn-play').click();

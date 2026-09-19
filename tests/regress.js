@@ -458,6 +458,39 @@ async function boot(b, url, ui) {
       out.док = getComputedStyle(document.querySelector('#mb-tools')).display !== 'none';
       return out;
     });
+    /* Конспект на телефоне. Правила листа прятали `#content` в положении
+       «край» — а это положение по умолчанию и единственное, когда симуляция
+       закрыта. Читать на телефоне было нечего, при том что текст исправно
+       рендерился: элемент просто был display:none.
+
+       Проверяем в трёх состояниях, потому что `#content` играет две роли:
+       самостоятельный экран чтения (сцены нет) и вкладка листа (сцена есть). */
+    const конспект = await m.p.evaluate(async () => {
+      const жди = () => new Promise(r => setTimeout(r, 500));
+      const мерка = () => { const c = document.querySelector('#content');
+        const r = c.getBoundingClientRect();
+        return { видно: getComputedStyle(c).display !== 'none' && r.width > 0 && r.height > 0,
+                 высота: Math.round(r.height),
+                 текста: (document.querySelector('#pane').textContent || '').trim().length }; };
+      const из = {};
+      document.querySelector('#btn-simback').click(); await жди();
+      из.безСцены = мерка();
+      openTopic('mech.2d'); await жди();
+      из.послеТемы = мерка();
+      setSheetTab('params'); await жди();
+      из.параметры = мерка();
+      setSheetTab('notes'); await жди();
+      из.чтение = мерка();
+      из.detentЧтения = document.documentElement.dataset.detent;
+      return из;
+    });
+    ok('конспект на телефоне виден',
+      конспект.безСцены.видно && конспект.безСцены.текста > 500 &&
+      конспект.послеТемы.видно && конспект.чтение.видно &&
+      !конспект.параметры.видно &&          // на вкладке параметров его и не должно быть
+      конспект.чтение.высота > 400 &&       // на чтение отдан весь лист, а не три строки
+      конспект.detentЧтения === 'full', конспект);
+
     /* Разделители пальцем. На планшете в режиме компьютера протяг по
        разделителю браузер принимал за прокрутку и отбирал жест — панель
        ехала рывками. Лечится `touch-action:none`; проверяем именно свойство,

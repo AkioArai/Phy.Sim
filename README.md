@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.4.3.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.4.3.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.4.3.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.3.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.4.4.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.4.4.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.4.4.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.4.4.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -215,6 +215,12 @@ height from it, so the simulation re-fits into whatever is left.
 | **Peek** (default) | readouts, scrub, transport | full height above the sheet |
 | **Half** | a whole tab: parameters, notes or a problem | shrinks |
 | **Full** | reading, edge to edge | an 88 px live strip under the header, still running |
+
+Each tab has a position of its own: parameters open at **half**, because you turn them
+to watch the scene answer; notes and problems open at **full**, because reading needs
+the page. At full the transport row and the scrub strip step aside — you are reading,
+not watching — and play stays on the live strip itself. That is the difference between
+160 pixels of text and 600.
 
 Drag the grab bar or tap it to move between them. Parameters are 52 px rows where
 the *value itself* is the slider — you drag the number sideways, which is where
