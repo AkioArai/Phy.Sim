@@ -174,11 +174,16 @@ the whole run, and separately at whether it ever **grows** where it must only de
 
 Axes carry ticks and numbers, so a coordinate is read off the scene rather than
 counted out in grid squares. Pan, zoom, box-zoom, coordinate probe, ruler,
-dimension line, protractor, circle, polygon area, notes, guides, body trails and
-a freehand pencil. Every drawing tool
-carries its own colour, thickness and — for guides and dimension lines — a dashed
-or solid stroke; each mark keeps the style it was drawn with, so changing the
-colour never repaints what is already on the scene. Parameter fields accept
+protractor, circle, polygon area, notes, guides, body trails and a freehand
+pencil. Every drawing tool carries its own colour (six presets or a picker),
+thickness, line style and opacity, plus whatever that tool can actually do:
+arrowheads on the vector, fill on the circle and the polygon, type size on the
+note, extension lines on the ruler, and a switch for the measured number. Hold
+Shift while drawing to keep the direction at 0°, 45° or 90°; Alt + click erases
+the mark under the cursor. Each mark keeps the style it was drawn with, so
+changing the colour never repaints what is already on the scene. Parameter
+fields are grouped, and a group folds away with its own count of how many
+values you have changed inside it. Parameter fields accept
 expressions (`2*9.8`). A timeline scrubs the computed history frame by frame.
 Panels float, resize and collapse. `Ctrl+P` opens a command palette over
 everything — topics, simulations, settings, commands. `F11` cycles the window
