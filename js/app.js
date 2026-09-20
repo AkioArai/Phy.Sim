@@ -5436,7 +5436,7 @@ function новаяЗаметка(px,py){
   const a=A(); if(!a) return;
   const W=Math.max(1,CW), H=Math.max(1,CH);
   const n={id:новыйИд(), x:clamp((px-110)/W,0,1), y:clamp((py-20)/H,0,1),
-           w:230, h:175, title:'', text:'', open:true, tucked:false, links:[], edit:true};
+           w:isNarrow()?250:230, h:175, title:'', text:'', open:true, tucked:false, links:[], edit:true};
   заметки(a).push(n);
   сохранитьЗаметки(); renderNotes();
   // сразу в правку: карточку заводят, чтобы что-то написать

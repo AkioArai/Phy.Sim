@@ -1682,7 +1682,10 @@ table.ref tr:last-child td{border-bottom:0}
 .ncard.tucked .nc-head{padding:4px 7px;background:transparent;opacity:.72}
 .ncard.tucked .nc-t{font-size:11px;font-weight:500;max-width:120px}
 @media (pointer:coarse){
-  .nc-b{width:26px;height:26px}
+  /* Четыре кнопки по 26 пикселей съедали у заголовка больше половины
+     ширины карточки, и он обрезался на втором слоге. */
+  .nc-b{width:23px;height:23px}
+  .nc-head{gap:2px;padding:6px 4px 6px 8px}
   .ncard{font-size:13px}
 }
 .nc-ti{width:100%;margin-bottom:6px;border:1px solid var(--line);border-radius:6px;
