@@ -187,6 +187,13 @@
         <canvas id="scene"></canvas><canvas id="overlay"></canvas>
         <!-- Пусто там, где должна быть сцена, ничего не объясняет: раньше
              на месте закрытой симуляции оставалось белое поле. -->
+        <!-- ЗАМЕТКИ-КАРТОЧКИ. Живут в экранных координатах, а не в мировых:
+             подпись к опыту не должна уезжать вместе со сценой, когда её
+             двигают или приближают. Связи рисуются SVG-слоем ПОД карточками,
+             чтобы линия не легла поверх текста. -->
+        <div class="notelayer" id="notelayer">
+          <svg class="notelinks" id="notelinks"></svg>
+        </div>
         <div class="simempty hidden" id="simempty">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.01"/></svg>
           <b>Симуляция не открыта</b>
@@ -404,6 +411,8 @@
     <div class="mt-page hidden" data-page="data">
       <button class="item" id="mi-plot"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-6 3 3 5-7"/></svg>Скомпилировать график</button>
       <button class="item" id="mi-snap"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M9 12h6M12 9v6"/></svg>Снимок для сравнения</button>
+      <button class="item" id="mi-notes-save"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg>Сохранить заметки в файл</button>
+      <button class="item" id="mi-notes-load"><svg viewBox="0 0 24 24"><path d="M12 15V4m0 0L8 8m4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Загрузить заметки из файла</button>
       <button class="item" id="mi-copyout"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>Скопировать показания</button>
     </div>
     <div class="mt-page hidden" data-page="build"><div id="simmenu-tools"></div></div>

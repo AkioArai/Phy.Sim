@@ -1617,3 +1617,76 @@ table.ref tr:last-child td{border-bottom:0}
 /* Диалог компиляции: два набора полей — по времени и по параметру. */
 .modal.plot[data-mode="time"] .pl-sweep{display:none}
 .modal.plot[data-mode="sweep"] .pl-time{display:none}
+
+/* ===================== ЗАМЕТКИ-КАРТОЧКИ =====================
+   Были точкой с текстом в мировых координатах: уезжали вместе со сценой,
+   правились только через диалог, стирались случайным мазком резинки.
+   Стали карточками в экранных координатах — заголовок виден всегда, тело
+   раскрывается, размер меняется, связи ведут к соседним карточкам. */
+.notelayer{position:absolute;inset:0;pointer-events:none;z-index:26}
+.notelinks{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ncard{position:absolute;pointer-events:auto;display:flex;flex-direction:column;
+  min-width:150px;min-height:38px;border-radius:10px;overflow:hidden;
+  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  border:1px solid var(--line);box-shadow:0 10px 30px -16px #0009;
+  font-size:12.5px;color:var(--ink-2)}
+.ncard.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft),0 10px 30px -16px #0009}
+.nc-head{display:flex;align-items:center;gap:4px;padding:6px 6px 6px 9px;cursor:grab;
+  background:var(--panel-2);border-bottom:1px solid var(--line-soft);flex:0 0 auto}
+.nc-head:active{cursor:grabbing}
+.ncard.closed .nc-head{border-bottom:0}
+.nc-t{flex:1;font-weight:600;color:var(--ink);font-size:12.5px;line-height:1.3;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nc-b{width:20px;height:20px;border-radius:5px;color:var(--ink-3);font-size:12px;
+  line-height:1;flex:0 0 auto;display:grid;place-items:center}
+.nc-b:hover{background:var(--panel);color:var(--ink)}
+.nc-b.on{background:var(--accent-soft);color:var(--accent)}
+.nc-b.del:hover{background:var(--danger-soft,#fdecec);color:var(--danger)}
+.nc-chev{transition:transform .15s}
+.ncard.closed .nc-chev{transform:rotate(-90deg)}
+.nc-body{flex:1;min-height:0;overflow:auto;padding:8px 10px 10px;line-height:1.5}
+.ncard.closed .nc-body,.ncard.closed .nc-pager{display:none}
+.nc-body p{margin:0 0 6px}
+.nc-body p:last-child{margin-bottom:0}
+.nc-body .h1{font-size:15px;font-weight:600;color:var(--ink);margin:2px 0 5px}
+.nc-body .h2{font-size:19px;font-weight:700;color:var(--ink);margin:3px 0 7px;line-height:1.25}
+.nc-body textarea{width:100%;height:100%;min-height:80px;resize:none;border:1px solid var(--line);
+  border-radius:6px;background:var(--panel-2);color:var(--ink);font:inherit;padding:6px 7px}
+.nc-body textarea:focus{outline:none;border-color:var(--accent)}
+.nc-hint{font-size:10.5px;color:var(--ink-3);padding:4px 2px 0;font-family:var(--mono)}
+/* Полоска связанных заметок: их читают не уходя с карточки. */
+.nc-pager{display:flex;align-items:center;gap:4px;padding:5px 7px;flex:0 0 auto;
+  border-top:1px solid var(--line-soft);background:var(--panel-2);overflow-x:auto;scrollbar-width:none}
+.nc-pager::-webkit-scrollbar{display:none}
+.nc-p{padding:3px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
+  font-size:11px;color:var(--ink-2);white-space:nowrap;flex:0 0 auto}
+.nc-p:hover{border-color:var(--accent);color:var(--accent)}
+.nc-p.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.nc-back{color:var(--ink-3);font-size:11px;padding:3px 6px;flex:0 0 auto}
+.nc-back:hover{color:var(--accent)}
+/* Уголок изменения размера. */
+.nc-grip{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;
+  background:linear-gradient(135deg,transparent 52%,var(--line) 52%,var(--line) 64%,
+    transparent 64%,transparent 74%,var(--line) 74%,var(--line) 86%,transparent 86%)}
+.ncard.closed .nc-grip{display:none}
+/* Точка связи в центре карточки — видна только в режиме связывания. */
+.nc-dot{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;
+  border-radius:50%;border:2px solid var(--accent);background:var(--panel);
+  display:none;place-items:center;color:var(--accent);font-size:13px;z-index:2}
+.linking .nc-dot{display:grid}
+.linking .nc-dot:hover{background:var(--accent);color:#fff}
+.nc-dot.from{background:var(--accent);color:#fff}
+/* Спрятанная заметка сворачивается в ярлычок: не мешает, но и не теряется. */
+.ncard.tucked{min-width:0;min-height:0;width:auto!important;height:auto!important}
+.ncard.tucked .nc-body,.ncard.tucked .nc-pager,.ncard.tucked .nc-grip{display:none}
+.ncard.tucked .nc-head{padding:4px 7px;background:transparent;opacity:.72}
+.ncard.tucked .nc-t{font-size:11px;font-weight:500;max-width:120px}
+@media (pointer:coarse){
+  .nc-b{width:26px;height:26px}
+  .ncard{font-size:13px}
+}
+.nc-ti{width:100%;margin-bottom:6px;border:1px solid var(--line);border-radius:6px;
+  background:var(--panel-2);color:var(--ink);font:inherit;font-weight:600;padding:5px 7px}
+.nc-ti:focus{outline:none;border-color:var(--accent)}
+.nc-body textarea{height:auto;flex:1}
+.nc-body{display:flex;flex-direction:column}

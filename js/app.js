@@ -43,6 +43,8 @@ function resize(){
   if(typeof fpClampAll==='function') setTimeout(fpClampAll,0);   // панели держим внутри сцены
   // на месте незанятой сцены — объяснение, а не белое поле
   { const пусто=$('#simempty'); if(пусто) пусто.classList.toggle('hidden', !!A()); }
+  // карточки заметок стоят долей от размера сцены: пересобираем вслед за ней
+  if(typeof renderNotes==='function') requestAnimationFrame(renderNotes);
   const r=$('#cwrap').getBoundingClientRect();
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
   const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
@@ -1964,6 +1966,7 @@ function openSim(id){
     b.classList.toggle('on', simPickIds[i]===id));
   $('#eventflag').classList.add('hidden');
   S.playing=true; setPlayIcon(); acc=0;
+  загрузитьЗаметки(a,id); renderNotes();
   renderParams(); buildGraphs(); renderPresets(); renderSimTools();
   try{ syncMbar(); }catch(_){}
   requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
@@ -2360,6 +2363,7 @@ $('#cwrap').addEventListener('pointerdown',e=>{
     a.draft={type:S.tool,p:[sx,sy,sx,sy],...markStyle(S.tool)}; drag={mode:'draw'};
   }
   else if(S.tool==='eraser'){ annSnapshot(a); erase(wx,wy); drag={mode:'erase'}; }
+  else if(S.tool==='note'){ новаяЗаметка(px,py); }
   else if(S.tool==='area'){
     /* Площадь набирается кликами по вершинам и замыкается двойным кликом
        или клавишей Enter. */
@@ -2611,11 +2615,14 @@ const TOOL_STYLE={
   ruler: {c:'--measure', base:1.4, opts:['line','alpha','arrow','ang','ext','label','unit','dec']},
   circle:{c:'--second',  base:1.4, opts:['line','alpha','label','fill']},
   area:  {c:'--second',  base:1.4, opts:['line','alpha','label','fill']},
-  note:  {c:'--measure', base:2,   opts:['alpha','size']},
   /* Ниже — типы пометок, которых больше нет в стойке: вектор сведён в
      линейку, размерная линия — тоже, транспортир и направляющая убраны.
+     Заметка тоже здесь: она перестала быть пометкой на холсте и стала
+     карточкой со своим оформлением, но текст, написанный прежними версиями,
+     обязан открываться как открывался.
      Описания оставлены, чтобы РАНЕЕ НАРИСОВАННОЕ открывалось как прежде:
      отрисовка берёт основу стиля отсюда по типу пометки. */
+  note:  {c:'--measure', base:2,   былое:true},
   vector:{c:'--accent',  base:1.4, былое:true},
   dim:   {c:'--measure', base:1,   line:'solid', былое:true},
   angle: {c:'--accent',  base:1.4, былое:true},
@@ -2799,10 +2806,14 @@ function запомнитьЦвет(v){
 }
 function renderToolbar(){
   const bar=$('#penbar'); if(!bar) return;
+  /* Полосу показываем только живым рисующим инструментам. Описания «былых»
+     типов пометок в TOOL_STYLE остались ради старых рисунков — настраивать
+     в них нечего, инструмента с таким именем в стойке уже нет. */
   const def=TOOL_STYLE[S.tool];
-  bar.classList.toggle('hidden', !def);
-  $('#cwrap').classList.toggle('has-toolbar', !!def);
-  if(!def) return;
+  const жив=!!def && !def.былое;
+  bar.classList.toggle('hidden', !жив);
+  $('#cwrap').classList.toggle('has-toolbar', жив);
+  if(!жив) return;
   const s=tstyle(S.tool);
   const ws=$('#pb-widths'), ex=$('#pb-extra'), rec=$('#pb-recent');
   ws.innerHTML=''; ex.innerHTML=''; rec.innerHTML='';
@@ -3255,6 +3266,38 @@ $('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(
 $('#mi-teacher').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openTeacher(); };
 $('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
 $('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
+/* Заметки живут в памяти браузера и переживают перезагрузку сами. В файл их
+   выгружают, чтобы перенести на другое устройство или раздать классу. */
+$('#mi-notes-save').onclick=async()=>{
+  $('#pop-simmenu').classList.add('hidden');
+  const a=A(); if(!a||!заметки(a).length){ toast('В этой симуляции заметок нет'); return; }
+  const данные={вид:'phy.sim/заметки',версия:1,симуляция:S.active,заметки:заметки(a)};
+  await сохранитьФайл(`${S.active}-заметки.json`,
+    new Blob([JSON.stringify(данные,null,1)],{type:'application/json'}));
+};
+$('#mi-notes-load').onclick=()=>{
+  $('#pop-simmenu').classList.add('hidden');
+  const a=A(); if(!a){ toast('Сначала откройте симуляцию'); return; }
+  const вход=document.createElement('input');
+  вход.type='file'; вход.accept='.json,application/json';
+  вход.onchange=async()=>{
+    const f=вход.files&&вход.files[0]; if(!f) return;
+    try{
+      const д=JSON.parse(await f.text());
+      const список=Array.isArray(д)?д:д.заметки;
+      if(!Array.isArray(список)) throw new Error('это не файл заметок');
+      /* Идентификаторы перевыдаём: иначе загруженные заметки склеились бы
+         связями с теми, что уже лежат в этой симуляции. */
+      const карта={};
+      const свежие=список.map(n=>{ карта[n.id]=новыйИд(); return {...n,id:карта[n.id]}; });
+      for(const n of свежие) n.links=(n.links||[]).map(x=>карта[x]).filter(Boolean);
+      a.notes=[...заметки(a),...свежие];
+      сохранитьЗаметки(); renderNotes();
+      toast('Загружено заметок: '+свежие.length);
+    }catch(e){ toast('Не вышло: '+(e&&e.message||e)); }
+  };
+  вход.click();
+};
 $('#mi-fitv').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); if(A()) fitView(); };
 $('#mi-clear').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); $('#btn-clear').click(); };
 $('#mi-keys').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openPrefs('keys'); };
@@ -4344,6 +4387,7 @@ addEventListener('keydown',e=>{
       toast('Удалено: '+S.sel.length); S.sel=[]; return; }
   }
   if(C==='Escape'&&S.sel&&S.sel.length){ e.preventDefault(); S.sel=[]; return; }
+  if(C==='Escape'&&связьОт){ e.preventDefault(); включитьСвязь(null); return; }
   const map={
     KeyV:()=>setTool('pan'), KeyP:()=>setTool('pencil'), KeyL:()=>setTool('ruler'),
     KeyE:()=>setTool('eraser'), KeyQ:()=>setTool('select'),
@@ -5344,6 +5388,294 @@ function рисоватьГрафик(dr, o){
   }
   dr.text(xlab,px+pw,py+ph+42,C.тихий,12,'end',true);
   dr.text(подпись,px,H-16,C.тихий,11);
+}
+
+/* ======================== ЗАМЕТКИ-КАРТОЧКИ ========================
+   Прежняя заметка была пометкой на холсте: точка с текстом в мировых
+   координатах. Она уезжала вместе со сценой при панораме, правилась только
+   через диалог «введите текст», стиралась случайным мазком резинки и не
+   умела ничего, кроме одной строки.
+
+   Теперь это карточка в ЭКРАННЫХ координатах — как панель показателей, но
+   своя у каждого опыта. Заголовок виден всегда, тело раскрывается щелчком,
+   размер меняется за уголок. Резинка её не трогает в принципе: карточки
+   больше не лежат в annos.
+
+   Положение храним долей от размера сцены, а не пикселями: иначе при смене
+   размера окна или повороте телефона карточки оказывались бы за краем.
+
+   Старые пометки типа note продолжают рисоваться на холсте как раньше. */
+const ЗАМ_КЛЮЧ='notes';
+function заметки(a){ if(a&&!a.notes) a.notes=[]; return a?a.notes:[]; }
+function загрузитьЗаметки(a,id){
+  const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
+  a.notes=Array.isArray(все[id])?все[id].map(n=>({links:[],...n})):[];
+}
+function сохранитьЗаметки(){
+  const a=A(); if(!a||!S.active) return;
+  const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
+  if(a.notes&&a.notes.length) все[S.active]=a.notes; else delete все[S.active];
+  LS.set(ЗАМ_КЛЮЧ,все);
+}
+let заметкаСчёт=0;
+const новыйИд=()=>'n'+(Date.now().toString(36))+(++заметкаСчёт).toString(36);
+
+/* Разметка тела: «#» — чуть крупнее, «##» — совсем крупно. Порядок именно
+   такой, как просили; в обычном маркдауне он обратный, поэтому подсказка в
+   редакторе говорит об этом прямо. */
+function заметкаВHTML(text){
+  return String(text||'').split('\n').map(с=>{
+    const t=с.trim();
+    if(!t) return '<p>&nbsp;</p>';
+    if(t.startsWith('##')) return `<p class="h2">${esc(t.slice(2).trim())}</p>`;
+    if(t.startsWith('#'))  return `<p class="h1">${esc(t.slice(1).trim())}</p>`;
+    return `<p>${esc(t)}</p>`;
+  }).join('');
+}
+function новаяЗаметка(px,py){
+  const a=A(); if(!a) return;
+  const W=Math.max(1,CW), H=Math.max(1,CH);
+  const n={id:новыйИд(), x:clamp((px-110)/W,0,1), y:clamp((py-20)/H,0,1),
+           w:230, h:175, title:'', text:'', open:true, tucked:false, links:[], edit:true};
+  заметки(a).push(n);
+  сохранитьЗаметки(); renderNotes();
+  // сразу в правку: карточку заводят, чтобы что-то написать
+  setTimeout(()=>{ const t=document.querySelector(`.ncard[data-id="${n.id}"] .nc-ti`); if(t) t.focus(); },30);
+}
+function заметкаПоИд(a,id){ return заметки(a).find(n=>n.id===id); }
+function убратьЗаметку(a,id){
+  a.notes=заметки(a).filter(n=>n.id!==id);
+  for(const n of a.notes) n.links=(n.links||[]).filter(x=>x!==id);
+  сохранитьЗаметки(); renderNotes();
+}
+/* Связывание: точка в центре каждой карточки. Щелчок по чужой — связать
+   или развязать, по своей — выйти из режима. */
+let связьОт=null;
+function включитьСвязь(id){
+  связьОт = связьОт===id ? null : id;
+  document.querySelector('#notelayer').classList.toggle('linking',!!связьОт);
+  renderNotes();
+  if(связьОт) toast('Нажмите кружок в середине другой карточки — свяжет или развяжет');
+}
+function переключитьСвязь(a,из,куда){
+  if(из===куда){ включитьСвязь(null); return; }
+  const n1=заметкаПоИд(a,из), n2=заметкаПоИд(a,куда); if(!n1||!n2) return;
+  n1.links=n1.links||[]; n2.links=n2.links||[];
+  const было=n1.links.includes(куда);
+  if(было){ n1.links=n1.links.filter(x=>x!==куда); n2.links=n2.links.filter(x=>x!==из); toast('Связь убрана'); }
+  else { n1.links.push(куда); n2.links.push(из); toast('Связано: '+n1.title+' ↔ '+n2.title); }
+  сохранитьЗаметки(); renderNotes();
+}
+
+function renderNotes(){
+  const слой=$('#notelayer'); if(!слой) return;
+  const a=A();
+  /* Слой пересобирается целиком — и на каждом пересчёте раскладки тоже.
+     Если в этот момент в карточке что-то печатали, узел с фокусом исчезал
+     вместе со всеми, и набор молча уходил в никуда. Поэтому запоминаем, где
+     стоял курсор, и возвращаем его после сборки. */
+  let фокус=null;
+  { const e=document.activeElement, к=e&&e.closest&&e.closest('.ncard');
+    if(к&&(e.classList.contains('nc-ti')||e.tagName==='TEXTAREA'))
+      фокус={id:к.dataset.id, поле:e.classList.contains('nc-ti')?'.nc-ti':'textarea',
+             s:e.selectionStart, e2:e.selectionEnd}; }
+  [...слой.querySelectorAll('.ncard')].forEach(e=>e.remove());
+  if(!a){ рисоватьСвязи(); return; }
+  const W=Math.max(1,CW), H=Math.max(1,CH);
+  for(const n of заметки(a)){
+    const el=document.createElement('div');
+    el.className='ncard'+(n.open===false?' closed':'')+(n.tucked?' tucked':'')+(связьОт===n.id?' sel':'');
+    el.dataset.id=n.id;
+    el.style.left=Math.round(clamp(n.x,0,1)*W)+'px';
+    el.style.top=Math.round(clamp(n.y,0,1)*H)+'px';
+    if(!n.tucked){ el.style.width=(n.w||230)+'px'; if(n.open!==false) el.style.height=(n.h||150)+'px'; }
+
+    const показ=n.показ&&заметкаПоИд(a,n.показ)?n.показ:null;   // какая связанная открыта внутри
+    const тек=показ?заметкаПоИд(a,показ):n;
+
+    const шапка=document.createElement('div'); шапка.className='nc-head';
+    шапка.innerHTML=
+      `<button class="nc-b nc-chev" title="Свернуть/раскрыть">▾</button>`+
+      `<span class="nc-t"></span>`+
+      (n.tucked?'':
+        `<button class="nc-b act-edit" title="Править текст">✎</button>`+
+        `<button class="nc-b act-link" title="Связать с другой заметкой">⚯</button>`+
+        `<button class="nc-b act-tuck" title="Убрать в ярлычок">–</button>`+
+        `<button class="nc-b del act-del" title="Удалить заметку">✕</button>`);
+    шапка.querySelector('.nc-t').textContent=тек.title||'Заметка';
+    el.appendChild(шапка);
+
+    const тело=document.createElement('div'); тело.className='nc-body';
+    if(n.edit&&!показ){
+      /* Заголовок правится тут же, отдельной строкой: он виден всегда, в том
+         числе у свёрнутой карточки, и искать для него двойной щелчок по
+         шапке — лишняя загадка. */
+      const ti=document.createElement('input');
+      ti.className='nc-ti'; ti.value=n.title||''; ti.placeholder='Заголовок';
+      ti.onkeydown=e=>{ e.stopPropagation();
+        if(e.key==='Enter'){ e.preventDefault(); const t=el.querySelector('textarea'); if(t) t.focus(); }
+        if(e.key==='Escape'){ n.edit=false; сохранитьЗаметки(); renderNotes(); } };
+      ti.oninput=()=>{ n.title=ti.value; шапка.querySelector('.nc-t').textContent=ti.value||'Заметка'; };
+      ti.onchange=()=>сохранитьЗаметки();
+      тело.appendChild(ti);
+      const ta=document.createElement('textarea');
+      ta.value=n.text||'';
+      ta.placeholder='Текст заметки.\n# строка чуть крупнее\n## строка совсем крупная';
+      ta.onkeydown=e=>{ e.stopPropagation();
+        if(e.key==='Escape'){ n.edit=false; сохранитьЗаметки(); renderNotes(); } };
+      ta.oninput=()=>{ n.text=ta.value; };
+      ta.onblur=()=>{ n.text=ta.value; n.edit=false; сохранитьЗаметки(); renderNotes(); };
+      ta.onfocus=()=>{ n.title=ti.value; };
+      тело.appendChild(ta);
+      const подсказка=document.createElement('div'); подсказка.className='nc-hint';
+      подсказка.textContent='# — крупнее, ## — совсем крупно';
+      тело.appendChild(подсказка);
+    } else {
+      тело.innerHTML=заметкаВHTML(тек.text)||'<p style="color:var(--ink-3)">Пусто. Нажмите ✎, чтобы написать.</p>';
+    }
+    el.appendChild(тело);
+
+    /* Связанные заметки читаются прямо здесь: полоска снизу переключает
+       содержимое карточки, не открывая вторую поверх сцены. */
+    const связи=(n.links||[]).filter(id=>заметкаПоИд(a,id));
+    if(связи.length&&!n.tucked){
+      const pg=document.createElement('div'); pg.className='nc-pager';
+      if(показ){
+        const b=document.createElement('button'); b.className='nc-back'; b.textContent='← назад';
+        b.onclick=()=>{ n.показ=null; renderNotes(); };
+        pg.appendChild(b);
+      }
+      for(const id of связи){
+        const m=заметкаПоИд(a,id);
+        const b=document.createElement('button');
+        b.className='nc-p'+(показ===id?' on':''); b.textContent=m.title||'Заметка';
+        b.onclick=()=>{ n.показ = n.показ===id ? null : id; n.edit=false; renderNotes(); };
+        pg.appendChild(b);
+      }
+      el.appendChild(pg);
+    }
+
+    if(!n.tucked&&n.open!==false){
+      const grip=document.createElement('div'); grip.className='nc-grip'; grip.title='Потяните — изменится размер';
+      el.appendChild(grip);
+      тянутьРазмер(grip,n,el);
+    }
+    const точка=document.createElement('button');
+    точка.className='nc-dot'+(связьОт===n.id?' from':'');
+    точка.textContent=связьОт===n.id?'●':'○';
+    точка.title=связьОт===n.id?'Это начало связи':'Связать с началом';
+    точка.onclick=e=>{ e.stopPropagation();
+      if(!связьОт) включитьСвязь(n.id); else переключитьСвязь(a,связьОт,n.id); };
+    el.appendChild(точка);
+
+    // действия шапки
+    шапка.querySelector('.nc-chev').onclick=e=>{ e.stopPropagation();
+      n.open=n.open===false; n.edit=false; сохранитьЗаметки(); renderNotes(); };
+    const кн=s=>шапка.querySelector(s);
+    if(кн('.act-edit')) кн('.act-edit').onclick=e=>{ e.stopPropagation();
+      n.показ=null; n.open=true; n.edit=!n.edit; renderNotes();
+      if(n.edit) setTimeout(()=>{ const t=el.querySelector('.nc-ti'); if(t) t.focus(); },20); };
+    if(кн('.act-link')) кн('.act-link').onclick=e=>{ e.stopPropagation(); включитьСвязь(n.id); };
+    if(кн('.act-tuck')) кн('.act-tuck').onclick=e=>{ e.stopPropagation();
+      n.tucked=true; n.edit=false; сохранитьЗаметки(); renderNotes(); toast('Заметка убрана в ярлычок — нажмите на него, чтобы вернуть'); };
+    if(кн('.act-del')) кн('.act-del').onclick=e=>{ e.stopPropagation();
+      askConfirm(`Удалить заметку «${n.title||'Заметка'}»? Это не отменить.`,
+        ()=>убратьЗаметку(a,n.id),'Удаление заметки'); };
+    if(n.tucked) шапка.ondblclick=()=>{ n.tucked=false; сохранитьЗаметки(); renderNotes(); };
+    // заголовок правится двойным щелчком по нему
+    if(!n.tucked) шапка.querySelector('.nc-t').ondblclick=e=>{ e.stopPropagation();
+      askText('Заголовок заметки',n.title||'',v=>{ n.title=v; сохранитьЗаметки(); renderNotes(); }); };
+
+    тянутьЗаметку(шапка,n,el);
+    слой.appendChild(el);
+  }
+  if(фокус){
+    const e=слой.querySelector(`.ncard[data-id="${фокус.id}"] ${фокус.поле}`);
+    if(e){ e.focus(); try{ e.setSelectionRange(фокус.s,фокус.e2); }catch(_){} }
+  }
+  рисоватьСвязи();
+}
+/* Перенос карточки за шапку. Позиция пересчитывается в долю сцены сразу:
+   тогда она переживёт и поворот телефона, и изменение окна. */
+function тянутьЗаметку(ручка,n,el){
+  ручка.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button')) return;
+    e.preventDefault(); e.stopPropagation();
+    const r=el.getBoundingClientRect(), сл=$('#notelayer').getBoundingClientRect();
+    const dx=e.clientX-r.left, dy=e.clientY-r.top;
+    try{ ручка.setPointerCapture(e.pointerId); }catch(_){}
+    const вести=q=>{
+      const x=clamp(q.clientX-сл.left-dx,0,Math.max(0,сл.width-r.width));
+      const y=clamp(q.clientY-сл.top-dy,0,Math.max(0,сл.height-r.height));
+      el.style.left=Math.round(x)+'px'; el.style.top=Math.round(y)+'px';
+      n.x=x/Math.max(1,сл.width); n.y=y/Math.max(1,сл.height);
+      рисоватьСвязи();
+    };
+    const кончили=()=>{ ручка.removeEventListener('pointermove',вести);
+      ручка.removeEventListener('pointerup',кончили);
+      ручка.removeEventListener('pointercancel',кончили);
+      сохранитьЗаметки(); };
+    ручка.addEventListener('pointermove',вести);
+    ручка.addEventListener('pointerup',кончили);
+    ручка.addEventListener('pointercancel',кончили);
+  });
+}
+function тянутьРазмер(grip,n,el){
+  grip.addEventListener('pointerdown',e=>{
+    e.preventDefault(); e.stopPropagation();
+    const r=el.getBoundingClientRect(), x0=e.clientX, y0=e.clientY, w0=r.width, h0=r.height;
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+    const вести=q=>{
+      n.w=Math.round(clamp(w0+(q.clientX-x0),150,700));
+      n.h=Math.round(clamp(h0+(q.clientY-y0),80,700));
+      el.style.width=n.w+'px'; el.style.height=n.h+'px';
+      рисоватьСвязи();
+    };
+    const кончили=()=>{ grip.removeEventListener('pointermove',вести);
+      grip.removeEventListener('pointerup',кончили);
+      grip.removeEventListener('pointercancel',кончили);
+      сохранитьЗаметки(); };
+    grip.addEventListener('pointermove',вести);
+    grip.addEventListener('pointerup',кончили);
+    grip.addEventListener('pointercancel',кончили);
+  });
+}
+/* Связи рисуем от края до края карточек, а не от центра до центра: иначе
+   линия проходила бы прямо по тексту обеих. Слой лежит ПОД карточками и
+   полупрозрачен — сцену он не закрывает. */
+function рисоватьСвязи(){
+  const svg=$('#notelinks'); if(!svg) return;
+  const a=A();
+  svg.innerHTML='';
+  if(!a||!заметки(a).length) return;
+  const сл=$('#notelayer').getBoundingClientRect();
+  const кор={};
+  for(const el of document.querySelectorAll('#notelayer .ncard')){
+    const r=el.getBoundingClientRect();
+    кор[el.dataset.id]={x:r.left-сл.left+r.width/2, y:r.top-сл.top+r.height/2,
+                        w:r.width/2, h:r.height/2};
+  }
+  const край=(c,кx,кy)=>{          // точка выхода отрезка из прямоугольника
+    const dx=кx-c.x, dy=кy-c.y;
+    if(!dx&&!dy) return [c.x,c.y];
+    const t=Math.min(Math.abs(dx)>1e-6?c.w/Math.abs(dx):Infinity,
+                     Math.abs(dy)>1e-6?c.h/Math.abs(dy):Infinity);
+    return [c.x+dx*t, c.y+dy*t];
+  };
+  const было=new Set();
+  for(const n of заметки(a)) for(const id of (n.links||[])){
+    const ключ=[n.id,id].sort().join('|'); if(было.has(ключ)) continue; было.add(ключ);
+    const c1=кор[n.id], c2=кор[id]; if(!c1||!c2) continue;
+    const [x1,y1]=край(c1,c2.x,c2.y), [x2,y2]=край(c2,c1.x,c1.y);
+    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+    l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+    l.setAttribute('stroke',css('--accent'));
+    l.setAttribute('stroke-width','1.6');
+    l.setAttribute('stroke-dasharray','5 4');
+    l.setAttribute('opacity','0.45');
+    svg.appendChild(l);
+  }
 }
 
 /* ===================== РАЗВЁРТКА ПО ПАРАМЕТРУ =====================
