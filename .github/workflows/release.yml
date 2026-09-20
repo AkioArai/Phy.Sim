@@ -148,54 +148,45 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **Fix: the scene menu opened with only one tab's worth of commands.** Three of
-          the four ways to open it — the ⋮ button on a computer and both buttons on a
-          phone — go through the shared popup helper, which only unhides the panel. It
-          never built the tab strip, so everything outside the first tab was unreachable.
-          Every path now builds the menu before showing it, and a test opens it by the
-          buttons rather than by calling the function.
+          **The x-axis of a compiled graph can now be a parameter, not only time.**
+          37 of the 76 simulations are timeless — nothing about them depends on time,
+          they carry no graphs at all, and the compiler used to refuse them outright.
+          That is all of quantum mechanics, most of optics, nuclear physics and
+          electrostatics. The dependence is there, it is simply not on time. Put a
+          parameter on the x-axis and every point becomes a separate run of the model:
+          the range against the angle of throw, the field against the distance, the
+          efficiency against the cold-side temperature. Nothing is written per
+          simulation — the axes are built from the parameters and the readouts — so
+          73 of the 76 can be compiled now instead of 36. Checked against Coulomb's
+          law: outside a charged sphere `E·r²` holds constant to 2e-16 relative spread.
 
-          **Fix: on a phone the readouts strip lay across the open settings.** The strip is
-          pinned to the page root at layer 126 and settings were at 120, so it drew on top
-          of them. Full-screen screens now sit above the pinned chrome; the topics drawer
-          did the same thing and is fixed with it.
+          **The tools are fewer and the rest are properly adjustable.** Gone: the
+          protractor, the guide line, box-zoom, the coordinate probe and body trails.
+          The vector and the dimension line are now settings of the ruler, which also
+          measures in km, m, mm or nm to 0-3 decimals and can show the angle to the
+          horizontal. In their place, a selection tool: click a mark, rubber-band
+          several, drag them where they belong. Until now a mark half a centimetre off
+          had to be erased and drawn again.
 
-          **Every drawing tool is now fully customisable.** Colour was six presets and a
-          width; everything else was baked into the drawing code. Each tool now offers the
-          six theme colours plus a colour picker, four widths, a line style (solid, dashed,
-          dotted), three opacities — and whatever else that particular tool can actually
-          do: arrowheads for the vector, fill for the circle and the polygon, type size for
-          the note, extension lines for the ruler, and a switch for the measured number.
-          A `⟲` button puts a tool back to how it started.
+          Colour opens a colour wheel, with the three most recent colours next to it.
+          Thickness is typed in pixels instead of picked from four presets; opacity is
+          a slider instead of three steps. What stays in the bar is what you change
+          while drawing — with everything in it the bar grew to 957 pixels against a
+          470-pixel scene, so the rest moved into "⋯".
 
-          The dimension line is gone as a separate tool. It measured the same distance the
-          ruler measures and differed only in how it drew the ends, which is now a ruler
-          setting; `D` selects the ruler with extension lines already on. Drawings made
-          with the old tool open exactly as before.
+          **Notes became cards.** A note used to be a point of text in world
+          coordinates: it drifted off when you panned the scene and a stray stroke of
+          the eraser deleted it. Now it has a title that stays visible, a body that
+          folds away, a size you can drag, deletion behind a confirmation, and "#" /
+          "##" for larger lines. Cards link to each other, and a linked card is read
+          without leaving the one you are on. They save themselves per simulation and
+          export to a file.
 
-          **Shift and Alt now do what they do everywhere else.** While a drawing tool is
-          selected, Shift holds the direction at 0°, 45° or 90° instead of panning the
-          scene — panning stays on the middle and right buttons — and Alt + click erases
-          the mark under the cursor without a trip to the eraser.
-
-          **The scene menu is split into tabs.** Eleven commands in one column read as a
-          pile: Scene, Data, Sets and More, plus Constructor for the simulations you build
-          with the mouse, which opens on that tab first.
-
-          **Parameter groups fold.** Newton's second law has 27 fields; every visit began
-          by scrolling to the one you wanted. Groups now collapse, remember their state per
-          simulation, and a folded group says how many fields are inside and how many you
-          have already changed, so nothing hides silently. A `⟲` in a row restores that
-          parameter alone — until now only the middle mouse button did that, which a phone
-          does not have.
-
-          The introduction had a made-up definition of a model, an outdated list of what a
-          topic contains, and pointed at a help icon that does not exist. All of it is
-          corrected, and the introduction and the About panel now say who wrote this.
-
-          On a phone the scene never leaves the screen: everything else is a sheet with
-          three positions that takes height from the scene instead of covering it. On a
-          computer the familiar docked layout.
+          Three fixes. The undo button only ever undid parameters, so on a phone —
+          where there is no Ctrl+Z — a drawing could not be undone at all. Hiding the
+          simulation while it was fullscreen left a blank screen. And the introduction
+          and the section recaps kept the previous topic's simulation running beside
+          the text.
 
           ### Must read
 

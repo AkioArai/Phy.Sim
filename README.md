@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.5.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.5.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.5.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.5.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.6.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.6.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.6.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.6.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -143,6 +143,18 @@ Events are honoured: if the body lands, the curve stops there and the moment is 
 — the landing time matches `2v₀sinθ/g` to the digit. The plot has real margins on every
 side, so the curve never touches the frame and the axis numbers are never clipped.
 
+**The x-axis does not have to be time.** 37 of the 76 simulations are timeless —
+nothing about them depends on time, they carry no graphs, and until now the compiler
+refused them outright. That is all of quantum mechanics, most of optics, nuclear
+physics and electrostatics. Put a *parameter* on the x-axis instead and each point
+becomes a separate run of the model: the range against the angle of throw, the period
+against the length, the efficiency against the cold-side temperature, the field against
+the distance. Nothing is authored per simulation — the x menu is built from the numeric
+parameters and the y menu from the readouts — so 73 of the 76 can now be compiled
+instead of 36. Checked against Coulomb's law: sweeping a probe across a charged sphere,
+`E·r²` outside it is constant to 2·10⁻¹⁶ relative spread, and the picture is the one
+the textbook draws — linear inside, a peak at the surface, `1/r²` beyond.
+
 On a phone the picture is sized to fit the browser's canvas limit — four graphs stacked
 at double scale come to 13.8 megapixels, and a phone will render that **blank** without
 raising a single error. Long intervals are integrated in 40 ms slices with a progress
@@ -173,15 +185,18 @@ the whole run, and separately at whether it ever **grows** where it must only de
 ### A real instrument, not a slideshow
 
 Axes carry ticks and numbers, so a coordinate is read off the scene rather than
-counted out in grid squares. Pan, zoom, box-zoom, coordinate probe, ruler,
-protractor, circle, polygon area, notes, guides, body trails and a freehand
-pencil. Every drawing tool carries its own colour (six presets or a picker),
-thickness, line style and opacity, plus whatever that tool can actually do:
-arrowheads on the vector, fill on the circle and the polygon, type size on the
-note, extension lines on the ruler, and a switch for the measured number. Hold
+counted out in grid squares. Pan, selection, a freehand pencil, a ruler, a
+circle, polygon area and notes. The ruler is also the vector (arrowheads) and
+the dimension line (extension lines), and it measures in km, m, mm or nm to
+0-3 decimals, with the angle to the horizontal on demand. Every drawing tool
+carries its own colour — a colour wheel with the three most recent colours to
+hand — thickness typed in pixels, line style and opacity on a slider. Hold
 Shift while drawing to keep the direction at 0°, 45° or 90°; Alt + click erases
-the mark under the cursor. Each mark keeps the style it was drawn with, so
-changing the colour never repaints what is already on the scene. Parameter
+the mark under the cursor. Selection picks marks up and moves them instead of
+making you erase and redraw. Each mark keeps the style it was drawn with, so
+changing the colour never repaints what is already on the scene. Notes are
+cards: a title that stays visible, a body that folds away, links to other
+cards you can read without leaving the one you are on. Parameter
 fields are grouped, and a group folds away with its own count of how many
 values you have changed inside it. Parameter fields accept
 expressions (`2*9.8`). A timeline scrubs the computed history frame by frame.
