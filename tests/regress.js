@@ -295,31 +295,65 @@ async function boot(b, url, ui) {
 
     const bar = await p.evaluate(() => {
       const b = document.querySelector('#penbar');
-      const c = document.querySelectorAll('#pb-colors .pb-color');
-      const w = document.querySelectorAll('#pb-widths .pb-width');
+      const dot = document.querySelector('#pb-color');
+      const num = document.querySelector('#pb-widths .pb-ni');
       const r = k => { const q = k.getBoundingClientRect();
         return [Math.round(q.left + q.width / 2), Math.round(q.top + q.height / 2)]; };
       return { видна: !b.classList.contains('hidden') && b.getBoundingClientRect().height > 0,
-               цветов: c.length, толщин: w.length, цвет: r(c[4]), толщина: r(w[3]) };
+               влезает: b.scrollWidth <= b.clientWidth + 1,
+               цвет: r(dot), толщина: num ? num.value : null };
     });
-    // Шесть цветов из темы плюс седьмая ячейка «свой цвет» с input type=color.
-    ok('полоса настроек инструмента', bar.видна && bar.цветов === 7 && bar.толщин === 4, bar);
+    ok('полоса настроек инструмента', bar.видна && bar.влезает && bar.толщина !== null, bar);
 
+    /* Круговая палитра: открывается кнопкой-кружком, выбор мышью по кругу
+       ставит цвет и запоминается в «недавних». Шести готовых кнопок в самой
+       полосе больше нет — они внутри палитры. */
     await p.mouse.click(bar.цвет[0], bar.цвет[1]);
-    await p.mouse.click(bar.толщина[0], bar.толщина[1]);
     await p.waitForTimeout(150);
-    const style = await p.evaluate(() => markStyle('pencil'));
-    ok('клик мышью по полосе меняет стиль', style.c === '--ok' && style.w === 6, style);
+    const круг = await p.evaluate(() => {
+      const e = document.querySelector('#pop-color'), q = e.getBoundingClientRect();
+      const cv = document.querySelector('#cw-canvas').getBoundingClientRect();
+      return { открыта: !e.classList.contains('hidden'),
+               вКадре: q.left >= 0 && q.top >= 0 && q.right <= innerWidth && q.bottom <= innerHeight,
+               пресетов: document.querySelectorAll('#cw-presets .cw-p').length,
+               круг: [Math.round(cv.left + cv.width * 0.78), Math.round(cv.top + cv.height * 0.3)] };
+    });
+    ok('круговая палитра открывается кнопкой цвета',
+        круг.открыта && круг.вКадре && круг.пресетов === 6, круг);
+    await p.mouse.move(круг.круг[0], круг.круг[1]);
+    await p.mouse.down(); await p.mouse.up();
+    await p.waitForTimeout(150);
+    const цвет = await p.evaluate(() => ({ c: markStyle('pencil').c, недавние: (S.recentColors || []).length }));
+    ok('выбор по кругу ставит цвет и запоминается',
+        /^#[0-9a-f]{6}$/.test(цвет.c) && цвет.недавние >= 1, цвет);
+    await p.evaluate(() => document.querySelectorAll('.pop').forEach(x => x.classList.add('hidden')));
+
+    /* Толщина вводится числом, а не выбирается из трёх-четырёх заготовок. */
+    await p.fill('#pb-widths .pb-ni', '7.5');
+    await p.press('#pb-widths .pb-ni', 'Enter');
+    await p.waitForTimeout(150);
+    const толщина = await p.evaluate(() => markStyle('pencil').w);
+    ok('толщина задаётся числом', Math.abs(толщина - 7.5) < 1e-9, { w: толщина });
+
+    /* Прозрачность — ползунком, а не тремя ступенями. */
+    await p.evaluate(() => { const r = document.querySelector('.pb-alpha input[type=range]');
+      r.value = 40; r.dispatchEvent(new Event('input', { bubbles: true }));
+      r.dispatchEvent(new Event('change', { bubbles: true })); });
+    await p.waitForTimeout(150);
+    ok('прозрачность задаётся ползунком',
+        Math.abs((await p.evaluate(() => markStyle('pencil').a)) - 0.4) < 1e-9);
 
     const scene = await p.evaluate(() => { const r = document.querySelector('#scene').getBoundingClientRect();
       return { cx: Math.round(r.left + r.width / 2), cy: Math.round(r.top + r.height / 2) }; });
-    await p.mouse.move(scene.cx - 60, scene.cy - 30); await p.mouse.down();
-    for (const d of [20, 40, 60, 80]) { await p.mouse.move(scene.cx - 60 + d, scene.cy - 30 + d / 2); }
+    await p.evaluate(() => { const a = A(); a.annos = []; setTool('pencil'); });
+    await p.mouse.move(scene.cx - 60, scene.cy + 60); await p.mouse.down();
+    for (const d of [20, 40, 60, 80]) { await p.mouse.move(scene.cx - 60 + d, scene.cy + 60 + d / 2); }
     await p.mouse.up(); await p.waitForTimeout(150);
     const drawn = await p.evaluate(() => { const a = A(), l = a.annos[a.annos.length - 1];
-      return { всего: a.annos.length, тип: l && l.type, c: l && l.c, w: l && l.w }; });
+      return { всего: a.annos.length, тип: l && l.type, w: l && l.w, a: l && l.a }; });
     ok('карандаш рисует по холсту выбранным стилем',
-        drawn.всего === 1 && drawn.тип === 'pencil' && drawn.c === '--ok' && drawn.w === 6, drawn);
+        drawn.всего === 1 && drawn.тип === 'pencil' && Math.abs(drawn.w - 7.5) < 1e-9
+        && Math.abs(drawn.a - 0.4) < 1e-9, drawn);
 
     // Полоса не должна накрывать шапки плавающих панелей — иначе их не схватить.
     const hud = await p.evaluate(() => {
@@ -331,49 +365,71 @@ async function boot(b, url, ui) {
     });
     ok('полоса не накрывает шапку панели показателей', hud.свободна, hud);
 
-    // Настройки положены каждому рисующему инструменту, а не одному карандашу,
-    // и каждому — ровно те, которыми он умеет пользоваться: стрелки только у
-    // вектора, заливка только у замкнутых фигур, кегль только у заметки.
+    /* Настройки положены каждому рисующему инструменту, и каждому — ровно те,
+       которыми он умеет пользоваться. В полосе остаётся только то, что меняют
+       по ходу рисования; всё прочее — в «Ещё», иначе полоса не влезает в сцену. */
     const tools = await p.evaluate(async () => {
       const r = {};
-      for (const t of ['pencil','ruler','vector','circle','angle','area','note','guide','pan','probe']) {
-        setTool(t); await new Promise(z => setTimeout(z, 15));
-        r[t] = { полоса: !document.querySelector('#penbar').classList.contains('hidden'),
-                 группы: [...document.querySelectorAll('#pb-extra .pb-seg')].map(g => g.title),
-                 сброс: document.querySelectorAll('#pb-extra .pb-reset').length };
+      for (const t of ['pencil','ruler','circle','area','note','pan','select','eraser']) {
+        setTool(t); await new Promise(z => setTimeout(z, 20));
+        const bar = document.querySelector('#penbar');
+        r[t] = { полоса: !bar.classList.contains('hidden'),
+                 влезает: bar.scrollWidth <= bar.clientWidth + 1,
+                 вПолосе: [...document.querySelectorAll('#pb-extra .pb-seg')].map(g => g.title),
+                 вЕщё: [...document.querySelectorAll('#tm-body .tm-row .pb-seg')].map(g => g.title),
+                 сброс: document.querySelectorAll('#pb-reset').length };
       }
       return r;
     });
-    const рисующие = ['pencil','ruler','vector','circle','angle','area','note','guide'];
+    const рисующие = ['pencil','ruler','circle','area','note'];
     ok('полоса настроек у всех рисующих инструментов',
-        рисующие.every(t => tools[t].полоса) && !tools.pan.полоса && !tools.probe.полоса,
+        рисующие.every(t => tools[t].полоса)
+        && !tools.pan.полоса && !tools.select.полоса && !tools.eraser.полоса,
         Object.fromEntries(Object.entries(tools).map(([k, v]) => [k, v.полоса])));
+    ok('полоса инструмента влезает в сцену',
+        рисующие.every(t => tools[t].влезает),
+        Object.fromEntries(рисующие.map(t => [t, tools[t].влезает])));
     const ждём = {
-      pencil: ['Тип линии','Прозрачность'],
-      ruler:  ['Тип линии','Прозрачность','Выноски как на чертеже','Подпись с числом'],
-      vector: ['Тип линии','Прозрачность','Стрелки','Подпись с числом'],
-      circle: ['Тип линии','Прозрачность','Заливка','Подпись с числом'],
-      angle:  ['Тип линии','Прозрачность','Подпись с числом'],
-      area:   ['Тип линии','Прозрачность','Заливка','Подпись с числом'],
-      note:   ['Прозрачность','Кегль подписи'],
-      guide:  ['Тип линии','Прозрачность'],
+      pencil: [],                                   // на компьютере у карандаша всё в полосе
+      ruler:  ['Стрелки','Угол к горизонтали','Выноски как на чертеже','Единица измерения','Знаков после запятой','Подпись с числом'],
+      circle: ['Заливка','Подпись с числом'],
+      area:   ['Заливка','Подпись с числом'],
+      note:   ['Кегль подписи'],
     };
-    const разошлись = рисующие.filter(t => tools[t].группы.join('|') !== ждём[t].join('|'));
+    const разошлись = рисующие.filter(t => tools[t].вЕщё.join('|') !== ждём[t].join('|'));
     ok('каждому инструменту — свой набор настроек', разошлись.length === 0,
-        Object.fromEntries(разошлись.map(t => [t, { надо: ждём[t], есть: tools[t].группы }])));
+        Object.fromEntries(разошлись.map(t => [t, { надо: ждём[t], есть: tools[t].вЕщё }])));
     ok('сброс к исходному виду есть у каждого рисующего',
         рисующие.every(t => tools[t].сброс === 1),
         Object.fromEntries(рисующие.map(t => [t, tools[t].сброс])));
 
-    /* Размерная линия слита с линейкой: отдельной кнопки в стойке больше нет,
-       а клавиша D включает линейку сразу с выносками. */
-    const dim = await p.evaluate(async () => {
-      setTool('pan'); линейкаСВыносками(); await new Promise(z => setTimeout(z, 15));
-      return { кнопка: document.querySelectorAll('#rail [data-tool="dim"]').length,
-               инструмент: S.tool, выноски: markStyle('ruler').ext };
+    /* Убранные инструменты: транспортир, направляющая, зум рамкой, пробник и
+       след за телами. Вектор и размерная линия сведены в линейку. */
+    const убрали = await p.evaluate(async () => {
+      const кн = t => document.querySelectorAll(`#rail [data-tool="${t}"]`).length;
+      setTool('pan'); линейкаСВыносками(); await new Promise(z => setTimeout(z, 20));
+      const выноски = { инструмент: S.tool, ext: markStyle('ruler').ext };
+      вектором(); await new Promise(z => setTimeout(z, 20));
+      const вектор = { инструмент: S.tool, arr: markStyle('ruler').arr };
+      return { кнопки: ['dim','vector','angle','guide','marquee','probe'].map(кн),
+               след: document.querySelectorAll('#btn-trace').length,
+               разделТулс: document.querySelectorAll('#secttools').length,
+               выноски, вектор };
     });
-    ok('размерная линия слита с линейкой',
-        dim.кнопка === 0 && dim.инструмент === 'ruler' && dim.выноски === true, dim);
+    ok('убранные инструменты исчезли из стойки',
+        убрали.кнопки.every(n => n === 0) && убрали.след === 0 && убрали.разделТулс === 0, убрали);
+    ok('вектор и размерная линия сведены в линейку',
+        убрали.выноски.инструмент === 'ruler' && убрали.выноски.ext === true
+        && убрали.вектор.инструмент === 'ruler' && убрали.вектор.arr === 'end', убрали);
+
+    /* Линейка меряет в выбранных единицах и с выбранной точностью. */
+    const меры = await p.evaluate(() => ({
+      м:  мераДлины(2.53718, { unit: 'm',  dec: 2 }),
+      мм: мераДлины(2.53718, { unit: 'mm', dec: 1 }),
+      км: мераДлины(2.53718, { unit: 'km', dec: 3 }),
+    }));
+    ok('линейка меряет в выбранных единицах',
+        меры.м === '2.54 м' && меры.мм === '2537.2 мм' && меры.км === '0.003 км', меры);
 
     /* Shift при рисовании держит направление, а не панорамирует сцену:
        раньше Shift+ЛКМ уводил вид, и построить горизонталь было нечем. */
@@ -529,9 +585,15 @@ async function boot(b, url, ui) {
       const bar = document.querySelector('#penbar');
       const r = bar.getBoundingClientRect();
       return { видна: r.height > 0, вКадре: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
-               цветов: document.querySelectorAll('#pb-colors .pb-color').length };
+               влезает: bar.scrollWidth <= bar.clientWidth + 1,
+               кружок: !!document.querySelector('#pb-color'),
+               толщина: !!document.querySelector('#pb-widths .pb-ni') };
     });
-    ok('карандаш на телефоне', mpen.видна && mpen.вКадре && mpen.цветов === 7, mpen);
+    /* На телефоне полосе достаётся 374 пикселя. У карандаша всё влезает;
+       у линейки настроек больше, и полоса прокручивается вбок — при этом
+       «⋯» и сброс прижаты справа и остаются на виду. */
+    ok('карандаш на телефоне',
+        mpen.видна && mpen.вКадре && mpen.влезает && mpen.кружок && mpen.толщина, mpen);
 
     /* На телефоне меню сцены открывают три разные кнопки, и каждая обязана
        собрать его заново: одна из них шла через общий popup() и оставляла

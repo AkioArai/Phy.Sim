@@ -1189,7 +1189,7 @@ table.ref tr:last-child td{border-bottom:0}
    На телефоне наоборот: низ занят плавающей панелью управления, зато верх
    пуст, поэтому там полоса остаётся сверху. */
 .penbar{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;z-index:35;
-  display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:999px;
+  display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:999px;
   background:color-mix(in srgb,var(--panel) var(--panel-a),transparent);
   border:1px solid var(--line);box-shadow:0 8px 26px -14px #0009}
 .penbar.hidden{display:none}
@@ -1198,7 +1198,7 @@ table.ref tr:last-child td{border-bottom:0}
 .pb-dash i{display:block;width:16px;height:0;border-top:2px solid var(--ink-2)}
 .pb-dash.on{background:var(--accent-soft)}
 .pb-dash.on i{border-top-style:dashed;border-top-color:var(--accent)}
-.pb-row{display:flex;align-items:center;gap:5px}
+.pb-row{display:flex;align-items:center;gap:4px}
 .pb-sep{width:1px;height:18px;background:var(--line)}
 .pb-color{width:20px;height:20px;border-radius:50%;background:var(--pc);
   border:2px solid transparent;box-shadow:inset 0 0 0 1px #0002}
@@ -1523,3 +1523,94 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .penbar{max-width:calc(100vw - 20px);overflow-x:auto;
   scrollbar-width:none;justify-content:flex-start}
 [data-ui="mobile"] .penbar::-webkit-scrollbar{display:none}
+
+/* ПУСТАЯ СЦЕНА. Скрытая симуляция в полноэкранном режиме оставляла пустой
+   экран, а закрытая — белое поле там, где ждёшь модель. Объяснение вместо
+   пустоты: видно, что всё работает, и сказано, что делать дальше. */
+.simempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;padding:24px;text-align:center;pointer-events:none;
+  color:var(--ink-3);background:var(--bg)}
+.simempty.hidden{display:none}
+.simempty svg{width:34px;height:34px;stroke:currentColor;fill:none;stroke-width:1.4;opacity:.55}
+.simempty b{font-size:14px;color:var(--ink-2);font-weight:600}
+.simempty p{max-width:34ch;font-size:12.5px;line-height:1.55;margin:0}
+
+/* ===== ПОЛОСА ИНСТРУМЕНТА: ЦВЕТ, ТОЛЩИНА, ПРОЗРАЧНОСТЬ =====
+   Шесть кнопок-цветов ушли внутрь круговой палитры, а их место в полосе
+   заняли три последних цвета: возврат к только что использованному — самое
+   частое действие, и ради него не стоит открывать палитру. */
+.pb-dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid var(--line);background:var(--panel-2);position:relative}
+.pb-dot i{display:block;width:16px;height:16px;border-radius:50%;background:var(--pc);
+  box-shadow:inset 0 0 0 1px #0000001f}
+.pb-dot:hover{border-color:var(--ink-3)}
+.pb-dot.pb-mini{width:19px;height:19px;border-style:dashed}
+.pb-dot.pb-mini i{width:13px;height:13px}
+/* Толщина числом: поле, две стрелки и живой образец рядом. */
+.pb-num{display:flex;align-items:center;height:22px;border:1px solid var(--line);
+  border-radius:6px;overflow:hidden;background:var(--panel-2)}
+.pb-nb{width:19px;height:20px;color:var(--ink-3);font-size:13px;line-height:1}
+.pb-nb:hover{background:var(--panel);color:var(--ink)}
+.pb-ni{width:32px;height:20px;border:0;background:transparent;text-align:center;
+  font-family:var(--mono);font-size:11.5px;color:var(--ink);padding:0}
+.pb-ni:focus{outline:none;background:var(--accent-soft)}
+.pb-nu{font-family:var(--mono);font-size:10px;color:var(--ink-3);padding:0 4px 0 1px}
+.pb-prev{width:22px;height:22px;display:grid;place-items:center}
+.pb-prev i{display:block;width:18px;height:var(--pw);border-radius:var(--pw);background:var(--pc)}
+/* Прозрачность: ползунок и число — между «полупрозрачно» и «едва видно»
+   лежит почти всё, что нужно для подложки под чертёж. */
+.pb-alpha{display:flex;align-items:center;gap:4px;height:22px;padding:0 5px;
+  border:1px solid var(--line);border-radius:6px;background:var(--panel-2)}
+.pb-ai{display:block;width:13px;height:13px;border-radius:3px;background:var(--ink-2);flex:0 0 auto}
+.pb-alpha input[type=range]{width:46px;accent-color:var(--accent)}
+.pb-ap{width:26px;border:0;background:transparent;text-align:right;
+  font-family:var(--mono);font-size:11px;color:var(--ink);padding:0}
+.pb-ap:focus{outline:none}
+
+/* ===== КРУГОВАЯ ПАЛИТРА ===== */
+.cwheel{padding:10px;min-width:auto;width:236px}
+.cw-top{display:flex;gap:10px;align-items:stretch}
+.cw-top canvas{border-radius:50%;cursor:crosshair;touch-action:none;flex:0 0 auto;
+  box-shadow:0 2px 10px -4px #0006}
+.cw-side{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1}
+.cw-preview{width:100%;height:30px;border-radius:7px;border:1px solid var(--line);
+  box-shadow:inset 0 0 0 1px #0000000f}
+.cw-val{flex:1;width:18px;writing-mode:vertical-lr;direction:rtl;accent-color:var(--accent);cursor:pointer}
+.cw-presets{display:flex;gap:6px;padding:2px 2px 8px}
+.cw-p{width:22px;height:22px;border-radius:50%;border:2px solid transparent;
+  box-shadow:inset 0 0 0 1px #0000001f}
+.cw-p:hover{transform:scale(1.1)}
+.cw-p.on{border-color:var(--ink)}
+.cw-hexrow{display:flex;align-items:center;gap:0;border-top:1px solid var(--line-soft);padding-top:8px}
+.cw-hash{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-left:4px}
+.cw-hex{width:74px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);
+  font-family:var(--mono);font-size:12px;padding:4px 6px;margin:0 6px 0 2px;color:var(--ink);text-transform:lowercase}
+.cw-ok{margin-left:auto;padding:4px 12px;font-size:12px}
+@media (pointer:coarse){
+  .cwheel{width:min(92vw,268px)}
+  .cw-top canvas{width:150px;height:150px}
+}
+
+/* Кнопка «Ещё» и окно остальных настроек инструмента. */
+.pb-more{width:24px;height:22px;border-radius:6px;border:1px solid var(--line);
+  background:var(--panel-2);font-size:14px;line-height:1;color:var(--ink-2);flex:0 0 auto}
+.pb-more:hover{background:var(--panel);color:var(--ink)}
+.pb-more.hidden{display:none}
+.toolmore{padding:8px;min-width:auto;width:266px}
+.tm-row{display:flex;align-items:center;gap:8px;padding:5px 4px}
+.tm-row+.tm-row{border-top:1px solid var(--line-soft)}
+.tm-l{flex:1;font-size:12px;color:var(--ink-2);line-height:1.25}
+.tm-row .pb-seg{flex:0 0 auto}
+/* Полоса не должна вылезать за сцену: если инструментов много, она
+   прокручивается вбок внутри своей ширины. */
+.penbar{max-width:calc(100% - 16px);overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;justify-content:flex-start}
+.penbar::-webkit-scrollbar{display:none}
+/* «Ещё» и сброс всегда на виду: полоса прокручивается, а они прижаты справа. */
+.pb-more,.pb-reset{position:sticky;right:0;flex:0 0 auto;background:var(--panel)}
+/* На телефоне полоса живёт в 374 пикселях. Образец толщины там — украшение:
+   толщина и так написана числом, а место он занимает. */
+@media (pointer:coarse){
+  .pb-prev{display:none}
+  .pb-alpha input[type=range]{width:38px}
+}

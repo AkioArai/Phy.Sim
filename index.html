@@ -81,35 +81,23 @@
   <div class="body">
     <div class="rail" id="rail">
       <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z"/></svg></button>
-      <button class="iconbtn tool" data-tool="probe" title="Пробник: координаты и величины в точке (Q)"><svg viewBox="0 0 24 24"><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/><circle cx="12" cy="12" r="2.2"/></svg></button>
-      <button class="iconbtn tool" data-tool="marquee" title="Зум рамкой: обвести область (M)"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <button class="iconbtn tool" data-tool="select" title="Выделение: выбрать нарисованное и передвинуть (Q)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z" fill="none"/><path d="M3 3h3M18 3h3M3 21h3M18 21h3M3 3v3M21 3v3M3 18v3M21 18v3" stroke-dasharray="0"/></svg></button>
       <div class="railgrp" id="grp-classic" data-grp="classic">
         <button class="iconbtn grphead" title="Классические инструменты — чертёж и измерения"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8"/></svg><i class="chev"></i></button>
         <div class="grpbody">
       <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg></button>
-      <button class="iconbtn tool" data-tool="ruler" title="Линейка: расстояние между точками; в настройках — выноски как на чертеже (L, сразу с выносками — D)"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1" transform="rotate(-20 12 12)"/><path d="M7 9.5v2M11 8v3M15 6.5v3"/></svg></button>
-      <button class="iconbtn tool" data-tool="vector" title="Векторная линия (Y)"><svg viewBox="0 0 24 24"><path d="M4 20 19 5m0 0h-6m6 0v6"/></svg></button>
-      <button class="iconbtn tool" data-tool="angle" title="Транспортир: угол по трём точкам (G)"><svg viewBox="0 0 24 24"><path d="M5 19h15M5 19 17 7"/><path d="M13 19a8 8 0 0 0-2.3-5.6"/></svg></button>
+      <button class="iconbtn tool" data-tool="ruler" title="Линейка: расстояние, угол и вектор — всё в настройках (L, сразу с выносками — D)"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1" transform="rotate(-20 12 12)"/><path d="M7 9.5v2M11 8v3M15 6.5v3"/></svg></button>
       <button class="iconbtn tool" data-tool="circle" title="Окружность от центра (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><path d="M12 12l5.6 5.6"/></svg></button>
       <button class="iconbtn tool" data-tool="area" title="Площадь многоугольника (Shift+A)"><svg viewBox="0 0 24 24"><path d="M4 18 8 6l7 3 5 9z"/></svg></button>
       <button class="iconbtn tool" data-tool="note" title="Заметка на сцене (N)"><svg viewBox="0 0 24 24"><path d="M4 5h16v10l-4 4H4z"/><path d="M16 19v-4h4M7 9h10M7 13h6"/></svg></button>
-      <button class="iconbtn tool" data-tool="guide" title="Направляющая линия (U)"><svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18" stroke-dasharray="3 3"/><path d="M6 4v16"/></svg></button>
       <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9zM12 10l4-4 6 6-4 4"/></svg></button>
         </div>
       </div>
       <div class="sep-h"></div>
       <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
       <button class="iconbtn" id="btn-coords" title="Координаты под курсором (K)"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m8 16 4-6 3 3 4-7" stroke-dasharray="2.5 2"/></svg></button>
-      <button class="iconbtn" id="btn-trace" title="След за телами (T)"><svg viewBox="0 0 24 24"><path d="M3 17c4 0 5-10 9-10s5 6 9 6" stroke-dasharray="2.5 2.5"/><circle cx="21" cy="13" r="1.6" fill="currentColor" stroke="none"/></svg></button>
       <div class="sep-h"></div>
       <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>
-      <!-- Инструменты конкретной симуляции (конструктор цепей, машины Атвуда
-           и т.п.) добавляются сюда во время работы — раньше они прятались
-           только в контекстном меню по правой кнопке. -->
-      <div class="railgrp" id="grp-sect" data-grp="sect" style="display:none">
-        <button class="iconbtn grphead" title="Инструменты раздела — меняют саму физику сцены"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M7 20V9M12 20V4M17 20v-7"/></svg><i class="chev"></i></button>
-        <div class="grpbody simtools" id="secttools"></div>
-      </div>
       <div class="railgrp" id="grp-build" data-grp="build" style="display:none">
         <button class="iconbtn grphead" title="Конструкторы — сборка схем и машин"><svg viewBox="0 0 24 24"><path d="M14 6.5a3.5 3.5 0 1 0-4.6 3.3L4 15.2V20h4.8l5.4-5.4A3.5 3.5 0 0 0 14 6.5z"/></svg><i class="chev"></i></button>
         <div class="grpbody simtools" id="simtools"></div>
@@ -197,6 +185,14 @@
       </div>
       <div class="canvas-wrap" id="cwrap">
         <canvas id="scene"></canvas><canvas id="overlay"></canvas>
+        <!-- Пусто там, где должна быть сцена, ничего не объясняет: раньше
+             на месте закрытой симуляции оставалось белое поле. -->
+        <div class="simempty hidden" id="simempty">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.01"/></svg>
+          <b>Симуляция не открыта</b>
+          <p>Выберите тему в списке слева — её модель откроется сама. Или нажмите
+             на формулу в конспекте: каждая открывает свою симуляцию.</p>
+        </div>
         <div class="hud fpanel" id="hud">
           <div class="fp-head"><b>Показатели</b></div>
           <div class="hud-body" id="hud-body"></div>
@@ -225,10 +221,15 @@
              Всплывают, только когда выбран рисующий инструмент, — постоянная
              панель ради трёх параметров заняла бы место у сцены. -->
         <div class="penbar hidden" id="penbar">
-          <div class="pb-row" id="pb-colors"></div>
+          <!-- Цвет: кружок открывает круговую палитру. Рядом — три последних,
+               чтобы возвращаться к ним одним нажатием, а не искать заново. -->
+          <button class="pb-dot" id="pb-color" title="Цвет (круговая палитра)"><i></i></button>
+          <div class="pb-row" id="pb-recent"></div>
           <span class="pb-sep"></span>
           <div class="pb-row" id="pb-widths"></div>
           <div class="pb-row" id="pb-extra"></div>
+          <button class="pb-more hidden" id="pb-more" title="Остальные настройки инструмента">⋯</button>
+          <button class="pb-reset" id="pb-reset" title="Вернуть исходный вид инструмента">⟲</button>
         </div>
         <div class="empty" id="nosim" style="position:absolute;inset:0;display:grid;place-items:center;background:var(--canvas)">
           Нажмите ▷ в углу формулы — здесь откроется её симуляция.</div>
@@ -300,7 +301,7 @@
           <button class="mbplay m2play" id="mb-play2" title="Пуск / стоп">
             <svg viewBox="0 0 24 24" id="ic-mbplay2"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
             <svg viewBox="0 0 24 24" id="ic-mbpause2" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.4"/></svg></button>
-          <button class="iconbtn mb-btn" id="mb-undo" title="Параметры назад">
+          <button class="iconbtn mb-btn" id="mb-undo" title="Отменить последнее действие">
             <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
             <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h3"/></svg></button>
@@ -337,7 +338,7 @@
     <button class="iconbtn" id="btn-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <div class="sep"></div>
     <div class="group">
-      <button class="iconbtn" id="btn-undo" title="Параметры назад (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
+      <button class="iconbtn" id="btn-undo" title="Отменить последнее действие (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
       <button class="iconbtn" id="btn-play" title="Пуск / стоп (Space)">
         <svg viewBox="0 0 24 24" id="ic-play"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
         <svg viewBox="0 0 24 24" id="ic-pause" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.4"/></svg></button>
@@ -363,6 +364,33 @@
 <!-- Меню сцены: одиннадцать разнородных строк подряд читались как свалка,
      поэтому разложены по вкладкам. Вкладка «Конструктор» появляется только
      у симуляций, которые собираются мышью. -->
+<!-- Остальные свойства инструмента. В самой полосе остаётся то, что
+     меняют по ходу рисования (цвет, толщина, тип линии, прозрачность);
+     всё прочее — здесь, строками с подписями. Полоса со всеми настройками
+     сразу разрасталась до 957 пикселей и не влезала в сцену. -->
+<div class="pop toolmore hidden" id="pop-toolmore">
+  <div class="tm-body" id="tm-body"></div>
+</div>
+<!-- КРУГОВАЯ ПАЛИТРА. Шести готовых цветов хватает на уроке и не хватает,
+     когда к сцене подобрали свою гамму. Круг даёт оттенок и насыщенность
+     сразу, ползунок под ним — яркость, поле внизу — точный код цвета. -->
+<div class="pop cwheel hidden" id="pop-color">
+  <div class="cw-top">
+    <canvas id="cw-canvas" width="176" height="176"></canvas>
+    <div class="cw-side">
+      <div class="cw-preview" id="cw-prev"></div>
+      <input type="range" class="cw-val" id="cw-val" min="0" max="100" value="100"
+             orient="vertical" title="Яркость">
+    </div>
+  </div>
+  <div class="ttl">Цвета темы</div>
+  <div class="cw-presets" id="cw-presets"></div>
+  <div class="cw-hexrow">
+    <span class="cw-hash">#</span>
+    <input class="cw-hex" id="cw-hex" maxlength="6" spellcheck="false" title="Код цвета">
+    <button class="btn cw-ok" id="cw-ok">Готово</button>
+  </div>
+</div>
 <div class="pop popmenu hidden" id="pop-simmenu">
   <div class="mt-tabs" id="simmenu-tabs"></div>
   <div class="mt-body">
