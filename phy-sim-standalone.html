@@ -1650,6 +1650,9 @@ table.ref tr:last-child td{border-bottom:0}
   .pb-prev{display:none}
   .pb-alpha input[type=range]{width:38px}
 }
+/* Диалог компиляции: два набора полей — по времени и по параметру. */
+.modal.plot[data-mode="time"] .pl-sweep{display:none}
+.modal.plot[data-mode="sweep"] .pl-time{display:none}
 </style>
 </head>
 <body>
@@ -2076,20 +2079,38 @@ table.ref tr:last-child td{border-bottom:0}
      сохраняется картинкой. -->
 <div class="modal-bg hidden" id="modal-plot"><div class="modal plot">
   <h3>Скомпилировать график</h3>
-  <div class="pl-lead">Симуляция считается заново с начальных условий — не снимок
+  <div class="pl-lead" id="pl-lead">Симуляция считается заново с начальных условий — не снимок
     экрана, а пересчёт. Один и тот же промежуток при тех же параметрах всегда
     даёт одну и ту же картинку.</div>
+  <div class="pl-row"><label for="pl-mode">По какой оси</label>
+    <select id="pl-mode">
+      <option value="time">по времени — как процесс идёт</option>
+      <option value="sweep">по параметру — от чего величина зависит</option>
+    </select></div>
   <div class="pl-row"><label for="pl-which">Что строить</label>
     <select id="pl-which"></select></div>
-  <div class="pl-row"><label>Промежуток, с</label>
+  <!-- поля развёртки по параметру -->
+  <div class="pl-row pl-sweep"><label for="pl-par">Параметр по оси X</label>
+    <select id="pl-par"></select></div>
+  <div class="pl-row pl-sweep"><label>От и до</label>
+    <span class="pl-pair">
+      <input id="pl-p0" type="text" inputmode="decimal" title="Начальное значение параметра">
+      <i>…</i>
+      <input id="pl-p1" type="text" inputmode="decimal" title="Конечное значение параметра">
+    </span></div>
+  <div class="pl-row pl-sweep" id="pl-row-at"><label for="pl-at">Снять в момент t, с</label>
+    <input id="pl-at" type="text" value="0" inputmode="decimal"
+      title="0 — сразу на начальном состоянии; иначе модель доводится до этого момента"></div>
+  <!-- поля развёртки по времени -->
+  <div class="pl-row pl-time"><label>Промежуток, с</label>
     <span class="pl-pair">
       <input id="pl-t0" type="text" value="0" inputmode="decimal" title="Начало промежутка">
       <i>…</i>
       <input id="pl-t1" type="text" value="10" inputmode="decimal" title="Конец промежутка">
     </span></div>
-  <div class="pl-row"><label for="pl-pts">Точек по времени</label>
+  <div class="pl-row"><label for="pl-pts" id="pl-pts-l">Точек по времени</label>
     <input id="pl-pts" type="text" value="800" inputmode="numeric"></div>
-  <div class="pl-row"><label for="pl-acc">Шаг интегрирования</label>
+  <div class="pl-row pl-acc-row"><label for="pl-acc">Шаг интегрирования</label>
     <select id="pl-acc">
       <option value="1">как в симуляции (1/240 с)</option>
       <option value="4" selected>вчетверо мельче</option>
@@ -31818,6 +31839,8 @@ function делениеОси(размах, сколько){
    сливалась с рамкой. */
 function рисоватьГрафик(dr, o){
   const {W,H,график,ряд,gi,подпись,светлая}=o;
+  // ось X — время либо параметр развёртки; подпись приходит с рядом
+  const xlab=ряд.xlab||'t, с';
   const C = светлая
     ? {фон:'#ffffff',сетка:'#e6e8ee',ось:'#9aa0ae',текст:'#1b1d24',тихий:'#6b7180',линия:'#4b3fa0',вторая:'#b06a1f',событие:'#c0392b'}
     : {фон:'#12141f',сетка:'#262a3a',ось:'#6f748a',текст:'#e9e9ed',тихий:'#9397ab',линия:'#9184d9',вторая:'#e0a44a',событие:'#e07a62'};
@@ -31876,28 +31899,95 @@ function рисоватьГрафик(dr, o){
   for(let s=0;s<2;s++){
     const серия=ряд.ys[gi][s];
     if(!серия.some(y=>y!==null&&isFinite(y))) continue;
+    if(!имена[s]) continue;            // у развёртки кривая одна, легенда ей ни к чему
     dr.line(lx,py-9,lx+22,py-9,s?C.вторая:C.линия,2.4,s?[7,5]:null);
     dr.text(имена[s],lx+28,py-5,C.тихий,12);
     lx+=28+имена[s].length*7+18;
   }
-  dr.text('t, с',px+pw,py+ph+42,C.тихий,12,'end',true);
+  dr.text(xlab,px+pw,py+ph+42,C.тихий,12,'end',true);
   dr.text(подпись,px,H-16,C.тихий,11);
+}
+
+/* ===================== РАЗВЁРТКА ПО ПАРАМЕТРУ =====================
+   Компилятор графиков гонит модель по времени. Половина симуляций —
+   37 из 76 — объявлены timeless: у них от времени не зависит ничего, и
+   графиков нет вовсе. Между тем зависимость там есть, просто не от времени:
+   поле от расстояния, КПД от температуры холодильника, смещение Комптона от
+   угла. Развёртка строит именно её: по оси X — параметр, по оси Y —
+   показатель, а каждая точка получается отдельным прогоном модели.
+
+   Для симуляций без времени прогона нет вовсе: init() и readouts(), то есть
+   развёртка там мгновенная. Для остальных модель доводится до заданного
+   момента — «дальность на момент падения», «скорость через 3 секунды».
+
+   Считаем кусками по 40 мс: сотня прогонов подряд подвешивала бы вкладку,
+   а на телефоне это выглядит как «нажал — ничего не произошло». */
+function показателиСимуляции(def,params){
+  try{
+    const st=def.init(params);
+    return (def.readouts(st,params)||[])
+      .map((r,i)=>({i,label:r[0],unit:r[2]||'',число:typeof r[1]==='number'&&isFinite(r[1])}))
+      .filter(r=>r.число);
+  }catch(_){ return []; }
+}
+function числовыеПараметры(def){
+  return (def.params||[]).filter(p=>p.type!=='group'&&p.type!=='check'&&p.type!=='select'
+    && typeof p.default==='number' && isFinite(p.min) && isFinite(p.max) && p.max>p.min);
+}
+function собратьРазвёртку(def, params, ключ, от, до, точек, тДо, дробь, какие, прогресс){
+  return new Promise((готово,беда)=>{
+    const xs=[], ys=какие.map(()=>[[],[]]);
+    const dt=DT/Math.max(1,дробь|0);
+    const шагП=(до-от)/Math.max(1,точек-1);
+    let i=0, остановок=0;
+    const одна=v=>{
+      const p={...params,[ключ]:v};
+      const st=def.init(p);
+      if(!def.timeless && тДо>0){
+        let охрана=0;
+        while((st.t||0)<тДо-1e-12 && охрана++<4e6){
+          def.step(st,dt,p);
+          if(st.__stop){ остановок++; break; }
+        }
+      }
+      const r=def.readouts(st,p)||[];
+      какие.forEach((gi,k)=>{
+        const v2=r[gi] && typeof r[gi][1]==='number' && isFinite(r[gi][1]) ? r[gi][1] : null;
+        ys[k][0].push(v2); ys[k][1].push(null);
+      });
+      xs.push(v);
+    };
+    const кусок=()=>{
+      const край=performance.now()+40;
+      try{
+        while(i<точек){
+          одна(от+i*шагП); i++;
+          if(performance.now()>край) break;
+        }
+      }catch(e){ беда(e); return; }
+      if(прогресс) прогресс(i/точек);
+      if(i<точек){ setTimeout(кусок,0); return; }
+      готово({ts:xs,ys,dt,stop:null,развёртка:true,остановок});
+    };
+    setTimeout(кусок,0);
+  });
 }
 
 /* Собрать картинку целиком: несколько графиков — один под другим. */
 function графикВКартинку(o){
   const {a,ряд,какие,W,Hодного,формат,светлая}=o;
+  const графики=o.графики||a.def.graphs;
   const N=какие.length;
   const H=Hодного*N;
-  const подпись=`${a.def.title} · шаг ${ряд.dt.toFixed(5)} с · `+
-    `${ряд.ts.length} точек · ${ряд.ts[0].toFixed(2)}…${ряд.ts[ряд.ts.length-1].toFixed(2)} с`;
+  const подпись=ряд.подпись || (`${a.def.title} · шаг ${ряд.dt.toFixed(5)} с · `+
+    `${ряд.ts.length} точек · ${ряд.ts[0].toFixed(2)}…${ряд.ts[ряд.ts.length-1].toFixed(2)} с`);
   if(формат==='svg'){
     const куски=[];
     куски.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
     какие.forEach((gi,k)=>{
       куски.push(`<g transform="translate(0 ${k*Hодного})">`);
       рисоватьГрафик(svgДвижок(куски),
-        {W,H:Hодного,график:a.def.graphs[gi],ряд,gi,подпись,светлая});
+        {W,H:Hодного,график:графики[gi],ряд,gi,подпись,светлая});
       куски.push('</g>');
     });
     куски.push('</svg>');
@@ -31925,7 +32015,7 @@ function графикВКартинку(o){
   какие.forEach((gi,idx)=>{
     ctx.save(); ctx.translate(0,idx*Hодного*s);
     рисоватьГрафик(холстовыйДвижок(ctx,s),
-      {W,H:Hодного,график:a.def.graphs[gi],ряд,gi,подпись,светлая});
+      {W,H:Hодного,график:графики[gi],ряд,gi,подпись,светлая});
     ctx.restore();
   });
   return {холст:cv,масштаб:+s.toFixed(3),
@@ -31998,19 +32088,75 @@ async function сохранитьФайл(имя,blob){
 /* Старое имя оставлено: им пользуются снимок кадра, запись и выгрузка данных. */
 function скачать(имя,blob){ сохранитьФайл(имя,blob); }
 
+/* Какие режимы компиляции доступны этой симуляции. По времени — только там,
+   где от времени что-то зависит; по параметру — везде, где есть числовой
+   параметр и хоть один числовой показатель, то есть практически везде. */
+function режимыКомпиляции(a){
+  return {
+    time: !!(a.def.graphs && a.def.graphs.length && !a.def.timeless),
+    sweep: числовыеПараметры(a.def).length>0 && показателиСимуляции(a.def,a.params).length>0,
+  };
+}
 function открытьКомпиляцию(){
   const a=A();
   if(!a){ toast('Сначала откройте симуляцию'); return; }
-  if(!a.def.graphs||!a.def.graphs.length||a.def.timeless){
-    toast('У этой симуляции графиков по времени нет'); return;
+  const можно=режимыКомпиляции(a);
+  if(!можно.time&&!можно.sweep){
+    toast('Этой симуляции нечего компилировать: ни времени, ни числовых показателей'); return;
   }
-  const sel=$('#pl-which'); sel.innerHTML='';
-  const о=document.createElement('option'); о.value='all'; о.textContent='все графики, один под другим';
-  sel.append(о);
-  a.def.graphs.forEach((g,i)=>{
-    const x=document.createElement('option'); x.value=String(i);
-    x.textContent=`${g.label}, ${g.unit}`; sel.append(x);
-  });
+  /* Режим помним между запусками, но не вопреки симуляции: у безвременных
+     по времени строить нечего, и подсовывать им пустой режим незачем. */
+  const modeSel=$('#pl-mode');
+  [...modeSel.options].forEach(o=>o.disabled=!можно[o.value]);
+  let режим=LS.get('plotMode','time');
+  if(!можно[режим]) режим=можно.time?'time':'sweep';
+  modeSel.value=режим;
+  const пар=числовыеПараметры(a.def);
+  const парSel=$('#pl-par'); парSel.innerHTML='';
+  пар.forEach(pp=>{ const x=document.createElement('option');
+    x.value=pp.key; x.textContent=pp.label+(pp.unit?`, ${pp.unit}`:''); парSel.append(x); });
+  const прошлый=(LS.get('plotSweep',{})||{})[S.active];
+  if(прошлый&&пар.some(pp=>pp.key===прошлый.key)) парSel.value=прошлый.key;
+  /* Границы по умолчанию — весь допустимый диапазон параметра: развёртку
+     затевают, чтобы увидеть ход зависимости целиком, а не рядом с текущим
+     значением. */
+  const подставитьГраницы=()=>{
+    const pp=пар.find(x=>x.key===парSel.value); if(!pp) return;
+    $('#pl-p0').value=String(pp.min); $('#pl-p1').value=String(pp.max);
+  };
+  парSel.onchange=()=>{ подставитьГраницы(); наполнитьЧтоСтроить(); };
+  подставитьГраницы();
+  if(прошлый&&прошлый.key===парSel.value){
+    if(прошлый.p0!==undefined) $('#pl-p0').value=String(прошлый.p0);
+    if(прошлый.p1!==undefined) $('#pl-p1').value=String(прошлый.p1);
+    if(прошлый.at!==undefined) $('#pl-at').value=String(прошлый.at);
+  }
+  // «в момент t» бессмысленно там, где времени нет
+  $('#pl-row-at').style.display=a.def.timeless?'none':'';
+  $('.pl-acc-row')&&($('.pl-acc-row').style.display='');
+  const наполнитьЧтоСтроить=()=>{
+    const sel=$('#pl-which'); sel.innerHTML='';
+    const список = modeSel.value==='sweep'
+      ? показателиСимуляции(a.def,a.params).map(r=>({label:r.label,unit:r.unit,i:r.i}))
+      : a.def.graphs.map((g,i)=>({label:g.label,unit:g.unit,i}));
+    const о=document.createElement('option'); о.value='all';
+    о.textContent = modeSel.value==='sweep'
+      ? 'все показатели, один под другим' : 'все графики, один под другим';
+    sel.append(о);
+    for(const g of список){
+      const x=document.createElement('option'); x.value=String(g.i);
+      x.textContent=g.unit?`${g.label}, ${g.unit}`:g.label; sel.append(x);
+    }
+    $('#pl-pts-l').textContent = modeSel.value==='sweep' ? 'Точек по параметру' : 'Точек по времени';
+    const acc=document.querySelector('.pl-acc-row');
+    if(acc) acc.style.display = (modeSel.value==='sweep'&&a.def.timeless) ? 'none' : '';
+    $('#pl-lead').textContent = modeSel.value==='sweep'
+      ? 'Каждая точка — отдельный прогон модели с этим значением параметра. Так видно не один ответ, а всю зависимость: где максимум, на что похож закон.'
+      : 'Симуляция считается заново с начальных условий — не снимок экрана, а пересчёт. Один и тот же промежуток при тех же параметрах всегда даёт одну и ту же картинку.';
+    document.querySelector('.modal.plot').dataset.mode=modeSel.value;
+  };
+  modeSel.onchange=()=>{ LS.set('plotMode',modeSel.value); наполнитьЧтоСтроить(); };
+  наполнитьЧтоСтроить();
   /* Настройки диалога помним между запусками: компилируют обычно не один
      график, а серию — с одним размером и в одном формате. Каждый раз
      перенабирать их заново было бы мелкой, но регулярной пыткой.
@@ -32036,28 +32182,63 @@ function открытьКомпиляцию(){
 function выполнитьКомпиляцию(){
   const a=A(); if(!a) return;
   const чис=(id,по)=>{ const v=parseFloat(String($(id).value).replace(',','.')); return isFinite(v)?v:по; };
-  const t0=чис('#pl-t0',0), t1=чис('#pl-t1',10);
-  if(!(t1>t0)){ $('#pl-note').textContent='Конец промежутка должен быть больше начала.'; return; }
-  const точек=clamp(Math.round(чис('#pl-pts',800)),2,20000);
+  const режим=$('#pl-mode').value;
+  const точек=clamp(Math.round(чис('#pl-pts',режим==='sweep'?120:800)),2,20000);
   const дробь=+$('#pl-acc').value||1;
   const W=clamp(Math.round(чис('#pl-w',1200)),320,4000);
   const Hодного=clamp(Math.round(чис('#pl-h',720)),240,4000);
   const формат=$('#pl-fmt').value;
   const светлая=$('#pl-light').checked;
   LS.set('plotOpts',{pts:точек,w:W,h:Hодного,acc:дробь,fmt:формат,light:светлая});
-  const какие = $('#pl-which').value==='all'
-    ? a.def.graphs.map((_,i)=>i) : [+$('#pl-which').value];
+
+  /* Развёртка по параметру и прогон по времени отличаются только тем, откуда
+     берутся точки: дальше обе идут одной дорогой — картинка, предел холста,
+     сохранение файла. */
+  let сбор, графики, какие, имяФайла;
+  if(режим==='sweep'){
+    const ключ=$('#pl-par').value;
+    const pp=числовыеПараметры(a.def).find(x=>x.key===ключ);
+    if(!pp){ $('#pl-note').textContent='Выберите параметр по оси X.'; return; }
+    const p0=чис('#pl-p0',pp.min), p1=чис('#pl-p1',pp.max);
+    if(!(p1>p0)){ $('#pl-note').textContent='Конечное значение параметра должно быть больше начального.'; return; }
+    const тДо=a.def.timeless?0:Math.max(0,чис('#pl-at',0));
+    const пок=показателиСимуляции(a.def,a.params);
+    какие = $('#pl-which').value==='all' ? пок.map(r=>r.i) : [+$('#pl-which').value];
+    графики=[];
+    const поИндексу={}; for(const r of пок) поИндексу[r.i]=r;
+    какие.forEach(i=>{ const r=поИндексу[i]||{label:'показатель '+i,unit:''};
+      графики[i]={label:r.label,unit:r.unit,series:['']}; });
+    const подпись=`${a.def.title} · ${pp.label} от ${p0} до ${p1}`+
+      (pp.unit?` ${pp.unit}`:'')+` · ${точек} точек`+
+      (тДо>0?` · на момент t = ${тДо} с`:'');
+    LS.set('plotSweep',{...(LS.get('plotSweep',{})||{}),[S.active]:{key:ключ,p0,p1,at:тДо}});
+    имяФайла=`${S.active}-развёртка-${ключ}`;
+    сбор=собратьРазвёртку(a.def,a.params,ключ,p0,p1,точек,тДо,дробь,какие,
+        д=>{ $('#pl-note').textContent='Считаю… '+Math.round(д*100)+' %'; })
+      .then(ряд=>{
+        // ряд собран по выбранным показателям подряд, а рисуем по их номерам
+        const по={}; какие.forEach((gi,k)=>{ по[gi]=ряд.ys[k]; });
+        return {...ряд, ys:по, xlab:pp.label+(pp.unit?`, ${pp.unit}`:''), подпись};
+      });
+  } else {
+    const t0=чис('#pl-t0',0), t1=чис('#pl-t1',10);
+    if(!(t1>t0)){ $('#pl-note').textContent='Конец промежутка должен быть больше начала.'; return; }
+    графики=a.def.graphs;
+    какие = $('#pl-which').value==='all' ? a.def.graphs.map((_,i)=>i) : [+$('#pl-which').value];
+    имяФайла=`${S.active}-график`;
+    сбор=собратьРядПостепенно(a.def,a.params,t0,t1,точек,дробь,
+        д=>{ $('#pl-note').textContent='Считаю… '+Math.round(д*100)+' %'; });
+  }
 
   const кн=$('#pl-go'); кн.disabled=true;
   $('#pl-note').textContent='Считаю…';
-  собратьРядПостепенно(a.def,a.params,t0,t1,точек,дробь,
-      д=>{ $('#pl-note').textContent='Считаю… '+Math.round(д*100)+' %'; })
+  сбор
     .then(async ряд=>{
       if(ряд.ts.length<2) throw new Error('на этом промежутке точек не набралось');
       $('#pl-note').textContent='Рисую…';
       await new Promise(r=>requestAnimationFrame(r));
-      const из=графикВКартинку({a,ряд,какие,W,Hодного,формат,светлая});
-      const имя=`${S.active}-график.${из.ext}`;
+      const из=графикВКартинку({a,ряд,какие,W,Hодного,формат,светлая,графики});
+      const имя=`${имяФайла}.${из.ext}`;
       let blob;
       if(из.текст) blob=new Blob([из.текст],{type:из.mime});
       else {
@@ -32072,7 +32253,9 @@ function выполнитьКомпиляцию(){
       if(как==='отменено') return;
       const ужали = из.масштаб && из.масштаб<2 ? ` · ужато до ${Math.round(из.масштаб*100/2)} %` : '';
       if(как!=='мост'&&как!=='вкладка'&&как!=='нет')
-        toast(`График сохранён · шаг ${ряд.dt.toFixed(5)} с`+(ряд.stop?' · '+ряд.stop.текст:'')+ужали);
+        toast(ряд.развёртка
+          ? `Развёртка сохранена · ${ряд.ts.length} прогонов`+ужали
+          : `График сохранён · шаг ${ряд.dt.toFixed(5)} с`+(ряд.stop?' · '+ряд.stop.текст:'')+ужали);
     })
     .catch(e=>{ $('#pl-note').textContent='Не вышло: '+(e&&e.message||e); })
     .finally(()=>{ кн.disabled=false; });

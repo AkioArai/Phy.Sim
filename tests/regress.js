@@ -260,6 +260,59 @@ async function boot(b, url, ui) {
       комп.падение === комп.падениеЖдём && комп.бросили.length === 0,
       { ...комп, бросили: комп.бросили.slice(0, 3) });
 
+    /* РАЗВЁРТКА ПО ПАРАМЕТРУ. До неё компилировать умели 36 симуляций из 76:
+       остальные объявлены timeless, и графика по времени у них нет вовсе.
+       Зависимость там есть, просто не от времени. Проверяем по закону
+       Кулона: вне заряженного шара E·r² обязано быть постоянным. */
+    const разв = await p.evaluate(async () => {
+      let времени = 0, параметром = 0; const никак = [];
+      for (const id of Object.keys(SIMS)) {
+        openSim(id);
+        const m = режимыКомпиляции(A());
+        if (m.time) времени++;
+        if (m.sweep) параметром++;
+        if (!m.time && !m.sweep) никак.push(id);
+      }
+      openSim('charged');
+      await new Promise(z => setTimeout(z, 150));
+      const a = A(), пок = показателиСимуляции(a.def, a.params);
+      const gi = (пок.find(x => /^поле E/.test(x.label)) || {}).i;
+      const ряд = await собратьРазвёртку(a.def, a.params, 'px', 2, 8, 25, 0, 1, [gi], null);
+      const пары = ряд.ts.map((x, i) => [x, ряд.ys[0][0][i]])
+                        .filter(([, y]) => y !== null && isFinite(y));
+      const вне = пары.filter(([x]) => Math.abs(x) > a.params.R * 1.2).map(([x, y]) => y * x * x);
+      const разброс = вне.length ? (Math.max(...вне) - Math.min(...вне)) / Math.abs(вне[0]) : 1;
+      // и та же развёртка целиком, через картинку
+      let файл = null;
+      const былоСохр = window.сохранитьФайл;
+      window.сохранитьФайл = async (имя, blob) => { файл = { имя, текст: await blob.text() }; return 'ссылка'; };
+      открытьКомпиляцию();
+      document.querySelector('#pl-mode').value = 'sweep';
+      document.querySelector('#pl-mode').dispatchEvent(new Event('change'));
+      await new Promise(z => setTimeout(z, 60));
+      document.querySelector('#pl-par').value = 'px';
+      document.querySelector('#pl-par').dispatchEvent(new Event('change'));
+      document.querySelector('#pl-p0').value = '2';
+      document.querySelector('#pl-p1').value = '9';
+      document.querySelector('#pl-pts').value = '40';
+      document.querySelector('#pl-fmt').value = 'svg';
+      document.querySelector('#pl-which').value = String(gi);
+      выполнитьКомпиляцию();
+      for (let i = 0; i < 100 && !файл; i++) await new Promise(z => setTimeout(z, 50));
+      window.сохранитьФайл = былоСохр;
+      document.querySelector('#modal-plot').classList.add('hidden');
+      return { времени, параметром, никак, точек: пары.length, разброс,
+               имя: файл && файл.имя,
+               точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
+    });
+    ok('развёртка по параметру работает там, где нет времени',
+        разв.параметром >= 70 && разв.времени === 36 && разв.никак.length <= 3, разв);
+    ok('развёртка сходится с законом Кулона',
+        разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
+    ok('развёртка доходит до картинки',
+        разв.имя === 'charged-развёртка-px.svg' && разв.точекВКривой === 40,
+        { имя: разв.имя, точек: разв.точекВКривой });
+
     /* Блоки пособия. Проверяем не наличие полей в данных (это делает
        curriculum.mjs), а что они дошли до экрана и работают: шаги вывода
        раскрываются по одному, решение примера открывается кнопкой. */

@@ -470,20 +470,38 @@
      сохраняется картинкой. -->
 <div class="modal-bg hidden" id="modal-plot"><div class="modal plot">
   <h3>Скомпилировать график</h3>
-  <div class="pl-lead">Симуляция считается заново с начальных условий — не снимок
+  <div class="pl-lead" id="pl-lead">Симуляция считается заново с начальных условий — не снимок
     экрана, а пересчёт. Один и тот же промежуток при тех же параметрах всегда
     даёт одну и ту же картинку.</div>
+  <div class="pl-row"><label for="pl-mode">По какой оси</label>
+    <select id="pl-mode">
+      <option value="time">по времени — как процесс идёт</option>
+      <option value="sweep">по параметру — от чего величина зависит</option>
+    </select></div>
   <div class="pl-row"><label for="pl-which">Что строить</label>
     <select id="pl-which"></select></div>
-  <div class="pl-row"><label>Промежуток, с</label>
+  <!-- поля развёртки по параметру -->
+  <div class="pl-row pl-sweep"><label for="pl-par">Параметр по оси X</label>
+    <select id="pl-par"></select></div>
+  <div class="pl-row pl-sweep"><label>От и до</label>
+    <span class="pl-pair">
+      <input id="pl-p0" type="text" inputmode="decimal" title="Начальное значение параметра">
+      <i>…</i>
+      <input id="pl-p1" type="text" inputmode="decimal" title="Конечное значение параметра">
+    </span></div>
+  <div class="pl-row pl-sweep" id="pl-row-at"><label for="pl-at">Снять в момент t, с</label>
+    <input id="pl-at" type="text" value="0" inputmode="decimal"
+      title="0 — сразу на начальном состоянии; иначе модель доводится до этого момента"></div>
+  <!-- поля развёртки по времени -->
+  <div class="pl-row pl-time"><label>Промежуток, с</label>
     <span class="pl-pair">
       <input id="pl-t0" type="text" value="0" inputmode="decimal" title="Начало промежутка">
       <i>…</i>
       <input id="pl-t1" type="text" value="10" inputmode="decimal" title="Конец промежутка">
     </span></div>
-  <div class="pl-row"><label for="pl-pts">Точек по времени</label>
+  <div class="pl-row"><label for="pl-pts" id="pl-pts-l">Точек по времени</label>
     <input id="pl-pts" type="text" value="800" inputmode="numeric"></div>
-  <div class="pl-row"><label for="pl-acc">Шаг интегрирования</label>
+  <div class="pl-row pl-acc-row"><label for="pl-acc">Шаг интегрирования</label>
     <select id="pl-acc">
       <option value="1">как в симуляции (1/240 с)</option>
       <option value="4" selected>вчетверо мельче</option>

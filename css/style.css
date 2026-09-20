@@ -1614,3 +1614,6 @@ table.ref tr:last-child td{border-bottom:0}
   .pb-prev{display:none}
   .pb-alpha input[type=range]{width:38px}
 }
+/* Диалог компиляции: два набора полей — по времени и по параметру. */
+.modal.plot[data-mode="time"] .pl-sweep{display:none}
+.modal.plot[data-mode="sweep"] .pl-time{display:none}
