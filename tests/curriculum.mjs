@@ -16,7 +16,7 @@
 
    Запуск:  npm run curriculum
 */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,6 +28,10 @@ const читать = p => readFileSync(join(ROOT, p), 'utf8');
 globalThis.SIMS = {};
 globalThis.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 globalThis.PX_PER_M = 40;
+/* Имя задачи считает core.js — поднимаем его тем же способом, что и темы.
+   DOM там трогают только $ и $$, и только при вызове. */
+globalThis.document = { querySelector: () => null };
+const { идЗадачи } = new Function(читать('js/core.js') + '; return {идЗадачи};')();
 for (const f of readdirSync(join(ROOT, 'js/sims'))) (0, eval)(читать('js/sims/' + f));
 const { ALL, SECTIONS } = new Function(читать('js/topics.js') + '; return {ALL,SECTIONS};')();
 
@@ -106,6 +110,46 @@ const итог = (имя, беды) => {
         беды.push(`${t.id}: неизвестный вид формулы «${f.kind}»`);
   }
   итог('выводы, примеры и вопросы заполнены целиком', беды);
+}
+
+/* ---------------- 4. Имена задач ----------------
+   Отметка «решено» хранится по имени задачи, а имя выводится из условия.
+   Два следствия, которые надо стеречь:
+
+   • имена обязаны быть уникальными — иначе две задачи делят одну галочку;
+   • правка формулировки меняет имя и сбрасывает отметку по этой задаче.
+     Второе не ошибка, но об этом надо знать заранее, а не узнавать от
+     учеников. Поэтому имена лежат слепком в docs/problem-ids.json, и здесь
+     сверяются с ним. Сознательно меняете условие — обновите слепок
+     (npm run curriculum -- --обновить) или закрепите задаче явный `id`. */
+{
+  const беды = [];
+  const сейчас = {};
+  for (const t of ALL)
+    for (const pr of t.problems || []) {
+      const id = идЗадачи(t, pr);
+      if (сейчас[id]) беды.push(`${t.id}: две задачи с одним именем ${id}`);
+      сейчас[id] = (pr.statement || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+    }
+  итог('имена задач уникальны', беды);
+
+  const слепокПуть = 'docs/problem-ids.json';
+  const обновить = process.argv.includes('--обновить');
+  let слепок = null;
+  try { слепок = JSON.parse(читать(слепокПуть)); } catch (_) {}
+  if (обновить || !слепок) {
+    writeFileSync(join(ROOT, слепокПуть), JSON.stringify(сейчас, null, 1) + '\n');
+    console.log(`  ok   слепок имён задач записан (${Object.keys(сейчас).length})`);
+  } else {
+    const ушли = Object.keys(слепок).filter(id => !сейчас[id]);
+    const новые = Object.keys(сейчас).filter(id => !слепок[id]);
+    if (ушли.length || новые.length) {
+      console.log(`  ⚠  имена задач изменились: пропало ${ушли.length}, появилось ${новые.length}`);
+      for (const id of ушли.slice(0, 6)) console.log(`         · было: ${слепок[id]}…`);
+      console.log('         У этих задач отметка «решено» сбросится у всех, кто их решал.');
+      console.log('         Если правка формулировки задумана — npm run curriculum -- --обновить');
+    } else console.log(`  ok   имена задач не менялись (${Object.keys(сейчас).length})`);
+  }
 }
 
 /* ---------------- отчёт ---------------- */

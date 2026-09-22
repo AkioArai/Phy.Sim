@@ -12,8 +12,8 @@ const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:fa
   tstyle:LS.get('tstyle',null),
   scrub:null, loop:LS.get('loop',false), favs:LS.get('favs',[]),
   coords:LS.get('coords',false), mouse:null,
-  /* Решённые задачи. Ключ — «тема#номер»; хранится между запусками, иначе при
-     380 задачах ученик не помнит, докуда дошёл. */
+  /* Решённые задачи. Ключ — имя задачи (идЗадачи); хранится между запусками,
+     иначе при 384 задачах ученик не помнит, докуда дошёл. */
   solved:LS.get('solved',{}),
   settings:LS.get('settings',{theme:'light',fs:12,quality:'high',bgPause:true,videoQ:'med',nums:true,hud:true,events:true,energy:true})};
 
@@ -1789,7 +1789,7 @@ function renderPane(){
        список из тридцати пяти условий читать невозможно. Порядок групп — как
        в формулах темы, внутри группы — по возрастанию сложности. */
     const order=[...new Set(t.problems.map(p=>p.sim||''))];
-    const nSolved=t.problems.filter((p,i)=>S.solved[t.id+'#'+i]).length;
+    const nSolved=t.problems.filter(p=>S.solved[идЗадачи(t,p)]).length;
     pane.innerHTML=`
       <p class="pr-lead">Условия привязаны к симуляции: ответ пересчитывается под текущие параметры,
       поэтому у соседа он другой. Допуск 1,5 %. Первая задача в каждой группе — на знакомство
@@ -1799,12 +1799,12 @@ function renderPane(){
         ${nSolved?'<button class="pp-reset">сбросить</button>':''}</div>
       ${order.map(sid=>{
         const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid);
-        const done=grp.filter(x=>S.solved[t.id+'#'+x.i]).length;
+        const done=grp.filter(x=>S.solved[идЗадачи(t,x.p)]).length;
         const head=sid&&SIMS[sid]
           ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>${done}/${grp.length} · открыть ▷</span></button>`
           : '<div class="pr-grp static">Без симуляции</div>';
         return head+grp.map(({p:pr,i},k)=>`
-        <div class="problem${S.solved[t.id+'#'+i]?' done':''}" data-i="${i}">
+        <div class="problem${S.solved[идЗадачи(t,pr)]?' done':''}" data-i="${i}">
           <div class="head">${dots(pr.level)}
             <span class="pr-n">задача ${k+1}</span>
             ${pr.level>=5?'<span class="pr-hard">олимпиадная</span>':''}
@@ -1824,11 +1824,11 @@ function renderPane(){
       b.onclick=()=>{ openSim(b.dataset.sim); autoCloseRail(); });
     const rs=pane.querySelector('.pp-reset');
     if(rs) rs.onclick=()=>{
-      t.problems.forEach((p,i)=>{ delete S.solved[t.id+'#'+i]; });
+      t.problems.forEach(p=>{ delete S.solved[идЗадачи(t,p)]; });
       LS.set('solved',S.solved); renderPane(); toast('Отметки о решении по этой теме сброшены');
     };
     pane.querySelectorAll('.problem').forEach(el=>{
-      const i=+el.dataset.i, pr=t.problems[i], key=t.id+'#'+i;
+      const i=+el.dataset.i, pr=t.problems[i], key=идЗадачи(t,pr);
       const out=el.querySelector('.verdict'), inp=el.querySelector('input');
       const P=()=>pr.sim?rt(pr.sim).params:{};
       const check=()=>{
@@ -1856,13 +1856,13 @@ function renderPane(){
     /* пересчёт полосы прогресса без полной перерисовки — иначе теряется
        введённый в другие задачи текст */
     function updateProgress(){
-      const n=t.problems.filter((p,k)=>S.solved[t.id+'#'+k]).length;
+      const n=t.problems.filter(p=>S.solved[идЗадачи(t,p)]).length;
       const bar=pane.querySelector('.pp-bar i'), txt=pane.querySelector('.pp-txt');
       if(bar) bar.style.width=Math.round(100*n/t.problems.length)+'%';
       if(txt) txt.textContent=`решено ${n} из ${t.problems.length}`;
       for(const sid of order){
         const grp=t.problems.map((p,k)=>({p,k})).filter(x=>(x.p.sim||'')===sid);
-        const done=grp.filter(x=>S.solved[t.id+'#'+x.k]).length;
+        const done=grp.filter(x=>S.solved[идЗадачи(t,x.p)]).length;
         const hd=pane.querySelector(`.pr-grp[data-sim="${sid}"] span`);
         if(hd) hd.textContent=`${done}/${grp.length} · открыть ▷`;
       }
@@ -3611,7 +3611,11 @@ function prefRow(p){
 function renderPrefs(){
   const body=$('#prefs-body'); if(!body) return;
   const q=($('#prefs-search').value||'').trim().toLowerCase();
-  const cat=PREF_CATS.find(c=>c.id===prefCat);
+  /* Неизвестный раздел не должен ронять весь экран настроек: разделы
+     переименовывают и убирают, а имя раздела могли запомнить или передать
+     снаружи. Не нашли — показываем первый, а не падаем на cat.name. */
+  const cat=PREF_CATS.find(c=>c.id===prefCat)||PREF_CATS[0];
+  prefCat=cat.id;
   $('#prefs-title').textContent = q? 'Поиск по настройкам' : cat.name;
   if(q){
     // при поиске показываем совпадения из всех разделов сразу
@@ -3698,7 +3702,10 @@ function renderPrefs(){
           if(j.marks){ S.marks=j.marks; LS.set('marks',S.marks); }
           /* Прогресс СЛИВАЕМ, а не заменяем: если человек успел решить
              что-то и на этом устройстве, копия не должна это стереть. */
-          if(j.solved){ S.solved={...S.solved,...j.solved}; LS.set('solved',S.solved); }
+          /* Файл мог быть сделан прежней версией, где отметка хранилась по
+             порядковому номеру задачи. Переводим тем же кодом, что и при
+             запуске, иначе загруженный архив расставил бы галочки мимо. */
+          if(j.solved){ S.solved={...S.solved,...перевестиОтметки(j.solved)}; LS.set('solved',S.solved); }
           if(j.favs){ S.favs=[...new Set([...(S.favs||[]),...j.favs])]; LS.set('favs',S.favs); }
           if(j.tstyle){ S.tstyle={...S.tstyle,...j.tstyle}; LS.set('tstyle',S.tstyle); }
           if(j.recent){ S.recent=j.recent; LS.set('recent',S.recent); }
@@ -6047,5 +6054,5 @@ $$('#modal-plot').addEventListener('keydown',e=>{
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '1.6.1';
+window.PHYSIM_BUILD = '1.6.2';
 window.PHYSIM_READY = true;

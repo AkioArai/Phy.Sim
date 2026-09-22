@@ -148,62 +148,32 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **Fix: on the web the page could load and then do nothing.** The service
-          worker cached under one fixed name and refreshed files one at a time.
-          index.html weighs a few kilobytes and arrived first; app.js is half a
-          megabyte and often did not. Close the tab before everything caught up and
-          the next visit got a mixture — the markup of one release with the script of
-          another. Handlers are bound at the top level of the script, so one missing
-          element threw a TypeError on the first line and the whole application died
-          behind a fully painted page. That is what "only the picture loads" was.
-          This never affected the .apk, which ships one consistent set of files and no
-          service worker at all.
+          **Fix: ticking a problem as solved could mark a different problem.**
+          A tick was stored under the problem's position in its chapter — chapter id
+          plus index. The chapter is not frozen: problems get added, and one inserted
+          in the middle shifts every problem after it by one. The ticks stayed on the
+          old numbers, so they slid onto the neighbours, and a chapter you had worked
+          through showed solved problems you had never opened. Ticks are now keyed by
+          the problem itself — an FNV-1a hash of its statement — so the key follows the
+          problem instead of its place, and inserting anything moves nothing. Progress
+          saved by an earlier version is translated once on first launch, and a backup
+          file exported by an earlier version is translated the same way when it is
+          loaded back. A key that cannot be matched to a problem is kept, not dropped:
+          an extra tick is better than a lost one. A release check now also verifies
+          that no two problems share a key and that no key changed since the last
+          release.
 
-          Three changes. The cache name now carries the release, so a new version
-          wipes the old cache whole instead of replacing it file by file. The page
-          itself is fetched network-first — it decides which release everything else
-          in that visit belongs to — with the cache still behind it, so offline is
-          unchanged. And every top-level handler is bound through a null-tolerant
-          lookup: a missing button now costs a button, not the whole handbook.
+          **Fix: settings could open to a blank screen.** The settings window
+          remembered which section you were last in. A section name that no longer
+          exists — left over from a newer build, or simply wrong — was not found in the
+          list, and reading its title threw before anything was drawn. An unknown
+          section now falls back to the first one.
 
-          For anyone already stuck there is a watchdog in the page: if the script does
-          not report a complete load, or reports a different release than the markup,
-          the page clears the cache and the service worker and reloads itself once. If
-          that does not help it says so plainly instead of showing a dead screen.
-
-          **The x-axis of a compiled graph can be a parameter, not only time.**
-          37 of the 76 simulations are timeless — nothing about them depends on time,
-          they carry no graphs at all, and the compiler used to refuse them outright.
-          That is all of quantum mechanics, most of optics, nuclear physics and
-          electrostatics. The dependence is there, it is simply not on time. Put a
-          parameter on the x-axis and every point becomes a separate run of the model:
-          the range against the angle of throw, the field against the distance, the
-          efficiency against the cold-side temperature. Nothing is written per
-          simulation — the axes are built from the parameters and the readouts — so
-          73 of the 76 can be compiled now instead of 36. Checked against Coulomb's
-          law: outside a charged sphere `E·r²` holds constant to 2e-16 relative spread.
-
-          **The tools are fewer and the rest are properly adjustable.** Gone: the
-          protractor, the guide line, box-zoom, the coordinate probe and body trails.
-          The vector and the dimension line are now settings of the ruler, which also
-          measures in km, m, mm or nm to 0-3 decimals and can show the angle to the
-          horizontal. In their place, a selection tool: click a mark, rubber-band
-          several, drag them where they belong.
-
-          Colour opens a colour wheel, with the three most recent colours next to it.
-          Thickness is typed in pixels instead of picked from four presets; opacity is
-          a slider instead of three steps. What stays in the bar is what you change
-          while drawing; the rest moved into "⋯".
-
-          **Notes became cards** with a title, a body that folds away, a size you can
-          drag, deletion behind a confirmation, and "#" / "##" for larger lines. Cards
-          link to each other, and a linked card is read without leaving the one you are
-          on. They save themselves per simulation and export to a file.
-
-          Also fixed: the undo button only ever undid parameters, so on a phone a
-          drawing could not be undone at all; hiding the simulation while it was
-          fullscreen left a blank screen; and the introduction and the section recaps
-          kept the previous topic's simulation running beside the text.
+          **A release check that was checking nothing.** The test meant to catch NaN in
+          the readouts read a field that readouts do not have, so its condition was
+          never true and it had passed on every release since it was written. Rewritten
+          to assert what actually matters: a readout with no value must render as a dash
+          and never as the word NaN. All 76 simulations pass it.
 
           ### Must read
 

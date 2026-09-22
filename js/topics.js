@@ -9502,3 +9502,35 @@ for(const sec of SECTIONS){
   });
 }
 const ALL=SECTIONS.flatMap(s=>s.topics.map(t=>({...t,section:s.title,hard:!!s.hard})));
+
+/* ПЕРЕНОС ОТМЕТОК О РЕШЁННЫХ ЗАДАЧАХ. До 1.6.2 отметка хранилась по
+   порядковому номеру задачи в теме («mech.1d#3»). Номер зависел от порядка, и
+   вставка задачи в середину темы переставляла чужие галочки. Теперь имя
+   задачи выводится из условия (идЗадачи). Накопленное переводим: старый ключ
+   однозначно указывает на задачу — берём её нынешнее имя.
+
+   Перевод нужен в двух местах: при запуске (то, что лежит в браузере) и при
+   загрузке файла выгрузки, сделанного прежней версией. Поэтому он вынесен
+   отдельно, а не спрятан в обработчике запуска.
+
+   Живёт здесь, а не в app.js: ALL к этому моменту уже собран, а состояние
+   приложения ещё не прочитано из хранилища. */
+function перевестиОтметки(было){
+  const стало={};
+  for(const [k,v] of Object.entries(было||{})){
+    const m=/^(.+)#(\d+)$/.exec(k);
+    const t=m && ALL.find(x=>x.id===m[1]);
+    const pr=t && t.problems && t.problems[+m[2]];
+    стало[pr ? идЗадачи(t,pr) : k]=v;          // не опознали — оставляем как есть
+  }
+  return стало;
+}
+(function перенестиПриЗапуске(){
+  try{
+    if(localStorage.getItem('physim.solvedSchema')==='2') return;
+    const было=JSON.parse(localStorage.getItem('physim.solved')||'{}');
+    if(Object.keys(было).length)
+      localStorage.setItem('physim.solved',JSON.stringify(перевестиОтметки(было)));
+    localStorage.setItem('physim.solvedSchema','2');
+  }catch(_){}                                   // хранилище могли запретить
+})();
