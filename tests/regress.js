@@ -38,7 +38,26 @@ async function boot(b, url, ui) {
   return { p, errs };
 }
 
+/* ВЕРСИЯ В ЧЕТЫРЁХ МЕСТАХ. Имя кэша служебного потока несёт номер выпуска:
+   по его смене старый кэш сносится целиком. Пока имя было постоянным, файлы
+   обновлялись поодиночке, и открытие могло получить разметку одного выпуска
+   со скриптом другого — приложение умирало на первой же привязке обработчика
+   и показывало отрисованную страницу, где ничего не работает. Метки в
+   index.html и app.js сверяет сторож в самой странице. Разойтись им нельзя. */
+function проверитьВерсии() {
+  const v = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const взять = (файл, re) => (fs.readFileSync(path.join(ROOT, файл), 'utf8').match(re) || [])[1];
+  const где = {
+    'sw.js':       взять('sw.js', /const ВЕРСИЯ = '([^']*)'/),
+    'index.html':  взять('index.html', /<meta name="physim-build" content="([^"]*)">/),
+    'js/app.js':   взять('js/app.js', /window\.PHYSIM_BUILD = '([^']*)'/),
+  };
+  const плохие = Object.entries(где).filter(([, x]) => x !== v);
+  ok('версия одна во всех файлах', плохие.length === 0, { 'package.json': v, ...где });
+}
+
 (async () => {
+  проверитьВерсии();
   await new Promise(r => server.listen(8971, r));
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
@@ -48,6 +67,23 @@ async function boot(b, url, ui) {
     const { p, errs } = await boot(b, url, 'desk');
 
     ok('загрузка без ошибок', errs.length === 0, errs.slice(0, 3));
+
+    /* Скрипт обязан доложить, что дочитан до конца: на эту отметку смотрит
+       сторож в странице. Без неё он решит, что загрузка сорвалась. */
+    const метка = await p.evaluate(() => ({ готов: window.PHYSIM_READY === true,
+                                            сборка: window.PHYSIM_BUILD || null }));
+    ok('скрипт доложил о полной загрузке', метка.готов && !!метка.сборка, метка);
+
+    /* Пропавший элемент разметки стоит одной кнопки, а не всего пособия:
+       обработчики на верхнем уровне вешаются через терпимый к null поиск. */
+    const терпит = await p.evaluate(() => {
+      try { $$('#такого-элемента-нет').onclick = () => {};
+            $$('#такого-элемента-нет').addEventListener('click', () => {});
+            $$('#такого-элемента-нет').classList.toggle('x', true);
+            return 'ок'; }
+      catch (e) { return e.message; }
+    });
+    ok('нехватка элемента не роняет скрипт', терпит === 'ок', терпит);
 
     const counts = await p.evaluate(() => ({
       sims: Object.keys(SIMS).length,

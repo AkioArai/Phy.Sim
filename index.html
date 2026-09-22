@@ -21,9 +21,50 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
+<meta name="physim-build" content="1.6.1">
 <script>
   if (location.protocol === 'http:' || location.protocol === 'https:') {
     addEventListener('load', () => navigator.serviceWorker?.register('sw.js').catch(() => {}));
+
+    /* СТОРОЖ РАЗЪЕХАВШЕГОСЯ КЭША.
+       Служебный поток обновлял файлы поодиночке, и открытие могло получить
+       разметку от одного выпуска со скриптом от другого. Обработчики в
+       app.js вешаются на верхнем уровне: не хватило одного элемента — весь
+       скрипт умер на первой же строке, и пособие показывало отрисованную
+       страницу, где ничего не работает. Снаружи это выглядит как «грузится
+       только картинка».
+
+       Починить это задним числом нельзя ничем, кроме как из самой страницы:
+       у сломанного планшета уже лежит смесь в кэше. Поэтому здесь сторож —
+       если скрипт не доложил о себе или доложил чужой номер выпуска, сносим
+       кэш вместе со служебным потоком и перезагружаемся. Ровно один раз за
+       сеанс: бесконечная перезагрузка была бы хуже поломки. */
+    addEventListener('load', () => setTimeout(() => {
+      var метка = document.querySelector('meta[name=physim-build]');
+      var ждём = метка ? метка.content : null;
+      var цел = window.PHYSIM_READY === true && (!ждём || window.PHYSIM_BUILD === ждём);
+      if (цел) return;
+      try { if (sessionStorage.getItem('physim-чинили')) { показатьБеду(); return; }
+            sessionStorage.setItem('physim-чинили', '1'); } catch (e) {}
+      Promise.all([
+        caches.keys().then(k => Promise.all(k.map(n => caches.delete(n)))).catch(() => {}),
+        navigator.serviceWorker.getRegistrations()
+          .then(rs => Promise.all(rs.map(r => r.unregister()))).catch(() => {}),
+      ]).then(() => location.reload(true));
+    }, 4000));
+
+    /* Второй раз не помогло — значит дело не в кэше. Молчать тут нельзя:
+       пустая страница ничего не объясняет и выглядит поломкой намертво. */
+    function показатьБеду() {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:grid;place-items:center;' +
+        'background:#f7f8fa;color:#15181d;font:15px/1.6 system-ui,sans-serif;padding:24px;text-align:center';
+      d.innerHTML = '<div style="max-width:32em"><b style="font-size:17px">Пособие не загрузилось</b>' +
+        '<p>Похоже, в памяти браузера осталась половина прошлой версии. ' +
+        'Очистка не помогла — попробуйте открыть страницу заново или зайти ' +
+        'в режиме инкогнито. Если повторится, напишите об этом в Issues.</p></div>';
+      document.body.appendChild(d);
+    }
   }
 </script>
 

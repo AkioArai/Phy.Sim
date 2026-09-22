@@ -148,7 +148,30 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **The x-axis of a compiled graph can now be a parameter, not only time.**
+          **Fix: on the web the page could load and then do nothing.** The service
+          worker cached under one fixed name and refreshed files one at a time.
+          index.html weighs a few kilobytes and arrived first; app.js is half a
+          megabyte and often did not. Close the tab before everything caught up and
+          the next visit got a mixture — the markup of one release with the script of
+          another. Handlers are bound at the top level of the script, so one missing
+          element threw a TypeError on the first line and the whole application died
+          behind a fully painted page. That is what "only the picture loads" was.
+          This never affected the .apk, which ships one consistent set of files and no
+          service worker at all.
+
+          Three changes. The cache name now carries the release, so a new version
+          wipes the old cache whole instead of replacing it file by file. The page
+          itself is fetched network-first — it decides which release everything else
+          in that visit belongs to — with the cache still behind it, so offline is
+          unchanged. And every top-level handler is bound through a null-tolerant
+          lookup: a missing button now costs a button, not the whole handbook.
+
+          For anyone already stuck there is a watchdog in the page: if the script does
+          not report a complete load, or reports a different release than the markup,
+          the page clears the cache and the service worker and reloads itself once. If
+          that does not help it says so plainly instead of showing a dead screen.
+
+          **The x-axis of a compiled graph can be a parameter, not only time.**
           37 of the 76 simulations are timeless — nothing about them depends on time,
           they carry no graphs at all, and the compiler used to refuse them outright.
           That is all of quantum mechanics, most of optics, nuclear physics and
@@ -165,28 +188,22 @@ jobs:
           The vector and the dimension line are now settings of the ruler, which also
           measures in km, m, mm or nm to 0-3 decimals and can show the angle to the
           horizontal. In their place, a selection tool: click a mark, rubber-band
-          several, drag them where they belong. Until now a mark half a centimetre off
-          had to be erased and drawn again.
+          several, drag them where they belong.
 
           Colour opens a colour wheel, with the three most recent colours next to it.
           Thickness is typed in pixels instead of picked from four presets; opacity is
           a slider instead of three steps. What stays in the bar is what you change
-          while drawing — with everything in it the bar grew to 957 pixels against a
-          470-pixel scene, so the rest moved into "⋯".
+          while drawing; the rest moved into "⋯".
 
-          **Notes became cards.** A note used to be a point of text in world
-          coordinates: it drifted off when you panned the scene and a stray stroke of
-          the eraser deleted it. Now it has a title that stays visible, a body that
-          folds away, a size you can drag, deletion behind a confirmation, and "#" /
-          "##" for larger lines. Cards link to each other, and a linked card is read
-          without leaving the one you are on. They save themselves per simulation and
-          export to a file.
+          **Notes became cards** with a title, a body that folds away, a size you can
+          drag, deletion behind a confirmation, and "#" / "##" for larger lines. Cards
+          link to each other, and a linked card is read without leaving the one you are
+          on. They save themselves per simulation and export to a file.
 
-          Three fixes. The undo button only ever undid parameters, so on a phone —
-          where there is no Ctrl+Z — a drawing could not be undone at all. Hiding the
-          simulation while it was fullscreen left a blank screen. And the introduction
-          and the section recaps kept the previous topic's simulation running beside
-          the text.
+          Also fixed: the undo button only ever undid parameters, so on a phone a
+          drawing could not be undone at all; hiding the simulation while it was
+          fullscreen left a blank screen; and the introduction and the section recaps
+          kept the previous topic's simulation running beside the text.
 
           ### Must read
 

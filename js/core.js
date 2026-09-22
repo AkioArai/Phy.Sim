@@ -21,6 +21,16 @@
    TOPIC = { id, ch, title, theory, formulas:[{tex,note,sim?}], problems:[] }
    ============================================================================= */
 const $=s=>document.querySelector(s);
+/* Тот же поиск, но терпимый к отсутствию элемента. Нужен там, где обработчики
+   вешаются на верхнем уровне скрипта: если разметка и скрипт разъехались
+   (служебный поток мог отдать их из кэша от разных выпусков), то
+   `$('#кнопка').onclick=…` бросает TypeError НА ВЕРХНЕМ УРОВНЕ — и всё
+   приложение умирает целиком, показав одну отрисованную разметку. Пропавшая
+   кнопка должна стоить одной кнопки, а не всего пособия. */
+const ЗАГЛУШКА={classList:{add(){},remove(){},toggle(){},contains(){return false}},
+                addEventListener(){},removeEventListener(){},setAttribute(){},
+                focus(){},click(){},style:{},dataset:{}};
+const $$=s=>document.querySelector(s)||ЗАГЛУШКА;
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const DT=1/240, PX_PER_M=40;
 const EMPTY_DASH=[];                 // переиспользуем: setLineDash([]) на каждом кадре плодил мусор

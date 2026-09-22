@@ -2253,8 +2253,8 @@ function startPinch(){
    принимает движение мыши по панели за протягивание выделенного текста и
    тащит его как файл. CSS user-select это уже запрещает, но два обработчика
    нужны для случаев, когда выделение началось ВНЕ сцены и дотянулось до неё. */
-$('#cwrap').addEventListener('dragstart',e=>e.preventDefault());
-$('#cwrap').addEventListener('selectstart',e=>{
+$$('#cwrap').addEventListener('dragstart',e=>e.preventDefault());
+$$('#cwrap').addEventListener('selectstart',e=>{
   if(e.target.closest('input,textarea,[contenteditable]')) return;   // поля ввода не трогаем
   e.preventDefault();
 });
@@ -2268,7 +2268,7 @@ document.addEventListener('pointerdown',e=>{
   if(sel&&!sel.isCollapsed) sel.removeAllRanges();
 },true);
 
-$('#cwrap').addEventListener('pointerdown',e=>{
+$$('#cwrap').addEventListener('pointerdown',e=>{
   /* Внутри #cwrap лежат не только холсты, но и плавающие панели, полоса
      карандаша, флажок события. Раньше жест начинался от нажатия по любому
      из них, и вместе с жестом срабатывал setPointerCapture на #cwrap:
@@ -2531,7 +2531,7 @@ function erase(x,y){
   a.annos=a.annos.filter(an=>!попалВПометку(an,x,y,r));
   S.sel=[];
 }
-$('#cwrap').addEventListener('wheel',e=>{
+$$('#cwrap').addEventListener('wheel',e=>{
   const a=A(); if(!a) return;
   e.preventDefault();
   const r=scene.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
@@ -2580,11 +2580,11 @@ function setZoom(){
 const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZMIN,ZMAX); setZoom(); };
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,a.def.fit(a.params,{W:CW,H:CH})); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
-$('#btn-zin').onclick=()=>zoom(kzs());
-$('#btn-zout').onclick=()=>zoom(1/kzs());
-$('#zoomval').onchange=e=>{ const a=A(), v=parseFloat(String(e.target.value).replace(',','.')); if(a&&v) a.view.scale=clamp(v/100,ZMIN,ZMAX); setZoom(); };
-$('#zoomval').onkeydown=e=>e.stopPropagation();
-$('#btn-fit').onclick=fitView;
+$$('#btn-zin').onclick=()=>zoom(kzs());
+$$('#btn-zout').onclick=()=>zoom(1/kzs());
+$$('#zoomval').onchange=e=>{ const a=A(), v=parseFloat(String(e.target.value).replace(',','.')); if(a&&v) a.view.scale=clamp(v/100,ZMIN,ZMAX); setZoom(); };
+$$('#zoomval').onkeydown=e=>e.stopPropagation();
+$$('#btn-fit').onclick=fitView;
 
 /* ================================== UI ================================= */
 document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
@@ -3011,19 +3011,19 @@ function copyText(t){
     document.execCommand('copy'); ta.remove(); return true;
   }catch(_){ return false; }
 }
-$('#btn-snap').onclick=()=>{ S.snap=!S.snap; LS.set('snap',S.snap);
+$$('#btn-snap').onclick=()=>{ S.snap=!S.snap; LS.set('snap',S.snap);
   $('#btn-snap').classList.toggle('on',S.snap); toast('Привязка: '+(S.snap?'вкл':'выкл')); };
-$('#btn-snap').classList.toggle('on',S.snap);
-$('#btn-clear').onclick=()=>{ const a=A(); if(a){ annSnapshot(a); a.annos=[]; toast('Пометки стёрты (Ctrl+Z вернёт)'); } };
+$$('#btn-snap').classList.toggle('on',S.snap);
+$$('#btn-clear').onclick=()=>{ const a=A(); if(a){ annSnapshot(a); a.annos=[]; toast('Пометки стёрты (Ctrl+Z вернёт)'); } };
 /* Координаты под курсором: постоянная подсказка у указателя — как строка
    состояния в CAD. Работает с любым инструментом, ничего не рисует в сцену. */
-$('#btn-coords').onclick=()=>{
+$$('#btn-coords').onclick=()=>{
   S.coords=!S.coords; LS.set('coords',S.coords);
   $('#btn-coords').classList.toggle('on',S.coords);
   toast('Координаты под курсором: '+(S.coords?'вкл':'выкл'));
 };
-$('#btn-coords').classList.toggle('on',S.coords);
-$('#cwrap').addEventListener('pointermove',e=>{
+$$('#btn-coords').classList.toggle('on',S.coords);
+$$('#cwrap').addEventListener('pointermove',e=>{
   const r=scene.getBoundingClientRect();
   const px=e.clientX-r.left, py=e.clientY-r.top;
   const out=px<0||py<0||px>r.width||py>r.height;
@@ -3033,7 +3033,7 @@ $('#cwrap').addEventListener('pointermove',e=>{
   if(!S.coords||out){ S.mouse=null; return; }
   const [wx,wy]=toWorld(px,py); S.mouse={x:wx,y:wy};
 });
-$('#cwrap').addEventListener('pointerleave',()=>{ S.mouse=null; S.ptr=null; });
+$$('#cwrap').addEventListener('pointerleave',()=>{ S.mouse=null; S.ptr=null; });
 
 /* ===== Папки в панели инструментов =====
    Панель разрослась, поэтому кнопки собраны в сворачиваемые группы. */
@@ -3100,8 +3100,8 @@ function toggleSidebar(force){
   sb.classList.toggle('hidden',hide);
   $('#btn-rail').setAttribute('aria-pressed',String(!hide));
 }
-$('#btn-rail').onclick=()=>toggleSidebar();
-$('#side-close').onclick=()=>toggleSidebar(true);
+$$('#btn-rail').onclick=()=>toggleSidebar();
+$$('#side-close').onclick=()=>toggleSidebar(true);
 /* в полноэкранном режиме накладная панель тем закрывается сразу после выбора темы */
 function autoCloseRail(){
   if($('#app').classList.contains('simfull')){
@@ -3110,13 +3110,13 @@ function autoCloseRail(){
   }
 }
 const tabOn=s=>['#tab-topics','#tab-search','#tab-marks'].forEach(x=>$(x).classList.toggle('on',x===s));
-$('#tab-topics').onclick=()=>{ S.markMode=false; tabOn('#tab-topics'); $('#search').value=''; renderTree(); };
-$('#tab-search').onclick=()=>{ tabOn('#tab-search'); $('#sidebar').classList.remove('hidden'); $('#search').focus(); };
-$('#tab-marks').onclick=()=>{ S.markMode=true; tabOn('#tab-marks'); renderTree(); };
-$('#search').oninput=e=>{ S.markMode=false; renderTree(e.target.value); };
-$('#search').onkeydown=e=>e.stopPropagation();
+$$('#tab-topics').onclick=()=>{ S.markMode=false; tabOn('#tab-topics'); $('#search').value=''; renderTree(); };
+$$('#tab-search').onclick=()=>{ tabOn('#tab-search'); $('#sidebar').classList.remove('hidden'); $('#search').focus(); };
+$$('#tab-marks').onclick=()=>{ S.markMode=true; tabOn('#tab-marks'); renderTree(); };
+$$('#search').oninput=e=>{ S.markMode=false; renderTree(e.target.value); };
+$$('#search').onkeydown=e=>e.stopPropagation();
 
-$('#btn-simhide').onclick=()=>{
+$$('#btn-simhide').onclick=()=>{
   const p=$('#simpane'), was=p.classList.contains('hidden');
   /* Во весь экран конспекта нет, и спрятать поверх этого ещё и сцену значило
      остаться с пустым экраном: не видно ни текста, ни модели. «Скрыть
@@ -3137,7 +3137,7 @@ $('#btn-simhide').onclick=()=>{
   }
   if(was) requestAnimationFrame(resize); else resize();
 };
-$('#btn-simfull').onclick=()=>{
+$$('#btn-simfull').onclick=()=>{
   if(!S.active){ toast('Сначала откройте симуляцию из формулы'); return; }
   const on=$('#app').classList.toggle('simfull');
   $('#simpane').classList.remove('hidden'); $('#splitter').classList.remove('hidden');
@@ -3149,7 +3149,7 @@ $('#btn-simfull').onclick=()=>{
   if(on) toast('Список тем — кнопка ☰ слева вверху или клавиша B');
   requestAnimationFrame(resize);
 };
-$('#btn-play').onclick=()=>{
+$$('#btn-play').onclick=()=>{
   const a=A(); if(!a) return;
   if(!S.playing && a.state.event){                        // продолжаем прогон дальше, а не начинаем заново
     a.state.done=a.state.done||{};
@@ -3171,16 +3171,16 @@ function setPlayIcon(){
   }
 }
 function doReset(){ const a=A(); if(!a) return; restart(a); toast('Симуляция сброшена'); }
-$('#btn-reset').onclick=()=>{ if(!A()) return;
+$$('#btn-reset').onclick=()=>{ if(!A()) return;
   if(prefGet('confirmReset')) askConfirm('Сбросить симуляцию к начальному состоянию?',doReset);
   else doReset(); };
-$('#btn-undo').onclick=общаяОтмена; $('#btn-redo').onclick=redo;
-$('#btn-makeout').onclick=()=>{
+$$('#btn-undo').onclick=общаяОтмена; $('#btn-redo').onclick=redo;
+$$('#btn-makeout').onclick=()=>{
   const a=A(); if(!a||!a.def.makeOutput) return;
   a.def.makeOutput(a.params); a.state=a.def.init(a.params);
   toast('Вывод B создан в конце цепи');
 };
-$('#btn-graph').onclick=()=>{ S.graphOn=!S.graphOn; $('#gbox').classList.toggle('off',!S.graphOn);
+$$('#btn-graph').onclick=()=>{ S.graphOn=!S.graphOn; $('#gbox').classList.toggle('off',!S.graphOn);
   $('#btn-graph').setAttribute('aria-pressed',String(S.graphOn)); requestAnimationFrame(resize); };
 
 /* ---------------- Разделители панелей ----------------
@@ -3260,22 +3260,22 @@ function popup(btn,pop){
   };
 }
 popup($('#btn-simmenu'),$('#pop-simmenu'));
-$('#btn-settings').onclick=()=>openPrefs();
-$('#btn-cmdk').onclick=()=>cmdkOpen('');
-$('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(''); };
-$('#mi-teacher').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openTeacher(); };
-$('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
-$('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
+$$('#btn-settings').onclick=()=>openPrefs();
+$$('#btn-cmdk').onclick=()=>cmdkOpen('');
+$$('#mi-cmdk').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); cmdkOpen(''); };
+$$('#mi-teacher').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openTeacher(); };
+$$('#mi-snap').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); takeSnapshot(); };
+$$('#mi-copyout').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); copyReadouts(); };
 /* Заметки живут в памяти браузера и переживают перезагрузку сами. В файл их
    выгружают, чтобы перенести на другое устройство или раздать классу. */
-$('#mi-notes-save').onclick=async()=>{
+$$('#mi-notes-save').onclick=async()=>{
   $('#pop-simmenu').classList.add('hidden');
   const a=A(); if(!a||!заметки(a).length){ toast('В этой симуляции заметок нет'); return; }
   const данные={вид:'phy.sim/заметки',версия:1,симуляция:S.active,заметки:заметки(a)};
   await сохранитьФайл(`${S.active}-заметки.json`,
     new Blob([JSON.stringify(данные,null,1)],{type:'application/json'}));
 };
-$('#mi-notes-load').onclick=()=>{
+$$('#mi-notes-load').onclick=()=>{
   $('#pop-simmenu').classList.add('hidden');
   const a=A(); if(!a){ toast('Сначала откройте симуляцию'); return; }
   const вход=document.createElement('input');
@@ -3298,14 +3298,14 @@ $('#mi-notes-load').onclick=()=>{
   };
   вход.click();
 };
-$('#mi-fitv').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); if(A()) fitView(); };
-$('#mi-clear').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); $('#btn-clear').click(); };
-$('#mi-keys').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openPrefs('keys'); };
-$('#mi-prefs').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openPrefs(); };
+$$('#mi-fitv').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); if(A()) fitView(); };
+$$('#mi-clear').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); $('#btn-clear').click(); };
+$$('#mi-keys').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openPrefs('keys'); };
+$$('#mi-prefs').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); openPrefs(); };
 addEventListener('click',()=>document.querySelectorAll('.pop').forEach(p=>p.classList.add('hidden')));
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
 
-$('#mi-save').onclick=()=>{
+$$('#mi-save').onclick=()=>{
   const a=A(); if(!a){ toast('Симуляция не открыта'); return; }
   askText('Название набора параметров',a.def.title,name=>savePresetAs(a,name)); }
 function savePresetAs(a,name){
@@ -3313,13 +3313,13 @@ function savePresetAs(a,name){
   all[S.active].push({name,values:{...a.params}});
   LS.set('presets',all); renderPresets(); toast('Параметры сохранены');
 };
-$('#mi-reset').onclick=()=>{
+$$('#mi-reset').onclick=()=>{
   const a=A(); if(!a) return;
   a.params={}; for(const p of a.def.params) if(p.type!=='group') a.params[p.key]=p.default;
   restart(a); a.annos=[];
   renderParams(); buildGraphs(); fitView(); toast('Всё сброшено');
 };
-$('#mi-png').onclick=()=>{
+$$('#mi-png').onclick=()=>{
   if(!A()) return;
   const o=document.createElement('canvas'); o.width=scene.width; o.height=scene.height;
   const c=o.getContext('2d'); c.fillStyle=css('--canvas'); c.fillRect(0,0,o.width,o.height);
@@ -3329,7 +3329,7 @@ $('#mi-png').onclick=()=>{
   o.toBlob(b=>{ if(b) сохранитьФайл(S.active+'.png',b); else toast('Не вышло собрать снимок'); },'image/png');
 };
 const VQ={low:{b:2.5e6,fps:24,k:1},med:{b:8e6,fps:30,k:1},high:{b:16e6,fps:60,k:1},max:{b:40e6,fps:60,k:2}};
-$('#mi-rec').onclick=()=>{
+$$('#mi-rec').onclick=()=>{
   if(S.rec){ S.rec.stop(); return; }
   if(!A()){ toast('Симуляция не открыта'); return; }
   const q=VQ[S.settings.videoQ||'med'];
@@ -3772,9 +3772,9 @@ function openPrefs(cat){
   setTimeout(()=>$('#prefs-search').focus(),30);
 }
 function closePrefs(){ $('#prefs').classList.add('hidden'); resize(); }
-$('#prefs-close').onclick=closePrefs;
-$('#prefs-search').oninput=()=>renderPrefs();
-$('#prefs').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagation(); closePrefs(); } });
+$$('#prefs-close').onclick=closePrefs;
+$$('#prefs-search').oninput=()=>renderPrefs();
+$$('#prefs').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagation(); closePrefs(); } });
 
 /* ======================= ПОВЕДЕНИЕ НА УЗКИХ ЭКРАНАХ =======================
    Телефон: конспект занимает всю ширину, симуляция открывается поверх него
@@ -3818,7 +3818,7 @@ function closeSimMobile(){
   $('#app').classList.remove('simfull');
   resize();
 }
-$('#btn-simback').onclick=()=>{ closeSimMobile(); syncMbar(); };
+$$('#btn-simback').onclick=()=>{ closeSimMobile(); syncMbar(); };
 /* Открыть сцену поверх конспекта (кнопка «открыть симуляцию» в шапке). */
 function openSimMobile(){
   if(!S.active) return;
@@ -3957,9 +3957,9 @@ function mSheet(open){
   syncSheet();
   requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
 }
-$('#msheet-close').onclick=()=>mSheet(false);
-$('#m-settings').onclick=()=>openPrefs();
-$('#m-cmdk').onclick=()=>cmdkOpen('');
+$$('#msheet-close').onclick=()=>mSheet(false);
+$$('#m-settings').onclick=()=>openPrefs();
+$$('#m-cmdk').onclick=()=>cmdkOpen('');
 popup($('#m-menu'),$('#pop-simmenu'));      // та же логика попапа, что и у кнопки в топбаре
 
 /* Аппаратная кнопка «назад» в Android-упаковке (packaging/android).
@@ -4022,16 +4022,16 @@ function drawer(open){
   sb.classList.toggle('open', now);
   bg.classList.toggle('show', now);
 }
-$('#m-drawer').onclick=()=>drawer();
-$('#drawer-bg').onclick=()=>drawer(false);
-$('#d-settings').onclick=()=>{ drawer(false); openPrefs(); };
+$$('#m-drawer').onclick=()=>drawer();
+$$('#drawer-bg').onclick=()=>drawer(false);
+$$('#d-settings').onclick=()=>{ drawer(false); openPrefs(); };
 // выбрал тему — ящик закрывается сам, иначе он загораживает то, что открыл
-$('#tree').addEventListener('click',e=>{
+$$('#tree').addEventListener('click',e=>{
   if(isNarrow()&&e.target.closest('.topic-item')) drawer(false);
 });
-$('#m-more').onclick=null;
+$$('#m-more').onclick=null;
 popup($('#m-more'),$('#pop-simmenu'));
-$('#m-opensim').onclick=()=>{ const a=A(); if(a) openSimMobile(); else toast('Сначала выберите тему с симуляцией'); };
+$$('#m-opensim').onclick=()=>{ const a=A(); if(a) openSimMobile(); else toast('Сначала выберите тему с симуляцией'); };
 
 /* ================= ТЕЛЕФОН: НИЖНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ =================
    Основной ряд по макету и второй ряд «ещё» (зум, вписать, скорость).
@@ -4188,30 +4188,30 @@ function renderSheetReadouts(){
 })();
 for(const b of document.querySelectorAll('#msheet-tabs button'))
   b.onclick=()=>setSheetTab(b.dataset.sheet);
-$('#sc-play').onclick=()=>$('#btn-play').click();
-$('#sc-open').onclick=()=>setDetent('peek');
+$$('#sc-play').onclick=()=>$('#btn-play').click();
+$$('#sc-open').onclick=()=>setDetent('peek');
 
-$('#mb-play').onclick=()=>$('#btn-play').click();
-$('#mb-play2').onclick=()=>$('#btn-play').click();
-$('#mb-back').onclick=()=>$('#tl-prev').click();
-$('#mb-fwd').onclick=()=>$('#tl-next').click();
-$('#mb-params').onclick=()=>mSheet();
-$('#mb-more').onclick=()=>mbarRow(true);
-$('#mb-back2').onclick=()=>mbarRow(false);
-$('#mb-reset').onclick=()=>$('#btn-reset').click();
-$('#mb-zin').onclick=()=>$('#btn-zin').click();
-$('#mb-zout').onclick=()=>$('#btn-zout').click();
-$('#mb-fit').onclick=()=>{ if(!$('#simpane').classList.contains('hidden')) fitView(); else { openSimMobile(); requestAnimationFrame(fitView); } };
-$('#mb-slow').onclick=()=>stepSpeed(-1);
-$('#mb-fast').onclick=()=>stepSpeed(1);
+$$('#mb-play').onclick=()=>$('#btn-play').click();
+$$('#mb-play2').onclick=()=>$('#btn-play').click();
+$$('#mb-back').onclick=()=>$('#tl-prev').click();
+$$('#mb-fwd').onclick=()=>$('#tl-next').click();
+$$('#mb-params').onclick=()=>mSheet();
+$$('#mb-more').onclick=()=>mbarRow(true);
+$$('#mb-back2').onclick=()=>mbarRow(false);
+$$('#mb-reset').onclick=()=>$('#btn-reset').click();
+$$('#mb-zin').onclick=()=>$('#btn-zin').click();
+$$('#mb-zout').onclick=()=>$('#btn-zout').click();
+$$('#mb-fit').onclick=()=>{ if(!$('#simpane').classList.contains('hidden')) fitView(); else { openSimMobile(); requestAnimationFrame(fitView); } };
+$$('#mb-slow').onclick=()=>stepSpeed(-1);
+$$('#mb-fast').onclick=()=>stepSpeed(1);
 /* Остальное из нижней панели компьютера — чтобы с телефона было доступно
    ровно то же самое. Здесь зовём функции НАПРЯМУЮ, а не проксируем на кнопки
    нижней панели: на телефоне та панель display:none, и любая её особенность
    (попап, который позиционируется по невидимой кнопке) ломалась молча. */
-$('#mb-undo').onclick=общаяОтмена;
-$('#mb-redo').onclick=redo;
-$('#mb-settings').onclick=()=>openPrefs();
-$('#mb-menu').onclick=e=>{ const r=e.currentTarget.getBoundingClientRect();
+$$('#mb-undo').onclick=общаяОтмена;
+$$('#mb-redo').onclick=redo;
+$$('#mb-settings').onclick=()=>openPrefs();
+$$('#mb-menu').onclick=e=>{ const r=e.currentTarget.getBoundingClientRect();
   openSimMenu(r.left+r.width/2, r.top); };
 /* Поля скорости и масштаба редактируются пальцем так же, как мышью. */
 for(const [id,apply] of [['#mb-speed',v=>setSpeed(v||1)],
@@ -4321,7 +4321,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{
   if(S.settings.theme==='auto') applySettings();
 });
 
-$('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtoggle').textContent=$('#pvbox').classList.contains('collapsed')?'▸':'▾'; };
+$$('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtoggle').textContent=$('#pvbox').classList.contains('collapsed')?'▸':'▾'; };
 
 const KEYS=[['Ctrl + P','Командная палитра: темы, симуляции, команды'],
  ['Ctrl + Shift + P','Палитра: только команды'],
@@ -4340,9 +4340,9 @@ const KEYS=[['Ctrl + P','Командная палитра: темы, симул
  ['F','Симуляция во весь экран'],['H','Скрыть симуляцию'],['Tab','Скрыть панель тем'],['Ctrl + K','Поиск'],
  ['+ / −','Зум'],['[ / ]','Замедлить / ускорить время'],['0','Вписать вид'],['Колесо','Зум к курсору'],['Shift + drag','Панорама (кроме рисующих инструментов)'],['Средняя кнопка','Панорама всегда'],
  ['Два пальца','Зум и панорама на сенсоре'],['ПКМ','Меню симуляции']];
-$('#kb-list').innerHTML=KEYS.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('');
-$('#kb-close').onclick=()=>$('#modal-kb').classList.add('hidden');
-$('#modal-kb').onclick=e=>{ if(e.target.id==='modal-kb') $('#modal-kb').classList.add('hidden'); };
+$$('#kb-list').innerHTML=KEYS.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('');
+$$('#kb-close').onclick=()=>$('#modal-kb').classList.add('hidden');
+$$('#modal-kb').onclick=e=>{ if(e.target.id==='modal-kb') $('#modal-kb').classList.add('hidden'); };
 
 addEventListener('keydown',e=>{
   // пока открыт экран доступа — никакие горячие клавиши не работают
@@ -4476,7 +4476,7 @@ function openSimMenu(clientX,clientY){
   pop.style.top=clamp(clientY,8,innerHeight-h-8)+'px';
   pop.style.visibility='visible';
 }
-$('#simpane').addEventListener('contextmenu',e=>{
+$$('#simpane').addEventListener('contextmenu',e=>{
   e.preventDefault();
   // жест правой кнопкой ещё идёт — решим в pointerup, тащили её или нет
   if(drag&&drag.mode==='pan'&&drag.rmb){ pendingMenu={x:e.clientX,y:e.clientY}; return; }
@@ -4495,10 +4495,10 @@ function stepSpeed(dir){
   const j=clamp((i<0?4:i)+dir,0,SPEEDS.length-1);
   setSpeed(SPEEDS[j]); toast('Скорость времени: '+S.speed+'×');
 }
-$('#btn-sup').onclick=()=>stepSpeed(1);
-$('#btn-sdn').onclick=()=>stepSpeed(-1);
-$('#speedval').onchange=e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); setSpeed(v||1); };
-$('#speedval').onkeydown=e=>e.stopPropagation();
+$$('#btn-sup').onclick=()=>stepSpeed(1);
+$$('#btn-sdn').onclick=()=>stepSpeed(-1);
+$$('#speedval').onchange=e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); setSpeed(v||1); };
+$$('#speedval').onkeydown=e=>e.stopPropagation();
 setSpeed(+prefGet('defSpeed')||1);          // стартовая скорость времени — из настроек
 
 let tt;
@@ -6031,12 +6031,21 @@ function выполнитьКомпиляцию(){
     .finally(()=>{ кн.disabled=false; });
 }
 
-$('#mi-plot').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьКомпиляцию(); };
-$('#pl-cancel').onclick=()=>$('#modal-plot').classList.add('hidden');
-$('#pl-go').onclick=выполнитьКомпиляцию;
-$('#modal-plot').onclick=e=>{ if(e.target.id==='modal-plot') $('#modal-plot').classList.add('hidden'); };
-$('#modal-plot').addEventListener('keydown',e=>{
+$$('#mi-plot').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьКомпиляцию(); };
+$$('#pl-cancel').onclick=()=>$('#modal-plot').classList.add('hidden');
+$$('#pl-go').onclick=выполнитьКомпиляцию;
+$$('#modal-plot').onclick=e=>{ if(e.target.id==='modal-plot') $('#modal-plot').classList.add('hidden'); };
+$$('#modal-plot').addEventListener('keydown',e=>{
   if(e.key==='Enter' && !$('#pl-go').disabled){ e.preventDefault(); выполнитьКомпиляцию(); }
   if(e.key==='Escape'){ e.preventDefault(); $('#modal-plot').classList.add('hidden'); }
   e.stopPropagation();                      // горячие клавиши сцены тут не нужны
 });
+
+/* ===================== ОТМЕТКА ОБ УСПЕШНОЙ ЗАГРУЗКЕ =====================
+   Последняя строка файла. Если она выполнилась — скрипт дочитан до конца и
+   весь интерфейс подключён. Сторож в index.html смотрит на эту отметку:
+   когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
+   Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
+   случай, когда служебный поток отдал файлы от разных версий. */
+window.PHYSIM_BUILD = '1.6.1';
+window.PHYSIM_READY = true;
