@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="1.7.0">
+<meta name="physim-build" content="1.8.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -1921,6 +1921,75 @@ table.ref tr:last-child td{border-bottom:0}
 [data-touch="1"][data-ui="desktop"] .splitter{width:14px;flex:0 0 14px}
 [data-touch="1"][data-ui="desktop"] .hsplit{height:14px;flex:0 0 14px}
 [data-touch="1"] .p-undo,[data-touch="1"] .pset-reset{opacity:1}
+
+/* ================= ВЫЧИСЛИТЕЛЬ =================
+   Справа поверх сцены: конспект рядом остаётся читаемым, формулу из него
+   можно переписать глазами. На телефоне — во весь экран. */
+.calc{position:fixed;z-index:135;top:44px;right:0;bottom:0;width:400px;max-width:100vw;
+  display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);
+  box-shadow:-12px 0 32px -18px #0006;font-size:13.5px;color:var(--ink)}
+.calc.hidden{display:none}
+[data-ui="mobile"] .calc{top:0;left:0;width:auto;border-left:0;box-shadow:none;
+  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);font-size:15px}
+.calc-h{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 12px;
+  border-bottom:1px solid var(--line-soft);flex:0 0 auto}
+.calc-tabs{display:flex;gap:4px}
+.calc-tabs button{font:inherit;font-size:13px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);
+  background:none;color:var(--ink-2);cursor:pointer}
+.calc-tabs button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.calc-x{font-size:20px}
+.calc-page{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 14px 20px}
+.calc-page.hidden,.calc-fpick.hidden,.calc-fsel.hidden,.calc-l.hidden{display:none}
+.calc-in{width:100%;font:inherit;font-family:var(--mono);font-size:15px;padding:9px 11px;
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2);color:var(--ink);user-select:text;-webkit-user-select:text}
+.calc-in:focus{outline:none;border-color:var(--accent)}
+.calc-out{min-height:48px;margin:10px 0 6px}
+.calc-res{font-family:var(--mono);font-size:20px;font-weight:600;line-height:1.35;color:var(--ink);user-select:text;-webkit-user-select:text}
+.calc-alt{font-family:var(--mono);font-size:13px;color:var(--ink-2);margin-top:2px}
+.calc-note{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin-top:6px}
+.calc-note.warn{color:var(--measure)}
+.calc-err{color:var(--danger);line-height:1.5}
+.calc-where{font-family:var(--mono);font-size:13px;margin-top:4px;color:var(--ink-2);word-break:break-all}
+.calc-where mark{background:var(--danger);color:var(--panel);border-radius:2px;padding:0 1px}
+.calc-verdict{padding:8px 10px;border-radius:var(--radius);line-height:1.5}
+.calc-verdict.ok{border:1px solid var(--ok);color:var(--ok)}
+.calc-verdict.bad{border:1px solid var(--danger);color:var(--danger)}
+.calc-l{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 6px}
+.calc-ex{display:flex;flex-wrap:wrap;gap:5px}
+.calc-chip,.calc-hrow{font:inherit;font-family:var(--mono);font-size:12px;padding:5px 9px;border-radius:14px;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);cursor:pointer;text-align:left}
+.calc-chip:hover,.calc-hrow:hover{border-color:var(--accent);color:var(--accent)}
+.calc-hist{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.calc-help{margin-top:16px;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.calc-help summary{cursor:pointer;color:var(--accent)}
+.calc-help p{margin:6px 0}
+.calc-flist{margin-top:6px}
+.calc-frow{display:block;width:100%;text-align:left;font:inherit;padding:6px 9px;margin:3px 0;
+  border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:none;color:var(--ink);cursor:pointer;overflow-x:auto}
+.calc-frow:hover{border-color:var(--accent);background:var(--accent-soft)}
+.calc-fw{display:block;font-size:11px;color:var(--ink-3);margin-bottom:1px}
+.calc-back{font-size:12px;padding:5px 10px}
+.calc-ftop{margin:8px 0 2px}
+.calc-ftex{overflow-x:auto;overflow-y:hidden}
+.calc-fwho{font-size:12px;color:var(--ink-3)}
+.calc-unk{display:flex;flex-wrap:wrap;gap:5px}
+.calc-v{font:inherit;padding:4px 10px;border-radius:14px;border:1px solid var(--line);background:none;color:var(--ink);cursor:pointer;min-height:32px}
+.calc-v.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.calc-row{display:grid;grid-template-columns:minmax(52px,auto) 1fr;gap:2px 10px;align-items:center;margin:6px 0}
+.calc-var{text-align:right}
+.calc-val{font:inherit;font-family:var(--mono);font-size:14px;padding:7px 9px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:var(--panel-2);color:var(--ink);min-width:0;user-select:text;-webkit-user-select:text}
+.calc-val:focus{outline:none;border-color:var(--accent)}
+.calc-val.bad{border-color:var(--danger)}
+.calc-hint{grid-column:2;font-size:11.5px;color:var(--ink-3)}
+.calc-fres{margin-top:14px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.calc-fres .calc-res{font-size:18px}
+/* кнопка «решить» у формулы в конспекте */
+.formula{position:relative}
+.f-solve{position:absolute;right:8px;bottom:6px;font:inherit;font-size:11px;padding:2px 8px;border-radius:12px;
+  border:1px solid var(--line);background:var(--panel);color:var(--ink-3);cursor:pointer;opacity:.75}
+.f-solve:hover{opacity:1;border-color:var(--accent);color:var(--accent)}
+[data-touch="1"] .f-solve{opacity:1;padding:5px 10px;font-size:12px}
 </style>
 </head>
 <body>
@@ -1933,6 +2002,7 @@ table.ref tr:last-child td{border-bottom:0}
     <button class="iconbtn" id="tab-search" title="Поиск (Ctrl+K)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
     <button class="iconbtn" id="btn-cmdk" title="Командная палитра (Ctrl+P)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg></button>
     <button class="iconbtn" id="tab-marks" title="Закладки"><svg viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4z"/></svg></button>
+    <button class="iconbtn" id="btn-calc" title="Вычислитель: единицы, погрешность, формулы (Ctrl+E)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18h.01M12 18h3.5"/></svg></button>
     <div class="spacer"></div>
     <div class="crumb" id="crumb">Phy.Sim</div>
     <div class="spacer"></div>
@@ -1949,6 +2019,7 @@ table.ref tr:last-child td{border-bottom:0}
     <button class="iconbtn" id="m-drawer" title="Темы, поиск и настройки">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
     <div class="spacer"></div>
+    <button class="iconbtn" id="m-calc" title="Вычислитель"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18h.01M12 18h3.5"/></svg></button>
     <button class="iconbtn" id="m-opensim" title="Открыть симуляцию">
       <svg viewBox="0 0 24 24"><path d="M12 21c0-5 2-8 7-9-5-1-7-4-7-8-0 4-2 7-7 8 5 1 7 4 7 9z"/></svg></button>
     <button class="iconbtn" id="m-more" title="Меню симуляции">
@@ -2298,6 +2369,7 @@ table.ref tr:last-child td{border-bottom:0}
       <div class="ttl">Сохранённые параметры</div><div id="presets"></div>
     </div>
     <div class="mt-page hidden" data-page="more">
+      <button class="item" id="mi-calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01"/></svg>Вычислитель</button>
       <button class="item" id="mi-cmdk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg>Командная палитра</button>
       <button class="item" id="mi-teacher"><svg viewBox="0 0 24 24"><path d="M4 5h12a2 2 0 0 1 2 2v13H6a2 2 0 0 1-2-2z"/><path d="M8 9h6M8 13h6"/></svg>Собрать контрольную</button>
       <button class="item" id="mi-keys"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>Горячие клавиши</button>
@@ -27481,6 +27553,1200 @@ const ПРИЁМЫ={
 };
 
 ;
+/* =============================================================================
+   ВЫЧИСЛИТЕЛЬ — счёт с единицами и погрешностью, проверка размерности и
+   решение формул курса относительно любой величины.
+
+   Телефонный калькулятор для физики не годится: он не знает единиц, и
+   самая частая ошибка самоучки — ответ не в тех единицах или вовсе не той
+   размерности — остаётся незамеченной до слова «неверно». Здесь каждое
+   число несёт размерность, сложить метры с секундами нельзя, а ответ
+   приходит в своих единицах.
+
+   Файл не трогает DOM: его целиком проверяет tests/calc.mjs в Node.
+
+   ЕДИНИЦЫ пишутся по-русски, как во всём курсе: 72 км/ч, 9,8 м/с², 5 мкФ.
+   ЛАТИНСКИЕ буквы — постоянные: g, c, G, h, ħ, e, k, kB, NA, R, ε0, μ0, me.
+   Кириллическая «с» — секунда, латинская «c» — скорость света; в разборе
+   «как понято» это видно сразу.
+
+   ПОГРЕШНОСТЬ. Каждое «±» заводит независимый источник. Величина несёт
+   производные по всем источникам (прямой автоматический дифференциатор),
+   поэтому корреляции учитываются сами: (x ± 1) − x даёт ровно 0 ± 0, а не
+   ± 1,4, как вышло бы у сложения погрешностей «в квадратуре» по формулам.
+   Итог — σ = √Σ(∂f/∂xᵢ·σᵢ)², линейное приближение: оно честно, пока
+   погрешности малы по сравнению с самими величинами.
+
+   РАЗМЕРНОСТЬ — вектор степеней шести основных единиц СИ
+   [м, кг, с, А, К, моль]. Угол безразмерен: радиан — это отношение длин.
+   ============================================================================= */
+const ВЫЧ = (function () {
+  'use strict';
+
+  /* ---------------- размерности ---------------- */
+  const ОСНОВА = ['м', 'кг', 'с', 'А', 'К', 'моль'];
+  const Р = (m, kg, s, A, K, mol) => [m || 0, kg || 0, s || 0, A || 0, K || 0, mol || 0];
+  const ноль = () => [0, 0, 0, 0, 0, 0];
+  const dСлож = (a, b) => a.map((x, i) => x + b[i]);
+  const dВыч = (a, b) => a.map((x, i) => x - b[i]);
+  const dУмн = (a, k) => a.map(x => x * k);
+  const dРавны = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-9);
+  const dБезр = a => a.every(x => Math.abs(x) < 1e-9);
+
+  /* ---------------- единицы ----------------
+     [множитель к СИ, размерность, можно ли с приставкой] */
+  const ПИ = Math.PI;
+  const ЕД = {
+    'м': [1, Р(1), 1], 'г': [1e-3, Р(0, 1), 1], 'кг': [1, Р(0, 1), 0], 'т': [1000, Р(0, 1), 0],
+    'с': [1, Р(0, 0, 1), 1], 'мин': [60, Р(0, 0, 1), 0], 'ч': [3600, Р(0, 0, 1), 0],
+    'сут': [86400, Р(0, 0, 1), 0], 'год': [31557600, Р(0, 0, 1), 0],
+    'А': [1, Р(0, 0, 0, 1), 1], 'К': [1, Р(0, 0, 0, 0, 1), 1], 'моль': [1, Р(0, 0, 0, 0, 0, 1), 1],
+    'Н': [1, Р(1, 1, -2), 1], 'Дж': [1, Р(2, 1, -2), 1], 'Вт': [1, Р(2, 1, -3), 1],
+    'Па': [1, Р(-1, 1, -2), 1], 'Кл': [1, Р(0, 0, 1, 1), 1], 'В': [1, Р(2, 1, -3, -1), 1],
+    'Ом': [1, Р(2, 1, -3, -2), 1], 'Ф': [1, Р(-2, -1, 4, 2), 1], 'Тл': [1, Р(0, 1, -2, -1), 1],
+    'Гн': [1, Р(2, 1, -2, -2), 1], 'Вб': [1, Р(2, 1, -2, -1), 1], 'Гц': [1, Р(0, 0, -1), 1],
+    'эВ': [1.602176634e-19, Р(2, 1, -2), 1], 'л': [1e-3, Р(3), 1],
+    'атм': [101325, Р(-1, 1, -2), 0], 'бар': [1e5, Р(-1, 1, -2), 0],
+    'а.е.м.': [1.66053906660e-27, Р(0, 1), 0], 'а.е.': [1.495978707e11, Р(1), 0],
+    'Å': [1e-10, Р(1), 0], 'рад': [1, ноль(), 1], '°': [ПИ / 180, ноль(), 0],
+    'об': [2 * ПИ, ноль(), 0], '%': [0.01, ноль(), 0], 'раз': [1, ноль(), 0],
+  };
+  const ПРИСТАВКИ = [['мк', 1e-6], ['Т', 1e12], ['Г', 1e9], ['М', 1e6], ['к', 1e3],
+    ['д', 1e-1], ['с', 1e-2], ['м', 1e-3], ['н', 1e-9], ['п', 1e-12], ['ф', 1e-15]];
+
+  function единицыСтрокой(t) {
+    try { const d = разобрать(t); let только = true;
+      обойтиДерево(d, n => { if (n.k !== 'unit' && n.k !== '/' && n.k !== '*' && n.k !== 'jux' && n.k !== '^' && n.k !== 'num') только = false;
+        if (n.k === 'unit' && !единица(n.w)) только = false; });
+      return только; } catch (e) { return false; }
+  }
+  function обойтиДерево(n, f) { if (!n) return; f(n); if (n.a) обойтиДерево(n.a, f); if (n.b) обойтиДерево(n.b, f); if (n.items) n.items.forEach(x => обойтиДерево(x, f)); }
+  function единица(слово) {
+    if (ЕД[слово]) return { f: ЕД[слово][0], d: ЕД[слово][1] };
+    for (const [п, k] of ПРИСТАВКИ) {
+      if (слово.length > п.length && слово.indexOf(п) === 0) {
+        const о = ЕД[слово.slice(п.length)];
+        if (о && о[2]) return { f: k * о[0], d: о[1] };
+      }
+    }
+    return null;
+  }
+
+  /* ---------------- постоянные (латиница и греческие) ----------------
+     Значения CODATA 2018; g — 9,8, как в задачах курса. */
+  const ПОСТ = {};
+  const пост = (имена, v, d, что) => имена.forEach(n => { ПОСТ[n] = { v, d, что }; });
+  пост(['g'], 9.8, Р(1, 0, -2), 'ускорение свободного падения');
+  пост(['G'], 6.67430e-11, Р(3, -1, -2), 'гравитационная постоянная');
+  пост(['c'], 299792458, Р(1, 0, -1), 'скорость света');
+  пост(['h'], 6.62607015e-34, Р(2, 1, -1), 'постоянная Планка');
+  пост(['hbar', 'ħ'], 1.054571817e-34, Р(2, 1, -1), 'приведённая постоянная Планка');
+  пост(['e'], 1.602176634e-19, Р(0, 0, 1, 1), 'элементарный заряд');
+  пост(['me', 'm_e'], 9.1093837015e-31, Р(0, 1), 'масса электрона');
+  пост(['mp', 'm_p'], 1.67262192369e-27, Р(0, 1), 'масса протона');
+  пост(['kB', 'k_B', 'kБ'], 1.380649e-23, Р(2, 1, -2, 0, -1), 'постоянная Больцмана');
+  пост(['NA', 'N_A'], 6.02214076e23, Р(0, 0, 0, 0, 0, -1), 'постоянная Авогадро');
+  пост(['R'], 8.314462618, Р(2, 1, -2, 0, -1, -1), 'газовая постоянная');
+  пост(['eps0', 'ε0', 'ε_0'], 8.8541878128e-12, Р(-3, -1, 4, 2), 'электрическая постоянная');
+  пост(['mu0', 'μ0', 'μ_0'], 1.25663706212e-6, Р(1, 1, -2, -2), 'магнитная постоянная');
+  пост(['k'], 8.9875517923e9, Р(3, 1, -4, -2), 'постоянная Кулона');
+  пост(['a0', 'a_0'], 5.29177210903e-11, Р(1), 'боровский радиус');
+  пост(['pi', 'π'], ПИ, ноль(), 'число π');
+
+  const ФУНКЦИИ = {
+    sin: 'sin', cos: 'cos', tg: 'tan', tan: 'tan', ctg: 'cot', cot: 'cot',
+    arcsin: 'asin', asin: 'asin', arccos: 'acos', acos: 'acos', arctg: 'atan', atan: 'atan',
+    sqrt: 'sqrt', ln: 'ln', lg: 'lg', exp: 'exp', abs: 'abs',
+  };
+
+  /* ---------------- ошибки ---------------- */
+  function Ошибка(текст, поз) { const e = new Error(текст); e.поз = поз; e.вычислитель = true; return e; }
+
+  /* ---------------- разбор строки ---------------- */
+  const ВЕРХ = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-', '⁺': '+' };
+  const КИР = /[А-Яа-яЁё]/;
+  const ЛАТ = /[A-Za-zαβγδεζηθικλμνξπρστυφχψωΓΔΘΛΞΠΣΦΨΩħ]/;
+
+  function лексемы(строка) {
+    const s = String(строка).replace(/[−–]/g, '-').replace(/ | | /g, ' ');
+    const out = [];
+    let i = 0;
+    while (i < s.length) {
+      const ch = s[i];
+      if (ch === ' ' || ch === '\t') { i++; continue; }
+      // число: 2,5 · 2.5 · 1e-3 · 101 325
+      const числ = /^(\d{1,3}(?: \d{3})+(?![\d.,])|\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][+-]?\d+)?/.exec(s.slice(i));
+      if (числ && /[\d.,]/.test(ch)) {
+        const текст = числ[0];
+        // «,» как разделитель дробной части — только между цифрами
+        out.push({ t: 'num', v: parseFloat(текст.replace(/ /g, '').replace(',', '.')), поз: i });
+        i += текст.length; continue;
+      }
+      if (ch === '½') { out.push({ t: 'num', v: 0.5, поз: i }); i++; continue; }
+      if (ВЕРХ[ch] !== undefined) {
+        let j = i, t = '';
+        while (j < s.length && ВЕРХ[s[j]] !== undefined) { t += ВЕРХ[s[j]]; j++; }
+        if (!/^[+-]?\d+$/.test(t)) throw Ошибка('непонятная степень «' + s.slice(i, j) + '»', i);
+        out.push({ t: 'sup', v: parseInt(t, 10), поз: i }); i = j; continue;
+      }
+      if (s.slice(i, i + 6) === 'а.е.м.') { out.push({ t: 'word', w: 'а.е.м.', поз: i }); i += 6; continue; }
+      if (s.slice(i, i + 4) === 'а.е.') { out.push({ t: 'word', w: 'а.е.', поз: i }); i += 4; continue; }
+      if (ch === '°' || ch === '%' || ch === 'Å') { out.push({ t: 'word', w: ch, поз: i }); i++; continue; }
+      if (КИР.test(ch)) {
+        let j = i; while (j < s.length && КИР.test(s[j])) j++;
+        const w = s.slice(i, j);
+        if (/\d/.test(s[j] || '') && w !== 'в')
+          throw Ошибка('после единицы сразу цифра: степень пишется так — ' + w + '² или ' + w + '^2', j);
+        out.push(w === 'в' ? { t: 'conv', поз: i } : { t: 'word', w, поз: i });
+        i = j; continue;
+      }
+      if (ЛАТ.test(ch)) {
+        let j = i; while (j < s.length && (ЛАТ.test(s[j]) || /[\d_]/.test(s[j]) || (s[j] === 'Б' && j > i))) j++;
+        out.push({ t: 'id', w: s.slice(i, j), поз: i }); i = j; continue;
+      }
+      if (s.slice(i, i + 2) === '->') { out.push({ t: 'conv', поз: i }); i += 2; continue; }
+      if (s.slice(i, i + 2) === '**') { out.push({ t: 'op', v: '^', поз: i }); i += 2; continue; }
+      const знак = { '+': '+', '-': '-', '*': '*', '·': '*', '×': '*', '⋅': '*', '/': '/', '÷': '/', '^': '^',
+        '(': '(', ')': ')', '[': '(', ']': ')', '±': '±', '=': '=', '√': '√', '→': '→' }[ch];
+      if (знак === '→') { out.push({ t: 'conv', поз: i }); i++; continue; }
+      if (знак) { out.push({ t: 'op', v: знак, поз: i }); i++; continue; }
+      throw Ошибка('непонятный знак «' + ch + '»', i);
+    }
+    return out;
+  }
+
+  /* Дерево: {k:'num',v} {k:'unit',w} {k:'id',w} {k:'var',имя} {k:'neg',a}
+     {k:'+'|'-'|'*'|'/',a,b} {k:'jux',items} {k:'^',a,b} {k:'fn',f,a}
+     {k:'pm',a,b,отн} {k:'eq',a,b} {k:'conv',a,to} */
+  function разобрать(строка) {
+    try { return разобратьБез(строка); }
+    catch (e) { e.разбор = true; throw e; }       // у ошибок записи есть место — его покажем
+  }
+  function разобратьБез(строка) {
+    const т = лексемы(строка);
+    let i = 0;
+    const смотр = () => т[i];
+    const это = (t, v) => т[i] && т[i].t === t && (v === undefined || т[i].v === v);
+    const ждать = (t, v, что) => { if (!это(t, v)) throw Ошибка('ожидалось ' + что, т[i] ? т[i].поз : String(строка).length); return т[i++]; };
+
+    function вход() {
+      if (!т.length) throw Ошибка('пустое выражение', 0);
+      let a = сравнение();
+      if (это('conv')) {
+        const t0 = т[i++];
+        const to = сумма();
+        const от = t0.поз + (String(строка).slice(t0.поз, t0.поз + 2) === '->' ? 2 : 1);
+        a = { k: 'conv', a, to, текст: String(строка).slice(от).trim() };
+      }
+      if (i < т.length) throw Ошибка('лишнее в конце: «' + String(строка).slice(т[i].поз) + '»', т[i].поз);
+      return a;
+    }
+    function сравнение() {
+      const a = сумма();
+      if (это('op', '=')) { i++; return { k: 'eq', a, b: сумма() }; }
+      return a;
+    }
+    function сумма() {
+      let a = произв();
+      while (это('op', '+') || это('op', '-')) { const o = т[i++].v; a = { k: o, a, b: произв() }; }
+      return a;
+    }
+    function произв() {
+      let a = унарный();
+      while (это('op', '*') || это('op', '/')) { const o = т[i++].v; a = { k: o, a, b: унарный() }; }
+      return a;
+    }
+    function унарный() {
+      if (это('op', '-')) { i++; return { k: 'neg', a: унарный() }; }
+      if (это('op', '+')) { i++; return унарный(); }
+      return погр();
+    }
+    function погр() {
+      const a = сопост();
+      if (!это('op', '±')) return a;
+      i++;
+      const b = сопост();
+      if (b.k === 'jux' && b.items.length === 2 && b.items[1].k === 'unit' && b.items[1].w === '%')
+        return { k: 'pm', a, b: b.items[0], отн: true };
+      if (b.k === 'unit' && b.w === '%') throw Ошибка('после ± нужно число: 2 %', т[i - 1].поз);
+      /* «2,5 ± 0,1 м» — физик имеет в виду (2,5 ± 0,1) м: единица стоит
+         после погрешности, но относится к обоим числам. */
+      if (голоеЧисло(a) && b.k === 'jux' && голоеЧисло(b.items[0]) && b.items.length > 1)
+        return { k: 'jux', items: [{ k: 'pm', a, b: b.items[0] }].concat(b.items.slice(1)) };
+      return { k: 'pm', a, b };
+    }
+    function голоеЧисло(n) { return n.k === 'num' || (n.k === 'neg' && n.a.k === 'num'); }
+    function начинаетАтом() {
+      const x = смотр(); if (!x) return false;
+      return x.t === 'num' || x.t === 'word' || x.t === 'id' || (x.t === 'op' && (x.v === '(' || x.v === '√'));
+    }
+    function сопост() {
+      const items = [степень()];
+      while (начинаетАтом()) items.push(степень());
+      return items.length === 1 ? items[0] : { k: 'jux', items };
+    }
+    function степень() {
+      let a = атом();
+      for (;;) {
+        if (это('sup')) { a = { k: '^', a, b: { k: 'num', v: т[i++].v } }; continue; }
+        if (это('op', '^')) {
+          i++;
+          let минус = false;
+          if (это('op', '-')) { минус = true; i++; } else if (это('op', '+')) i++;
+          let b = атом();
+          if (минус) b = { k: 'neg', a: b };
+          a = { k: '^', a, b }; continue;
+        }
+        return a;
+      }
+    }
+    function атом() {
+      const x = смотр();
+      if (!x) throw Ошибка('выражение оборвалось', String(строка).length);
+      if (x.t === 'num') { i++; return { k: 'num', v: x.v }; }
+      if (x.t === 'word') { i++; return { k: 'unit', w: x.w, поз: x.поз }; }
+      if (x.t === 'op' && x.v === '(') { i++; const a = сумма(); ждать('op', ')', 'закрывающая скобка'); return a; }
+      if (x.t === 'op' && x.v === '√') { i++; return { k: 'fn', f: 'sqrt', a: степень() }; }
+      if (x.t === 'id') {
+        i++;
+        if (ФУНКЦИИ[x.w]) {
+          // sin(30°) или sin 30°
+          if (это('op', '(')) { i++; const a = сумма(); ждать('op', ')', 'закрывающая скобка'); return { k: 'fn', f: ФУНКЦИИ[x.w], a, поз: x.поз }; }
+          return { k: 'fn', f: ФУНКЦИИ[x.w], a: степень(), поз: x.поз };
+        }
+        if (x.w === 'log') throw Ошибка('«log» неоднозначен: напишите ln (натуральный) или lg (десятичный)', x.поз);
+        return { k: 'id', w: x.w, поз: x.поз };
+      }
+      if (x.t === 'conv') throw Ошибка('«в» — перевод в единицы, он пишется в конце: 72 км/ч в м/с', x.поз);
+      throw Ошибка('здесь ожидалось число, единица или скобка', x.поз);
+    }
+    return вход();
+  }
+
+  /* ---------------- величина с погрешностью ----------------
+     {v, d, g:{источник: производная}} */
+  function Q(v, d, g) { return { v, d: d || ноль(), g: g || {} }; }
+  function gСлож(a, ka, b, kb) {
+    const g = {};
+    for (const k in a) g[k] = (g[k] || 0) + ka * a[k];
+    for (const k in b) g[k] = (g[k] || 0) + kb * b[k];
+    return g;
+  }
+  function gУмн(a, k) { const g = {}; for (const x in a) g[x] = a[x] * k; return g; }
+  function сигма(q, σ) { let s = 0; for (const k in q.g) s += Math.pow(q.g[k] * (σ[k] || 0), 2); return Math.sqrt(s); }
+
+  function размерностьТекст(d) {
+    if (dБезр(d)) return 'безразмерная';
+    const имя = подобратьЕдиницу(d);
+    return имя.текст;
+  }
+
+  /* Окружение вычисления: источники погрешности, заметки, переменные. */
+  function окружение(переменные) {
+    return { σ: {}, n: 0, заметки: [], пер: переменные || {}, понято: [] };
+  }
+
+  function вычислитьУзел(n, env) {
+    switch (n.k) {
+      case 'num': return Q(n.v);
+      case 'unit': {
+        const е = единица(n.w);
+        if (!е) {
+          const подсказка = /^[еЕ]$/.test(n.w) ? ' — заряд электрона пишется латинской e'
+            : /^[сС]$/.test(n.w) ? '' : '';
+          throw Ошибка('неизвестная единица «' + n.w + '»' + подсказка, n.поз);
+        }
+        return Q(е.f, е.d);
+      }
+      case 'id': {
+        if (env.пер[n.w]) return env.пер[n.w];
+        const п = ПОСТ[n.w];
+        if (!п) {
+          const кир = /^[a-z]+$/.test(n.w) && единица(n.w.replace(/m/g, 'м').replace(/s/g, 'с'));
+          throw Ошибка('неизвестное обозначение «' + n.w + '»' +
+            (кир ? ' — единицы пишутся по-русски: м, с, кг' : ''), n.поз);
+        }
+        if (env.понято.indexOf(n.w) < 0) env.понято.push(n.w);
+        return Q(п.v, п.d);
+      }
+      case 'units': return вычислитьУзел(разобрать(n.w), env);
+      case 'const': throw Ошибка('у «const» нет значения', 0);
+      case 'var': {
+        const q = env.пер[n.имя];
+        if (!q) throw Ошибка('не задано значение ' + n.имя, 0);
+        return q;
+      }
+      case 'neg': { const a = вычислитьУзел(n.a, env); return Q(-a.v, a.d, gУмн(a.g, -1)); }
+      case '+': case '-': {
+        const a = вычислитьУзел(n.a, env), b = вычислитьУзел(n.b, env);
+        if (!dРавны(a.d, b.d))
+          throw Ошибка('складывать можно только одинаковое: ' + размерностьТекст(a.d) +
+            (n.k === '+' ? ' + ' : ' − ') + размерностьТекст(b.d), 0);
+        const k = n.k === '+' ? 1 : -1;
+        return Q(a.v + k * b.v, a.d, gСлож(a.g, 1, b.g, k));
+      }
+      case '*': return умн(вычислитьУзел(n.a, env), вычислитьУзел(n.b, env));
+      case 'jux': return n.items.map(x => вычислитьУзел(x, env)).reduce(умн);
+      case '/': {
+        const a = вычислитьУзел(n.a, env), b = вычислитьУзел(n.b, env);
+        if (b.v === 0) throw Ошибка('деление на ноль', 0);
+        return Q(a.v / b.v, dВыч(a.d, b.d), gСлож(a.g, 1 / b.v, b.g, -a.v / (b.v * b.v)));
+      }
+      case '^': {
+        const a = вычислитьУзел(n.a, env), b = вычислитьУзел(n.b, env);
+        if (!dБезр(b.d)) throw Ошибка('показатель степени должен быть безразмерным', 0);
+        const p = b.v;
+        if (!dБезр(a.d) && Object.keys(b.g).some(k => b.g[k])) throw Ошибка('у показателя при размерном основании не может быть погрешности', 0);
+        const v = Math.pow(a.v, p);
+        if (!isFinite(v) || isNaN(v)) throw Ошибка(a.v < 0 ? 'дробная степень отрицательного числа' : 'степень вышла за пределы', 0);
+        let g = gУмн(a.g, a.v === 0 ? 0 : p * Math.pow(a.v, p - 1));
+        if (Object.keys(b.g).length && a.v > 0) g = gСлож(g, 1, b.g, v * Math.log(a.v));
+        return Q(v, dУмн(a.d, p), g);
+      }
+      case 'fn': return функция(n, вычислитьУзел(n.a, env), env);
+      case 'pm': {
+        const a = вычислитьУзел(n.a, env), b = вычислитьУзел(n.b, env);
+        let σ;
+        if (n.отн) σ = Math.abs(a.v) * b.v * 0.01;
+        else {
+          if (!dРавны(a.d, b.d)) throw Ошибка('у погрешности другая размерность: ' + размерностьТекст(a.d) + ' ± ' + размерностьТекст(b.d) +
+            '. Напишите (2,5 ± 0,1) м или 2,5 м ± 0,1 м', 0);
+          σ = Math.abs(b.v);
+        }
+        const id = 'σ' + (++env.n);
+        env.σ[id] = σ;
+        const g = Object.assign({}, a.g); g[id] = (g[id] || 0) + 1;
+        return Q(a.v, a.d, g);
+      }
+      case 'eq': throw Ошибка('знак = здесь не к месту', 0);
+      default: throw Ошибка('не умею: ' + n.k, 0);
+    }
+  }
+  function умн(a, b) { return Q(a.v * b.v, dСлож(a.d, b.d), gСлож(a.g, b.v, b.g, a.v)); }
+
+  function функция(n, a, env) {
+    const f = n.f;
+    const безр = что => { if (!dБезр(a.d)) throw Ошибка(что + ' берут только от безразмерного, а здесь ' + размерностьТекст(a.d) +
+      ' — нужно отношение величин', n.поз || 0); };
+    const res = (v, dv, d) => Q(v, d || ноль(), gУмн(a.g, dv));
+    switch (f) {
+      case 'sin': case 'cos': case 'tan': case 'cot': {
+        безр(f === 'tan' ? 'Тангенс' : f === 'cot' ? 'Котангенс' : f === 'sin' ? 'Синус' : 'Косинус');
+        // sin(30) без знака градуса — почти всегда ошибка
+        if (n.a.k === 'num' && Math.abs(n.a.v) > 2 * ПИ)
+          env.заметки.push(f + '(' + String(n.a.v).replace('.', ',') + ') считается в радианах; для градусов напишите ' + String(n.a.v).replace('.', ',') + '°');
+        const x = a.v;
+        if (f === 'sin') return res(Math.sin(x), Math.cos(x));
+        if (f === 'cos') return res(Math.cos(x), -Math.sin(x));
+        if (f === 'tan') return res(Math.tan(x), 1 / Math.pow(Math.cos(x), 2));
+        return res(1 / Math.tan(x), -1 / Math.pow(Math.sin(x), 2));
+      }
+      case 'asin': case 'acos': case 'atan': {
+        безр('Арксинус и арккосинус');
+        if (f !== 'atan' && Math.abs(a.v) > 1) throw Ошибка(f === 'asin' ? 'арксинус от числа больше 1: такого угла нет' : 'арккосинус от числа больше 1: такого угла нет', n.поз || 0);
+        const q = f === 'asin' ? res(Math.asin(a.v), 1 / Math.sqrt(1 - a.v * a.v))
+          : f === 'acos' ? res(Math.acos(a.v), -1 / Math.sqrt(1 - a.v * a.v))
+            : res(Math.atan(a.v), 1 / (1 + a.v * a.v));
+        q.угол = true; return q;
+      }
+      case 'sqrt': {
+        if (a.v < 0) throw Ошибка('корень из отрицательного', n.поз || 0);
+        return Q(Math.sqrt(a.v), dУмн(a.d, 0.5), gУмн(a.g, a.v === 0 ? 0 : 0.5 / Math.sqrt(a.v)));
+      }
+      case 'ln': case 'lg': {
+        безр('Логарифм');
+        if (a.v <= 0) throw Ошибка('логарифм берут только от положительного', n.поз || 0);
+        const k = f === 'ln' ? 1 : 1 / Math.LN10;
+        return res(Math.log(a.v) * k, k / a.v);
+      }
+      case 'exp': { безр('Экспоненту'); const v = Math.exp(a.v); return res(v, v); }
+      case 'abs': return Q(Math.abs(a.v), a.d, gУмн(a.g, a.v < 0 ? -1 : 1));
+    }
+    throw Ошибка('неизвестная функция ' + f, 0);
+  }
+
+  /* ---------------- подбор единицы для ответа ---------------- */
+  const ПРОИЗВОДНЫЕ = [
+    ['Н', Р(1, 1, -2)], ['Дж', Р(2, 1, -2)], ['Вт', Р(2, 1, -3)], ['Па', Р(-1, 1, -2)],
+    ['Кл', Р(0, 0, 1, 1)], ['В', Р(2, 1, -3, -1)], ['Ом', Р(2, 1, -3, -2)], ['Ф', Р(-2, -1, 4, 2)],
+    ['Тл', Р(0, 1, -2, -1)], ['Гн', Р(2, 1, -2, -2)], ['Вб', Р(2, 1, -2, -1)],
+    ['м/с', Р(1, 0, -1)], ['м/с²', Р(1, 0, -2)], ['кг·м/с', Р(1, 1, -1)], ['кг/м³', Р(-3, 1)],
+    ['Н/м', Р(0, 1, -2)], ['В/м', Р(1, 1, -3, -1)], ['Дж/К', Р(2, 1, -2, 0, -1)], ['Вт/м²', Р(0, 1, -3)],
+    ['Ом·м', Р(3, 1, -3, -2)], ['Дж·с', Р(2, 1, -1)], ['кг·м²', Р(2, 1)], ['м²/с', Р(2, 0, -1)],
+    ['Н·м²/Кл²', Р(3, 1, -4, -2)], ['Ф/м', Р(-3, -1, 4, 2)], ['Гн/м', Р(1, 1, -2, -2)],
+    ['Дж/(моль·К)', Р(2, 1, -2, 0, -1, -1)], ['Дж/(кг·К)', Р(2, 0, -2, 0, -1)], ['Дж/кг', Р(2, 0, -2)],
+    ['А/м²', Р(-2, 0, 0, 1)], ['Кл/м²', Р(-2, 0, 1, 1)], ['1/моль', Р(0, 0, 0, 0, 0, -1)],
+  ];
+  const ПРИСТАВЛЯЕМЫЕ = { 'м': 1, 'с': 1, 'Н': 1, 'Дж': 1, 'Вт': 1, 'Па': 1, 'Кл': 1, 'В': 1, 'Ом': 1, 'Ф': 1, 'Тл': 1, 'Гн': 1, 'Вб': 1, 'А': 1, 'Гц': 1 };
+  const СТЕПЕНИ = n => String(n).split('').map(c => ({ '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '.': '·' }[c] || c)).join('');
+
+  function подобратьЕдиницу(d) {
+    if (dБезр(d)) return { текст: '', f: 1, простая: false };
+    for (const [имя, dd] of ПРОИЗВОДНЫЕ) if (dРавны(d, dd)) return { текст: имя, f: 1, простая: !!ПРИСТАВЛЯЕМЫЕ[имя] };
+    // из основных: кг·м²/(с³·А)
+    const числ = [], знам = [];
+    d.forEach((p, i) => {
+      if (Math.abs(p) < 1e-9) return;
+      const r = Math.round(p * 1000) / 1000;
+      const t = ОСНОВА[i] + (Math.abs(r) === 1 ? '' : СТЕПЕНИ(Math.abs(r)));
+      (r > 0 ? числ : знам).push(t);
+    });
+    // чтобы кг шёл первым, как принято
+    const порядок = x => x.indexOf('кг') === 0 ? 0 : x.indexOf('м') === 0 ? 1 : 2;
+    числ.sort((a, b) => порядок(a) - порядок(b));
+    let текст = числ.length ? числ.join('·') : '1';
+    if (знам.length) текст += '/' + (знам.length > 1 ? '(' + знам.join('·') + ')' : знам[0]);
+    const простая = числ.length === 1 && !знам.length && ПРИСТАВЛЯЕМЫЕ[числ[0]];
+    return { текст, f: 1, простая: !!простая };
+  }
+
+  /* ---------------- запись числа ---------------- */
+  function степеньДесяти(n) { return '10' + СТЕПЕНИ(n); }
+  function число(v, знаков) {
+    if (v === 0) return '0';
+    if (!isFinite(v)) return v > 0 ? '∞' : '−∞';
+    const a = Math.abs(v);
+    if (a >= 1e5 || a < 1e-3) {
+      const e = Math.floor(Math.log10(a));
+      let m = v / Math.pow(10, e);
+      let t = m.toPrecision(знаков || 4);
+      if (Math.abs(parseFloat(t)) >= 10) { m /= 10; t = m.toPrecision(знаков || 4); return чистить(t) + '·' + степеньДесяти(e + 1); }
+      return чистить(t) + '·' + степеньДесяти(e);
+    }
+    return чистить(v.toPrecision(знаков || 4));
+  }
+  function чистить(t) {
+    if (t.indexOf('e') >= 0) t = String(parseFloat(t));
+    if (t.indexOf('.') >= 0) t = t.replace(/0+$/, '').replace(/\.$/, '');
+    return t.replace('-', '−').replace('.', ',');
+  }
+  /* Значение ± погрешность по правилам записи результата измерения:
+     погрешность — одна значащая цифра (две, если первая 1 или 2), значение
+     округлено до того же разряда. Общий множитель 10ⁿ выносится за скобку. */
+  function сПогрешностью(v, σ) {
+    if (!(σ > 0)) return { текст: число(v), σтекст: '' };
+    const разрσ = Math.floor(Math.log10(σ));
+    const перв = Math.floor(σ / Math.pow(10, разрσ));
+    const цифр = перв <= 2 ? 2 : 1;
+    const шаг = разрσ - (цифр - 1);                 // разряд последней значащей цифры
+    const общ = Math.abs(v) >= 1e5 || (Math.abs(v) < 1e-3 && Math.abs(v) > 0) || σ >= 1e5 || σ < 1e-3
+      ? Math.floor(Math.log10(Math.max(Math.abs(v), σ))) : 0;
+    const окр = x => Math.round(x / Math.pow(10, шаг)) * Math.pow(10, шаг);
+    const знаков = Math.max(0, общ - шаг);
+    // нули в конце здесь значащие: 3,00 ± 0,06, а не 3 ± 0,06
+    const фмт = x => (окр(x) / Math.pow(10, общ)).toFixed(знаков).replace('-', '−').replace('.', ',');
+    const t = фмт(v) + ' ± ' + фмт(σ);
+    return { текст: общ ? '(' + t + ')·' + степеньДесяти(общ) : t, σтекст: фмт(σ) };
+  }
+
+  const ПРИСТ_ВЫВОД = [[1e9, 'Г'], [1e6, 'М'], [1e3, 'к'], [1, ''], [1e-3, 'м'], [1e-6, 'мк'], [1e-9, 'н'], [1e-12, 'п']];
+
+  /* Итог: текст ответа, погрешность, запасная запись с приставкой. */
+  function оформить(q, env, цель) {
+    const σ = сигма(q, env.σ);
+    let единицаТекст, f;
+    if (цель) { единицаТекст = цель.текст; f = цель.f; }
+    else { const e = подобратьЕдиницу(q.d); единицаТекст = e.текст; f = 1; }
+    const v = q.v / f, s = σ / f;
+    const гл = сПогрешностью(v, s);
+    const итог = {
+      v, σ: s, единица: единицаТекст, текст: гл.текст + (единицаТекст ? ' ' + единицаТекст : ''),
+      относительная: s > 0 && v !== 0 ? Math.abs(s / v) : 0, d: q.d, siv: q.v, siσ: σ,
+      заметки: env.заметки.slice(), понято: env.понято.map(n => ({ имя: n, что: ПОСТ[n].что, v: ПОСТ[n].v, d: ПОСТ[n].d })),
+    };
+    // та же величина с приставкой: 3,2·10⁻⁶ Ф = 3,2 мкФ
+    if (!цель) {
+      const e = подобратьЕдиницу(q.d);
+      if (e.простая && v !== 0) {
+        const a = Math.abs(v);
+        const н = ПРИСТ_ВЫВОД.find(([k]) => a >= k * 0.99995 && a / k < 999.95);
+        if (н && н[0] !== 1) итог.иначе = сПогрешностью(v / н[0], s / н[0]).текст + ' ' + н[1] + e.текст;
+      }
+    }
+    if (q.угол) итог.иначе = сПогрешностью(q.v * 180 / ПИ, σ * 180 / ПИ).текст + '°';
+    return итог;
+  }
+
+  /* ---------------- вход «как есть»: строка → ответ ---------------- */
+  function считать(строка, переменные) {
+    const дерево = разобрать(строка);
+    const env = окружение(переменные);
+    if (дерево.k === 'eq') return сравнить(дерево, env);
+    if (дерево.k === 'conv') {
+      const q = вычислитьУзел(дерево.a, env);
+      const env2 = окружение();
+      const ц = вычислитьУзел(дерево.to, env2);
+      if (Object.keys(ц.g).length) throw Ошибка('в единице перевода не может быть погрешности', 0);
+      if (!dРавны(q.d, ц.d))
+        throw Ошибка('перевести ' + (размерностьТекст(q.d) || 'число') + ' в ' + (размерностьТекст(ц.d) || 'число') +
+          ' нельзя: у них разная размерность', 0);
+      return Object.assign(оформить(q, env, { текст: дерево.текст, f: ц.v }), { вид: 'число' });
+    }
+    return Object.assign(оформить(вычислитьУзел(дерево, env), env), { вид: 'число' });
+  }
+
+  /* «Н = кг·м/с²» — проверка размерности. Если стоят числа, сверяются и они. */
+  function сравнить(дерево, env) {
+    const a = вычислитьУзел(дерево.a, env), b = вычислитьУзел(дерево.b, env);
+    const сходится = dРавны(a.d, b.d);
+    const res = { вид: 'равенство', сходится, слева: размерностьТекст(a.d), справа: размерностьТекст(b.d), заметки: env.заметки.slice() };
+    if (!сходится) {
+      const разн = dВыч(a.d, b.d);
+      res.разница = размерностьТекст(разн);
+      res.текст = 'Размерности не сходятся: слева ' + (res.слева) + ', справа ' + (res.справа) +
+        '. Левая часть больше правой в «' + res.разница + '».';
+    } else {
+      const числаРавны = Math.abs(a.v - b.v) <= 1e-9 * Math.max(Math.abs(a.v), Math.abs(b.v), 1e-300);
+      res.числаРавны = числаРавны;
+      res.текст = 'Размерности сходятся: обе части — ' + (res.слева === 'безразмерная' ? 'безразмерные' : res.слева) + '.' +
+        (числаРавны ? '' : ' Числа при этом разные: ' + число(a.v) + ' и ' + число(b.v) + '.');
+    }
+    return res;
+  }
+
+  /* Разобрать запись величины из поля ввода: «9,8 м/с²», «2 ± 0,1 кг».
+     Возвращает величину с погрешностью в окружении env. */
+  function величина(строка, env) {
+    const д = разобрать(строка);
+    if (д.k === 'eq' || д.k === 'conv') throw Ошибка('здесь нужна одна величина', 0);
+    return вычислитьУзел(д, env);
+  }
+
+  /* ===================== ФОРМУЛЫ КУРСА: TeX → дерево =====================
+     Курс написан TeX-ом для KaTeX. Разбираем подмножество, которым он
+     пользуется: \dfrac, \tfrac12, \sqrt, степени и индексы, греческие буквы,
+     \sin/\cos/\ln, e^{…}, \Delta x, \bar v, \langle v^2\rangle, штрих d',
+     единицы в \text{эВ}. Буквы подряд — это произведение (mgh = m·g·h), как
+     в самом TeX. Не разбираем и честно говорим «нельзя»: векторы, интегралы,
+     суммы, неравенства, пропорциональность. */
+  const ГРЕЧ = {
+    alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε', zeta: 'ζ', eta: 'η', theta: 'θ',
+    vartheta: 'θ', iota: 'ι', kappa: 'κ', lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ',
+    tau: 'τ', upsilon: 'υ', phi: 'φ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω',
+    Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π', Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω',
+    hbar: 'ħ', ell: 'ℓ',
+  };
+  const TEX_ФУНК = { sin: 'sin', cos: 'cos', tan: 'tan', tg: 'tan', ln: 'ln', lg: 'lg', exp: 'exp', arcsin: 'asin', arccos: 'acos', arctan: 'atan', arctg: 'atan' };
+  const НЕЛЬЗЯ = { vec: 'вектор', int: 'интеграл', oint: 'интеграл', iint: 'интеграл', sum: 'сумма', propto: 'пропорциональность',
+    sim: 'пропорциональность', ge: 'неравенство', le: 'неравенство', geq: 'неравенство', leq: 'неравенство', ne: 'неравенство',
+    neq: 'неравенство', gg: 'неравенство', ll: 'неравенство', infty: 'бесконечность', to: 'предел', lim: 'предел',
+    partial: 'частная производная', nabla: 'векторный оператор', dots: 'многоточие', cdots: 'многоточие', ldots: 'многоточие',
+    Leftrightarrow: 'равносильность', leftrightarrow: 'равносильность', times: 'векторное произведение' };
+
+  function texЛексемы(s) {
+    const out = []; let i = 0;
+    while (i < s.length) {
+      const ch = s[i];
+      if (ch === '\\') {
+        const m = /^\\([A-Za-z]+|.)/.exec(s.slice(i));
+        out.push({ t: 'cmd', v: m[1] }); i += m[0].length; continue;
+      }
+      if (/\s/.test(ch)) { i++; continue; }
+      if (/\d/.test(ch)) {
+        // 13{,}6 — десятичная запятая в TeX-наборе курса
+        const m = /^\d+(?:(?:\{,\}|\.)\d+)?/.exec(s.slice(i));
+        out.push({ t: 'num', v: parseFloat(m[0].replace('{,}', '.')), s: m[0] }); i += m[0].length; continue;
+      }
+      out.push({ t: 'ch', v: ch }); i++;
+    }
+    return out;
+  }
+
+  /* Одна строка курса часто несёт несколько формул: «v_x = …,\qquad v_y = …»
+     или формулу с пояснением «\quad(\text{покой})». Режем на верхнем уровне
+     и разбираем части по отдельности: вектор в первой не должен лишать
+     решения вторую. */
+  function части(tex) {
+    const out = []; let глуб = 0, cur = '';
+    for (let i = 0; i < tex.length; i++) {
+      const ch = tex[i];
+      if (ch === '{') глуб++; else if (ch === '}') глуб--;
+      if (глуб === 0 && ch === '\\') {
+        const m = /^\\(qquad|quad)(?![A-Za-z])/.exec(tex.slice(i));
+        if (m) { out.push(cur); cur = ''; i += m[0].length - 1; continue; }
+      }
+      cur += ch;
+    }
+    out.push(cur);
+    const чистые = out.map(x => x.replace(/^[\s,;]+|[\s,;]+$/g, '').replace(/(\\[,;! ])+$/g, '').trim())
+      .filter(x => x && !/^\(\s*\\text/.test(x))
+      /* условие в скобках в конце: «\ (r>R)», «\ (T=\text{const})». Только
+         после пробела и только со сравнением или словом внутри — иначе
+         срезалась бы скобка самой формулы: R\left(…\right), \ (1+\rho). */
+      .map(x => x.replace(/(\\ |\s)\s*\(((?:[^()]*(?:[<>]|\\[lg]e(?![A-Za-z])|=\s*\\text\{const\})[^()]*)|\s*\\text[^()]*)\)\s*$/, '').trim());
+    // эффект Доплера: v ± u над v ∓ u — это две формулы
+    const итог = [];
+    for (const x of чистые) {
+      if (/\\(pm|mp)(?![A-Za-z])/.test(x)) {
+        итог.push(x.replace(/\\pm(?![A-Za-z])/g, '+').replace(/\\mp(?![A-Za-z])/g, '-'));
+        итог.push(x.replace(/\\pm(?![A-Za-z])/g, '-').replace(/\\mp(?![A-Za-z])/g, '+'));
+      } else итог.push(x);
+    }
+    return итог;
+  }
+  function изTeX(tex) {
+    const куски = части(tex);
+    const все = []; let перв = null;
+    for (const кусок of куски) {
+      try { все.push.apply(все, изTeXодна(кусок)); }
+      catch (e) { if (!перв) перв = e; }
+    }
+    /* «a₀ = 0,0529 нм», «Z = 2» — это значения, а не формулы: решать в них
+       нечего. Оставляем равенства, где величин хотя бы две. */
+    const формулы = все.filter(eq => переменные(eq).length >= 2);
+    if (!формулы.length) {
+      if (перв) throw перв;
+      const e = Ошибка('это значение, а не формула'); e.нельзя = 'значение'; throw e;
+    }
+    return формулы;
+  }
+  function изTeXодна(tex) {
+    /* Производные и дифференциалы: dx/dt, dW = P dV. Буквы здесь не
+       множители — d·x/(d·t) «сократилось» бы в x/t, а это другая физика.
+       Такие формулы не решаем. Одиночное dF (расстояние на фокус в формуле
+       линзы) — обычное произведение, его не трогаем. */
+    const дробьD = /\\[dt]?frac\{d(\^\{?\d\}?)?(\\[A-Za-z]+|[A-Za-z])[^{}]*\}\{d(\\[A-Za-z]+|[A-Za-z])/;
+    const дифф = (tex.match(/(^|[^A-Za-z\\'])d(?:[A-Z]|\\(?!sin|cos|tan|ln|lg|exp|cdot|dfrac|frac|tfrac|text|mathrm|left|right|quad|qquad)[A-Za-z]+)/g) || []).length;
+    if (дробьD.test(tex) || дифф >= 2) { const e = Ошибка('в формуле производная — её так не решить'); e.нельзя = 'производная'; throw e; }
+    const т = texЛексемы(tex);
+    let i = 0;
+    const нельзя = что => { const e = Ошибка('в формуле ' + что + ' — её так не решить'); e.нельзя = что; throw e; };
+    const это = (t, v) => т[i] && т[i].t === t && (v === undefined || т[i].v === v);
+    const пропуск = () => {
+      for (;;) {
+        if (это('cmd') && /^(,|;|!|:|quad|qquad|left|right|bigl|bigr|Bigl|Bigr|big|Big|displaystyle| )$/.test(т[i].v)) {
+          // \left и \right съедают следующий разделитель как обычную скобку
+          if (/^(left|right|bigl|bigr|Bigl|Bigr|big|Big)$/.test(т[i].v)) { i++; if (это('ch', '.')) i++; continue; }
+          if (т[i].v === 'quad' || т[i].v === 'qquad') return;
+          i++; continue;
+        }
+        return;
+      }
+    };
+    function группа() {
+      // {…} или одна лексема (\tfrac12, \sqrt2)
+      пропуск();
+      if (это('ch', '{')) {
+        i++;
+        const a = сумма();
+        пропуск();
+        if (!это('ch', '}')) нельзя('непонятная запись');
+        i++; return a;
+      }
+      // \tfrac12, \sqrt2: без скобок аргумент — одна цифра
+      if (это('num') && /^\d\d+$/.test(т[i].s)) {
+        const x = т[i];
+        т[i] = { t: 'num', v: parseFloat(x.s.slice(1)), s: x.s.slice(1) };
+        return { k: 'num', v: parseFloat(x.s[0]) };
+      }
+      return атомОдин();
+    }
+    function сырьё() {
+      // содержимое {…} как текст — для индексов и \text
+      if (!это('ch', '{')) { const x = т[i++]; return x.t === 'cmd' ? '\\' + x.v : String(x.v); }
+      let глуб = 0, t = '';
+      do {
+        const x = т[i++];
+        if (x.t === 'ch' && x.v === '{') { глуб++; if (глуб > 1) t += '{'; continue; }
+        if (x.t === 'ch' && x.v === '}') { глуб--; if (глуб > 0) t += '}'; continue; }
+        t += x.t === 'cmd' ? '\\' + x.v + (/^[A-Za-z]/.test(x.v) ? ' ' : '') : String(x.v);
+      } while (глуб > 0 && i < т.length);
+      return t.trim();
+    }
+    function равенства() {
+      const части = [сумма()];
+      for (;;) {
+        пропуск();
+        if (это('ch', '=') || (это('cmd', 'approx'))) { i++; части.push(сумма()); continue; }
+        if (это('cmd', 'Rightarrow')) { i++; return равенства(); }       // берём вывод, а не посылку
+        // «d = … ≤ w/2»: равенство до знака неравенства годится, хвост — нет
+        if (это('cmd') && /^(le|ge|leq|geq)$/.test(т[i].v) || это('ch', '<') || это('ch', '>')) { i = т.length; break; }
+        if (это('cmd', 'quad') || это('cmd', 'qquad') || это('ch', ',')) { i = т.length; break; }
+        break;
+      }
+      if (i < т.length) нельзя('непонятная запись «' + (т[i].t === 'cmd' ? '\\' + т[i].v : т[i].v) + '»');
+      if (части.length < 2) нельзя('нет знака равенства');
+      // цепочка A = B = C → A = B, A = C; «= const» значения не несёт
+      const естьConst = n => { let да = false; обойти(n, m => { if (m.k === 'const') да = true; }); return да; };
+      const годные = части.filter(ч => !естьConst(ч));
+      const out = [];
+      for (let k = 1; k < годные.length; k++) out.push({ k: 'eq', a: годные[0], b: годные[k] });
+      if (!out.length) нельзя('равенство постоянной без значения');
+      return out;
+    }
+    function сумма() {
+      пропуск();
+      let a;
+      if (это('ch', '-')) { i++; a = { k: 'neg', a: произв() }; }
+      else { if (это('ch', '+')) i++; a = произв(); }
+      for (;;) {
+        пропуск();
+        if (это('ch', '+')) { i++; a = { k: '+', a, b: произв() }; continue; }
+        if (это('ch', '-')) { i++; a = { k: '-', a, b: произв() }; continue; }
+        if (это('cmd', 'pm')) нельзя('знак ±');
+        return a;
+      }
+    }
+    function произв() {
+      let a = сопост();
+      for (;;) {
+        пропуск();
+        if (это('cmd', 'cdot')) { i++; a = { k: '*', a, b: сопост() }; continue; }
+        if (это('ch', '/')) { i++; a = { k: '/', a, b: сопост() }; continue; }
+        return a;
+      }
+    }
+    function начало() {
+      пропуск();
+      const x = т[i]; if (!x) return false;
+      if (x.t === 'num') return true;
+      if (x.t === 'ch') return /[A-Za-z(|[]/.test(x.v) || x.v === '{';
+      if (x.t === 'cmd') return !/^(cdot|approx|Rightarrow|quad|qquad|right|pm)$/.test(x.v);
+      return false;
+    }
+    function сопост() {
+      const items = [степень()];
+      while (начало() && !(это('ch', '|') && items.length && открытыйМодуль)) items.push(степень());
+      return items.length === 1 ? items[0] : { k: 'jux', items };
+    }
+    let открытыйМодуль = false;
+    function степень(безСтепени) {
+      let a = атомОдин();
+      for (;;) {
+        if (это('ch', '^') && !безСтепени) {
+          i++;
+          const b = группа();
+          a = { k: '^', a, b };
+          continue;
+        }
+        return a;
+      }
+    }
+    function аргументФункции() {
+      // \sin\theta, \sin 2\theta, \cos^2\theta, \sin(90^\circ-\theta)
+      пропуск();
+      if (это('ch', '(')) { return степень(); }
+      const items = [];
+      const функцияДальше = () => (это('cmd') && TEX_ФУНК[т[i].v]) ||
+        (это('cmd', 'mathrm') && т[i + 2] && /^(t|c)$/.test(т[i + 2].v) && т[i + 3] && /^(g|t)$/.test(т[i + 3].v));
+      while (начало() && !функцияДальше() && !(items.length && это('ch', '('))) items.push(степень());
+      if (!items.length) нельзя('функция без аргумента');
+      return items.length === 1 ? items[0] : { k: 'jux', items };
+    }
+    function переменная(имя) {
+      // индекс и штрихи
+      let полное = имя;
+      for (;;) {
+        if (это('ch', '_')) { i++; полное += '_{' + сырьё() + '}'; continue; }
+        if (это('ch', "'")) { i++; полное += "'"; continue; }
+        break;
+      }
+      // U(x), A(\omega), \psi_n(x) — обозначение функции, а не U·x
+      const аргОдин = т[i + 1] && ((т[i + 1].t === 'ch' && /^[A-Za-z]$/.test(т[i + 1].v)) || (т[i + 1].t === 'cmd' && ГРЕЧ[т[i + 1].v]));
+      if (это('ch', '(') && аргОдин && т[i + 2] && т[i + 2].t === 'ch' && т[i + 2].v === ')') {
+        полное += '(' + (т[i + 1].t === 'cmd' ? '\\' + т[i + 1].v : т[i + 1].v) + ')'; i += 3;
+      }
+      return { k: 'var', имя: полное };
+    }
+    function атомОдин() {
+      пропуск();
+      const x = т[i];
+      if (!x) нельзя('формула оборвалась');
+      if (x.t === 'num') { i++; return { k: 'num', v: x.v }; }
+      if (x.t === 'ch') {
+        if (x.v === '(' || x.v === '[') {
+          i++; const a = сумма(); пропуск();
+          if (!(это('ch', ')') || это('ch', ']'))) нельзя('непарная скобка');
+          i++; return a;
+        }
+        if (x.v === '{') { return группа(); }
+        if (x.v === '|') {
+          i++; const был = открытыйМодуль; открытыйМодуль = true;
+          const a = сумма(); открытыйМодуль = был; пропуск();
+          if (!это('ch', '|')) нельзя('непарный модуль');
+          i++; return { k: 'fn', f: 'abs', a };
+        }
+        if (/[A-Za-z]/.test(x.v)) {
+          i++;
+          // e^{…} с буквами в показателе — экспонента; e^2 — заряд в квадрате
+          if (x.v === 'e' && это('ch', '^')) {
+            const сохр = i; i++;
+            const показ = группа();
+            if (естьПеременные(показ)) return { k: 'fn', f: 'exp', a: показ };
+            i = сохр;
+          }
+          return переменная(x.v);
+        }
+        if (x.v === '<' || x.v === '>') нельзя('неравенство');
+        нельзя('непонятный знак «' + x.v + '»');
+      }
+      // команды
+      const c = x.v; i++;
+      if (/^(dots|cdots|ldots)$/.test(c)) return { k: 'const' };   // «+…» — часть без значения
+      if (НЕЛЬЗЯ[c]) нельзя(НЕЛЬЗЯ[c]);
+      if (c === 'frac' || c === 'dfrac' || c === 'tfrac') { const a = группа(), b = группа(); return { k: '/', a, b }; }
+      if (c === 'sqrt') {
+        let n = 2;
+        if (это('ch', '[')) { i++; const x2 = т[i++]; n = x2.v; if (!это('ch', ']')) нельзя('корень'); i++; }
+        return { k: '^', a: группа(), b: { k: 'num', v: 1 / n } };
+      }
+      if (TEX_ФУНК[c]) {
+        // \cos^2\theta — степень стоит до аргумента, а относится к значению
+        let ст = null;
+        if (это('ch', '^')) { i++; ст = группа(); }
+        const f = { k: 'fn', f: TEX_ФУНК[c], a: аргументФункции() };
+        return ст ? { k: '^', a: f, b: ст } : f;
+      }
+      if (c === 'mathrm' || c === 'text' || c === 'mathcal' || c === 'operatorname') {
+        const t = сырьё();
+        const рм = { tg: 'tan', ctg: 'cot', arctg: 'atan', arcctg: null, sh: null }[t];
+        if (c === 'mathrm' && рм) { const f = { k: 'fn', f: рм }; f.a = аргументФункции(); return f; }
+        if (c === 'text' && единица(t)) return { k: 'unit', w: t };
+        if (c === 'text' && t === 'const') return { k: 'const' };
+        if (c === 'text' && единицыСтрокой(t)) return { k: 'units', w: t };
+        if (c === 'text') нельзя('слово «' + t + '»');
+        if (c === 'mathcal') return переменная(t === 'E' ? 'ℰ' : t);
+        return переменная(t);
+      }
+      if (c === 'circ') return { k: 'unit', w: '°' };
+      if (c === 'bar' || c === 'overline') { const t = сырьё(); return переменная('\\bar{' + t + '}'); }
+      if (c === 'dot' || c === 'ddot') { const t = сырьё(); return переменная('\\' + c + '{' + t + '}'); }
+      if (c === 'Delta' && (это('ch') && /[A-Za-z]/.test(т[i].v) || это('cmd') && ГРЕЧ[т[i].v])) {
+        const t = т[i].t === 'cmd' ? '\\' + т[i].v : т[i].v; i++;
+        return переменная('\\Delta ' + t);
+      }
+      if (c === 'langle') {
+        let t = ''; while (i < т.length && !это('cmd', 'rangle')) { const y = т[i++]; t += y.t === 'cmd' ? '\\' + y.v + ' ' : String(y.v); }
+        if (!это('cmd', 'rangle')) нельзя('непарная скобка ⟨');
+        i++; return переменная('\\langle ' + t.trim() + '\\rangle');
+      }
+      if (c === 'pi') return { k: 'num', v: ПИ, pi: true };
+      if (ГРЕЧ[c]) return переменная('\\' + c);
+      нельзя('команда \\' + c);
+    }
+    function естьПеременные(n) { let да = false; обойти(n, m => { if (m.k === 'var') да = true; }); return да; }
+    return равенства();
+  }
+
+  function обойти(n, f) {
+    if (!n || typeof n !== 'object') return;
+    f(n);
+    if (n.a) обойти(n.a, f);
+    if (n.b) обойти(n.b, f);
+    if (n.items) n.items.forEach(x => обойти(x, f));
+  }
+  function переменные(n) {
+    const out = [];
+    обойти(n, m => { if (m.k === 'var' && out.indexOf(m.имя) < 0) out.push(m.имя); });
+    return out;
+  }
+  function сколько(n, имя) { let k = 0; обойти(n, m => { if (m.k === 'var' && m.имя === имя) k++; }); return k; }
+
+  /* ---------------- дерево → TeX (для показа выраженной формулы) ---------------- */
+  const СТАРШ = { '+': 1, '-': 1, 'neg': 2, '*': 3, 'jux': 3, '/': 3, '^': 5, 'fn': 6 };
+  function вTeX(n, род) {
+    const с = n.k === 'num' || n.k === 'var' || n.k === 'unit' ? 9 : (СТАРШ[n.k] || 9);
+    const скоб = t => (род !== undefined && с < род) ? '\\left(' + t + '\\right)' : t;
+    switch (n.k) {
+      case 'num': return n.pi ? '\\pi' : texЧисло(n.v);
+      case 'var': return n.имя;
+      case 'unit': case 'units': return '\\text{' + n.w + '}';
+      case 'neg': return скоб('-' + вTeX(n.a, 3));
+      case '+': return скоб(вTeX(n.a, 1) + '+' + вTeX(n.b, 2));
+      case '-': return скоб(вTeX(n.a, 1) + '-' + вTeX(n.b, 2));
+      case '*': return скоб(вTeX(n.a, 3) + '\\cdot ' + вTeX(n.b, 4));
+      case 'jux': return скоб(n.items.map((x, k) => {
+        // \dfrac сама себе скобки: 2\pi\dfrac{m}{k} читается без (…)
+        const t = вTeX(x, x.k === '/' ? 3 : 4);
+        return k && /^[\d.]/.test(t) ? '\\cdot ' + t : (k ? ' ' : '') + t;
+      }).join(''));
+      case '/': return скоб('\\dfrac{' + вTeX(n.a) + '}{' + вTeX(n.b) + '}');
+      case '^': {
+        if (n.b.k === 'num' && Math.abs(n.b.v - 0.5) < 1e-12) return '\\sqrt{' + вTeX(n.a) + '}';
+        if (n.b.k === 'num' && Math.abs(n.b.v - 1 / 3) < 1e-12) return '\\sqrt[3]{' + вTeX(n.a) + '}';
+        if (n.b.k === '/' && n.b.a.k === 'num' && n.b.a.v === 1 && n.b.b.k === 'num' && n.b.b.v === 2) return '\\sqrt{' + вTeX(n.a) + '}';
+        return скоб(вTeX(n.a, 6) + '^{' + вTeX(n.b) + '}');
+      }
+      case 'fn': {
+        const имя = { sin: '\\sin', cos: '\\cos', tan: '\\operatorname{tg}', cot: '\\operatorname{ctg}', asin: '\\arcsin', acos: '\\arccos',
+          atan: '\\operatorname{arctg}', ln: '\\ln', lg: '\\lg', exp: 'e', sqrt: '\\sqrt', abs: '' }[n.f];
+        if (n.f === 'exp') return 'e^{' + вTeX(n.a) + '}';
+        if (n.f === 'abs') return '\\left|' + вTeX(n.a) + '\\right|';
+        if (n.f === 'sqrt') return '\\sqrt{' + вTeX(n.a) + '}';
+        return скоб(имя + '\\left(' + вTeX(n.a) + '\\right)');
+      }
+      case 'eq': return вTeX(n.a) + '=' + вTeX(n.b);
+    }
+    return '?';
+  }
+  function texЧисло(v) {
+    if (Math.abs(v - Math.round(v)) < 1e-12) return String(Math.round(v));
+    for (const q of [2, 3, 4, 6, 8]) if (Math.abs(v * q - Math.round(v * q)) < 1e-12) return '\\tfrac{' + Math.round(v * q) + '}{' + q + '}';
+    return String(+v.toPrecision(6)).replace('.', '{,}');
+  }
+
+  /* ---------------- решение ----------------
+     Если неизвестное входит в формулу один раз — выражаем его, обращая
+     действия по пути от корня к неизвестному. Два раза и больше — ищем
+     корни численно; размерность неизвестного тогда выводим из самой формулы. */
+  const N = v => ({ k: 'num', v });
+  function выразить(eq, x) {
+    const вЛевой = сколько(eq.a, x), вПравой = сколько(eq.b, x);
+    if (вЛевой + вПравой !== 1) return null;
+    let узел = вЛевой ? eq.a : eq.b, acc = вЛевой ? eq.b : eq.a;
+    const заметки = [];
+    for (let шаг = 0; шаг < 200; шаг++) {
+      if (узел.k === 'var' && узел.имя === x) return { k: 'eq', a: узел, b: acc, заметки };
+      const в = m => сколько(m, x) > 0;
+      switch (узел.k) {
+        case '+': if (в(узел.a)) { acc = { k: '-', a: acc, b: узел.b }; узел = узел.a; } else { acc = { k: '-', a: acc, b: узел.a }; узел = узел.b; } break;
+        case '-': if (в(узел.a)) { acc = { k: '+', a: acc, b: узел.b }; узел = узел.a; } else { acc = { k: '-', a: узел.a, b: acc }; узел = узел.b; } break;
+        case 'neg': acc = { k: 'neg', a: acc }; узел = узел.a; break;
+        case '*': if (в(узел.a)) { acc = { k: '/', a: acc, b: узел.b }; узел = узел.a; } else { acc = { k: '/', a: acc, b: узел.a }; узел = узел.b; } break;
+        case 'jux': {
+          const k = узел.items.findIndex(в);
+          const прочие = узел.items.filter((_, j) => j !== k);
+          acc = { k: '/', a: acc, b: прочие.length === 1 ? прочие[0] : { k: 'jux', items: прочие } };
+          узел = узел.items[k]; break;
+        }
+        case '/': if (в(узел.a)) { acc = { k: 'jux', items: [acc, узел.b] }; узел = узел.a; } else { acc = { k: '/', a: узел.a, b: acc }; узел = узел.b; } break;
+        case '^':
+          if (в(узел.a)) {
+            if (узел.b.k === 'num' && Math.abs(узел.b.v % 2) === 0) заметки.push('из чётной степени взят положительный корень');
+            acc = { k: '^', a: acc, b: узел.b.k === 'num' ? N(1 / узел.b.v) : { k: '/', a: N(1), b: узел.b } };
+            узел = узел.a;
+          } else {
+            acc = { k: '/', a: { k: 'fn', f: 'ln', a: acc }, b: { k: 'fn', f: 'ln', a: узел.a } };
+            узел = узел.b;
+          }
+          break;
+        case 'fn': {
+          const обр = { sin: 'asin', cos: 'acos', tan: 'atan', asin: 'sin', acos: 'cos', atan: 'tan', exp: 'ln', ln: 'exp' }[узел.f];
+          if (узел.f === 'sin' || узел.f === 'cos') заметки.push('у ' + (узел.f === 'sin' ? 'арксинуса' : 'арккосинуса') + ' взято главное значение; второй угол — ' + (узел.f === 'sin' ? '180° минус этот' : 'тот же с минусом'));
+          if (узел.f === 'lg') acc = { k: '^', a: N(10), b: acc };
+          else if (узел.f === 'sqrt') acc = { k: '^', a: acc, b: N(2) };
+          else if (узел.f === 'abs') { заметки.push('модуль снят: взят положительный вариант'); }
+          else if (обр) acc = { k: 'fn', f: обр, a: acc };
+          else return null;
+          узел = узел.a; break;
+        }
+        default: return null;
+      }
+    }
+    return null;
+  }
+
+  /* Размерность с одним неизвестным показателем: d = a + b·x, где x —
+     размерность искомой величины. Сложение требует равенства — отсюда x. */
+  function вывестиРазмерность(eq, x, значения) {
+    let найдено = null;
+    const ур = (p, q) => {           // p и q — {a, b}
+      const db = p.b - q.b;
+      if (Math.abs(db) > 1e-12) {
+        const d = dУмн(dВыч(q.a, p.a), 1 / db);
+        if (найдено && !dРавны(найдено, d)) throw Ошибка('размерности в формуле не сходятся при этих единицах', 0);
+        найдено = d;
+      } else if (!dРавны(p.a, q.a) && (найдено === null || !dРавны(dСлож(p.a, dУмн(найдено, p.b)), dСлож(q.a, dУмн(найдено, q.b)))))
+        throw Ошибка('размерности в формуле не сходятся: складываются ' + размерностьТекст(p.a) + ' и ' + размерностьТекст(q.a), 0);
+    };
+    const р = n => {
+      switch (n.k) {
+        case 'num': return { a: ноль(), b: 0 };
+        case 'unit': { const е = единица(n.w); return { a: е.d, b: 0 }; }
+        case 'units': return { a: вычислитьУзел(разобрать(n.w), окружение()).d, b: 0 };
+        case 'var': return n.имя === x ? { a: ноль(), b: 1 } : { a: значения[n.имя].d, b: 0 };
+        case 'neg': return р(n.a);
+        case '+': case '-': { const a = р(n.a), b = р(n.b); ур(a, b); return a.b ? a : b; }
+        case '*': { const a = р(n.a), b = р(n.b); return { a: dСлож(a.a, b.a), b: a.b + b.b }; }
+        case 'jux': return n.items.map(р).reduce((a, b) => ({ a: dСлож(a.a, b.a), b: a.b + b.b }));
+        case '/': { const a = р(n.a), b = р(n.b); return { a: dВыч(a.a, b.a), b: a.b - b.b }; }
+        case '^': { const a = р(n.a); const p = числом(n.b, значения); return { a: dУмн(a.a, p), b: a.b * p }; }
+        case 'fn': if (n.f === 'sqrt') { const a = р(n.a); return { a: dУмн(a.a, 0.5), b: a.b * 0.5 }; }
+          if (n.f === 'abs') return р(n.a);
+          return { a: ноль(), b: 0 };
+        case 'eq': { const a = р(n.a), b = р(n.b); ур(a, b); return a; }
+      }
+      return { a: ноль(), b: 0 };
+    };
+    р(eq);
+    return найдено || ноль();
+  }
+  function числом(n, значения) {
+    const env = окружение(значения);
+    try { return вычислитьУзел(n, env).v; } catch (e) { return NaN; }
+  }
+
+  /* Масштаб слагаемых: чтобы «0 = 10⁻¹⁷» считалось равенством, невязку
+     сравниваем с самыми крупными слагаемыми формулы, а не с нулём. */
+  function масштабУзлов(n, env) {
+    let m = 0;
+    обойти(n, x => { if (x.k === '+' || x.k === '-') { try { m = Math.max(m, Math.abs(вычислитьУзел(x.a, env).v), Math.abs(вычислитьУзел(x.b, env).v)); } catch (e) {} } });
+    return m;
+  }
+
+  /* Упрощение выраженной формулы для показа: g = L/(T/2π)² → 4π²L/T².
+     Только перестановки, которые не меняют значения. */
+  function упростить(n) {
+    if (!n || typeof n !== 'object') return n;
+    const u = Object.assign({}, n);
+    if (u.a) u.a = упростить(u.a);
+    if (u.b) u.b = упростить(u.b);
+    if (u.items) u.items = u.items.map(упростить);
+    const число = x => x && x.k === 'num' && !x.pi;
+    const множ = x => x.k === 'jux' ? x.items : x.k === '*' ? множ(x.a).concat(множ(x.b)) : [x];
+    const этоПи = x => (x.k === 'num' && x.pi) || (x.k === '^' && x.a.k === 'num' && x.a.pi);
+    const произв = список => {
+      // порядок как в учебнике: число, потом π, потом буквы
+      const числа = список.filter(число);
+      const прочие = список.filter(x => !число(x) && этоПи(x)).concat(список.filter(x => !число(x) && !этоПи(x)));
+      const k = числа.reduce((a, x) => a * x.v, 1);
+      const все = (Math.abs(k - 1) < 1e-15 && прочие.length ? [] : [N(k)]).concat(прочие);
+      return все.length === 1 ? все[0] : { k: 'jux', items: все };
+    };
+    switch (u.k) {
+      case 'jux': case '*': {
+        // (a/b)·c → a·c/b: одна дробь читается лучше, чем дробь с хвостом
+        const м = множ(u), дроби = м.filter(x => x.k === '/');
+        if (!дроби.length) return произв(м);
+        const верх = м.filter(x => x.k !== '/').concat([].concat(...дроби.map(d => множ(d.a))));
+        const низ = [].concat(...дроби.map(d => множ(d.b)));
+        return упростить({ k: '/', a: произв(верх), b: произв(низ) });
+      }
+      case '^':
+        if (u.b.k === 'num' && u.b.v === 1) return u.a;
+        if (число(u.a) && u.b.k === 'num') { const v = Math.pow(u.a.v, u.b.v); if (Math.abs(v - Math.round(v)) < 1e-12) return N(Math.round(v)); }
+        if (u.a.k === '^' && u.b.k === 'num' && u.a.b.k === 'num') return упростить({ k: '^', a: u.a.a, b: N(u.a.b.v * u.b.v) });
+        // (a/b)² → a²/b²; корень из дроби оставляем корнем: √(m/k) читается лучше √m/√k
+        if (u.b.k === 'num' && Number.isInteger(u.b.v) && u.a.k === '/') return упростить({ k: '/', a: { k: '^', a: u.a.a, b: u.b }, b: { k: '^', a: u.a.b, b: u.b } });
+        if (u.b.k === 'num' && Number.isInteger(u.b.v) && (u.a.k === 'jux' || u.a.k === '*')) return упростить(произв(множ(u.a).map(x => ({ k: '^', a: x, b: u.b }))));
+        return u;
+      case '/':
+        if (u.b.k === 'num' && u.b.v === 1) return u.a;
+        if (u.b.k === '/') return упростить({ k: '/', a: произв(множ(u.a).concat(множ(u.b.b))), b: u.b.a });
+        if (u.a.k === '/') return упростить({ k: '/', a: u.a.a, b: произв(множ(u.a.b).concat(множ(u.b))) });
+        return u;
+      case '-':
+        if (u.a.k === 'num' && u.a.v === 0) return { k: 'neg', a: u.b };
+        // x − (x₀ + v₀t) → x − x₀ − v₀t;  a − (b − c) → a − b + c
+        if (u.b.k === '+') return упростить({ k: '-', a: { k: '-', a: u.a, b: u.b.a }, b: u.b.b });
+        if (u.b.k === '-') return упростить({ k: '+', a: { k: '-', a: u.a, b: u.b.a }, b: u.b.b });
+        return u;
+      case 'neg':
+        if (u.a.k === 'neg') return u.a.a;
+        return u;
+    }
+    return u;
+  }
+
+  /* Вся работа: формула (узел eq), имя неизвестного, строки с величинами.
+     Возвращает выражение (TeX), ответ с погрешностью и заметки. */
+  function решить(eq, x, вводы) {
+    const env = окружение();
+    const значения = {};
+    for (const имя of переменные(eq)) {
+      if (имя === x) continue;
+      const строка = вводы[имя];
+      if (строка === undefined || String(строка).trim() === '') throw Ошибка('не задано: ' + имя, 0, имя);
+      try { значения[имя] = величина(строка, env); }
+      catch (e) { e.поле = имя; throw e; }
+    }
+    env.пер = значения;
+    const выр = выразить(eq, x);
+    if (выр) {
+      const q = вычислитьУзел(выр.b, env);
+      /* Проверка подстановкой. Возведение в квадрат (уход из-под корня)
+         добавляет посторонний корень: при таких значениях настоящего решения
+         может не быть, а выражение его всё равно «найдёт». */
+      const v2 = Object.assign({}, значения); v2[x] = Q(q.v, q.d);
+      const e2 = окружение(v2);
+      const л = вычислитьУзел(eq.a, e2).v, п = вычислитьУзел(eq.b, e2).v;
+      if (!(Math.abs(л - п) <= 1e-7 * Math.max(Math.abs(л), Math.abs(п)) + 1e-12 * масштабУзлов(eq, e2)))
+        throw Ошибка('при этих значениях у формулы нет решения', 0);
+      const ответ = оформить(q, env);
+      ответ.заметки = выр.заметки.concat(ответ.заметки);
+      return { способ: 'выражено', tex: x + '=' + вTeX(упростить(выр.b)), ответ };
+    }
+    // численно
+    const dX = вывестиРазмерность(eq, x, значения);
+    const F = xv => {
+      const v = Object.assign({}, значения); v[x] = Q(xv, dX, { '__x': 1 });
+      const e2 = окружение(v); e2.σ = env.σ;
+      const a = вычислитьУзел(eq.a, e2), b = вычислитьУзел(eq.b, e2);
+      return { v: a.v - b.v, g: gСлож(a.g, 1, b.g, -1), масштаб: Math.abs(a.v) + Math.abs(b.v) };
+    };
+    const корни = [];
+    const пробы = [0];
+    for (let e = -30; e <= 30; e += 0.125) { const t = Math.pow(10, e); пробы.push(t, -t); }
+    пробы.sort((a, b) => a - b);
+    let пред = null;
+    for (const t of пробы) {
+      let f; try { f = F(t).v; } catch (err) { пред = null; continue; }
+      if (!isFinite(f)) { пред = null; continue; }
+      if (f === 0) корни.push(t);
+      else if (пред && Math.sign(f) !== Math.sign(пред.f)) {
+        let lo = пред.t, hi = t, flo = пред.f;
+        for (let k = 0; k < 200; k++) {
+          const mid = (lo + hi) / 2; const fm = F(mid).v;
+          if (Math.sign(fm) === Math.sign(flo)) { lo = mid; flo = fm; } else hi = mid;
+        }
+        const r = (lo + hi) / 2, fr = F(r);
+        if (Math.abs(fr.v) <= 1e-7 * Math.max(fr.масштаб, 1e-300)) корни.push(r);   // не полюс
+      }
+      пред = { t, f };
+    }
+    const уник = [];
+    for (const r of корни) if (!уник.some(u => Math.abs(u - r) <= 1e-9 * Math.max(Math.abs(r), 1e-300))) уник.push(r);
+    if (!уник.length) throw Ошибка('при этих значениях у формулы нет решения', 0);
+    уник.sort((a, b) => (b > 0) - (a > 0) || Math.abs(a) - Math.abs(b));
+    const ответы = уник.slice(0, 3).map(r => {
+      const f = F(r);
+      const dFdx = f.g.__x;
+      const g = {};
+      for (const k in f.g) if (k !== '__x') g[k] = -f.g[k] / dFdx;
+      return оформить(Q(r, dX, g), env);
+    });
+    const ответ = ответы[0];
+    if (ответы.length > 1) ответ.другие = ответы.slice(1).map(a => a.текст);
+    ответ.заметки = [ 'неизвестное входит в формулу ' + (сколько(eq, x)) + ' раза — корень найден численно' ].concat(ответ.заметки);
+    return { способ: 'численно', tex: null, ответ };
+  }
+
+  /* Чего не хватает до нужной размерности: надо Дж, есть Н → «не хватает
+     множителя м». Для подсказки в ответах задач. */
+  function недостаёт(dНадо, dЕсть) {
+    const р = dВыч(dНадо, dЕсть);
+    const ненулевые = р.map((x, i) => [x, i]).filter(([x]) => Math.abs(x) > 1e-9);
+    if (ненулевые.length === 1 && Math.abs(Math.abs(ненулевые[0][0]) - 1) < 1e-9) {
+      const [x, i] = ненулевые[0];
+      return x > 0 ? 'не хватает множителя «' + ОСНОВА[i] + '»' : 'лишний множитель «' + ОСНОВА[i] + '»';
+    }
+    return 'разница — ' + (подобратьЕдиницу(р).текст || 'безразмерная');
+  }
+
+  /* Ответ задачи: голое число — в единицах задачи; с единицами — переводим
+     и сверяем размерность. Единица задачи вроде «×10³ км», «10¹¹ м⁻³», «раз». */
+  function ответЗадачи(строка, единицаЗадачи) {
+    const s = String(строка).trim().replace(/[−–]/g, '-');
+    if (/^[-+]?\d[\d ]*(?:[.,]\d+)?(?:[eE][-+]?\d+)?$/.test(s)) return { u: parseFloat(s.replace(/ /g, '').replace(',', '.')) };
+    let q;
+    try { q = считать(s); } catch (e) { return { ошибка: e.message }; }
+    if (q.вид !== 'число') return { ошибка: 'нужна одна величина, без знака =' };
+    let ц;
+    const t = String(единицаЗадачи || '').replace(/^×\s*/, '').trim();
+    try { ц = t && t !== 'раз' ? считать(t) : { siv: 1, d: ноль() }; } catch (e) { return { ошибка: 'введите число в «' + единицаЗадачи + '»' }; }
+    if (!dРавны(q.d, ц.d))
+      return { размерность: true, есть: размерностьТекст(q.d), надо: размерностьТекст(ц.d), подсказка: недостаёт(ц.d, q.d) };
+    return { u: q.siv / ц.siv, переведено: true };
+  }
+
+  return {
+    считать, разобрать, величина, недостаёт, ответЗадачи, окружение, вычислитьУзел, оформить, изTeX, переменные, сколько,
+    выразить, решить, вTeX, единица, подобратьЕдиницу, размерностьТекст, число, сПогрешностью, сигма,
+    dРавны, ПОСТ, ЕД,
+  };
+})();
+
+;
 'use strict';
 /* =============================== СОСТОЯНИЕ ============================== */
 const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSON.parse(v):d}catch(_){return d}},
@@ -29449,6 +30715,7 @@ function renderPane(){
       ${t.formulas.map((f,i)=>`
         <div class="formula" data-f="${i}">
           ${f.kind?`<span class="f-kind ${f.kind}">${FKIND[f.kind]||f.kind}</span>`:''}
+          ${естьВычислитель()&&формулаРешаема(f)?`<button class="f-solve" data-f="${i}" title="Решить относительно любой величины">решить</button>`:''}
           <div>$$${f.tex}$$</div>
           ${f.note?`<div class="note">${f.note}</div>`:''}
         </div>`).join('')}
@@ -29458,6 +30725,7 @@ function renderPane(){
       ${linksHTML(t)}
     </article>`;
     wireLinks(pane); wireLesson(pane);
+    pane.querySelectorAll('.f-solve').forEach(b=>b.onclick=e=>{ e.stopPropagation(); решитьФормулуКурса(t,+b.dataset.f); });
   } else {
     if(!t.problems.length){ pane.innerHTML='<div class="empty">Задач по этой главе пока нет.</div>'; return; }
     const dots=n=>`<span class="dots">${'<i class="f"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
@@ -29488,7 +30756,7 @@ function renderPane(){
           </div>
           <div class="st">${pr.statement}</div>
           <div class="answer">
-            <input type="text" inputmode="decimal" placeholder="ответ, ${pr.unit}">
+            <input type="text" autocomplete="off" spellcheck="false" placeholder="ответ${pr.unit?', '+pr.unit:''} — можно с единицами">
             <button class="btn primary check">Проверить</button>
             ${pr.hint?'<button class="btn hint">Подсказка</button>':''}
             <button class="btn reveal">Показать ответ</button>
@@ -29507,14 +30775,25 @@ function renderPane(){
       const i=+el.dataset.i, pr=t.problems[i], key=идЗадачи(t,pr);
       const out=el.querySelector('.verdict'), inp=el.querySelector('input');
       const P=()=>pr.sim?rt(pr.sim).params:{};
+      /* Ответ можно ввести с единицами: «2,5 мДж» в задаче про мкДж
+         переводится сам, а «3 Н» в задаче про джоули получает не «не
+         сходится», а «размерность не та» — это другая ошибка, и лечится
+         она иначе: не пересчётом, а формулой. */
       const check=()=>{
-        const u=parseFloat(inp.value.replace(',','.'));
+        let u, переведено=false;
+        if(естьВычислитель()){
+          const р=ВЫЧ.ответЗадачи(inp.value,pr.unit);
+          if(р.размерность){ out.className='verdict no';
+            out.textContent=`✗ размерность не та: ответ — в ${pr.unit} (${р.надо}), а у вас ${р.есть}; ${р.подсказка}`; return; }
+          if(р.ошибка){ out.className='verdict no'; out.textContent=inp.value.trim()?р.ошибка:'введите число'; return; }
+          u=р.u; переведено=!!р.переведено;
+        } else u=parseFloat(inp.value.replace(',','.'));
         if(Number.isNaN(u)){ out.className='verdict no'; out.textContent='введите число'; return; }
         const ans=pr.answer(P());
         if(!isFinite(ans)){ out.className='verdict no'; out.textContent='при этих параметрах события нет'; return; }
         const ok=Math.abs(u-ans)<=Math.max(Math.abs(ans)*0.015,1e-9);
         out.className='verdict '+(ok?'ok':'no');
-        out.textContent=ok?'✓ верно':('✗ не сходится'+разбор(u,ans));
+        out.textContent=(ok?'✓ верно':('✗ не сходится'+разбор(u,ans)))+(переведено?` (в единицах задачи: ${fmt(u)} ${pr.unit})`:'');
         if(ok&&!S.solved[key]){
           S.solved[key]=1; LS.set('solved',S.solved);
           el.classList.add('done'); updateProgress();
@@ -30927,6 +32206,10 @@ hsplit.addEventListener('dblclick',()=>{
     LS.set('simFrac',w/к.доступно);
     разложитьКолонки();
   });
+// на средней ширине панель тем лежит поверх текста: касание по тексту её убирает
+$$('#content').addEventListener('pointerdown',()=>{
+  if($('#app').classList.contains('mid')&&!$('#sidebar').classList.contains('hidden')) toggleSidebar(true);
+});
 // двойной клик по разделителю — вернуть ширину по умолчанию
 $$('#splitter').addEventListener('dblclick',()=>{ LS.set('simFrac',null); requestAnimationFrame(resize); });
 
@@ -32125,6 +33408,7 @@ addEventListener('keydown',e=>{
   // командная палитра: Ctrl+P — всё подряд, Ctrl+Shift+P — только команды
   if(mod&&C==='KeyP'){ e.preventDefault(); cmdkOpen(e.shiftKey?'>':''); return; }
   if(mod&&C==='KeyD'){ e.preventDefault(); takeSnapshot(); return; }
+  if(mod&&C==='KeyE'){ e.preventDefault(); вычислительОткрыт()?закрытьВычислитель():открытьВычислитель(); return; }
   if(mod&&C==='KeyL'){ e.preventDefault(); $('#tl-loop').click(); return; }
   if(mod&&C==='Comma'){ e.preventDefault(); prefsOpen? closePrefs() : openPrefs(); return; }
   if(prefsOpen){ if(e.key==='Escape'){ e.preventDefault(); closePrefs(); } return; }
@@ -32456,6 +33740,8 @@ function resetPanels(){
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
+  {k:'Вычислитель',t:'Вычислитель: счёт с единицами', hint:'Ctrl+E', run:()=>открытьВычислитель({вкладка:'expr'})},
+  {k:'Вычислитель',t:'Решить формулу курса относительно величины', run:()=>открытьВычислитель({вкладка:'form'})},
   {k:'Симуляция',t:'Пуск / пауза',       hint:'Space', run:()=>$('#btn-play').click()},
   {k:'Симуляция',t:'Сбросить симуляцию', hint:'R',     run:()=>$('#btn-reset').click()},
   {k:'Симуляция',t:'Вписать вид',        hint:'0',     run:fitView},
@@ -33817,13 +35103,281 @@ $$('#modal-plot').addEventListener('keydown',e=>{
   e.stopPropagation();                      // горячие клавиши сцены тут не нужны
 });
 
+/* ===================== ВЫЧИСЛИТЕЛЬ =====================
+   Две вкладки: «Счёт» — выражение с единицами и погрешностью, перевод
+   единиц, проверка размерности равенства; «Формула» — любая формула курса,
+   решённая относительно любой её величины. Движок — js/calc.js (ВЫЧ), он
+   не знает про DOM и проверяется отдельно (npm run calc). Здесь — только
+   панель: справа на компьютере, во весь экран на телефоне. */
+function естьВычислитель(){ return typeof ВЫЧ!=='undefined'; }
+const вычСостояние={вкладка:'expr',формула:null,неизвестное:null,значения:{},кэш:null};
+
+/* Все формулы курса, которые разбираются, по равенствам: у одной строки
+   «v_x = …, v_y = …» их несколько, и решать нужно каждое отдельно. */
+function формулыКурса(){
+  if(вычСостояние.кэш) return вычСостояние.кэш;
+  const out=[];
+  for(const t of ALL) (t.formulas||[]).forEach((f,i)=>{
+    let eqs; try{ eqs=ВЫЧ.изTeX(f.tex); }catch(_){ return; }
+    eqs.forEach((eq,k)=>out.push({тема:t,ф:i,k,eq,tex:ВЫЧ.вTeX(eq),пер:ВЫЧ.переменные(eq)}));
+  });
+  return вычСостояние.кэш=out;
+}
+// функцией, а не const: её зовёт отрисовка конспекта ещё при запуске, раньше этой строки
+function формулаРешаема(f){ try{ ВЫЧ.изTeX(f.tex); return true; }catch(_){ return false; } }
+
+/* Что за величина — из «Справочника»: v → «скорость, м/с». Буква одна на
+   разные вещи в разных разделах (k — жёсткость, постоянная Больцмана,
+   Кулона), поэтому ищем сначала в разделе темы. */
+const РАЗДЕЛ_СИМВОЛОВ={mech:'Механика',th:'Теплота',el:'Электричество и магнетизм',em:'Электричество и магнетизм',op:'Волны, оптика, кванты',q:'Волны, оптика, кванты'};
+function подсказкаВеличины(имя,тема){
+  const основа=имя.replace(/_\{.*$/,'').replace(/'+$/,'').replace(/^\\Delta /,'\\Delta ');
+  const раздел=РАЗДЕЛ_СИМВОЛОВ[(тема&&тема.id||'').split('.')[0]];
+  const найти=rows=>{ for(const [сим,что,ед] of rows){
+      const варианты=сим.replace(/\$/g,'').split(/,\\?\s*/).map(x=>x.trim());
+      if(варианты.indexOf(основа)>=0) return {что,ед}; } return null; };
+  const свой=СИМВОЛЫ.find(([р])=>р===раздел);
+  return (свой&&найти(свой[1]))||СИМВОЛЫ.reduce((a,[,rows])=>a||найти(rows),null);
+}
+/* Постоянные подставляем сами, но только там, где буква точно означает её:
+   h в механике — высота, а не Планк; c в теплоте — теплоёмкость. */
+function постояннаяДля(имя,тема){
+  const р=(тема&&тема.id||'').split('.')[0];
+  const всегда={'G':'6,674·10⁻¹¹ Н·м²/кг²','\\hbar':'1,0546·10⁻³⁴ Дж·с','N_{A}':'6,022·10²³ 1/моль',
+    '\\varepsilon_{0}':'8,854·10⁻¹² Ф/м','\\mu_{0}':'1,2566·10⁻⁶ Гн/м','m_{e}':'9,109·10⁻³¹ кг','k_{\\text {Б}}':'1,381·10⁻²³ Дж/К'};
+  if(всегда[имя]) return всегда[имя];
+  if(имя==='g'&&(р==='mech'||р==='th')) return '9,8 м/с²';
+  if(имя==='c'&&(р==='em'||р==='op'||р==='q')) return '2,998·10⁸ м/с';
+  if(имя==='h'&&р==='q') return '6,626·10⁻³⁴ Дж·с';
+  if(имя==='e'&&(р==='q'||р==='el')) return '1,602·10⁻¹⁹ Кл';
+  if(имя==='k'&&р==='el') return '8,988·10⁹ Н·м²/Кл²';
+  if(имя==='k'&&(р==='th'||р==='q')) return '1,381·10⁻²³ Дж/К';
+  if(имя==='R'&&р==='th') return '8,314 Дж/(моль·К)';
+  return null;
+}
+
+function собратьВычислитель(){
+  let c=document.getElementById('calc'); if(c) return c;
+  c=document.createElement('div'); c.id='calc'; c.className='calc hidden';
+  c.setAttribute('role','dialog'); c.setAttribute('aria-label','Вычислитель');
+  c.innerHTML=`
+    <div class="calc-h">
+      <div class="calc-tabs"><button data-ct="expr" class="on">Счёт</button><button data-ct="form">Формула</button></div>
+      <button class="iconbtn calc-x" title="Закрыть (Esc)" aria-label="Закрыть">×</button>
+    </div>
+    <div class="calc-page" data-cp="expr">
+      <input class="calc-in" id="calc-in" type="text" inputmode="text" autocomplete="off" autocorrect="off"
+        autocapitalize="off" spellcheck="false" placeholder="72 км/ч в м/с">
+      <div class="calc-out" id="calc-out"></div>
+      <div class="calc-l">Попробуйте</div>
+      <div class="calc-ex">${['72 км/ч в м/с','(2,5 ± 0,1) м / (3,0 ± 0,2) с','½ · 2 кг · (3 м/с)²','h c / (500 нм) в эВ',
+        '√(2 g · 10 м)','sin(30°)','Н = кг·м/с²','1500 об/мин в рад/с'].map(x=>`<button class="calc-chip">${esc(x)}</button>`).join('')}</div>
+      <div class="calc-l calc-hist-h hidden">Недавнее</div>
+      <div class="calc-hist" id="calc-hist"></div>
+      <details class="calc-help"><summary>Как писать</summary>
+        <p><b>Единицы — по-русски</b>, как в курсе: м, с, кг, Н, Дж, Вт, Па, В, А, Ом, Ф, Тл, эВ, л, мин, ч,
+          °, % и приставки: км, мм, мкФ, нм, МэВ. Степень — м² или м^2.</p>
+        <p><b>Латинские буквы — постоянные</b>: g, c, G, h, ħ (hbar), e, me, mp, k (Кулона), kB, NA, R, ε0, μ0, π.
+          Кириллическая «с» — секунда, латинская «c» — скорость света.</p>
+        <p><b>Погрешность</b>: (2,5 ± 0,1) м, 2,5 ± 0,1 м или 3 кг ± 2 %. Считается по правилу
+          σ = √Σ(∂f/∂x·σ)²: оно верно, пока погрешности малы.</p>
+        <p><b>Перевод</b>: в конце «в км/ч» или «→ км/ч». <b>Проверка размерности</b>: напишите равенство
+          единиц — «Дж = Н·м».</p>
+        <p>Пробел между числом и единицей связывает сильнее деления: 72 км/ч — это 72 км, делённые на час,
+          а 1/2 кг — это 1/(2 кг). Функции: sin, cos, tg, arcsin, arccos, arctg, √ или sqrt, ln, lg, exp.
+          Угол без знака ° считается в радианах.</p>
+      </details>
+    </div>
+    <div class="calc-page hidden" data-cp="form">
+      <div class="calc-fpick">
+        <input class="calc-in" id="calc-fq" type="text" autocomplete="off" spellcheck="false" placeholder="Найти формулу: период, линза, Ом…">
+        <div class="calc-flist" id="calc-flist"></div>
+      </div>
+      <div class="calc-fsel hidden" id="calc-fsel">
+        <button class="btn calc-back">← Другая формула</button>
+        <div class="calc-ftop"><div class="calc-ftex" id="calc-ftex"></div><div class="calc-fwho" id="calc-fwho"></div></div>
+        <div class="calc-l">Найти</div>
+        <div class="calc-unk" id="calc-unk"></div>
+        <div class="calc-l">Известно</div>
+        <div class="calc-fields" id="calc-fields"></div>
+        <div class="calc-fres" id="calc-fres"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(c);
+  c.querySelector('.calc-x').onclick=закрытьВычислитель;
+  c.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>вкладкаВычислителя(b.dataset.ct));
+  const вход=c.querySelector('#calc-in');
+  let ждём=null;
+  вход.addEventListener('input',()=>{ clearTimeout(ждём); ждём=setTimeout(посчитатьСтроку,90); });
+  вход.addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Enter'){ посчитатьСтроку(); запомнитьСтроку(вход.value); }
+    if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); }
+  });
+  c.querySelectorAll('.calc-chip').forEach(b=>b.onclick=()=>{ вход.value=b.textContent; посчитатьСтроку(); вход.focus(); });
+  const поиск=c.querySelector('#calc-fq');
+  поиск.addEventListener('input',()=>списокФормул(поиск.value));
+  поиск.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); } });
+  c.querySelector('.calc-back').onclick=()=>{ вычСостояние.формула=null; показатьФормулу(); };
+  // клавиши сцены внутри панели не нужны
+  c.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); } e.stopPropagation(); });
+  return c;
+}
+function вкладкаВычислителя(id){
+  вычСостояние.вкладка=id;
+  const c=собратьВычислитель();
+  c.querySelectorAll('[data-ct]').forEach(b=>b.classList.toggle('on',b.dataset.ct===id));
+  c.querySelectorAll('[data-cp]').forEach(p=>p.classList.toggle('hidden',p.dataset.cp!==id));
+  if(id==='form') показатьФормулу();
+  else { рисоватьИсторию(); setTimeout(()=>{ const i=$('#calc-in'); if(i&&!isNarrow()) i.focus(); },30); }
+}
+function открытьВычислитель(опции){
+  if(!естьВычислитель()){ toast('Вычислитель не загрузился'); return; }
+  const c=собратьВычислитель();
+  c.classList.remove('hidden');
+  document.documentElement.classList.add('calc-on');
+  опции=опции||{};
+  if(опции.формула){ вычСостояние.формула=опции.формула; вычСостояние.неизвестное=null; вкладкаВычислителя('form'); }
+  else вкладкаВычислителя(опции.вкладка||вычСостояние.вкладка);
+  requestAnimationFrame(resize);
+}
+function закрытьВычислитель(){
+  const c=document.getElementById('calc'); if(c) c.classList.add('hidden');
+  document.documentElement.classList.remove('calc-on');
+  requestAnimationFrame(resize);
+}
+const вычислительОткрыт=()=>{ const c=document.getElementById('calc'); return !!c&&!c.classList.contains('hidden'); };
+
+/* ---------- Счёт ---------- */
+function посчитатьСтроку(){
+  const вход=$('#calc-in'), out=$('#calc-out'); if(!вход||!out) return;
+  const s=вход.value.trim();
+  if(!s){ out.innerHTML=''; return; }
+  let r;
+  try{ r=ВЫЧ.считать(s); }
+  catch(e){
+    const п=e.разбор&&typeof e.поз==='number'&&e.поз<s.length ? e.поз : -1;
+    out.innerHTML=`<div class="calc-err">${esc(e.message)}</div>`+
+      (п>=0?`<div class="calc-where">${esc(s.slice(0,п))}<mark>${esc(s.slice(п,п+1)||' ')}</mark>${esc(s.slice(п+1))}</div>`:'');
+    return;
+  }
+  if(r.вид==='равенство'){
+    out.innerHTML=`<div class="calc-verdict ${r.сходится?'ok':'bad'}">${esc(r.текст)}</div>`+
+      (r.заметки.length?`<div class="calc-note">${r.заметки.map(esc).join('<br>')}</div>`:'');
+    return;
+  }
+  out.innerHTML=`<div class="calc-res">${esc(r.текст)}</div>`+
+    (r.иначе?`<div class="calc-alt">= ${esc(r.иначе)}</div>`:'')+
+    (r.относительная?`<div class="calc-alt">относительная погрешность ${ВЫЧ.число(r.относительная*100,2)} %</div>`:'')+
+    (r.понято.length?`<div class="calc-note">Как понято: ${r.понято.map(p=>`<b>${esc(p.имя)}</b> — ${esc(p.что)}`).join(', ')}</div>`:'')+
+    (r.заметки.length?`<div class="calc-note warn">${r.заметки.map(esc).join('<br>')}</div>`:'');
+}
+function запомнитьСтроку(s){
+  s=String(s||'').trim(); if(!s) return;
+  try{ ВЫЧ.считать(s); }catch(_){ return; }        // в историю — только то, что посчиталось
+  const h=[s].concat((LS.get('calcHist',[])||[]).filter(x=>x!==s)).slice(0,10);
+  LS.set('calcHist',h); рисоватьИсторию();
+}
+function рисоватьИсторию(){
+  const box=$('#calc-hist'); if(!box) return;
+  const h=LS.get('calcHist',[])||[];
+  const заг=document.querySelector('.calc-hist-h'); if(заг) заг.classList.toggle('hidden',!h.length);
+  box.innerHTML=h.map(x=>`<button class="calc-hrow">${esc(x)}</button>`).join('');
+  box.querySelectorAll('.calc-hrow').forEach(b=>b.onclick=()=>{ $('#calc-in').value=b.textContent; посчитатьСтроку(); });
+}
+
+/* ---------- Формула ---------- */
+function показатьФормулу(){
+  const выбрана=!!вычСостояние.формула;
+  $('#calc-fsel').classList.toggle('hidden',!выбрана);
+  document.querySelector('.calc-fpick').classList.toggle('hidden',выбрана);
+  if(!выбрана){ списокФормул($('#calc-fq').value); return; }
+  const f=вычСостояние.формула;
+  const ftex=$('#calc-ftex'); ftex.innerHTML=`$$${f.tex}$$`;
+  $('#calc-fwho').textContent=f.тема.title;
+  if(!вычСостояние.неизвестное||f.пер.indexOf(вычСостояние.неизвестное)<0){
+    // по умолчанию — то, что стоит слева один
+    вычСостояние.неизвестное= f.eq.a.k==='var' ? f.eq.a.имя : f.пер[0];
+  }
+  const unk=$('#calc-unk');
+  unk.innerHTML=f.пер.map(п=>`<button class="calc-v${п===вычСостояние.неизвестное?' on':''}" data-v="${esc(п)}">$${п}$</button>`).join('');
+  unk.querySelectorAll('.calc-v').forEach(b=>b.onclick=()=>{ вычСостояние.неизвестное=b.dataset.v; показатьФормулу(); });
+  const поля=$('#calc-fields');
+  поля.innerHTML=f.пер.filter(п=>п!==вычСостояние.неизвестное).map(п=>{
+    const пм=подсказкаВеличины(п,f.тема), пост=постояннаяДля(п,f.тема);
+    if(вычСостояние.значения[п]===undefined&&пост) вычСостояние.значения[п]=пост;
+    const знач=вычСостояние.значения[п]||'';
+    return `<label class="calc-row"><span class="calc-var">$${п}$</span>
+      <input class="calc-val" data-v="${esc(п)}" type="text" autocomplete="off" spellcheck="false"
+        value="${esc(знач)}" placeholder="${esc(пм&&пм.ед&&пм.ед!=='—'?'например, 2 '+пм.ед.split(/[ ;(]/)[0]:'число')}">
+      <span class="calc-hint">${esc(пм?пм.что:'')}${пост?' · постоянная, подставлена':''}</span></label>`;
+  }).join('');
+  поля.querySelectorAll('.calc-val').forEach(i=>{
+    i.addEventListener('input',()=>{ вычСостояние.значения[i.dataset.v]=i.value; решитьФормулу(); });
+    i.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); } });
+  });
+  typeset($('#calc-fsel'));
+  решитьФормулу();
+}
+function решитьФормулу(){
+  const f=вычСостояние.формула, x=вычСостояние.неизвестное, res=$('#calc-fres'); if(!f||!res) return;
+  document.querySelectorAll('#calc-fields .calc-val').forEach(i=>i.classList.remove('bad'));
+  const вводы={}; let пусто=0;
+  for(const п of f.пер) if(п!==x){ const v=(вычСостояние.значения[п]||'').trim(); if(!v) пусто++; вводы[п]=v; }
+  if(пусто){ res.innerHTML=`<div class="calc-note">Заполните ${пусто===1?'ещё одно поле':'поля выше'} — с единицами: «2 кг», «9,8 м/с²», «(1,00 ± 0,01) м».</div>`; return; }
+  try{
+    const р=ВЫЧ.решить(f.eq,x,вводы);
+    // формула уже решена относительно x — второй раз её не показываем
+    const ужеВыражено=f.eq.a.k==='var'&&f.eq.a.имя===x;
+    res.innerHTML=(р.tex&&!ужеВыражено?`<div class="calc-ftex">$$${р.tex}$$</div>`:'')+
+      `<div class="calc-res">$${x}$ = ${esc(р.ответ.текст)}</div>`+
+      (р.ответ.иначе?`<div class="calc-alt">= ${esc(р.ответ.иначе)}</div>`:'')+
+      (р.ответ.другие?`<div class="calc-alt">другие корни: ${р.ответ.другие.map(esc).join('; ')}</div>`:'')+
+      (р.ответ.заметки.length?`<div class="calc-note">${р.ответ.заметки.map(esc).join('<br>')}</div>`:'');
+  }catch(e){
+    if(e.поле){ const i=document.querySelector(`#calc-fields .calc-val[data-v="${CSS&&CSS.escape?CSS.escape(e.поле):e.поле}"]`); if(i) i.classList.add('bad'); }
+    res.innerHTML=`<div class="calc-err">${e.поле?'$'+e.поле+'$: ':''}${esc(e.message)}</div>`;
+  }
+  typeset(res);
+}
+function списокФормул(запрос){
+  const box=$('#calc-flist'); if(!box) return;
+  const q=String(запрос||'').trim().toLowerCase();
+  const все=формулыКурса();
+  const подходит=f=>!q||f.тема.title.toLowerCase().indexOf(q)>=0||f.tex.toLowerCase().indexOf(q)>=0||
+    f.пер.some(п=>{ const пм=подсказкаВеличины(п,f.тема); return пм&&пм.что.toLowerCase().indexOf(q)>=0; });
+  const своя=S.topic&&все.filter(f=>f.тема===S.topic&&подходит(f));
+  const прочие=все.filter(f=>(!S.topic||f.тема!==S.topic)&&подходит(f)).slice(0,q?80:40);
+  const ряд=f=>`<button class="calc-frow" data-i="${все.indexOf(f)}"><span class="calc-fw">${esc(f.тема.title)}</span>$${f.tex}$</button>`;
+  box.innerHTML=(своя&&своя.length?`<div class="calc-l">В этой теме</div>${своя.map(ряд).join('')}`:'')+
+    (прочие.length?`<div class="calc-l">${q?'Найдено':'Все формулы курса'}</div>${прочие.map(ряд).join('')}`:'')+
+    (!(своя&&своя.length)&&!прочие.length?'<div class="calc-note">Ничего не нашлось.</div>':'')+
+    `<div class="calc-note">Решаются ${все.length} равенств из формул курса. Векторы, интегралы, производные и
+      неравенства так не решить — их здесь нет.</div>`;
+  box.querySelectorAll('.calc-frow').forEach(b=>b.onclick=()=>{
+    вычСостояние.формула=все[+b.dataset.i]; вычСостояние.неизвестное=null; показатьФормулу();
+  });
+  typeset(box);
+}
+/* Кнопка «решить» у формулы в конспекте. */
+function решитьФормулуКурса(тема,i){
+  const f=формулыКурса().find(x=>x.тема===тема&&x.ф===i);
+  if(f) открытьВычислитель({формула:f});
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&вычислительОткрыт()&&!приёмОткрыт()){ e.preventDefault(); e.stopPropagation(); закрытьВычислитель(); }
+},true);
+$$('#btn-calc').onclick=()=>вычислительОткрыт()?закрытьВычислитель():открытьВычислитель();
+$$('#m-calc').onclick=()=>открытьВычислитель();
+$$('#mi-calc').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьВычислитель(); };
+
 /* ===================== ОТМЕТКА ОБ УСПЕШНОЙ ЗАГРУЗКЕ =====================
    Последняя строка файла. Если она выполнилась — скрипт дочитан до конца и
    весь интерфейс подключён. Сторож в index.html смотрит на эту отметку:
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '1.7.0';
+window.PHYSIM_BUILD = '1.8.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

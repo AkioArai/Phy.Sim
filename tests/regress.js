@@ -733,7 +733,7 @@ async function сторож(b) {
     });
     ok('меню сцены разложено по вкладкам',
         menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
-        && menu.обычная.сцена.length === 5 && menu.обычная.ещё.length === 4
+        && menu.обычная.сцена.length === 5 && menu.обычная.ещё.length === 5
         && menu.всего > menu.обычная.сцена.length, menu.обычная);
     ok('конструктор получает свою вкладку и открывает её сразу',
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
@@ -924,6 +924,57 @@ async function сторож(b) {
     ok('Esc закрывает карточку, а настройки под ней остаются',
         приём.изСправочника && приём.escЗакрыл && приём.настройкиОстались, приём);
 
+    /* ВЫЧИСЛИТЕЛЬ. Сам счёт проверяет tests/calc.mjs; здесь — что до него
+       можно добраться и что он работает в настоящей странице: строка с
+       единицами и погрешностью, кнопка «решить» у формулы в конспекте,
+       ответ задачи с единицами и ответ не той размерности. */
+    const выч = await p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      const out = {};
+      document.querySelector('#btn-calc').click(); await жди(150);
+      out.открылся = !document.querySelector('#calc').classList.contains('hidden');
+      const вход = document.querySelector('#calc-in');
+      вход.value = '(2,5 ± 0,1) м / (3,0 ± 0,2) с'; вход.dispatchEvent(new Event('input')); await жди(200);
+      out.счёт = document.querySelector('#calc-out .calc-res').textContent;
+      вход.value = '2 м + 3 с'; вход.dispatchEvent(new Event('input')); await жди(200);
+      out.ошибка = document.querySelector('#calc-out .calc-err').textContent;
+      закрытьВычислитель();
+      openTopic('mech.osc'); await жди(200);
+      out.кнопокРешить = document.querySelectorAll('#pane .f-solve').length;
+      // «решить» у маятника: T = 2π√(L/g), найдём g
+      const i = S.topic.formulas.findIndex(f => /\\dfrac\{L\}\{g\}/.test(f.tex));
+      document.querySelector(`#pane .f-solve[data-f="${i}"]`).click(); await жди(250);
+      document.querySelector('#calc-unk .calc-v[data-v="g"]').click(); await жди(150);
+      for (const inp of document.querySelectorAll('#calc-fields .calc-val')) {
+        inp.value = inp.dataset.v === 'T' ? '(2,00 ± 0,01) с' : '(1,000 ± 0,005) м';
+        inp.dispatchEvent(new Event('input'));
+      }
+      await жди(250);
+      out.формула = document.querySelector('#calc-fres .calc-res').textContent.replace(/\s+/g, ' ');
+      out.выражение = !!document.querySelector('#calc-fres .calc-ftex .katex');
+      закрытьВычислитель();
+      // задача: ответ с единицами и не той размерности
+      document.querySelector('#tabs button[data-tab="problems"]').click(); await жди(250);
+      const задача = document.querySelector('#pane .problem');
+      const t = S.topic, pr = t.problems[+задача.dataset.i];
+      const P = pr.sim ? rt(pr.sim).params : {};
+      const верно = pr.answer(P);
+      out.единица = pr.unit;
+      const ввести = async текст => { задача.querySelector('input').value = текст; задача.querySelector('.check').click(); await жди(80);
+        return задача.querySelector('.verdict').textContent; };
+      // правильный ответ, но в тысячу раз более мелких единицах той же величины
+      const мелкая = { 'м': 'мм', 'с': 'мс', 'кг': 'г', 'Н': 'мН', 'Дж': 'мДж', 'м/с': 'мм/с' }[pr.unit];
+      out.сЕдиницами = мелкая ? await ввести(String(верно * 1000).replace('.', ',') + ' ' + мелкая) : 'нет подходящей единицы';
+      out.неТа = await ввести('3 кг·м²');
+      return out;
+    });
+    ok('вычислитель: единицы, погрешность и ошибка размерности в странице',
+      выч.открылся && выч.счёт === '0,83 ± 0,06 м/с' && /одинаковое/.test(выч.ошибка), выч);
+    ok('кнопка «решить» у формулы: g маятника с погрешностью',
+      выч.кнопокРешить > 0 && /9,87 ± 0,11 м\/с²/.test(выч.формула) && выч.выражение, выч);
+    ok('ответ задачи с единицами переводится, не та размерность названа',
+      /верно/.test(выч.сЕдиницами) && /размерность не та/.test(выч.неТа), { сЕдиницами: выч.сЕдиницами, неТа: выч.неТа, единица: выч.единица });
+
     await p.close();
 
     // --- телефон ---
@@ -1094,6 +1145,20 @@ async function сторож(b) {
       закрытьПриём();
       return out;
     });
+    const вычТел = await m.p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      закрытьПриём();
+      открытьВычислитель({ вкладка: 'expr' }); await жди(200);
+      const c = document.querySelector('#calc').getBoundingClientRect();
+      const вход = document.querySelector('#calc-in');
+      вход.value = '72 км/ч в м/с'; вход.dispatchEvent(new Event('input')); await жди(200);
+      const r = { во_весь_экран: Math.round(c.width) === innerWidth && Math.round(c.bottom) === innerHeight && c.top <= 1,
+        поверх: document.elementFromPoint(innerWidth / 2, innerHeight - 20).closest('#calc') !== null,
+        ответ: (document.querySelector('#calc-out .calc-res') || {}).textContent };
+      закрытьВычислитель();
+      return r;
+    });
+    ok('на телефоне вычислитель во весь экран поверх панелей', вычТел.во_весь_экран && вычТел.поверх && вычТел.ответ === '20 м/с', вычТел);
     ok('на телефоне карточка приёма — нижний лист поверх панелей',
       приёмТел.лист && приёмТел.отступСнизу === 0 && приёмТел.воВсюШирину &&
       приёмТел.поверх && приёмТел.высота <= приёмТел.экран * 0.8, приёмТел);

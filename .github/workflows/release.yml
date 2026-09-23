@@ -148,35 +148,52 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **Mathematics, where it is used.** There is no mathematics chapter, and there
-          will not be one: there was, it was removed, because a chapter on
-          trigonometry sits beside the physics and nobody opens it. Instead, every one
-          of the 306 derivation steps now says which mathematics it is made of —
-          substitution, resolving a vector along axes, the small-angle approximation,
-          the integral as a sum of small contributions, a check against limiting cases:
-          40 techniques in all, shown as small tags under the step.
+          **Tablets.** On tablets the handbook broke often, on the web and in the app
+          alike, and for three separate reasons.
 
-          A tag opens a card with three things: what the technique is, when it is
-          legitimate, and where it breaks, with the numbers worked out rather than
-          waved at. `sin θ ≈ θ` is 0.5 % off at 10°, 2 % at 20° and 4.5 % at 30° —
-          yet a pendulum swinging to 30° keeps its period within 1.7 %, because the
-          force is badly wrong only near the turning points. Below that, every other
-          derivation in the course made with the same technique; one tap opens it at
-          the exact step. On a phone the card is a bottom sheet.
+          *Old engines.* An app installed outside a store keeps the WebView it shipped
+          with. One `?.` in the main script made the whole script unparseable on
+          Chrome/WebView below 80 and Safari below 13.1: the page painted and nothing
+          worked. The page watchdog was written with `?.` too, so nothing could say
+          why. The scripts are now ES2017 (Chrome 58, Safari 13), every modern CSS
+          function has a plain fallback (readout panels were transparent on older
+          engines, dialogs lost their position), and the watchdog is ES5 and also runs
+          in the app. On an engine that really is too old it now names it and says
+          what to update — "Android System WebView" in the app — instead of showing a
+          dead page. A new check (`tests/compat.js`) keeps it that way on every build.
 
-          One tag is different: *physics*. It marks the steps where a law, a
-          definition, an experimental fact or a modelling assumption enters the
-          derivation — the lines that do not follow from the line before. Everything
-          between them is transformation. Seeing where the physics goes in is most of
-          what it takes to rebuild a derivation on your own.
+          *Rotation.* Dragging the splitter wrote the scene width in pixels, which
+          survived the switch back to the upright layout: a 740 px scene on an 820 px
+          screen. The width is now a share of the screen, applied only in the side-by-
+          side layout, and whatever was open in the old layout is closed on the switch.
 
-          The full list of techniques is a new tab in Settings → Reference, and every
-          technique can be found from the command palette (Ctrl+P).
+          *Width.* A tablet on its side gets the desktop layout, whose fixed columns left
+          the notes 161-481 px wide on 960-1180 px screens. The scene now takes a share
+          of the width, the notes never get less than 360 px, the topic list lies over
+          the notes below 1200 px instead of taking their width, and with a finger every
+          control is at least 36-40 px; what used to appear only on mouse hover is always
+          visible.
 
-          **Fix: the Reference tabs never switched.** Symbols, Constants and Units
-          highlighted as you clicked them, but all three pages stayed on screen at
-          once, so the constants were always somewhere below a long table of symbols.
-          The rule that hides the inactive page was simply missing.
+          **A calculator that knows units** (Ctrl+E, or the new button in the header).
+          `72 км/ч в м/с` → `20 м/с`. `(2,5 ± 0,1) м / (3,0 ± 0,2) с` → `0,83 ± 0,06 м/с`,
+          rounded the way a measurement is written. `2 м + 3 с` is refused with the
+          reason; `Дж = Н` says the left side is larger by a metre; `sin 30` warns that it
+          was taken in radians. Uncertainty is propagated exactly, correlations included:
+          a quantity minus itself is 0 ± 0.
+
+          **Any course formula, solved for any quantity.** 183 of the 252 formulas parse
+          into something solvable. Press *решить* next to a formula in the notes, pick
+          the unknown, type the rest with units, and get the answer with its unit and
+          uncertainty — and the formula rearranged for it, `g = 4π²L/T²`. When the unknown
+          appears twice the root is found numerically and its dimension is inferred from
+          the formula. Formulas with vectors, integrals, derivatives or inequalities are
+          not offered, rather than solved wrongly. Every parsed formula is checked by
+          solving it for each of its quantities and substituting back — 920 cases.
+
+          **Answers to problems can carry units.** `2,5 мДж` where the problem asks for
+          µJ is converted. `3 Н` where it asks for joules is no longer just "wrong" but
+          "wrong dimension — a factor of metres is missing": a different mistake, with a
+          different cure.
 
           ### Must read
 

@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.7.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.7.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.7.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.7.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.8.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.8.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.8.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.8.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -93,6 +93,8 @@ KaTeX and its fonts ship inside the repository.
 | **81** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
 | **135** points to remember | the five sentences per topic you would want on an exam morning |
 | **78** derivations, **306** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
+| **calculator with units** | 72 км/ч в м/с, (2,5 ± 0,1) м / (3,0 ± 0,2) с, h c / (500 нм) в эВ — every number carries its dimension, adding metres to seconds is refused, uncertainty propagates |
+| **183** course formulas, solvable | any of them for any of its quantities: T = 2π√(L/g) solved for g, with units and uncertainty; the rearranged formula is shown, not just the number |
 | **40** math techniques, on the steps | every step is tagged with the mathematics it uses; a tag opens what the technique is, when it is legitimate, where it breaks — and every other derivation in the course that uses it |
 | **prerequisites, stated** | a topic names what you must know first and offers a one-minute check before you start reading |
 | **252** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
@@ -103,6 +105,45 @@ KaTeX and its fonts ship inside the repository.
 | **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
 | **57** settings | theme, density, scene decorations, performance, recording |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### A calculator that knows units
+
+A phone calculator is useless for physics: it has no units, and the commonest
+mistake of someone learning alone — an answer in the wrong units, or of the wrong
+dimension altogether — goes unnoticed until the word *wrong*. Here every number
+carries its dimension.
+
+- **Count with units.** `72 км/ч в м/с` → `20 м/с`. `½ · 2 кг · (3 м/с)²` → `9 Дж`.
+  `h c / (500 нм) в эВ` → `2,48 эВ`. Units are written in Russian, as throughout the
+  course; Latin letters are constants (`g`, `c`, `G`, `h`, `e`, `k`, `kB`, `NA`, `R`,
+  `ε0`, `μ0`, `me`), and every constant that was used is listed under the answer, so
+  the Cyrillic *с* (second) and the Latin *c* (speed of light) never get confused
+  silently.
+- **Uncertainty.** `(2,5 ± 0,1) м / (3,0 ± 0,2) с` → `0,83 ± 0,06 м/с`, rounded the way
+  a measurement is written. Every ± is an independent source and every result carries
+  its derivatives with respect to all of them, so correlations are handled exactly:
+  the same quantity subtracted from itself gives 0 ± 0, two independent measurements
+  of it give ±√2.
+- **Dimension check.** `2 м + 3 с` is refused with the reason. `Дж = Н` answers that
+  the left side is larger by a metre. `ln(5 м)` explains that a logarithm needs a ratio.
+  `sin 30` warns that it was taken in radians.
+- **Solve any course formula for any quantity.** 183 of the 252 formulas parse into
+  something solvable. Pick one — or press *решить* next to it in the notes — choose
+  the unknown, type the rest with units, and get the answer with its unit and
+  uncertainty, plus the formula rearranged for it: `g = 4π²L/T²`. When the unknown
+  occurs twice (the time in `x = x₀ + v₀t + ½at²`) the root is found numerically and
+  its dimension is inferred from the formula itself. Constants are filled in only where
+  the letter unambiguously means them: `h` is Planck's constant in quantum physics and
+  a height in mechanics. Formulas with vectors, integrals, derivatives or inequalities
+  are not offered: `dx/dt` read as a product would quietly become `x/t`.
+- **Answers to problems can have units.** `2,5 мДж` in a problem that asks for µJ is
+  converted; `3 Н` in a problem that asks for joules is not "wrong" but "wrong
+  dimension — a factor of metres is missing", which is a different mistake with a
+  different cure.
+
+`npm run calc` checks it: 17 groups of checks, including a round trip in which every
+parsed formula is solved for every one of its quantities with random values and the
+answer is substituted back — 920 cases.
 
 ### Mathematics where it is used, not in a chapter of its own
 
@@ -275,6 +316,23 @@ dial by the thumb instead of a rail of twelve icons. Nothing tappable is under
 44 px. Sizes come from the *visual* viewport, so the browser's address bar never
 covers anything.
 
+**Tablets** get whichever layout fits the moment. Upright, an iPad or a 10-inch
+Android tablet uses the phone layout; turned on its side it switches to the desktop
+one — and that is where things used to break. The splitter wrote the scene width in
+pixels, which survived the rotation back and cut a strip off the phone layout; the
+desktop layout's fixed columns left the notes 161–481 px on 960–1180 px screens. Now
+the scene takes a share of the width, the notes never get less than 360 px, the topic
+list lies over the notes below 1200 px instead of taking their width, and with a
+finger every control in the desktop layout is at least 36 px.
+
+**Old browsers.** Tablets installed outside an app store keep the WebView they shipped
+with. Until 1.8.0 a single `?.` made the whole script unparseable on Chrome/WebView
+below 80 and Safari below 13.1 — the page painted and did nothing. The scripts are now
+ES2017 (Chrome 58, Safari 13 for pointer events), the stylesheet has plain fallbacks for
+every modern function, and the page watchdog is ES5: on an engine that is too old it
+names the engine and says what to update. `tests/compat.js` holds the line on every
+`npm test`.
+
 <p align="center">
   <img src="docs/media/05-mobile.png" width="270" alt="Phone: simulation">
   <img src="docs/media/06-mobile-tools.png" width="270" alt="Phone: tool folders">
@@ -347,12 +405,15 @@ tests/regress.js      pre-release suite: every simulation, formulas, layout
 tests/physics.mjs     530 checks of readouts against closed-form solutions
 tests/answers.mjs     all 384 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
+tests/calc.mjs        the calculator, and every course formula solved both ways
+tests/compat.js       the engine floor: ES2017, an ES5 watchdog, CSS fallbacks
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
 js/sims/*.js          the 76 simulations, grouped by branch of physics
 js/topics.js          course content: notes, derivations, formulas, worked
                       examples, mistakes, self-checks, links, problems
 js/ops.js             the 40 math techniques the derivation steps are tagged with
+js/calc.js            the calculator: units, uncertainty, formula parser and solver
 js/app.js             the core: state, canvases, render loop, the entire UI
 vendor/katex/         KaTeX + fonts, so formulas render without a network
 build-standalone.mjs  bundles everything into one HTML file
@@ -368,14 +429,16 @@ double-clicking on any school computer.
 `init` / `step` / `draw` / `fit`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 for the full contract.
 
-**Before releasing**, run all three suites. `npm test` boots both the source and the
-bundled single file, runs 300 steps of every simulation, checks that no formula
-overflows its column, and walks the desktop and phone layouts. `npm run physics`
-compares the simulations with the textbook. `npm run audit` checks the problems.
+**Before releasing**, run all the suites. `npm test` checks the engine floor and the
+calculator, then boots both the source and the bundled single file, runs 300 steps of
+every simulation, checks that no formula overflows its column, and walks the desktop,
+phone and tablet layouts, rotating the tablet. `npm run physics` compares the
+simulations with the textbook, `npm run audit` checks the problems, `npm run
+curriculum` the structure of the course.
 
 ```bash
 npm i -D playwright
-npm test && npm run physics && npm run audit
+npm test && npm run physics && npm run audit && npm run curriculum
 ```
 
 ---

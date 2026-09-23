@@ -1966,6 +1966,7 @@ function renderPane(){
       ${t.formulas.map((f,i)=>`
         <div class="formula" data-f="${i}">
           ${f.kind?`<span class="f-kind ${f.kind}">${FKIND[f.kind]||f.kind}</span>`:''}
+          ${естьВычислитель()&&формулаРешаема(f)?`<button class="f-solve" data-f="${i}" title="Решить относительно любой величины">решить</button>`:''}
           <div>$$${f.tex}$$</div>
           ${f.note?`<div class="note">${f.note}</div>`:''}
         </div>`).join('')}
@@ -1975,6 +1976,7 @@ function renderPane(){
       ${linksHTML(t)}
     </article>`;
     wireLinks(pane); wireLesson(pane);
+    pane.querySelectorAll('.f-solve').forEach(b=>b.onclick=e=>{ e.stopPropagation(); решитьФормулуКурса(t,+b.dataset.f); });
   } else {
     if(!t.problems.length){ pane.innerHTML='<div class="empty">Задач по этой главе пока нет.</div>'; return; }
     const dots=n=>`<span class="dots">${'<i class="f"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
@@ -2005,7 +2007,7 @@ function renderPane(){
           </div>
           <div class="st">${pr.statement}</div>
           <div class="answer">
-            <input type="text" inputmode="decimal" placeholder="ответ, ${pr.unit}">
+            <input type="text" autocomplete="off" spellcheck="false" placeholder="ответ${pr.unit?', '+pr.unit:''} — можно с единицами">
             <button class="btn primary check">Проверить</button>
             ${pr.hint?'<button class="btn hint">Подсказка</button>':''}
             <button class="btn reveal">Показать ответ</button>
@@ -2024,14 +2026,25 @@ function renderPane(){
       const i=+el.dataset.i, pr=t.problems[i], key=идЗадачи(t,pr);
       const out=el.querySelector('.verdict'), inp=el.querySelector('input');
       const P=()=>pr.sim?rt(pr.sim).params:{};
+      /* Ответ можно ввести с единицами: «2,5 мДж» в задаче про мкДж
+         переводится сам, а «3 Н» в задаче про джоули получает не «не
+         сходится», а «размерность не та» — это другая ошибка, и лечится
+         она иначе: не пересчётом, а формулой. */
       const check=()=>{
-        const u=parseFloat(inp.value.replace(',','.'));
+        let u, переведено=false;
+        if(естьВычислитель()){
+          const р=ВЫЧ.ответЗадачи(inp.value,pr.unit);
+          if(р.размерность){ out.className='verdict no';
+            out.textContent=`✗ размерность не та: ответ — в ${pr.unit} (${р.надо}), а у вас ${р.есть}; ${р.подсказка}`; return; }
+          if(р.ошибка){ out.className='verdict no'; out.textContent=inp.value.trim()?р.ошибка:'введите число'; return; }
+          u=р.u; переведено=!!р.переведено;
+        } else u=parseFloat(inp.value.replace(',','.'));
         if(Number.isNaN(u)){ out.className='verdict no'; out.textContent='введите число'; return; }
         const ans=pr.answer(P());
         if(!isFinite(ans)){ out.className='verdict no'; out.textContent='при этих параметрах события нет'; return; }
         const ok=Math.abs(u-ans)<=Math.max(Math.abs(ans)*0.015,1e-9);
         out.className='verdict '+(ok?'ok':'no');
-        out.textContent=ok?'✓ верно':('✗ не сходится'+разбор(u,ans));
+        out.textContent=(ok?'✓ верно':('✗ не сходится'+разбор(u,ans)))+(переведено?` (в единицах задачи: ${fmt(u)} ${pr.unit})`:'');
         if(ok&&!S.solved[key]){
           S.solved[key]=1; LS.set('solved',S.solved);
           el.classList.add('done'); updateProgress();
@@ -3444,6 +3457,10 @@ hsplit.addEventListener('dblclick',()=>{
     LS.set('simFrac',w/к.доступно);
     разложитьКолонки();
   });
+// на средней ширине панель тем лежит поверх текста: касание по тексту её убирает
+$$('#content').addEventListener('pointerdown',()=>{
+  if($('#app').classList.contains('mid')&&!$('#sidebar').classList.contains('hidden')) toggleSidebar(true);
+});
 // двойной клик по разделителю — вернуть ширину по умолчанию
 $$('#splitter').addEventListener('dblclick',()=>{ LS.set('simFrac',null); requestAnimationFrame(resize); });
 
@@ -4642,6 +4659,7 @@ addEventListener('keydown',e=>{
   // командная палитра: Ctrl+P — всё подряд, Ctrl+Shift+P — только команды
   if(mod&&C==='KeyP'){ e.preventDefault(); cmdkOpen(e.shiftKey?'>':''); return; }
   if(mod&&C==='KeyD'){ e.preventDefault(); takeSnapshot(); return; }
+  if(mod&&C==='KeyE'){ e.preventDefault(); вычислительОткрыт()?закрытьВычислитель():открытьВычислитель(); return; }
   if(mod&&C==='KeyL'){ e.preventDefault(); $('#tl-loop').click(); return; }
   if(mod&&C==='Comma'){ e.preventDefault(); prefsOpen? closePrefs() : openPrefs(); return; }
   if(prefsOpen){ if(e.key==='Escape'){ e.preventDefault(); closePrefs(); } return; }
@@ -4973,6 +4991,8 @@ function resetPanels(){
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
+  {k:'Вычислитель',t:'Вычислитель: счёт с единицами', hint:'Ctrl+E', run:()=>открытьВычислитель({вкладка:'expr'})},
+  {k:'Вычислитель',t:'Решить формулу курса относительно величины', run:()=>открытьВычислитель({вкладка:'form'})},
   {k:'Симуляция',t:'Пуск / пауза',       hint:'Space', run:()=>$('#btn-play').click()},
   {k:'Симуляция',t:'Сбросить симуляцию', hint:'R',     run:()=>$('#btn-reset').click()},
   {k:'Симуляция',t:'Вписать вид',        hint:'0',     run:fitView},
@@ -6334,11 +6354,279 @@ $$('#modal-plot').addEventListener('keydown',e=>{
   e.stopPropagation();                      // горячие клавиши сцены тут не нужны
 });
 
+/* ===================== ВЫЧИСЛИТЕЛЬ =====================
+   Две вкладки: «Счёт» — выражение с единицами и погрешностью, перевод
+   единиц, проверка размерности равенства; «Формула» — любая формула курса,
+   решённая относительно любой её величины. Движок — js/calc.js (ВЫЧ), он
+   не знает про DOM и проверяется отдельно (npm run calc). Здесь — только
+   панель: справа на компьютере, во весь экран на телефоне. */
+function естьВычислитель(){ return typeof ВЫЧ!=='undefined'; }
+const вычСостояние={вкладка:'expr',формула:null,неизвестное:null,значения:{},кэш:null};
+
+/* Все формулы курса, которые разбираются, по равенствам: у одной строки
+   «v_x = …, v_y = …» их несколько, и решать нужно каждое отдельно. */
+function формулыКурса(){
+  if(вычСостояние.кэш) return вычСостояние.кэш;
+  const out=[];
+  for(const t of ALL) (t.formulas||[]).forEach((f,i)=>{
+    let eqs; try{ eqs=ВЫЧ.изTeX(f.tex); }catch(_){ return; }
+    eqs.forEach((eq,k)=>out.push({тема:t,ф:i,k,eq,tex:ВЫЧ.вTeX(eq),пер:ВЫЧ.переменные(eq)}));
+  });
+  return вычСостояние.кэш=out;
+}
+// функцией, а не const: её зовёт отрисовка конспекта ещё при запуске, раньше этой строки
+function формулаРешаема(f){ try{ ВЫЧ.изTeX(f.tex); return true; }catch(_){ return false; } }
+
+/* Что за величина — из «Справочника»: v → «скорость, м/с». Буква одна на
+   разные вещи в разных разделах (k — жёсткость, постоянная Больцмана,
+   Кулона), поэтому ищем сначала в разделе темы. */
+const РАЗДЕЛ_СИМВОЛОВ={mech:'Механика',th:'Теплота',el:'Электричество и магнетизм',em:'Электричество и магнетизм',op:'Волны, оптика, кванты',q:'Волны, оптика, кванты'};
+function подсказкаВеличины(имя,тема){
+  const основа=имя.replace(/_\{.*$/,'').replace(/'+$/,'').replace(/^\\Delta /,'\\Delta ');
+  const раздел=РАЗДЕЛ_СИМВОЛОВ[(тема&&тема.id||'').split('.')[0]];
+  const найти=rows=>{ for(const [сим,что,ед] of rows){
+      const варианты=сим.replace(/\$/g,'').split(/,\\?\s*/).map(x=>x.trim());
+      if(варианты.indexOf(основа)>=0) return {что,ед}; } return null; };
+  const свой=СИМВОЛЫ.find(([р])=>р===раздел);
+  return (свой&&найти(свой[1]))||СИМВОЛЫ.reduce((a,[,rows])=>a||найти(rows),null);
+}
+/* Постоянные подставляем сами, но только там, где буква точно означает её:
+   h в механике — высота, а не Планк; c в теплоте — теплоёмкость. */
+function постояннаяДля(имя,тема){
+  const р=(тема&&тема.id||'').split('.')[0];
+  const всегда={'G':'6,674·10⁻¹¹ Н·м²/кг²','\\hbar':'1,0546·10⁻³⁴ Дж·с','N_{A}':'6,022·10²³ 1/моль',
+    '\\varepsilon_{0}':'8,854·10⁻¹² Ф/м','\\mu_{0}':'1,2566·10⁻⁶ Гн/м','m_{e}':'9,109·10⁻³¹ кг','k_{\\text {Б}}':'1,381·10⁻²³ Дж/К'};
+  if(всегда[имя]) return всегда[имя];
+  if(имя==='g'&&(р==='mech'||р==='th')) return '9,8 м/с²';
+  if(имя==='c'&&(р==='em'||р==='op'||р==='q')) return '2,998·10⁸ м/с';
+  if(имя==='h'&&р==='q') return '6,626·10⁻³⁴ Дж·с';
+  if(имя==='e'&&(р==='q'||р==='el')) return '1,602·10⁻¹⁹ Кл';
+  if(имя==='k'&&р==='el') return '8,988·10⁹ Н·м²/Кл²';
+  if(имя==='k'&&(р==='th'||р==='q')) return '1,381·10⁻²³ Дж/К';
+  if(имя==='R'&&р==='th') return '8,314 Дж/(моль·К)';
+  return null;
+}
+
+function собратьВычислитель(){
+  let c=document.getElementById('calc'); if(c) return c;
+  c=document.createElement('div'); c.id='calc'; c.className='calc hidden';
+  c.setAttribute('role','dialog'); c.setAttribute('aria-label','Вычислитель');
+  c.innerHTML=`
+    <div class="calc-h">
+      <div class="calc-tabs"><button data-ct="expr" class="on">Счёт</button><button data-ct="form">Формула</button></div>
+      <button class="iconbtn calc-x" title="Закрыть (Esc)" aria-label="Закрыть">×</button>
+    </div>
+    <div class="calc-page" data-cp="expr">
+      <input class="calc-in" id="calc-in" type="text" inputmode="text" autocomplete="off" autocorrect="off"
+        autocapitalize="off" spellcheck="false" placeholder="72 км/ч в м/с">
+      <div class="calc-out" id="calc-out"></div>
+      <div class="calc-l">Попробуйте</div>
+      <div class="calc-ex">${['72 км/ч в м/с','(2,5 ± 0,1) м / (3,0 ± 0,2) с','½ · 2 кг · (3 м/с)²','h c / (500 нм) в эВ',
+        '√(2 g · 10 м)','sin(30°)','Н = кг·м/с²','1500 об/мин в рад/с'].map(x=>`<button class="calc-chip">${esc(x)}</button>`).join('')}</div>
+      <div class="calc-l calc-hist-h hidden">Недавнее</div>
+      <div class="calc-hist" id="calc-hist"></div>
+      <details class="calc-help"><summary>Как писать</summary>
+        <p><b>Единицы — по-русски</b>, как в курсе: м, с, кг, Н, Дж, Вт, Па, В, А, Ом, Ф, Тл, эВ, л, мин, ч,
+          °, % и приставки: км, мм, мкФ, нм, МэВ. Степень — м² или м^2.</p>
+        <p><b>Латинские буквы — постоянные</b>: g, c, G, h, ħ (hbar), e, me, mp, k (Кулона), kB, NA, R, ε0, μ0, π.
+          Кириллическая «с» — секунда, латинская «c» — скорость света.</p>
+        <p><b>Погрешность</b>: (2,5 ± 0,1) м, 2,5 ± 0,1 м или 3 кг ± 2 %. Считается по правилу
+          σ = √Σ(∂f/∂x·σ)²: оно верно, пока погрешности малы.</p>
+        <p><b>Перевод</b>: в конце «в км/ч» или «→ км/ч». <b>Проверка размерности</b>: напишите равенство
+          единиц — «Дж = Н·м».</p>
+        <p>Пробел между числом и единицей связывает сильнее деления: 72 км/ч — это 72 км, делённые на час,
+          а 1/2 кг — это 1/(2 кг). Функции: sin, cos, tg, arcsin, arccos, arctg, √ или sqrt, ln, lg, exp.
+          Угол без знака ° считается в радианах.</p>
+      </details>
+    </div>
+    <div class="calc-page hidden" data-cp="form">
+      <div class="calc-fpick">
+        <input class="calc-in" id="calc-fq" type="text" autocomplete="off" spellcheck="false" placeholder="Найти формулу: период, линза, Ом…">
+        <div class="calc-flist" id="calc-flist"></div>
+      </div>
+      <div class="calc-fsel hidden" id="calc-fsel">
+        <button class="btn calc-back">← Другая формула</button>
+        <div class="calc-ftop"><div class="calc-ftex" id="calc-ftex"></div><div class="calc-fwho" id="calc-fwho"></div></div>
+        <div class="calc-l">Найти</div>
+        <div class="calc-unk" id="calc-unk"></div>
+        <div class="calc-l">Известно</div>
+        <div class="calc-fields" id="calc-fields"></div>
+        <div class="calc-fres" id="calc-fres"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(c);
+  c.querySelector('.calc-x').onclick=закрытьВычислитель;
+  c.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>вкладкаВычислителя(b.dataset.ct));
+  const вход=c.querySelector('#calc-in');
+  let ждём=null;
+  вход.addEventListener('input',()=>{ clearTimeout(ждём); ждём=setTimeout(посчитатьСтроку,90); });
+  вход.addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Enter'){ посчитатьСтроку(); запомнитьСтроку(вход.value); }
+    if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); }
+  });
+  c.querySelectorAll('.calc-chip').forEach(b=>b.onclick=()=>{ вход.value=b.textContent; посчитатьСтроку(); вход.focus(); });
+  const поиск=c.querySelector('#calc-fq');
+  поиск.addEventListener('input',()=>списокФормул(поиск.value));
+  поиск.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); } });
+  c.querySelector('.calc-back').onclick=()=>{ вычСостояние.формула=null; показатьФормулу(); };
+  // клавиши сцены внутри панели не нужны
+  c.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); } e.stopPropagation(); });
+  return c;
+}
+function вкладкаВычислителя(id){
+  вычСостояние.вкладка=id;
+  const c=собратьВычислитель();
+  c.querySelectorAll('[data-ct]').forEach(b=>b.classList.toggle('on',b.dataset.ct===id));
+  c.querySelectorAll('[data-cp]').forEach(p=>p.classList.toggle('hidden',p.dataset.cp!==id));
+  if(id==='form') показатьФормулу();
+  else { рисоватьИсторию(); setTimeout(()=>{ const i=$('#calc-in'); if(i&&!isNarrow()) i.focus(); },30); }
+}
+function открытьВычислитель(опции){
+  if(!естьВычислитель()){ toast('Вычислитель не загрузился'); return; }
+  const c=собратьВычислитель();
+  c.classList.remove('hidden');
+  document.documentElement.classList.add('calc-on');
+  опции=опции||{};
+  if(опции.формула){ вычСостояние.формула=опции.формула; вычСостояние.неизвестное=null; вкладкаВычислителя('form'); }
+  else вкладкаВычислителя(опции.вкладка||вычСостояние.вкладка);
+  requestAnimationFrame(resize);
+}
+function закрытьВычислитель(){
+  const c=document.getElementById('calc'); if(c) c.classList.add('hidden');
+  document.documentElement.classList.remove('calc-on');
+  requestAnimationFrame(resize);
+}
+const вычислительОткрыт=()=>{ const c=document.getElementById('calc'); return !!c&&!c.classList.contains('hidden'); };
+
+/* ---------- Счёт ---------- */
+function посчитатьСтроку(){
+  const вход=$('#calc-in'), out=$('#calc-out'); if(!вход||!out) return;
+  const s=вход.value.trim();
+  if(!s){ out.innerHTML=''; return; }
+  let r;
+  try{ r=ВЫЧ.считать(s); }
+  catch(e){
+    const п=e.разбор&&typeof e.поз==='number'&&e.поз<s.length ? e.поз : -1;
+    out.innerHTML=`<div class="calc-err">${esc(e.message)}</div>`+
+      (п>=0?`<div class="calc-where">${esc(s.slice(0,п))}<mark>${esc(s.slice(п,п+1)||' ')}</mark>${esc(s.slice(п+1))}</div>`:'');
+    return;
+  }
+  if(r.вид==='равенство'){
+    out.innerHTML=`<div class="calc-verdict ${r.сходится?'ok':'bad'}">${esc(r.текст)}</div>`+
+      (r.заметки.length?`<div class="calc-note">${r.заметки.map(esc).join('<br>')}</div>`:'');
+    return;
+  }
+  out.innerHTML=`<div class="calc-res">${esc(r.текст)}</div>`+
+    (r.иначе?`<div class="calc-alt">= ${esc(r.иначе)}</div>`:'')+
+    (r.относительная?`<div class="calc-alt">относительная погрешность ${ВЫЧ.число(r.относительная*100,2)} %</div>`:'')+
+    (r.понято.length?`<div class="calc-note">Как понято: ${r.понято.map(p=>`<b>${esc(p.имя)}</b> — ${esc(p.что)}`).join(', ')}</div>`:'')+
+    (r.заметки.length?`<div class="calc-note warn">${r.заметки.map(esc).join('<br>')}</div>`:'');
+}
+function запомнитьСтроку(s){
+  s=String(s||'').trim(); if(!s) return;
+  try{ ВЫЧ.считать(s); }catch(_){ return; }        // в историю — только то, что посчиталось
+  const h=[s].concat((LS.get('calcHist',[])||[]).filter(x=>x!==s)).slice(0,10);
+  LS.set('calcHist',h); рисоватьИсторию();
+}
+function рисоватьИсторию(){
+  const box=$('#calc-hist'); if(!box) return;
+  const h=LS.get('calcHist',[])||[];
+  const заг=document.querySelector('.calc-hist-h'); if(заг) заг.classList.toggle('hidden',!h.length);
+  box.innerHTML=h.map(x=>`<button class="calc-hrow">${esc(x)}</button>`).join('');
+  box.querySelectorAll('.calc-hrow').forEach(b=>b.onclick=()=>{ $('#calc-in').value=b.textContent; посчитатьСтроку(); });
+}
+
+/* ---------- Формула ---------- */
+function показатьФормулу(){
+  const выбрана=!!вычСостояние.формула;
+  $('#calc-fsel').classList.toggle('hidden',!выбрана);
+  document.querySelector('.calc-fpick').classList.toggle('hidden',выбрана);
+  if(!выбрана){ списокФормул($('#calc-fq').value); return; }
+  const f=вычСостояние.формула;
+  const ftex=$('#calc-ftex'); ftex.innerHTML=`$$${f.tex}$$`;
+  $('#calc-fwho').textContent=f.тема.title;
+  if(!вычСостояние.неизвестное||f.пер.indexOf(вычСостояние.неизвестное)<0){
+    // по умолчанию — то, что стоит слева один
+    вычСостояние.неизвестное= f.eq.a.k==='var' ? f.eq.a.имя : f.пер[0];
+  }
+  const unk=$('#calc-unk');
+  unk.innerHTML=f.пер.map(п=>`<button class="calc-v${п===вычСостояние.неизвестное?' on':''}" data-v="${esc(п)}">$${п}$</button>`).join('');
+  unk.querySelectorAll('.calc-v').forEach(b=>b.onclick=()=>{ вычСостояние.неизвестное=b.dataset.v; показатьФормулу(); });
+  const поля=$('#calc-fields');
+  поля.innerHTML=f.пер.filter(п=>п!==вычСостояние.неизвестное).map(п=>{
+    const пм=подсказкаВеличины(п,f.тема), пост=постояннаяДля(п,f.тема);
+    if(вычСостояние.значения[п]===undefined&&пост) вычСостояние.значения[п]=пост;
+    const знач=вычСостояние.значения[п]||'';
+    return `<label class="calc-row"><span class="calc-var">$${п}$</span>
+      <input class="calc-val" data-v="${esc(п)}" type="text" autocomplete="off" spellcheck="false"
+        value="${esc(знач)}" placeholder="${esc(пм&&пм.ед&&пм.ед!=='—'?'например, 2 '+пм.ед.split(/[ ;(]/)[0]:'число')}">
+      <span class="calc-hint">${esc(пм?пм.что:'')}${пост?' · постоянная, подставлена':''}</span></label>`;
+  }).join('');
+  поля.querySelectorAll('.calc-val').forEach(i=>{
+    i.addEventListener('input',()=>{ вычСостояние.значения[i.dataset.v]=i.value; решитьФормулу(); });
+    i.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape'){ e.preventDefault(); закрытьВычислитель(); } });
+  });
+  typeset($('#calc-fsel'));
+  решитьФормулу();
+}
+function решитьФормулу(){
+  const f=вычСостояние.формула, x=вычСостояние.неизвестное, res=$('#calc-fres'); if(!f||!res) return;
+  document.querySelectorAll('#calc-fields .calc-val').forEach(i=>i.classList.remove('bad'));
+  const вводы={}; let пусто=0;
+  for(const п of f.пер) if(п!==x){ const v=(вычСостояние.значения[п]||'').trim(); if(!v) пусто++; вводы[п]=v; }
+  if(пусто){ res.innerHTML=`<div class="calc-note">Заполните ${пусто===1?'ещё одно поле':'поля выше'} — с единицами: «2 кг», «9,8 м/с²», «(1,00 ± 0,01) м».</div>`; return; }
+  try{
+    const р=ВЫЧ.решить(f.eq,x,вводы);
+    // формула уже решена относительно x — второй раз её не показываем
+    const ужеВыражено=f.eq.a.k==='var'&&f.eq.a.имя===x;
+    res.innerHTML=(р.tex&&!ужеВыражено?`<div class="calc-ftex">$$${р.tex}$$</div>`:'')+
+      `<div class="calc-res">$${x}$ = ${esc(р.ответ.текст)}</div>`+
+      (р.ответ.иначе?`<div class="calc-alt">= ${esc(р.ответ.иначе)}</div>`:'')+
+      (р.ответ.другие?`<div class="calc-alt">другие корни: ${р.ответ.другие.map(esc).join('; ')}</div>`:'')+
+      (р.ответ.заметки.length?`<div class="calc-note">${р.ответ.заметки.map(esc).join('<br>')}</div>`:'');
+  }catch(e){
+    if(e.поле){ const i=document.querySelector(`#calc-fields .calc-val[data-v="${CSS&&CSS.escape?CSS.escape(e.поле):e.поле}"]`); if(i) i.classList.add('bad'); }
+    res.innerHTML=`<div class="calc-err">${e.поле?'$'+e.поле+'$: ':''}${esc(e.message)}</div>`;
+  }
+  typeset(res);
+}
+function списокФормул(запрос){
+  const box=$('#calc-flist'); if(!box) return;
+  const q=String(запрос||'').trim().toLowerCase();
+  const все=формулыКурса();
+  const подходит=f=>!q||f.тема.title.toLowerCase().indexOf(q)>=0||f.tex.toLowerCase().indexOf(q)>=0||
+    f.пер.some(п=>{ const пм=подсказкаВеличины(п,f.тема); return пм&&пм.что.toLowerCase().indexOf(q)>=0; });
+  const своя=S.topic&&все.filter(f=>f.тема===S.topic&&подходит(f));
+  const прочие=все.filter(f=>(!S.topic||f.тема!==S.topic)&&подходит(f)).slice(0,q?80:40);
+  const ряд=f=>`<button class="calc-frow" data-i="${все.indexOf(f)}"><span class="calc-fw">${esc(f.тема.title)}</span>$${f.tex}$</button>`;
+  box.innerHTML=(своя&&своя.length?`<div class="calc-l">В этой теме</div>${своя.map(ряд).join('')}`:'')+
+    (прочие.length?`<div class="calc-l">${q?'Найдено':'Все формулы курса'}</div>${прочие.map(ряд).join('')}`:'')+
+    (!(своя&&своя.length)&&!прочие.length?'<div class="calc-note">Ничего не нашлось.</div>':'')+
+    `<div class="calc-note">Решаются ${все.length} равенств из формул курса. Векторы, интегралы, производные и
+      неравенства так не решить — их здесь нет.</div>`;
+  box.querySelectorAll('.calc-frow').forEach(b=>b.onclick=()=>{
+    вычСостояние.формула=все[+b.dataset.i]; вычСостояние.неизвестное=null; показатьФормулу();
+  });
+  typeset(box);
+}
+/* Кнопка «решить» у формулы в конспекте. */
+function решитьФормулуКурса(тема,i){
+  const f=формулыКурса().find(x=>x.тема===тема&&x.ф===i);
+  if(f) открытьВычислитель({формула:f});
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&вычислительОткрыт()&&!приёмОткрыт()){ e.preventDefault(); e.stopPropagation(); закрытьВычислитель(); }
+},true);
+$$('#btn-calc').onclick=()=>вычислительОткрыт()?закрытьВычислитель():открытьВычислитель();
+$$('#m-calc').onclick=()=>открытьВычислитель();
+$$('#mi-calc').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьВычислитель(); };
+
 /* ===================== ОТМЕТКА ОБ УСПЕШНОЙ ЗАГРУЗКЕ =====================
    Последняя строка файла. Если она выполнилась — скрипт дочитан до конца и
    весь интерфейс подключён. Сторож в index.html смотрит на эту отметку:
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '1.7.0';
+window.PHYSIM_BUILD = '1.8.0';
 window.PHYSIM_READY = true;
