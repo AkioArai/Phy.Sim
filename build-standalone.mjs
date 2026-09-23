@@ -106,8 +106,11 @@ function checkSingleBackslash(topicsSrc){
 }
 
 const JS_FILES = jsFilesFromHtml(read('index.html'));
-checkContentEscaping(read('js/topics.js'));
-checkSingleBackslash(read('js/topics.js'));
+// Статьи о приёмах выводов (js/ops.js) — такой же учебный текст с формулами.
+for (const f of ['js/topics.js', 'js/ops.js']) {
+  checkContentEscaping(read(f));
+  checkSingleBackslash(read(f));
+}
 const bundle = JS_FILES.map((f) => read(f)).join('\n;\n').replace(/<\/script>/gi, '<\\/script>');
 const css = read('css/style.css');
 

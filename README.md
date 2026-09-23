@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.6.2.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.6.2.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.6.2.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.6.2.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.7.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.7.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.7.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.7.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -93,15 +93,41 @@ KaTeX and its fonts ship inside the repository.
 | **81** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
 | **135** points to remember | the five sentences per topic you would want on an exam morning |
 | **78** derivations, **306** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
+| **40** math techniques, on the steps | every step is tagged with the mathematics it uses; a tag opens what the technique is, when it is legitimate, where it breaks — and every other derivation in the course that uses it |
 | **prerequisites, stated** | a topic names what you must know first and offers a one-minute check before you start reading |
 | **252** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
 | **384** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
 | **133** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
 | **83** self-checks | three questions per topic, answers hidden until you have tried |
 | **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
-| **reference sheet** | symbols, constants and units in Settings — the thing you would otherwise keep a browser tab open for |
+| **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
 | **57** settings | theme, density, scene decorations, performance, recording |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### Mathematics where it is used, not in a chapter of its own
+
+There is no mathematics section, on purpose. There was one — trigonometry and
+vectors — and it was removed: a chapter on trigonometry sits beside the physics,
+and nobody opens it. Instead, each of the 306 derivation steps says which
+mathematics it is made of: substitution, resolving a vector along axes, the
+small-angle approximation, the integral as a sum of small contributions, a check
+against limiting cases — 40 techniques in all. Under each step they are small tags.
+A tag opens a card: what the technique is, when it is legitimate, and where it
+breaks, with the numbers worked out — `sin θ ≈ θ` is 0.5 % off at 10°, 2 % at 20°,
+4.5 % at 30°, yet a pendulum swinging to 30° keeps its period within 1.7 %,
+because the force is badly wrong only near the turning points. Below that, every
+other derivation in the course that uses the same technique, one tap from the
+exact step.
+
+One tag is different: *physics*. It marks the steps where a law, a definition, an
+experimental fact or a modelling assumption enters the derivation — the things that
+do not follow from the previous line. Everything between them is transformation.
+Seeing where the physics goes in is most of what it takes to rebuild a derivation
+on your own.
+
+`npm run curriculum` requires every step to name its techniques, every name to have
+an article, and every article to be used by at least one step — so the reference
+cannot quietly grow into the separate maths course it replaced.
 
 ### Problems that can't be looked up
 
@@ -320,12 +346,13 @@ index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
 tests/physics.mjs     530 checks of readouts against closed-form solutions
 tests/answers.mjs     all 384 problems against 40 random parameter sets each
-tests/curriculum.mjs  the prerequisite graph and the integrity of lesson blocks
+tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
 js/sims/*.js          the 76 simulations, grouped by branch of physics
 js/topics.js          course content: notes, derivations, formulas, worked
                       examples, mistakes, self-checks, links, problems
+js/ops.js             the 40 math techniques the derivation steps are tagged with
 js/app.js             the core: state, canvases, render loop, the entire UI
 vendor/katex/         KaTeX + fonts, so formulas render without a network
 build-standalone.mjs  bundles everything into one HTML file

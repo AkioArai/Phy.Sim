@@ -148,32 +148,35 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **Fix: ticking a problem as solved could mark a different problem.**
-          A tick was stored under the problem's position in its chapter — chapter id
-          plus index. The chapter is not frozen: problems get added, and one inserted
-          in the middle shifts every problem after it by one. The ticks stayed on the
-          old numbers, so they slid onto the neighbours, and a chapter you had worked
-          through showed solved problems you had never opened. Ticks are now keyed by
-          the problem itself — an FNV-1a hash of its statement — so the key follows the
-          problem instead of its place, and inserting anything moves nothing. Progress
-          saved by an earlier version is translated once on first launch, and a backup
-          file exported by an earlier version is translated the same way when it is
-          loaded back. A key that cannot be matched to a problem is kept, not dropped:
-          an extra tick is better than a lost one. A release check now also verifies
-          that no two problems share a key and that no key changed since the last
-          release.
+          **Mathematics, where it is used.** There is no mathematics chapter, and there
+          will not be one: there was, it was removed, because a chapter on
+          trigonometry sits beside the physics and nobody opens it. Instead, every one
+          of the 306 derivation steps now says which mathematics it is made of —
+          substitution, resolving a vector along axes, the small-angle approximation,
+          the integral as a sum of small contributions, a check against limiting cases:
+          40 techniques in all, shown as small tags under the step.
 
-          **Fix: settings could open to a blank screen.** The settings window
-          remembered which section you were last in. A section name that no longer
-          exists — left over from a newer build, or simply wrong — was not found in the
-          list, and reading its title threw before anything was drawn. An unknown
-          section now falls back to the first one.
+          A tag opens a card with three things: what the technique is, when it is
+          legitimate, and where it breaks, with the numbers worked out rather than
+          waved at. `sin θ ≈ θ` is 0.5 % off at 10°, 2 % at 20° and 4.5 % at 30° —
+          yet a pendulum swinging to 30° keeps its period within 1.7 %, because the
+          force is badly wrong only near the turning points. Below that, every other
+          derivation in the course made with the same technique; one tap opens it at
+          the exact step. On a phone the card is a bottom sheet.
 
-          **A release check that was checking nothing.** The test meant to catch NaN in
-          the readouts read a field that readouts do not have, so its condition was
-          never true and it had passed on every release since it was written. Rewritten
-          to assert what actually matters: a readout with no value must render as a dash
-          and never as the word NaN. All 76 simulations pass it.
+          One tag is different: *physics*. It marks the steps where a law, a
+          definition, an experimental fact or a modelling assumption enters the
+          derivation — the lines that do not follow from the line before. Everything
+          between them is transformation. Seeing where the physics goes in is most of
+          what it takes to rebuild a derivation on your own.
+
+          The full list of techniques is a new tab in Settings → Reference, and every
+          technique can be found from the command palette (Ctrl+P).
+
+          **Fix: the Reference tabs never switched.** Symbols, Constants and Units
+          highlighted as you clicked them, but all three pages stayed on screen at
+          once, so the constants were always somewhere below a long table of symbols.
+          The rule that hides the inactive page was simply missing.
 
           ### Must read
 

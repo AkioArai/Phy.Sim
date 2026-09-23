@@ -767,6 +767,68 @@ function проверитьВерсии() {
     ok('настройки переживают неизвестный раздел',
         !наст.ошибка && !!наст.заголовок && наст.полей > 0, наст);
 
+    /* ПРИЁМЫ ВЫВОДОВ. Под каждым шагом — метки математики, которой он сделан
+       (js/ops.js), метка открывает карточку статьи, из карточки — переход в
+       другой вывод тем же приёмом. Отдельной главы математики нет, поэтому
+       всё это держится на трёх вещах, их и проверяем: метки дошли до экрана
+       все до одной, карточка встаёт у метки и не закрывает её, переход
+       раскрывает нужный вывод до нужного шага. */
+    const приём = await p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      openTopic('mech.osc'); await жди(150);
+      const ожидалось = S.topic.derivations.reduce((n, dv) =>
+        n + dv.steps.reduce((m, st) => m + st.op.length, 0), 0);
+      const меток = document.querySelectorAll('#pane .op-chip').length;
+      const d = document.querySelector('#pane .deriv[data-d="1"]');
+      d.querySelector('.dv-all').click();
+      const чип = d.querySelector('.dv-step[data-k="1"] .op-chip');
+      чип.scrollIntoView({ block: 'center' }); await жди(50);
+      чип.click(); await жди(200);
+      const c = document.querySelector('#opcard');
+      const cr = c.getBoundingClientRect(), mr = чип.getBoundingClientRect();
+      const out = {
+        меток, ожидалось, открыта: приёмОткрыт(), приём: c.dataset.op,
+        формул: c.querySelectorAll('.katex').length,
+        вКадре: cr.left >= 0 && cr.top >= 0 && cr.right <= innerWidth && cr.bottom <= innerHeight,
+        меткаВидна: mr.bottom <= cr.top || mr.top >= cr.bottom || mr.right <= cr.left || mr.left >= cr.right,
+        ссылок: c.querySelectorAll('.opc-go').length,
+      };
+      const go = c.querySelector('.opc-go');
+      const [tid, dd, kk] = [go.dataset.t, +go.dataset.d, +go.dataset.k];
+      go.click(); await жди(400);
+      const шаг = document.querySelector(`#pane .deriv[data-d="${dd}"] .dv-step[data-k="${kk}"]`);
+      out.перешли = S.topic.id === tid && !!шаг && шаг.classList.contains('on') &&
+        !!шаг.querySelector(`.op-chip[data-op="${out.приём}"]`);
+      out.закрылась = !приёмОткрыт();
+      /* Справочник: вкладки обязаны показывать по одной странице. До 1.7.0
+         у .ref-body.hidden не было правила, и все страницы стояли друг под
+         другом — вкладка «Константы» подсвечивалась, но ничего не меняла. */
+      openPrefs('ref'); await жди(100);
+      document.querySelector('#prefs [data-ref="o"]').click();
+      out.страниц = [...document.querySelectorAll('#prefs .ref-body')]
+        .filter(x => getComputedStyle(x).display !== 'none').length;
+      out.рядов = document.querySelectorAll('#prefs .op-row').length;
+      document.querySelector('#prefs .op-row').click(); await жди(100);
+      out.изСправочника = приёмОткрыт();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await жди(50);
+      out.escЗакрыл = !приёмОткрыт();
+      out.настройкиОстались = !document.querySelector('#prefs').classList.contains('hidden');
+      closePrefs();
+      return out;
+    });
+    ok('метки приёмов стоят под каждым шагом вывода',
+        приём.меток > 0 && приём.меток === приём.ожидалось, приём);
+    ok('карточка приёма встаёт у метки и не закрывает её',
+        приём.открыта && приём.приём === 'малый-угол' && приём.формул > 0 &&
+        приём.вКадре && приём.меткаВидна, приём);
+    ok('из карточки — в другой вывод тем же приёмом, до нужного шага',
+        приём.ссылок >= 1 && приём.перешли && приём.закрылась, приём);
+    ok('вкладки справочника показывают по одной странице',
+        приём.страниц === 1 && приём.рядов === 40, приём);
+    ok('Esc закрывает карточку, а настройки под ней остаются',
+        приём.изСправочника && приём.escЗакрыл && приём.настройкиОстались, приём);
+
     await p.close();
 
     // --- телефон ---
@@ -916,6 +978,30 @@ function проверитьВерсии() {
       лист.peek.сцена > лист.half.сцена && лист.half.сцена > лист.full.сцена &&
       лист.full.сцена === 88 && лист.вкладки.join(',') === 'params,notes,problems' &&
       лист.показания > 3 && лист.док, лист);
+
+    /* Карточка приёма на телефоне: рядом с меткой в узкой колонке ей не
+       поместиться, поэтому это нижний лист во всю ширину — и он обязан лечь
+       поверх нижних панелей, а не под них (так уже было с настройками). */
+    const приёмТел = await m.p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      openTopic('mech.osc'); await жди(300);
+      setSheetTab('notes'); await жди(400);
+      const d = document.querySelector('#pane .deriv[data-d="1"]');
+      d.querySelector('.dv-all').click();
+      const чип = d.querySelector('.dv-step[data-k="1"] .op-chip');
+      чип.scrollIntoView({ block: 'center' }); await жди(100);
+      чип.click(); await жди(250);
+      const c = document.querySelector('#opcard'), r = c.getBoundingClientRect();
+      const внизу = document.elementFromPoint(r.left + r.width / 2, r.bottom - 12);
+      const out = { лист: c.classList.contains('sheet'), отступСнизу: Math.round(innerHeight - r.bottom),
+                    воВсюШирину: Math.round(r.width) === innerWidth, поверх: !!внизу && c.contains(внизу),
+                    высота: Math.round(r.height), экран: innerHeight };
+      закрытьПриём();
+      return out;
+    });
+    ok('на телефоне карточка приёма — нижний лист поверх панелей',
+      приёмТел.лист && приёмТел.отступСнизу === 0 && приёмТел.воВсюШирину &&
+      приёмТел.поверх && приёмТел.высота <= приёмТел.экран * 0.8, приёмТел);
 
     await m.p.close();
   }

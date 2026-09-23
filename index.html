@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="1.6.2">
+<meta name="physim-build" content="1.7.0">
 <script>
   if (location.protocol === 'http:' || location.protocol === 'https:') {
     addEventListener('load', () => navigator.serviceWorker?.register('sw.js').catch(() => {}));
@@ -85,6 +85,7 @@
 <script defer src="js/sims/quantum.js"></script>
 <script defer src="js/sims/matter-nuclear.js"></script>
 <script defer src="js/topics.js"></script>
+<script defer src="js/ops.js"></script>
 <script defer src="js/app.js"></script>
 </head>
 <body>

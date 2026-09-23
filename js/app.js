@@ -1453,7 +1453,7 @@ function derivHTML(t){
         ${d.steps.map((s,k)=>`<div class="dv-step" data-k="${k}">
           <span class="dv-n">${k+1}</span>
           <span class="dv-body"><span class="dv-eq">$$${s.tex}$$</span>
-          <span class="dv-why">${s.why}</span></span>
+          <span class="dv-why">${s.why}</span>${чипыПриёмов(s,t,i,k)}</span>
         </div>`).join('')}
       </div>
       <div class="dv-ctl">
@@ -1522,14 +1522,199 @@ function wireLesson(pane){
     };
     next.onclick=()=>{ открыто=Math.min(шаги.length,открыто+1); обновить(); };
     all.onclick=()=>{ открыто=шаги.length; обновить(); };
+    // переход из карточки приёма: открыть вывод до нужного шага, не сворачивая
+    el._открытьДо=n=>{ открыто=Math.max(открыто,Math.min(шаги.length,n)); обновить(); };
     const sm=el.querySelector('.dv-sim');
     if(sm) sm.onclick=()=>{ openSim(sm.dataset.sim); if(isNarrow()) openSimMobile(); };
     обновить();
+  });
+  pane.querySelectorAll('.op-chip').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    // повторное нажатие на ту же метку закрывает карточку
+    if(b.classList.contains('on')){ закрытьПриём(); return; }
+    const t=ALL.find(x=>x.id===b.dataset.t);
+    открытьПриём(b.dataset.op, t?{t,i:+b.dataset.d,k:+b.dataset.k}:null, b);
   });
   pane.querySelectorAll('.example').forEach(el=>{
     const b=el.querySelector('.ex-go');
     b.onclick=()=>{ const on=el.classList.toggle('open'); b.textContent=on?'Скрыть решение':'Показать решение'; };
   });
+}
+
+/* ---------- Приёмы выводов ----------
+   Под каждым шагом вывода — метки: какой математикой он сделан (js/ops.js).
+   Метка открывает карточку: что за приём, когда он законен, где ломается —
+   и какие ещё выводы курса сделаны им же. Отдельной главы «Математика» нет
+   намеренно: однажды она была, и в неё не заходили. Приём встречают в
+   работе, там, где он понадобился, и видят его тридцать раз, а не один.
+   Метка «физика» отмечает шаги, где в вывод входит закон, определение или
+   допущение, — так видно, где физика, а где преобразования. */
+/* Функция, а не стрелка в const: её зовёт отрисовка конспекта, выше по
+   файлу, и объявление функции не зависит от того, где оно стоит. Если
+   ops.js не загрузился, конспект рисуется как раньше — без меток. */
+function естьПриёмы(){ return typeof ПРИЁМЫ!=='undefined'; }
+function чипыПриёмов(s,t,i,k){
+  if(!естьПриёмы()||!s.op||!s.op.length) return '';
+  return `<span class="dv-ops">${s.op.filter(o=>ПРИЁМЫ[o]).map(o=>
+    `<button class="op-chip${o==='физика'?' fiz':''}" data-op="${o}" data-t="${t.id}"
+      data-d="${i}" data-k="${k}" title="${ПРИЁМЫ[o].имя}">${ПРИЁМЫ[o].кратко}</button>`).join('')}</span>`;
+}
+/* Где каким приёмом пользуются. Считается один раз: содержание курса за
+   время работы не меняется. */
+let _гдеПриёмы=null;
+function гдеПриём(){
+  if(_гдеПриёмы) return _гдеПриёмы;
+  const м={};
+  for(const t of ALL) (t.derivations||[]).forEach((d,i)=>d.steps.forEach((s,k)=>{
+    for(const o of s.op||[]) (м[o]=м[o]||[]).push({t,i,k});
+  }));
+  return _гдеПриёмы=м;
+}
+const вВыводах=n=>`в ${n} ${n%10===1&&n%100!==11?'выводе':'выводах'}`;
+/* где — шаг, из которого открыли карточку: {t,i,k}. Без него (из справочника
+   или палитры) карточка показывает все выводы курса с этим приёмом. */
+function приёмHTML(id,где){
+  const п=ПРИЁМЫ[id]; if(!п) return '';
+  const гр=(ГРУППЫ_ПРИЁМОВ.find(g=>g.id===п.группа)||{}).name||'';
+  const [л1,л2,л3]=п.подписи||['Что это','Когда законно','Где ломается'];
+  let низ='';
+  if(id==='физика'){
+    if(где){
+      const d=где.t.derivations[где.i];
+      const н=d.steps.map((s,k)=>(s.op||[]).includes('физика')?k+1:0).filter(Boolean);
+      низ=`<div class="opc-sec"><div class="opc-l">В этом выводе</div><div>Физика входит
+        в шаг${н.length>1?'и':''} ${н.join(', ')} из ${d.steps.length}.
+        ${н.length<d.steps.length?'Остальное — математика.':'Здесь нет ни одного чисто математического шага.'}</div></div>`;
+    }
+  } else {
+    // выводы, а не шаги: в одном выводе приём бывает и дважды
+    const выводы=[];
+    for(const x of гдеПриём()[id]||[]){
+      const был=выводы[выводы.length-1];
+      if(был&&был.t===x.t&&был.i===x.i) был.шаги.push(x.k);
+      else выводы.push({t:x.t,i:x.i,шаги:[x.k]});
+    }
+    const список=где? выводы.filter(v=>!(v.t===где.t&&v.i===где.i)) : выводы;
+    низ=`<div class="opc-sec opc-used"><div class="opc-l">${где?'Тем же приёмом — ещё ':'В курсе — '}${вВыводах(список.length)}</div>
+      ${список.map(v=>`<button class="opc-go" data-t="${v.t.id}" data-d="${v.i}" data-k="${v.шаги[0]}">
+        <span class="opc-gt">${v.t.title} · шаг ${v.шаги.map(k=>k+1).join(', ')}</span>
+        <span class="opc-gf">$${v.t.derivations[v.i].goal}$</span></button>`).join('')
+        ||'<div class="opc-none">Больше нигде в курсе — только здесь.</div>'}</div>`;
+  }
+  return `<div class="opc-h"><span class="opc-grp">${гр}</span>
+      <button class="opc-x" aria-label="Закрыть">×</button></div>
+    <div class="opc-t">${п.имя}</div>
+    <div class="opc-body">
+      <div class="opc-sec"><div class="opc-l">${л1}</div><div>${п.что}</div></div>
+      <div class="opc-sec"><div class="opc-l">${л2}</div><div>${п.законно}</div></div>
+      <div class="opc-sec"><div class="opc-l">${л3}</div><div>${п.ломается}</div></div>
+      ${низ}
+    </div>`;
+}
+let якорьПриёма=null;
+function открытьПриём(id,где,якорь){
+  if(!естьПриёмы()||!ПРИЁМЫ[id]) return;
+  let c=document.getElementById('opcard');
+  if(!c){
+    c=document.createElement('div'); c.id='opcard'; c.className='opcard hidden';
+    c.setAttribute('role','dialog'); document.body.appendChild(c);
+  }
+  c.innerHTML=приёмHTML(id,где);
+  c.dataset.op=id;
+  c.classList.remove('hidden');
+  c.querySelector('.opc-body').scrollTop=0;
+  typeset(c);
+  document.querySelectorAll('.op-chip.on,.op-row.on').forEach(x=>x.classList.remove('on'));
+  якорьПриёма=якорь||null;
+  if(якорь) якорь.classList.add('on');
+  // метка вне экрана (открыли программно) — карточка просто посередине
+  if(якорь){ const r=якорь.getBoundingClientRect(); if(r.bottom<0||r.top>innerHeight) якорьПриёма=null; }
+  разместитьПриём();
+  // KaTeX меняет высоту уже после вставки — уточняем место следующим кадром
+  requestAnimationFrame(разместитьПриём);
+  c.querySelector('.opc-x').onclick=закрытьПриём;
+  c.querySelectorAll('.opc-go').forEach(b=>b.onclick=()=>{
+    закрытьПриём(); кШагуВывода(b.dataset.t,+b.dataset.d,+b.dataset.k);
+  });
+}
+function приёмОткрыт(){ const c=document.getElementById('opcard'); return !!c&&!c.classList.contains('hidden'); }
+function закрытьПриём(){
+  const c=document.getElementById('opcard'); if(c) c.classList.add('hidden');
+  document.querySelectorAll('.op-chip.on,.op-row.on').forEach(x=>x.classList.remove('on'));
+  якорьПриёма=null;
+}
+/* На компьютере карточка встаёт у метки — под ней или над ней, где хватает
+   места; без метки — посередине. На телефоне это нижний лист во всю ширину:
+   рядом с меткой в узкой колонке ей не поместиться. */
+function разместитьПриём(){
+  const c=document.getElementById('opcard'); if(!c||c.classList.contains('hidden')) return;
+  const узко=isNarrow(), я=якорьПриёма&&якорьПриёма.isConnected?якорьПриёма:null;
+  c.classList.toggle('sheet',узко);
+  c.classList.toggle('center',!узко&&!я);
+  c.style.left=c.style.top=c.style.maxHeight='';
+  if(узко||!я) return;
+  const r=я.getBoundingClientRect(), w=c.offsetWidth, h=c.offsetHeight;
+  if(r.bottom<0||r.top>innerHeight){ закрытьПриём(); return; }   // метка уехала из виду
+  /* Карточка не должна закрывать саму метку: иначе не видно, к какому шагу
+     она относится, и повторным нажатием её не закрыть. Под меткой, над
+     ней, а если высоты не хватает ни там, ни там — в большем из двух мест,
+     ужавшись; совсем тесно — сбоку. */
+  const низ=innerHeight-r.bottom-14, верх=r.top-14;
+  let x=Math.min(Math.max(8,r.left),innerWidth-w-8), y;
+  if(h<=низ) y=r.bottom+6;
+  else if(h<=верх) y=r.top-6-h;
+  else if(Math.max(низ,верх)>=260){
+    const м=Math.max(низ,верх); c.style.maxHeight=м+'px';
+    y= м===низ ? r.bottom+6 : r.top-6-c.offsetHeight;
+  } else {
+    x= r.right+8+w<=innerWidth-8 ? r.right+8 : Math.max(8,r.left-8-w);
+    y=Math.min(Math.max(8,r.top-40),innerHeight-h-8);
+  }
+  c.style.left=x+'px'; c.style.top=y+'px';
+}
+/* Переход к шагу другого вывода: открыть тему, раскрыть вывод до этого
+   шага и подсветить его. Настройки и палитра закрываются — иначе переход
+   случился бы за ними. */
+function кШагуВывода(tid,d,k){
+  const pr=document.getElementById('prefs');
+  if(pr&&!pr.classList.contains('hidden')) closePrefs();
+  if(!S.topic||S.topic.id!==tid||S.tab!=='notes'){ openTopic(tid); autoCloseRail(); }
+  requestAnimationFrame(()=>{
+    const el=document.querySelector(`#pane .deriv[data-d="${d}"]`); if(!el) return;
+    if(el._открытьДо) el._открытьДо(k+1);
+    const шаг=el.querySelector(`.dv-step[data-k="${k}"]`)||el;
+    шаг.scrollIntoView({block:'center',behavior:'smooth'});
+    шаг.classList.remove('flash'); void шаг.offsetWidth; шаг.classList.add('flash');
+  });
+}
+/* Закрытие: Esc, касание мимо карточки. Слушаем в фазе захвата, чтобы Esc
+   сначала закрыл карточку, а не настройки или сцену под ней. */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&приёмОткрыт()){ e.preventDefault(); e.stopPropagation(); закрытьПриём(); }
+},true);
+document.addEventListener('pointerdown',e=>{
+  if(!приёмОткрыт()) return;
+  const c=document.getElementById('opcard');
+  if(c.contains(e.target)||e.target.closest('.op-chip,.op-row')) return;
+  закрытьПриём();
+},true);
+document.addEventListener('scroll',e=>{
+  const c=document.getElementById('opcard');
+  if(приёмОткрыт()&&!(e.target instanceof Node&&c.contains(e.target))) разместитьПриём();
+},true);
+addEventListener('resize',разместитьПриём);
+/* Весь список приёмов — вкладка справочника в настройках. */
+function приёмыСписокHTML(){
+  if(!естьПриёмы()) return '';
+  const где=гдеПриём();
+  return `<div class="ref-lead">Математика, которой сделаны выводы курса. Метка под шагом вывода
+      открывает ту же статью; число справа — сколько шагов сделано этим приёмом.</div>`+
+    ГРУППЫ_ПРИЁМОВ.map(g=>{
+      const ids=Object.keys(ПРИЁМЫ).filter(id=>ПРИЁМЫ[id].группа===g.id);
+      return `<div class="ref-grp">${g.name}</div><div class="op-list">${ids.map(id=>
+        `<button class="op-row" data-op="${id}"><span>${ПРИЁМЫ[id].имя}</span>
+          <span class="op-n">${(где[id]||[]).length}</span></button>`).join('')}</div>`;
+    }).join('');
 }
 
 /* ---------- Типичные ошибки ----------
@@ -1694,10 +1879,12 @@ function refHTML(){
       <button class="btn primary" data-ref="s">Обозначения</button>
       <button class="btn" data-ref="c">Константы</button>
       <button class="btn" data-ref="u">Единицы</button>
+      ${естьПриёмы()?'<button class="btn" data-ref="o">Приёмы выводов</button>':''}
     </div>
     <div class="ref-body" data-p="s">${симв}</div>
     <div class="ref-body hidden" data-p="c">${конст}</div>
-    <div class="ref-body hidden" data-p="u">${ед}</div>`;
+    <div class="ref-body hidden" data-p="u">${ед}</div>
+    <div class="ref-body hidden" data-p="o">${приёмыСписокHTML()}</div>`;
 }
 
 /* ---------- Итог раздела ----------
@@ -3749,6 +3936,11 @@ function renderPrefs(){
       body.querySelectorAll('[data-ref]').forEach(x=>x.classList.toggle('primary',x===b2));
       body.querySelectorAll('.ref-body').forEach(x=>x.classList.toggle('hidden',x.dataset.p!==b2.dataset.ref));
     });
+    body.querySelectorAll('.op-row').forEach(r=>r.onclick=e=>{
+      e.stopPropagation();
+      if(r.classList.contains('on')){ закрытьПриём(); return; }
+      открытьПриём(r.dataset.op,null,r);
+    });
   } else {
     const list=PREFS.filter(p=>p.cat===prefCat);
     body.innerHTML=`<div class="pset-h">${cat.name}</div>`+list.map(prefRow).join('');
@@ -4774,6 +4966,9 @@ function cmdkSource(){
       list.push({k:'Тема',t:t.title,hint:t.section,sub:(t.theory||'').slice(0,400),run:()=>openTopic(t.id)});
     for(const id of Object.keys(SIMS))
       list.push({k:'Симуляция',t:SIMS[id].title,hint:'открыть',run:()=>openSim(id)});
+    if(естьПриёмы()) for(const id of Object.keys(ПРИЁМЫ))
+      list.push({k:'Приём',t:ПРИЁМЫ[id].имя,hint:'приём вывода',
+                 sub:ПРИЁМЫ[id].что.replace(/\$[^$]*\$/g,' '),run:()=>открытьПриём(id,null,null)});
     for(const pr of PREFS)
       list.push({k:'Настройка',t:pr.name,hint:(PREF_CATS.find(c=>c.id===pr.cat)||{}).name||'',
                  sub:pr.desc,run:()=>openPrefs(pr.cat)});
@@ -6054,5 +6249,5 @@ $$('#modal-plot').addEventListener('keydown',e=>{
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '1.6.2';
+window.PHYSIM_BUILD = '1.7.0';
 window.PHYSIM_READY = true;

@@ -332,6 +332,52 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .dv-eq .katex-display{margin:2px 0}
 .dv-why{display:block;font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-top:3px}
 .dv-ctl{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+/* Метки приёмов под шагом вывода (js/ops.js). Тихие, пока их не тронули:
+   читают формулу и пояснение, а метка — справка для того, кто застрял.
+   «Физика» — пунктиром и другим цветом: это вход закона в вывод, а не
+   преобразование. */
+.dv-ops{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.op-chip{font:inherit;font-size:11px;line-height:1.2;padding:3px 8px;border-radius:20px;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);cursor:pointer;transition:.12s}
+.op-chip:hover{border-color:var(--accent);color:var(--accent)}
+.op-chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.op-chip.fiz{border-style:dashed;background:transparent;color:var(--measure);
+  border-color:color-mix(in srgb,var(--measure) 55%,transparent)}
+.op-chip.fiz.on,.op-chip.fiz:hover{background:color-mix(in srgb,var(--measure) 12%,transparent);color:var(--measure)}
+[data-ui="mobile"] .op-chip{font-size:12px;padding:6px 11px}
+.dv-step.flash{animation:dvFlash 1.8s ease}
+@keyframes dvFlash{0%,35%{background:var(--accent-soft)}100%{background:transparent}}
+
+/* Карточка приёма: у метки на компьютере, нижним листом на телефоне. */
+.opcard{position:fixed;z-index:250;width:min(400px,calc(100vw - 16px));max-height:min(72vh,560px);
+  display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow-lg);font-size:13px;line-height:1.55;color:var(--ink)}
+.opcard.hidden{display:none}
+.opcard.center{left:50%;top:50%;transform:translate(-50%,-50%)}
+.opcard.sheet{left:0;right:0;top:auto;bottom:0;width:auto;max-height:78dvh;
+  border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom);font-size:14px}
+.opc-h{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 0 14px}
+.opc-grp{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.opc-x{width:30px;height:30px;border:0;border-radius:var(--radius-sm);background:none;
+  color:var(--ink-2);font-size:19px;line-height:1;cursor:pointer}
+.opc-x:hover{background:var(--panel-2);color:var(--ink)}
+.opc-t{padding:0 14px 8px;font-size:15px;font-weight:600}
+.opc-body{overflow-y:auto;overscroll-behavior:contain;padding:0 14px 12px}
+.opc-sec{padding:8px 0;border-top:1px solid var(--line-soft)}
+.opc-l{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
+.opc-go{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;font:inherit;
+  padding:6px 9px;margin-top:5px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:none;color:var(--ink);cursor:pointer}
+.opc-go:hover{border-color:var(--accent);background:var(--accent-soft)}
+.opc-gt{font-size:11.5px;color:var(--ink-2)}
+.opc-gf{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.opc-none{color:var(--ink-3)}
+.op-list{display:flex;flex-direction:column;gap:1px;margin-bottom:10px}
+.op-row{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;
+  font:inherit;font-size:13px;padding:5px 9px;border:0;border-radius:var(--radius-sm);background:none;color:var(--ink);cursor:pointer}
+.op-row:hover,.op-row.on{background:var(--accent-soft);color:var(--accent)}
+.op-n{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+
 .dv-ctl .btn{font-size:12px;padding:5px 10px}
 
 .f-kind{position:absolute;top:8px;right:10px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
@@ -393,6 +439,10 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .ref-lead{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-bottom:12px}
 .ref-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .ref-tabs .btn{font-size:12px;padding:5px 11px}
+/* Своего правила у .ref-body.hidden не было, а общего .hidden в этих стилях
+   нет: вкладки справочника подсвечивались, но показывали всё сразу —
+   константы и единицы оказывались под длинной таблицей обозначений. */
+.ref-body.hidden{display:none}
 .ref-grp{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
   font-weight:650;margin:14px 0 6px}
 .ref-grp:first-child{margin-top:0}
