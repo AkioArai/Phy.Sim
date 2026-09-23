@@ -23,49 +23,109 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="physim-build" content="1.7.0">
 <script>
-  if (location.protocol === 'http:' || location.protocol === 'https:') {
-    addEventListener('load', () => navigator.serviceWorker?.register('sw.js').catch(() => {}));
+  /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
+     любом движке, иначе на старом планшете некому объяснить, что случилось.
+     В 1.7.0 и раньше здесь стояло navigator.serviceWorker?.register — на
+     Chrome/WebView младше 80 и Safari младше 13.1 этот скрипт падал так же,
+     как app.js, и человек видел отрисованную страницу без единого слова.
 
-    /* СТОРОЖ РАЗЪЕХАВШЕГОСЯ КЭША.
-       Служебный поток обновлял файлы поодиночке, и открытие могло получить
-       разметку от одного выпуска со скриптом от другого. Обработчики в
-       app.js вешаются на верхнем уровне: не хватило одного элемента — весь
-       скрипт умер на первой же строке, и пособие показывало отрисованную
-       страницу, где ничего не работает. Снаружи это выглядит как «грузится
-       только картинка».
+     Что он делает:
+       1. запоминает первую ошибку скрипта — её покажем в сообщении;
+       2. через 4 с после загрузки проверяет, что app.js дочитан до конца и
+          той же версии, что разметка;
+       3. если нет и движок слишком старый — так и говорит, с номером версии
+          и тем, что обновить (перезагрузка тут не поможет);
+       4. если нет, а движок подходящий и страница отдана по http(s) —
+          сносит кэш и служебный поток и перезагружается один раз
+          (разъехавшийся кэш, см. sw.js);
+       5. второй раз — показывает сообщение. В .apk и однофайловой сборке
+          (file://) кэша нет, и сообщение показывается сразу. */
+  (function () {
+    var первая = null;
+    window.addEventListener('error', function (e) {
+      if (первая) return;
+      var где = e && e.filename ? ' (' + String(e.filename).split('/').pop() + ':' + e.lineno + ')' : '';
+      первая = (e && e.message ? e.message : 'ошибка скрипта') + где;
+    });
 
-       Починить это задним числом нельзя ничем, кроме как из самой страницы:
-       у сломанного планшета уже лежит смесь в кэше. Поэтому здесь сторож —
-       если скрипт не доложил о себе или доложил чужой номер выпуска, сносим
-       кэш вместе со служебным потоком и перезагружаемся. Ровно один раз за
-       сеанс: бесконечная перезагрузка была бы хуже поломки. */
-    addEventListener('load', () => setTimeout(() => {
-      var метка = document.querySelector('meta[name=physim-build]');
-      var ждём = метка ? метка.content : null;
-      var цел = window.PHYSIM_READY === true && (!ждём || window.PHYSIM_BUILD === ждём);
-      if (цел) return;
-      try { if (sessionStorage.getItem('physim-чинили')) { показатьБеду(); return; }
-            sessionStorage.setItem('physim-чинили', '1'); } catch (e) {}
-      Promise.all([
-        caches.keys().then(k => Promise.all(k.map(n => caches.delete(n)))).catch(() => {}),
-        navigator.serviceWorker.getRegistrations()
-          .then(rs => Promise.all(rs.map(r => r.unregister()))).catch(() => {}),
-      ]).then(() => location.reload(true));
-    }, 4000));
+    var поСети = location.protocol === 'http:' || location.protocol === 'https:';
+    if (поСети && 'serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        try { navigator.serviceWorker.register('sw.js')['catch'](function () {}); } catch (e) {}
+      });
+    }
 
-    /* Второй раз не помогло — значит дело не в кэше. Молчать тут нельзя:
-       пустая страница ничего не объясняет и выглядит поломкой намертво. */
-    function показатьБеду() {
+    /* Чего пособие требует от движка. Chrome/WebView 58 и Safari 13 —
+       это Android 8 с заводским WebView и iPadOS 13 (iPad Air 2, mini 4 и
+       новее). Проверки — по возможностям, а не по строке браузера. */
+    function чегоНет() {
+      var нет = [];
+      try { new Function('async function f(){await 0}'); } catch (e) { нет.push('async/await'); }
+      if (!window.PointerEvent) нет.push('PointerEvent');
+      if (!Object.entries) нет.push('Object.entries');
+      if (!window.Promise) нет.push('Promise');
+      return нет;
+    }
+    function какойДвижок() {
+      var ua = navigator.userAgent || '', m;
+      if ((m = /Chrome\/(\d+)/.exec(ua))) return (/; wv\)/.test(ua) ? 'Android WebView ' : 'Chrome ') + m[1];
+      if ((m = /Version\/(\d+[.\d]*).*Safari/.exec(ua))) return 'Safari ' + m[1];
+      if ((m = /Firefox\/(\d+)/.exec(ua))) return 'Firefox ' + m[1];
+      return 'неизвестный браузер';
+    }
+
+    function показатьБеду(старый, нет) {
+      var движок = какойДвижок(), вWebView = /; wv\)/.test(navigator.userAgent || '');
       var d = document.createElement('div');
-      d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:grid;place-items:center;' +
-        'background:#f7f8fa;color:#15181d;font:15px/1.6 system-ui,sans-serif;padding:24px;text-align:center';
-      d.innerHTML = '<div style="max-width:32em"><b style="font-size:17px">Пособие не загрузилось</b>' +
-        '<p>Похоже, в памяти браузера осталась половина прошлой версии. ' +
-        'Очистка не помогла — попробуйте открыть страницу заново или зайти ' +
-        'в режиме инкогнито. Если повторится, напишите об этом в Issues.</p></div>';
+      d.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;overflow:auto;' +
+        'background:#f7f8fa;color:#15181d;font:15px/1.6 sans-serif;padding:24px;text-align:center';
+      var текст;
+      if (старый) {
+        текст = '<b style="font-size:17px">Браузер слишком старый для пособия</b>' +
+          '<p>Сейчас: ' + движок + (нет && нет.length ? ', и в нём нет ' + нет.join(', ') : '') +
+          '. Нужен Chrome или Android WebView 58 и новее, ' +
+          'Safari 13 и новее (iPad с iPadOS 13 и новее).</p><p>' +
+          (вWebView
+            ? 'Приложение показывает страницы через системный компонент «Android System WebView». ' +
+              'Обновите его (или Chrome) в магазине приложений и откройте пособие заново.'
+            : 'Обновите браузер или откройте пособие в другом — например, в свежем Chrome или Firefox.') +
+          '</p>';
+      } else {
+        текст = '<b style="font-size:17px">Пособие не загрузилось</b>' +
+          '<p>' + (поСети
+            ? 'Похоже, в памяти браузера осталась половина прошлой версии. Очистка не помогла — ' +
+              'попробуйте открыть страницу заново или в режиме инкогнито.'
+            : 'Попробуйте закрыть и открыть его заново.') +
+          ' Если повторится, напишите об этом в Issues — и приложите строку ниже.</p>';
+      }
+      текст += '<p style="font:12px/1.5 monospace;color:#5c6570;word-break:break-word">' +
+        движок + (первая ? ' · ' + String(первая).replace(/[<>&]/g, '') : '') + '</p>';
+      d.innerHTML = '<div style="max-width:32em;margin:12vh auto 0">' + текст + '</div>';
       document.body.appendChild(d);
     }
-  }
+
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var метка = document.querySelector('meta[name=physim-build]');
+        var ждём = метка ? метка.content : null;
+        if (window.PHYSIM_READY === true && (!ждём || window.PHYSIM_BUILD === ждём)) return;
+        var нет = чегоНет();
+        if (нет.length || !поСети || !window.caches) { показатьБеду(нет.length > 0, нет); return; }
+        try {
+          if (sessionStorage.getItem('physim-чинили')) { показатьБеду(false); return; }
+          sessionStorage.setItem('physim-чинили', '1');
+        } catch (e) {}
+        var сносим = [
+          caches.keys().then(function (k) { return Promise.all(k.map(function (n) { return caches.delete(n); })); })
+        ];
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+          сносим.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+        Promise.all(сносим).then(function () { location.reload(); }, function () { location.reload(); });
+      }, 4000);
+    });
+  })();
 </script>
 
 <!-- KaTeX лежит рядом, а не на CDN: пособие должно одинаково работать в школе
@@ -166,7 +226,7 @@ button,a,input,select,label,.topic-item,.sec>.hd,.pop .item,.iconbtn,.tagsim{
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .iconbtn:active{background:var(--panel-2);color:var(--ink);transform:scale(.92)}
 .iconbtn.on:active,.iconbtn[aria-pressed="true"]:active{
-  background:color-mix(in srgb,var(--accent) 28%,transparent)}
+  background:transparent;background:color-mix(in srgb,var(--accent) 28%,transparent)}
 .topic-item:active,.sec>.hd:active,.pop .item:active{background:var(--accent-soft);color:var(--accent)}
 .tagsim:active{filter:brightness(.92)}
 input,select{font:inherit;color:inherit}
@@ -175,14 +235,14 @@ input,select{font:inherit;color:inherit}
 #app{height:100%;display:flex;flex-direction:column;background:var(--panel);
   /* viewport-fit=cover: без отступа верхняя панель оказывалась под статусбаром телефона */
   padding-top:env(safe-area-inset-top)}
-.topbar{display:flex;align-items:center;gap:6px;height:44px;padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-left));border-bottom:1px solid var(--line);flex:0 0 auto}
+.topbar{display:flex;align-items:center;gap:6px;height:44px;padding:0 8px 0 8px;padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-left));border-bottom:1px solid var(--line);flex:0 0 auto}
 .spacer{flex:1}
 /* Телефонные элементы по умолчанию выключены и включаются только в режиме
    [data-ui="mobile"]. Раньше .mbar тут не было, и на компьютере она
    разворачивалась обычным блоком прямо посреди сцены. */
 .mtop,.drawer-bg,.drawer-foot,.mbar,.mbar2{display:none}
 .mtop{align-items:center;gap:4px;flex:0 0 auto;height:46px;
-  padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
+  padding:0 6px 0 6px;padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
   border-bottom:1px solid var(--line);background:var(--panel)}
 .mtop .iconbtn{width:40px;height:40px}
 .crumb{font-size:12px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono)}
@@ -224,16 +284,23 @@ input,select{font:inherit;color:inherit}
    панелей задаются настройками и живут на корневом элементе. */
 :root{--panel-a:93%}
 [data-bg="paper"]  .canvas-wrap{background-image:
+  linear-gradient(transparent 1px,transparent 1px),
+  linear-gradient(90deg,transparent 1px,transparent 1px);background-image:
   linear-gradient(color-mix(in srgb,var(--accent) 9%,transparent) 1px,transparent 1px),
   linear-gradient(90deg,color-mix(in srgb,var(--accent) 9%,transparent) 1px,transparent 1px);
   background-size:22px 22px}
 [data-bg="mm"]     .canvas-wrap{background-image:
+  linear-gradient(transparent 1px,transparent 1px),
+  linear-gradient(90deg,transparent 1px,transparent 1px),
+  linear-gradient(transparent 1px,transparent 1px),
+  linear-gradient(90deg,transparent 1px,transparent 1px);background-image:
   linear-gradient(color-mix(in srgb,var(--danger) 13%,transparent) 1px,transparent 1px),
   linear-gradient(90deg,color-mix(in srgb,var(--danger) 13%,transparent) 1px,transparent 1px),
   linear-gradient(color-mix(in srgb,var(--danger) 6%,transparent) 1px,transparent 1px),
   linear-gradient(90deg,color-mix(in srgb,var(--danger) 6%,transparent) 1px,transparent 1px);
   background-size:50px 50px,50px 50px,10px 10px,10px 10px}
 [data-bg="dots"]   .canvas-wrap{background-image:
+  radial-gradient(transparent 1px,transparent 1px);background-image:
   radial-gradient(color-mix(in srgb,var(--ink-3) 34%,transparent) 1px,transparent 1px);
   background-size:18px 18px}
 [data-bg="dark"]   .canvas-wrap{background:#161821}
@@ -243,8 +310,8 @@ input,select{font:inherit;color:inherit}
 [data-rail="right"] .rail{order:9;border-right:none;border-left:1px solid var(--line)}
 
 /* прозрачность плавающих панелей */
-.hud{background:color-mix(in srgb,var(--panel) var(--panel-a),transparent)}
-.pvbox{background:color-mix(in srgb,var(--canvas) var(--panel-a),transparent)}
+.hud{background:var(--panel);background:color-mix(in srgb,var(--panel) var(--panel-a),transparent)}
+.pvbox{background:var(--canvas);background:color-mix(in srgb,var(--canvas) var(--panel-a),transparent)}
 .rail .simtool{font-family:var(--mono);font-size:14px;line-height:1;font-weight:600}
 
 .sidebar{width:280px;flex:0 0 280px;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
@@ -266,19 +333,19 @@ input,select{font:inherit;color:inherit}
 .topic-item.active{background:var(--accent-soft);color:var(--accent);font-weight:500}
 /* разделы повышенной сложности: приглушённый серый текст + красная метка */
 .sec.hard>.hd{color:var(--ink-3)}
-.sec.hard>.hd .dot{background:var(--danger);box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 18%,transparent)}
+.sec.hard>.hd .dot{background:var(--danger);box-shadow:0 0 0 3px transparent;box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 18%,transparent)}
 .hardtag{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono);
-  color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);
-  background:color-mix(in srgb,var(--danger) 10%,transparent);
+  color:var(--danger);border:1px solid var(--danger);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);
+  background:transparent;background:color-mix(in srgb,var(--danger) 10%,transparent);
   padding:1px 5px;border-radius:999px;margin-left:6px;white-space:nowrap}
 .topic-item.hard{color:var(--ink-3)}
 .topic-item.hard .ch{color:var(--danger);opacity:.75}
 .topic-item.hard:hover{color:var(--ink-2)}
-.topic-item.hard.active{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
+.topic-item.hard.active{background:transparent;background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
 /* шапка темы из сложного раздела */
 .hardnote{display:flex;align-items:flex-start;gap:8px;margin:0 0 14px;padding:9px 11px;border-radius:8px;
-  border:1px solid color-mix(in srgb,var(--danger) 32%,transparent);
-  background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-3);font-size:12.5px;line-height:1.5}
+  border:1px solid var(--danger);border:1px solid color-mix(in srgb,var(--danger) 32%,transparent);
+  background:transparent;background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-3);font-size:12.5px;line-height:1.5}
 .hardnote b{color:var(--danger);font-weight:600}
 .topic-item .ch{font-family:var(--mono);font-size:10px;color:var(--ink-3);flex:0 0 auto;width:20px}
 .topic-item.wip{opacity:.6}
@@ -326,8 +393,8 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    один — метки подписаны словами, чтобы работало и при дальтонизме, и в ч/б. */
 .pitfall{border:1px solid var(--line);border-radius:var(--radius);margin:10px 0;overflow:hidden}
 .pf-row{display:flex;gap:10px;align-items:flex-start;padding:10px 13px;font-size:.95em;line-height:1.6}
-.pf-row.bad{background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-2)}
-.pf-row.good{background:color-mix(in srgb,var(--ok) 8%,transparent);border-top:1px solid var(--line-soft)}
+.pf-row.bad{background:transparent;background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-2)}
+.pf-row.good{background:transparent;background:color-mix(in srgb,var(--ok) 8%,transparent);border-top:1px solid var(--line-soft)}
 .pf-tag{flex:0 0 auto;width:94px;font-family:var(--mono);font-size:10px;text-transform:uppercase;
   letter-spacing:.06em;padding-top:3px}
 .pf-row.bad .pf-tag{color:var(--danger)}
@@ -419,19 +486,19 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .op-chip:hover{border-color:var(--accent);color:var(--accent)}
 .op-chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .op-chip.fiz{border-style:dashed;background:transparent;color:var(--measure);
-  border-color:color-mix(in srgb,var(--measure) 55%,transparent)}
-.op-chip.fiz.on,.op-chip.fiz:hover{background:color-mix(in srgb,var(--measure) 12%,transparent);color:var(--measure)}
+  border-color:var(--measure);border-color:color-mix(in srgb,var(--measure) 55%,transparent)}
+.op-chip.fiz.on,.op-chip.fiz:hover{background:transparent;background:color-mix(in srgb,var(--measure) 12%,transparent);color:var(--measure)}
 [data-ui="mobile"] .op-chip{font-size:12px;padding:6px 11px}
 .dv-step.flash{animation:dvFlash 1.8s ease}
 @keyframes dvFlash{0%,35%{background:var(--accent-soft)}100%{background:transparent}}
 
 /* Карточка приёма: у метки на компьютере, нижним листом на телефоне. */
-.opcard{position:fixed;z-index:250;width:min(400px,calc(100vw - 16px));max-height:min(72vh,560px);
+.opcard{position:fixed;z-index:250;width:calc(100vw - 16px);width:min(400px,calc(100vw - 16px));max-height:72vh;max-height:min(72vh,560px);
   display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow-lg);font-size:13px;line-height:1.55;color:var(--ink)}
 .opcard.hidden{display:none}
 .opcard.center{left:50%;top:50%;transform:translate(-50%,-50%)}
-.opcard.sheet{left:0;right:0;top:auto;bottom:0;width:auto;max-height:78dvh;
+.opcard.sheet{left:0;right:0;top:auto;bottom:0;width:auto;max-height:78vh;max-height:78dvh;
   border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom);font-size:14px}
 .opc-h{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 0 14px}
 .opc-grp{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
@@ -485,7 +552,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    «Главное» — плотная выжимка. Подробный разбор свёрнут и намеренно тише.
    --------------------------------------------------------------------------- */
 .explore{border:1px solid var(--accent);border-radius:var(--radius);padding:13px 15px;margin:0 0 14px;
-  background:color-mix(in srgb, var(--accent) 5%, var(--panel))}
+  background:var(--panel);background:color-mix(in srgb, var(--accent) 5%, var(--panel))}
 .ex-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
   font-weight:700;margin-bottom:9px}
 .ex-list{margin:0;padding-left:20px}
@@ -553,7 +620,7 @@ table.ref tr:last-child td{border-bottom:0}
   border-radius:4px;padding:2px 7px;flex:0 0 auto}
 .pp-reset:hover{border-color:var(--danger);color:var(--danger)}
 .pr-done{display:none;margin-left:auto;color:var(--ok);font-size:13px;font-weight:700}
-.problem.done{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.problem.done{border-color:var(--line);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
 .problem.done .pr-done{display:inline}
 .problem.done .head .pr-hard{margin-left:0}
 /* заголовок группы задач = кнопка, открывающая нужную симуляцию */
@@ -566,7 +633,7 @@ table.ref tr:last-child td{border-bottom:0}
 .pr-grp.static{color:var(--ink-3)}
 .pr-n{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 .pr-hard{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
-  color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 45%,transparent);
+  color:var(--danger);border:1px solid var(--danger);border:1px solid color-mix(in srgb,var(--danger) 45%,transparent);
   border-radius:4px;padding:1px 5px;margin-left:auto}
 
 .problem{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
@@ -596,6 +663,13 @@ table.ref tr:last-child td{border-bottom:0}
 /* и своя кнопка закрытия внутри списка — на случай, когда он лежит поверх */
 .side-close{display:none}
 #app.simfull .side-close{display:grid;flex:0 0 auto}
+/* Средняя ширина (планшет боком, узкое окно): панель тем не отнимает ширину
+   у конспекта, а ложится поверх него — как в полноэкранном режиме — и
+   закрывается после выбора темы (autoCloseRail). */
+#app.mid .sidebar{position:absolute;left:44px;top:0;bottom:0;z-index:60;height:auto;
+  background:var(--panel);border-right:1px solid var(--line);box-shadow:6px 0 28px -14px #0007}
+[data-rail="right"] #app.mid .sidebar{left:0}
+#app.mid .side-close{display:grid;flex:0 0 auto}
 #app.simfull .sidebar.hidden{display:none}
 #app.simfull .simpane{padding-left:0}
 #app.simfull .simpane{flex:1 1 auto;width:auto}
@@ -608,9 +682,9 @@ table.ref tr:last-child td{border-bottom:0}
    медиазапрос, и на телефоне симуляцию было невозможно закрыть. */
 #btn-simback{display:none}
 .warnbar{padding:6px 10px;font-size:12px;line-height:1.45;
-  color:color-mix(in srgb,var(--measure) 78%,var(--ink));
-  background:color-mix(in srgb,var(--measure) 12%,var(--panel));
-  border-bottom:1px solid color-mix(in srgb,var(--measure) 30%,var(--line))}
+  color:var(--measure);color:color-mix(in srgb,var(--measure) 78%,var(--ink));
+  background:var(--panel);background:color-mix(in srgb,var(--measure) 12%,var(--panel));
+  border-bottom:1px solid var(--line);border-bottom:1px solid color-mix(in srgb,var(--measure) 30%,var(--line))}
 .warnbar.hidden{display:none}
 /* Вся область сцены — не текст. Без этого ЛКМ по панели показаний начинала
    нативное выделение, а следующий же ход мыши превращал выделение в перетас-
@@ -619,13 +693,13 @@ table.ref tr:last-child td{border-bottom:0}
 .canvas-wrap{position:relative;flex:1;min-height:170px;background:var(--canvas);overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .canvas-wrap *{-webkit-user-drag:none}
-.canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%;
+.canvas-wrap canvas{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;
   /* без этого на планшете и телефоне перетаскивание тел прокручивало бы страницу */
   touch-action:none; -ms-touch-action:none}
 #overlay{pointer-events:none}
 /* показатели вынесены в отдельную рамку, чтобы не сливались с рисунком */
 .hud{position:absolute;left:8px;top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-2);
-  background:color-mix(in srgb,var(--panel) 93%,transparent);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) 93%,transparent);
   line-height:1.55;
   border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;
   box-shadow:0 3px 12px -6px rgba(0,0,0,.45)}
@@ -633,7 +707,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* без полосы прокрутки: лишние строки не прячутся под скролл, а честно
    сворачиваются в «… ещё N» (см. updateHud) */
 .hud-body{padding:6px 10px 7px;white-space:pre;font-family:var(--mono);overflow:hidden!important}
-.pvbox{position:absolute;right:8px;top:8px;width:320px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
+.pvbox{position:absolute;right:8px;top:8px;width:320px;background:var(--canvas);background:color-mix(in srgb,var(--canvas) 92%,transparent);
   border:1px solid var(--line-soft);border-radius:8px;pointer-events:auto;overflow:hidden;
   transition:width .18s ease,height .18s ease;font-family:var(--sans)}
 .pvbox.hidden{display:none}
@@ -649,7 +723,7 @@ table.ref tr:last-child td{border-bottom:0}
 .pvbox svg{display:block;width:100%;height:auto}
 .pvbox .pvrow{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-2);padding:1px 3px}
 .pvbox .pvrow span:last-child{color:var(--ink)}
-.histobox{position:absolute;right:8px;bottom:8px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
+.histobox{position:absolute;right:8px;bottom:8px;background:var(--canvas);background:color-mix(in srgb,var(--canvas) 92%,transparent);
   border-radius:7px;border:1px solid var(--line)}
 .histo-body{padding:8px 11px 7px}
 .histobox.hidden{display:none}
@@ -659,10 +733,10 @@ table.ref tr:last-child td{border-bottom:0}
 .histobox .hwrap{position:relative}
 .histobox .hbars{display:flex;gap:3px;align-items:flex-end;height:96px}
     .histobox .hb{width:13px;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;transition:height .08s linear}
-.histobox .hcurve{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.histobox .hcurve{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .histobox .hx{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:2px;text-align:center}
 .energybox{position:absolute;right:8px;top:8px;
-  background:color-mix(in srgb,var(--canvas) 92%,transparent);border-radius:7px;
+  background:var(--canvas);background:color-mix(in srgb,var(--canvas) 92%,transparent);border-radius:7px;
   border:1px solid var(--line)}
 .energy-body{display:flex;gap:10px;align-items:flex-end;padding:8px 10px 6px}
 .energybox.hidden{display:none}
@@ -788,7 +862,7 @@ table.ref tr:last-child td{border-bottom:0}
    120 лист показаний (126) лежал поперёк открытых настроек: он закреплён у
    корня страницы, а не внутри #simpane, поэтому свой слой считает от корня.
    Экран во весь экран обязан накрывать обвязку целиком. */
-.prefs{position:fixed;inset:0;z-index:140;display:flex;background:var(--bg);animation:prefsIn .14s ease}
+.prefs{position:fixed;top:0;right:0;bottom:0;left:0;z-index:140;display:flex;background:var(--bg);animation:prefsIn .14s ease}
 .prefs.hidden{display:none}
 @keyframes prefsIn{from{opacity:0;transform:scale(.995)}to{opacity:1;transform:none}}
 .prefs-side{width:238px;flex-shrink:0;border-right:1px solid var(--line);background:var(--panel);
@@ -805,13 +879,13 @@ table.ref tr:last-child td{border-bottom:0}
    мониторах она занимает почти всю ширину (справа больше не пустует), а на
    сверхшироких — центрируется, чтобы строки не растягивались бесконечно */
 .prefs-top{display:flex;align-items:center;gap:12px;
-  padding:12px max(18px,calc((100% - 1280px)/2));border-bottom:1px solid var(--line)}
+  padding:12px 18px;padding:12px max(18px,calc((100% - 1280px)/2));border-bottom:1px solid var(--line)}
 .prefs-top h3{font-size:15px;flex-shrink:0}
 .prefs-search{flex:1;max-width:340px;margin-left:auto;padding:7px 10px;border:1px solid var(--line);
   border-radius:var(--radius);background:var(--panel-2);color:var(--ink);font:inherit;font-size:13px}
 .prefs-search:focus{outline:none;border-color:var(--accent)}
 .prefs-body{flex:1;overflow-y:auto;width:100%;
-  padding:6px max(26px,calc((100% - 1280px)/2)) 40px}
+  padding:6px 26px 40px;padding:6px max(26px,calc((100% - 1280px)/2)) 40px}
 .pset-h{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);
   margin:24px 0 2px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .pset{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:13px 2px;
@@ -834,7 +908,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* переключатель-тумблер, как в современных приложениях */
 .sw-t{position:relative;width:38px;height:21px;flex-shrink:0}
 .sw-t input{opacity:0;width:0;height:0;position:absolute}
-.sw-t i{position:absolute;inset:0;background:var(--line);border-radius:11px;transition:background .15s;cursor:pointer}
+.sw-t i{position:absolute;top:0;right:0;bottom:0;left:0;background:var(--line);border-radius:11px;transition:background .15s;cursor:pointer}
 .sw-t i::after{content:'';position:absolute;left:2px;top:2px;width:17px;height:17px;border-radius:50%;
   background:#fff;transition:transform .15s;box-shadow:0 1px 3px #0004}
 .sw-t input:checked + i{background:var(--accent)}
@@ -863,11 +937,11 @@ table.ref tr:last-child td{border-bottom:0}
   .prefs-top h3{font-size:14px}
   #prefs-close{flex:0 0 auto}
 }
-.modal-bg{position:fixed;inset:0;background:#00000066;z-index:80;display:grid;place-items:center}
+.modal-bg{position:fixed;top:0;right:0;bottom:0;left:0;background:#00000066;z-index:80;display:grid;place-items:center}
 .modal-bg.hidden{display:none}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;width:min(460px,92vw);max-height:80vh;overflow-y:auto}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;width:92vw;width:min(460px,92vw);max-height:80vh;overflow-y:auto}
 .modal h3{font-size:15px;margin-bottom:14px}
-.modal.ask{width:min(380px,92vw)}
+.modal.ask{width:92vw;width:min(380px,92vw)}
 .ask-text{font-size:13px;color:var(--ink-2);line-height:1.5}
 .ask-inp{margin-top:12px}
 .ask-inp.hidden{display:none}
@@ -891,7 +965,7 @@ table.ref tr:last-child td{border-bottom:0}
 .fp-head{touch-action:none;display:flex;align-items:center;gap:6px;flex:0 0 auto;cursor:grab;
   padding:5px 8px 4px;border-bottom:1px solid var(--line-soft);user-select:none;
   font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--ink-3);background:color-mix(in srgb,var(--panel) 55%,transparent)}
+  color:var(--ink-3);background:var(--panel);background:color-mix(in srgb,var(--panel) 55%,transparent)}
 .fp-head b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fpanel.dragging .fp-head{cursor:grabbing}
 .fp-head .iconbtn{width:20px;height:18px;border-radius:4px}
@@ -937,10 +1011,10 @@ table.ref tr:last-child td{border-bottom:0}
 @media (pointer:coarse){.p-undo{opacity:.75}}
 
 /* ==================== КОМАНДНАЯ ПАЛИТРА (Ctrl+P) ==================== */
-.cmdk{position:fixed;inset:0;z-index:300;background:#0006;display:flex;
+.cmdk{position:fixed;top:0;right:0;bottom:0;left:0;z-index:300;background:#0006;display:flex;
   justify-content:center;align-items:flex-start;padding:12vh 16px 16px}
 .cmdk.hidden{display:none}
-.cmdk-box{width:min(620px,100%);background:var(--panel);border:1px solid var(--line);
+.cmdk-box{width:100%;width:min(620px,100%);background:var(--panel);border:1px solid var(--line);
   border-radius:10px;box-shadow:0 22px 60px -20px #000a;overflow:hidden;display:flex;flex-direction:column;
   max-height:70vh}
 .cmdk-inp{width:100%;padding:14px 16px;border:0;border-bottom:1px solid var(--line);
@@ -962,7 +1036,7 @@ table.ref tr:last-child td{border-bottom:0}
 
 /* ==================== ПАНЕЛЬ СРАВНЕНИЯ СО СНИМКОМ ==================== */
 .cmpbox{position:absolute;right:8px;bottom:8px;z-index:20;width:290px;max-height:52%;
-  background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--line);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--line);
   border-radius:8px;box-shadow:0 8px 26px -14px #0008;display:flex;flex-direction:column;overflow:hidden}
 .cmpbox.hidden{display:none}
 .cmp-body{overflow-y:auto;padding:6px 10px 9px;font-family:var(--mono);font-size:11px}
@@ -982,9 +1056,9 @@ table.ref tr:last-child td{border-bottom:0}
 
    z-index выше экрана доступа (500): заставка играет и до ввода пароля.
    Половины непрозрачные — они и есть «занавес», который раздвигается. */
-.splash{position:fixed;inset:0;z-index:600;overflow:hidden;
+.splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:600;overflow:hidden;
   font-family:var(--mono);font-weight:650;letter-spacing:-.02em;
-  font-size:clamp(30px,11vw,64px);color:var(--ink)}
+  font-size:30px;font-size:clamp(30px,11vw,64px);color:var(--ink)}
 .splash.done{display:none}
 .sp-half{position:absolute;top:0;bottom:0;width:50%;background:var(--bg);
   display:flex;align-items:center;will-change:transform}
@@ -1089,13 +1163,13 @@ table.ref tr:last-child td{border-bottom:0}
      оставшуюся высоту и плавающая панель управления снизу. Высоту берём из
      --vh: адресная строка браузера то появляется, то исчезает, и обычные
      100vh на телефоне врут (в Safari — на высоту всей панели). */
-[data-ui="mobile"] #app{height:var(--appvh,100dvh);min-height:0}
+[data-ui="mobile"] #app{height:var(--appvh,100vh);height:var(--appvh,100dvh);min-height:0}
 [data-ui="mobile"] .topbar,
 [data-ui="mobile"] .statusbar{display:none}
 /* весь верхний и нижний UI компьютера убран */
 [data-ui="mobile"] .mtop{display:flex}
 [data-ui="mobile"] .body{min-height:0}
-[data-ui="mobile"] .sidebar{position:fixed;z-index:141;top:0;bottom:0;left:0;width:min(78vw,320px);
+[data-ui="mobile"] .sidebar{position:fixed;z-index:141;top:0;bottom:0;left:0;width:78vw;width:min(78vw,320px);
     height:auto;display:flex;flex-direction:column;
     background:var(--panel);border-right:1px solid var(--line);
     box-shadow:8px 0 34px -14px #0009;
@@ -1109,7 +1183,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .drawer-foot .brand span{color:var(--accent)}
 /* Ящик тем и его затемнение — тоже выше обвязки: иначе панели снизу
    оставались нажимаемыми поверх открытого ящика. */
-[data-ui="mobile"] .drawer-bg{display:block;position:fixed;inset:0;z-index:140;background:#0007;
+[data-ui="mobile"] .drawer-bg{display:block;position:fixed;top:0;right:0;bottom:0;left:0;z-index:140;background:#0007;
     opacity:0;pointer-events:none;transition:opacity .26s}
 [data-ui="mobile"] .drawer-bg.show{opacity:1;pointer-events:auto}
 [data-ui="mobile"] .splitter{display:none}
@@ -1149,7 +1223,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .pf-tag{width:auto}
 [data-ui="mobile"] .pf-why{padding-left:13px}
 /* чтобы панель не накрывала последний абзац */
-[data-ui="mobile"] .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
+[data-ui="mobile"] .simpane{position:fixed;top:0;right:0;bottom:0;left:0;z-index:70;width:100%;flex:none;
     background:var(--bg);box-shadow:none;
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom)}
@@ -1197,8 +1271,8 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .timeline{display:none}
 /* Панель показаний не должна съедать пол-экрана телефона. */
 [data-ui="mobile"] .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
-    max-width:62vw;max-height:34dvh;
-    background:color-mix(in srgb,var(--panel) 82%,transparent)}
+    max-width:62vw;max-height:34vh;max-height:34dvh;
+    background:var(--panel);background:color-mix(in srgb,var(--panel) 82%,transparent)}
 [data-ui="mobile"] .hud::before{font-size:8px;margin-bottom:3px}
 /* на телефоне шапку берут пальцем — делаем её выше и уголок крупнее */
 [data-ui="mobile"] .fpanel .fp-head{font-size:9px;padding:9px 8px 8px}
@@ -1281,15 +1355,15 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
 [data-ui="mobile"] [data-dock="big"] .mbplay{width:52px;height:52px}
 [data-ui="mobile"] [data-dock="big"] .mbplay svg{width:24px;height:24px}
-[data-ui="mobile"] .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
+[data-ui="mobile"] .pop{z-index:200;max-height:62vh;max-height:min(62dvh,62vh);overflow-y:auto}
 [data-ui="mobile"] .pop .item{padding:11px 10px;font-size:14px}
 /* ---- Инструменты на телефоне: папки с раскрытием вбок ----
    Плоский список из двух десятков строк на маленьком экране не читался.
    Слева столбик папок, справа от раскрытой — её инструменты иконками.
    Открыта всегда одна папка: две колонки по ширине телефона не помещаются. */
-.toolfan{padding:6px;min-width:0;width:min(94vw,430px);
+.toolfan{padding:6px;min-width:0;width:94vw;width:min(94vw,430px);
   /* панель не должна уезжать за край экрана: инструментов бывает много */
-  max-height:min(58vh,440px);overflow-y:auto;overscroll-behavior:contain}
+  max-height:58vh;max-height:min(58vh,440px);overflow-y:auto;overscroll-behavior:contain}
 .tf-cols{display:flex;flex-direction:column;gap:4px}
 .tf-row{display:flex;align-items:flex-start;gap:6px}
 .tf-folder{display:flex;align-items:center;gap:7px;flex:0 0 auto;width:104px;
@@ -1317,7 +1391,7 @@ table.ref tr:last-child td{border-bottom:0}
    пуст, поэтому там полоса остаётся сверху. */
 .penbar{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;z-index:35;
   display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:999px;
-  background:color-mix(in srgb,var(--panel) var(--panel-a),transparent);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) var(--panel-a),transparent);
   border:1px solid var(--line);box-shadow:0 8px 26px -14px #0009}
 .penbar.hidden{display:none}
 #cwrap.has-toolbar .eventflag{bottom:52px}   /* уступает место полосе инструмента */
@@ -1341,7 +1415,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* На телефоне панель инструментов прижата к низу и растёт вверх — тогда
    раскрытие папки не выносит её за экран, где бы ни стояла кнопка. */
 [data-ui="mobile"] .toolfan{position:fixed;left:8px;right:8px;width:auto;
-  top:auto;bottom:calc(var(--mbot,64px) + 12px);max-height:min(62vh,520px)}
+  top:auto;bottom:calc(var(--mbot,64px) + 12px);max-height:62vh;max-height:min(62vh,520px)}
 [data-ui="mobile"] .crumb{display:none}
 
 /* Телефон в альбомной ориентации: экономим высоту. */
@@ -1367,7 +1441,7 @@ table.ref tr:last-child td{border-bottom:0}
    Диалог сборки и сама контрольная. Контрольная — отдельный слой поверх
    приложения со своими правилами печати: по Ctrl+P на бумагу уходит
    только она, без панелей, дерева тем и симуляций. */
-.modal.teacher{width:min(680px,94vw);max-height:88vh;overflow:auto;text-align:left}
+.modal.teacher{width:94vw;width:min(680px,94vw);max-height:88vh;overflow:auto;text-align:left}
 .tm-lead{color:var(--ink-2);font-size:13px;line-height:1.5;margin:0 0 14px}
 .tm-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
 .tm-field span{font-size:12px;color:var(--ink-3)}
@@ -1388,13 +1462,13 @@ table.ref tr:last-child td{border-bottom:0}
 .tm-topic i{font-style:normal;font-size:11px;color:var(--ink-3);font-family:var(--mono)}
 [data-ui="mobile"] .tm-grid,[data-ui="mobile"] .tm-topics{grid-template-columns:1fr}
 
-.worksheet{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column}
+.worksheet{position:fixed;top:0;right:0;bottom:0;left:0;z-index:200;background:var(--bg);display:flex;flex-direction:column}
 .worksheet.hidden{display:none}
 .ws-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;
   border-bottom:1px solid var(--line);background:var(--panel);font-size:13px;color:var(--ink-2)}
 .ws-bar .spacer{flex:1}
 .ws-body{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;align-items:center;gap:20px}
-.ws-page{width:min(820px,100%);background:var(--panel);color:var(--ink);
+.ws-page{width:100%;width:min(820px,100%);background:var(--panel);color:var(--ink);
   border:1px solid var(--line);border-radius:10px;padding:26px 30px}
 .ws-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:16px;flex-wrap:wrap}
@@ -1573,7 +1647,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .eventflag{bottom:calc(var(--sheet) + var(--vvbottom,0px) + 8px)}
 
 /* ---- Диалог компиляции графика ---- */
-.modal.plot{width:min(520px,94vw)}
+.modal.plot{width:94vw;width:min(520px,94vw)}
 .pl-lead{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:-4px 0 16px}
 .pl-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .pl-row>label{flex:1;font-size:13px;color:var(--ink-2)}
@@ -1589,7 +1663,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* Диалоги на телефоне не должны заезжать под лист: он всегда занимает низ
    экрана, и кнопки «Отмена / ОК» оказывались под ним — нажать нельзя. */
 [data-ui="mobile"] .modal-bg{padding:12px 12px calc(var(--sheet,0px) + 12px)}
-[data-ui="mobile"] .modal{max-height:calc(100dvh - var(--sheet,0px) - 40px)}
+[data-ui="mobile"] .modal{max-height:calc(100vh - var(--sheet,0px) - 40px);max-height:calc(100dvh - var(--sheet,0px) - 40px)}
 /* Пока симуляция не открыта, листу нечего показывать. */
 [data-ui="mobile"] .msheet.hidden{display:none}
 
@@ -1604,12 +1678,12 @@ table.ref tr:last-child td{border-bottom:0}
   position:fixed;z-index:128;left:10px;top:calc(var(--simhead-h,36px) + 12px)}
 [data-ui="mobile"] .stripctl .sc-play{width:36px;height:36px;border-radius:18px;
   display:grid;place-items:center;border:1px solid var(--line);
-  background:color-mix(in srgb,var(--chrome) 88%,transparent);color:var(--ink)}
+  background:var(--chrome);background:color-mix(in srgb,var(--chrome) 88%,transparent);color:var(--ink)}
 [data-ui="mobile"] .stripctl .sc-play svg{width:16px;height:16px;stroke:currentColor;fill:none;
   stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 [data-ui="mobile"] .stripctl .sc-play:active{background:var(--accent-800);color:var(--accent-300)}
 [data-ui="mobile"] .stripctl .sc-chip{height:30px;padding:0 12px;border-radius:15px;
-  border:1px solid var(--line);background:color-mix(in srgb,var(--chrome) 88%,transparent);
+  border:1px solid var(--line);background:var(--chrome);background:color-mix(in srgb,var(--chrome) 88%,transparent);
   color:var(--ink-2);font-size:12px}
 [data-ui="mobile"] .stripctl .sc-chip:active{background:var(--accent-800);color:var(--accent-300)}
 /* В полном положении низ листа освобождается целиком. */
@@ -1641,7 +1715,7 @@ table.ref tr:last-child td{border-bottom:0}
 .pb-custom{position:relative;overflow:hidden;display:grid;place-items:center;
   background:conic-gradient(#e14,#fa0,#2d5,#2af,#84f,#e14)}
 .pb-custom.on{border-color:var(--ink);transform:scale(1.12)}
-.pb-custom input{position:absolute;inset:-6px;opacity:0;cursor:pointer;border:0;padding:0}
+.pb-custom input{position:absolute;top:-6px;right:-6px;bottom:-6px;left:-6px;opacity:0;cursor:pointer;border:0;padding:0}
 .pb-reset{width:24px;height:22px;border-radius:6px;color:var(--ink-3);font-size:13px;line-height:1}
 .pb-reset:hover{background:var(--panel-2);color:var(--ink)}
 [data-ui="mobile"] .pb-s{min-width:32px;height:30px;font-size:12px}
@@ -1654,7 +1728,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* ПУСТАЯ СЦЕНА. Скрытая симуляция в полноэкранном режиме оставляла пустой
    экран, а закрытая — белое поле там, где ждёшь модель. Объяснение вместо
    пустоты: видно, что всё работает, и сказано, что делать дальше. */
-.simempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+.simempty{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:10px;padding:24px;text-align:center;pointer-events:none;
   color:var(--ink-3);background:var(--bg)}
 .simempty.hidden{display:none}
@@ -1714,7 +1788,7 @@ table.ref tr:last-child td{border-bottom:0}
   font-family:var(--mono);font-size:12px;padding:4px 6px;margin:0 6px 0 2px;color:var(--ink);text-transform:lowercase}
 .cw-ok{margin-left:auto;padding:4px 12px;font-size:12px}
 @media (pointer:coarse){
-  .cwheel{width:min(92vw,268px)}
+  .cwheel{width:92vw;width:min(92vw,268px)}
   .cw-top canvas{width:150px;height:150px}
 }
 
@@ -1750,11 +1824,11 @@ table.ref tr:last-child td{border-bottom:0}
    правились только через диалог, стирались случайным мазком резинки.
    Стали карточками в экранных координатах — заголовок виден всегда, тело
    раскрывается, размер меняется, связи ведут к соседним карточкам. */
-.notelayer{position:absolute;inset:0;pointer-events:none;z-index:26}
-.notelinks{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.notelayer{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;z-index:26}
+.notelinks{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;overflow:visible}
 .ncard{position:absolute;pointer-events:auto;display:flex;flex-direction:column;
   min-width:150px;min-height:38px;border-radius:10px;overflow:hidden;
-  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);
   border:1px solid var(--line);box-shadow:0 10px 30px -16px #0009;
   font-size:12.5px;color:var(--ink-2)}
 .ncard.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft),0 10px 30px -16px #0009}
@@ -1820,6 +1894,33 @@ table.ref tr:last-child td{border-bottom:0}
 .nc-ti:focus{outline:none;border-color:var(--accent)}
 .nc-body textarea{height:auto;flex:1}
 .nc-body{display:flex;flex-direction:column}
+
+/* ================= ПАЛЕЦ В КОМПЬЮТЕРНОЙ РАСКЛАДКЕ =================
+   Планшет боком получает раскладку компьютера, а в ней кнопки рассчитаны на
+   мышь: 26×24 на шкале времени, 30×28 в нижней панели, ручка разделителя в
+   5 пикселей. Пальцем в такое не попасть. Размеры тут — не меньше 36–40 px,
+   как в рекомендациях Apple и Google (44 и 48 pt при плотной раскладке
+   сводим к 40 — иначе не влезает панель). То, что открывалось наведением
+   мыши (отмена у параметра, сброс набора), на сенсоре видно всегда. */
+[data-touch="1"][data-ui="desktop"] .rail{width:52px;flex:0 0 52px}
+[data-touch="1"][data-ui="desktop"] #app.mid .sidebar{left:52px}
+[data-touch="1"][data-ui="desktop"][data-rail="right"] #app.mid .sidebar{left:0}
+[data-touch="1"][data-ui="desktop"] .rail .iconbtn,
+[data-touch="1"][data-ui="desktop"] .topbar .iconbtn,
+[data-touch="1"][data-ui="desktop"] .statusbar .iconbtn{width:40px;height:40px}
+/* рейка на невысоком экране прокручивается — кнопки в ней не должны сжиматься */
+[data-touch="1"][data-ui="desktop"] .rail>*{flex-shrink:0}
+[data-touch="1"][data-ui="desktop"] .statusbar{height:48px}
+[data-touch="1"][data-ui="desktop"] .simhead .iconbtn{width:36px!important;height:36px!important}
+[data-touch="1"][data-ui="desktop"] .timeline .tl-btn{width:36px;height:36px}
+[data-touch="1"][data-ui="desktop"] .timeline .tl-range{height:36px}
+[data-touch="1"][data-ui="desktop"] #simsel{min-height:36px;font-size:13px}
+[data-touch="1"][data-ui="desktop"] .fp-head .fp-fold{min-width:32px;min-height:28px;padding:4px 8px}
+[data-touch="1"][data-ui="desktop"] .topic-item{padding:10px 9px}
+[data-touch="1"][data-ui="desktop"] .sec>.hd{padding:11px 8px}
+[data-touch="1"][data-ui="desktop"] .splitter{width:14px;flex:0 0 14px}
+[data-touch="1"][data-ui="desktop"] .hsplit{height:14px;flex:0 0 14px}
+[data-touch="1"] .p-undo,[data-touch="1"] .pset-reset{opacity:1}
 </style>
 </head>
 <body>
@@ -15497,7 +15598,7 @@ bands:{
       v.label(ctx,'температура',gx+gw2,gy,-56,16,ink3);
       // кривая
       let vals=[];
-      for(let i=0;i<=100;i++){ const T=50+i*7.5; vals.push(this.sigma({...p,T})); }
+      for(let i=0;i<=100;i++){ const T=50+i*7.5; vals.push(this.sigma(Object.assign({}, p, {T}))); }
       const mx=Math.max(...vals)||1;
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.beginPath();
       vals.forEach((val,i)=>{ const x=gx+gw2*i/100, y=gy+gh*0.9*(val/mx);
@@ -27097,7 +27198,7 @@ for(const sec of SECTIONS){
     formulas:[], problems:[], mistakes:[]
   });
 }
-const ALL=SECTIONS.flatMap(s=>s.topics.map(t=>({...t,section:s.title,hard:!!s.hard})));
+const ALL=[].concat(...SECTIONS.map(s=>s.topics.map(t=>(Object.assign({}, t, {section:s.title, hard:!!s.hard})))));
 
 /* ПЕРЕНОС ОТМЕТОК О РЕШЁННЫХ ЗАДАЧАХ. До 1.6.2 отметка хранилась по
    порядковому номеру задачи в теме («mech.1d#3»). Номер зависел от порядка, и
@@ -27382,8 +27483,8 @@ const ПРИЁМЫ={
 ;
 'use strict';
 /* =============================== СОСТОЯНИЕ ============================== */
-const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSON.parse(v):d}catch{return d}},
-          set:(k,v)=>{try{localStorage.setItem('physim.'+k,JSON.stringify(v))}catch{}}};
+const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSON.parse(v):d}catch(_){return d}},
+          set:(k,v)=>{try{localStorage.setItem('physim.'+k,JSON.stringify(v))}catch(_){}}};
 const RT={};
 const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:false,graphOn:true,rec:null,speed:1,
   snap:LS.get('snap',true), marks:LS.get('marks',[]), open:LS.get('open',['intro','mech']),
@@ -27410,7 +27511,7 @@ function rt(id){
     const def=SIMS[id];
     const params={};
     for(const p of def.params) if(p.type!=='group') params[p.key]=p.default;
-    RT[id]={def,params,state:def.init(params),view:{...def.fit(params,{W:CW,H:CH})},
+    RT[id]={def,params,state:def.init(params),view:Object.assign({}, def.fit(params,{W:CW,H:CH})),
             hist:[],tick:0,annos:[],draft:null,undo:[JSON.stringify(params)],redo:[]};
   }
   return RT[id];
@@ -27422,6 +27523,7 @@ const scene=$('#scene'), overlay=$('#overlay');
 const sctx=scene.getContext('2d'), octx=overlay.getContext('2d');
 let CW=0,CH=0,DPR=1, gcanvas=[];
 function resize(){
+  if(typeof разложитьКолонки==='function') разложитьКолонки();
   if(typeof fpClampAll==='function') setTimeout(fpClampAll,0);   // панели держим внутри сцены
   // на месте незанятой сцены — объяснение, а не белое поле
   { const пусто=$('#simempty'); if(пусто) пусто.classList.toggle('hidden', !!A()); }
@@ -27436,7 +27538,10 @@ function resize(){
     c.width=Math.max(1,b.width*DPR); c.height=Math.max(1,b.height*DPR); }
 }
 let _rzPending=false;
-new ResizeObserver(()=>{                       // rAF-обёртка гасит «ResizeObserver loop»
+/* ResizeObserver есть в Chrome 64 и Safari 13.1, а не везде, где пособие
+   должно открываться. Без него сцену пересчитывает обычный resize окна —
+   чуть позже при перетаскивании разделителя, но без поломки. */
+if(window.ResizeObserver) new ResizeObserver(()=>{   // rAF-обёртка гасит «ResizeObserver loop»
   if(_rzPending) return;
   _rzPending=true;
   requestAnimationFrame(()=>{ _rzPending=false; resize(); });
@@ -28681,8 +28786,10 @@ function openTopic(id){
     $('#splitter').classList.add('hidden');
     $('#content').classList.add('wide');
     $('#app').classList.remove('simfull');
-    $('#sidebar').classList.remove('hidden');
-    $('#btn-rail').setAttribute('aria-pressed','true');
+    if(!$('#app').classList.contains('mid')){
+      $('#sidebar').classList.remove('hidden');
+      $('#btn-rail').setAttribute('aria-pressed','true');
+    }
     renderParams(); buildGraphs(); renderPresets();
     try{ syncSheet(); }catch(_){}
     requestAnimationFrame(resize);
@@ -28801,7 +28908,7 @@ function needsHTML(t){
   const чипы=ns.map(d=>`<button class="need" data-to="${d.id}">
       <span class="need-t">${d.ch?d.ch+'. ':''}${d.title}</span>
       <span class="need-s">${d.section}</span></button>`).join('');
-  const вопросы=ns.flatMap(d=>(d.checks||[]).map(q=>({...q,from:d.title}))).slice(0,3);
+  const вопросы=[].concat(...ns.map(d=>(d.checks||[]).map(q=>(Object.assign({}, q, {from:d.title}))))).slice(0,3);
   return `<div class="needs">
     <div class="needs-h">Чтобы читать дальше, нужно понимать</div>
     <div class="need-row">${чипы}</div>
@@ -29443,7 +29550,7 @@ function renderPane(){
 }
 function typeset(el){
   if(!window.renderMathInElement) return;
-  try{ renderMathInElement(el,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false}); }catch{}
+  try{ renderMathInElement(el,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false}); }catch(_){}
   fitFormulas(el);
   /* И ещё раз следующим кадром, и после загрузки шрифтов. Пока шрифты KaTeX
      не подгрузились, формула меряется подстановочным шрифтом и выходит уже
@@ -29927,16 +30034,16 @@ $$('#cwrap').addEventListener('pointerdown',e=>{
     }
     return;
   }
-  if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]],...markStyle('pencil')}; drag={mode:'draw'}; }
+  if(S.tool==='pencil'){ a.draft=Object.assign({}, {type:'pencil', pts:[[sx,sy]]}, markStyle('pencil')); drag={mode:'draw'}; }
   else if(S.tool==='ruler'||S.tool==='circle'){
-    a.draft={type:S.tool,p:[sx,sy,sx,sy],...markStyle(S.tool)}; drag={mode:'draw'};
+    a.draft=Object.assign({}, {type:S.tool, p:[sx,sy,sx,sy]}, markStyle(S.tool)); drag={mode:'draw'};
   }
   else if(S.tool==='eraser'){ annSnapshot(a); erase(wx,wy); drag={mode:'erase'}; }
   else if(S.tool==='note'){ новаяЗаметка(px,py); }
   else if(S.tool==='area'){
     /* Площадь набирается кликами по вершинам и замыкается двойным кликом
        или клавишей Enter. */
-    if(!a.draft||a.draft.type!=='area') a.draft={type:'area',pts:[],...markStyle('area')};
+    if(!a.draft||a.draft.type!=='area') a.draft=Object.assign({}, {type:'area', pts:[]}, markStyle('area'));
     const пред=a.draft.pts[a.draft.pts.length-1];
     a.draft.pts.push(пред?подРавнение(пред[0],пред[1],sx,sy,e.shiftKey):[sx,sy]);
     if(e.detail>=2&&a.draft.pts.length>=4){
@@ -30222,7 +30329,7 @@ if(!S.tstyle){
   S.tstyle={};
   const old=LS.get('pen',null);
   for(const [t,d] of Object.entries(TOOL_STYLE)){
-    S.tstyle[t]={c:d.c,k:1,...(d.dash!==undefined?{dash:d.dash}:{})};
+    S.tstyle[t]=Object.assign({}, {c:d.c, k:1}, d.dash!==undefined?{dash:d.dash}:{});
   }
   if(old&&old.c) S.tstyle.pencil={c:old.c,k:(old.w||2)/TOOL_STYLE.pencil.base};
   LS.set('tstyle',S.tstyle);
@@ -30387,7 +30494,7 @@ function renderToolbar(){
   const ws=$('#pb-widths'), ex=$('#pb-extra'), rec=$('#pb-recent');
   ws.innerHTML=''; ex.innerHTML=''; rec.innerHTML='';
   const save=upd=>{ if(upd.c) запомнитьЦвет(upd.c);
-                    S.tstyle={...S.tstyle,[S.tool]:{...tstyle(S.tool),...upd}};
+                    S.tstyle=Object.assign({}, S.tstyle, {[S.tool]:Object.assign({}, tstyle(S.tool), upd)});
                     LS.set('tstyle',S.tstyle); renderToolbar(); };
   const есть=x=>(def.opts||[]).includes(x);
 
@@ -30539,7 +30646,7 @@ function renderToolbar(){
      к заводскому состоянию щелчками было бы долго. Кнопка стоит в разметке
      последней, чтобы «Ещё» и сброс не уезжали за край прокруткой полосы. */
   const сброс=$('#pb-reset');
-  if(сброс) сброс.onclick=()=>{ const t={...S.tstyle}; delete t[S.tool];
+  if(сброс) сброс.onclick=()=>{ const t=Object.assign({}, S.tstyle); delete t[S.tool];
                                 S.tstyle=t; LS.set('tstyle',S.tstyle); renderToolbar(); };
 }
 /* Размерная линия была отдельным инструментом, хотя строит то же измерение,
@@ -30551,7 +30658,7 @@ function линейкаСВыносками(){ линейкаВРежиме({ext
    отличался стрелкой на конце. Теперь это её настройка. */
 function вектором(){ линейкаВРежиме({arr:'end',ext:false}); }
 function линейкаВРежиме(режим){
-  S.tstyle={...S.tstyle, ruler:{...tstyle('ruler'), ...режим}};
+  S.tstyle=Object.assign({}, S.tstyle, {ruler:Object.assign({}, tstyle('ruler'), режим)});
   LS.set('tstyle',S.tstyle);
   setTool('ruler');
 }
@@ -30673,7 +30780,7 @@ $$('#btn-rail').onclick=()=>toggleSidebar();
 $$('#side-close').onclick=()=>toggleSidebar(true);
 /* в полноэкранном режиме накладная панель тем закрывается сразу после выбора темы */
 function autoCloseRail(){
-  if($('#app').classList.contains('simfull')){
+  if($('#app').classList.contains('simfull')||$('#app').classList.contains('mid')){
     $('#sidebar').classList.add('hidden');
     $('#btn-rail').setAttribute('aria-pressed','false');
   }
@@ -30692,8 +30799,10 @@ $$('#btn-simhide').onclick=()=>{
      симуляцию» — это «хочу читать», поэтому полный экран снимаем. */
   if(!was && $('#app').classList.contains('simfull')){
     $('#app').classList.remove('simfull');
-    $('#sidebar').classList.remove('hidden');
-    $('#btn-rail').setAttribute('aria-pressed','true');
+    if(!$('#app').classList.contains('mid')){
+      $('#sidebar').classList.remove('hidden');
+      $('#btn-rail').setAttribute('aria-pressed','true');
+    }
   }
   p.classList.toggle('hidden');
   if(isNarrow()){
@@ -30713,8 +30822,9 @@ $$('#btn-simfull').onclick=()=>{
   /* входя в полный экран, прячем список тем; выходя — возвращаем.
      Кнопкой ☰ (или клавишей B) его можно открыть поверх симуляции в любой момент. */
   const sb=$('#sidebar');
-  sb.classList.toggle('hidden',on);
-  $('#btn-rail').setAttribute('aria-pressed',String(!on));
+  const закрыть= on || $('#app').classList.contains('mid');   // на средней ширине панель поверх и так закрыта
+  sb.classList.toggle('hidden',закрыть);
+  $('#btn-rail').setAttribute('aria-pressed',String(!закрыть));
   if(on) toast('Список тем — кнопка ☰ слева вверху или клавиша B');
   requestAnimationFrame(resize);
 };
@@ -30797,20 +30907,77 @@ const bottom=$('#simbottom'), hsplit=$('#hsplit');
     const max=$('#simpane').getBoundingClientRect().height-180;
     const h=clamp(т.h-(e.clientY-т.y),0,Math.max(60,max));
     bottom.classList.toggle('collapsed',h<24);
+    высотаНиза=h; LS.set('bottomH',h);
     bottom.style.height=h+'px';
   });
 hsplit.addEventListener('dblclick',()=>{
   const col=bottom.classList.toggle('collapsed');
-  if(!col) bottom.style.height='300px';
+  if(!col){ высотаНиза=300; LS.set('bottomH',300); bottom.style.height='300px'; }
   requestAnimationFrame(resize);
 });
 
 тянуть($('#splitter'),
   ()=>({}),
   e=>{
-    const w=clamp(innerWidth-e.clientX,340,innerWidth-440);
-    $('#simpane').style.flex=`0 0 ${w}px`; $('#simpane').style.width=w+'px';
+    /* Запоминаем долю, а не пиксели: пиксели, выставленные в альбомной
+       ориентации, переживали поворот — сцена в 740 px оставалась на экране
+       в 820, а на iPad Pro конспект сжимался в ноль. */
+    const к=колонки(); if(!к) return;
+    const w=clamp(innerWidth-e.clientX-к.справа,300,Math.max(300,к.доступно-360));
+    LS.set('simFrac',w/к.доступно);
+    разложитьКолонки();
   });
+// двойной клик по разделителю — вернуть ширину по умолчанию
+$$('#splitter').addEventListener('dblclick',()=>{ LS.set('simFrac',null); requestAnimationFrame(resize); });
+
+/* ============ КОЛОНКИ НА КОМПЬЮТЕРНОЙ РАСКЛАДКЕ ============
+   Раньше сцена стояла ровно в 470 px, а панель тем — в 280. На мониторе в
+   1500 px это давало конспекту 700 px, на планшете боком (1080) — 281, на
+   восьмидюймовом (960) — 161: читать было нечего. Теперь:
+     • сцена — доля доступной ширины (по умолчанию 42 %, не шире 470 px),
+       а если человек потянул разделитель — его доля;
+     • конспекту всегда остаётся не меньше 360 px;
+     • на средней ширине (компьютерная раскладка уже 1200 px) панель тем
+       не отнимает ширину, а ложится поверх — класс .mid у #app.
+   Ширину пишем в style только здесь и только в компьютерной раскладке: в
+   телефонной style очищается, иначе он перебил бы её правила (так и было
+   после поворота планшета). */
+let высотаНиза=LS.get('bottomH',null);
+function колонки(){
+  const тело=document.querySelector('.body'); if(!тело) return null;
+  const рейка=$('#rail'), бок=$('#sidebar'), разд=$('#splitter');
+  const виден=el=>el&&!el.classList.contains('hidden')&&getComputedStyle(el).display!=='none';
+  const поверх=$('#app').classList.contains('mid')||$('#app').classList.contains('simfull');
+  const занято=(виден(рейка)?рейка.offsetWidth:0)+(виден(бок)&&!поверх?бок.offsetWidth:0)
+              +(виден(разд)?разд.offsetWidth:0);
+  const справа= document.documentElement.dataset.rail==='right'&&виден(рейка)? рейка.offsetWidth : 0;
+  return {доступно:Math.max(0,тело.clientWidth-занято), справа};
+}
+function разложитьКолонки(){
+  const app=$('#app'), sp=$('#simpane'); if(!app||!sp) return;
+  const средняя=!isNarrow()&&innerWidth<1200;
+  if(app.classList.contains('mid')!==средняя){
+    app.classList.toggle('mid',средняя);
+    /* на средней ширине панель тем по умолчанию закрыта, на широкой открыта.
+       В телефонной раскладке ею управляет ящик — не трогаем. */
+    if(!isNarrow()&&!app.classList.contains('simfull')) toggleSidebar(средняя);
+  }
+  const низ=$('#simbottom');
+  if(isNarrow()||app.classList.contains('simfull')||sp.classList.contains('hidden')){
+    sp.style.flex=''; sp.style.width='';
+    if(isNarrow()&&низ) низ.style.height='';
+    return;
+  }
+  const к=колонки(); if(!к||!к.доступно) return;
+  const доля=LS.get('simFrac',null);
+  let w= доля? доля*к.доступно : Math.min(470,Math.max(320,к.доступно*0.42));
+  w=Math.round(Math.max(300,Math.min(w,к.доступно-360)));
+  sp.style.flex=`0 0 ${w}px`; sp.style.width=w+'px';
+  if(низ&&высотаНиза!=null&&!низ.classList.contains('collapsed')){
+    const max=Math.max(60,sp.getBoundingClientRect().height-180);
+    низ.style.height=Math.min(высотаНиза,max)+'px';
+  }
+}
 
 function popup(btn,pop){
   btn.onclick=e=>{
@@ -30852,13 +31019,13 @@ $$('#mi-notes-load').onclick=()=>{
   вход.onchange=async()=>{
     const f=вход.files&&вход.files[0]; if(!f) return;
     try{
-      const д=JSON.parse(await f.text());
+      const д=JSON.parse(await текстФайла(f));
       const список=Array.isArray(д)?д:д.заметки;
       if(!Array.isArray(список)) throw new Error('это не файл заметок');
       /* Идентификаторы перевыдаём: иначе загруженные заметки склеились бы
          связями с теми, что уже лежат в этой симуляции. */
       const карта={};
-      const свежие=список.map(n=>{ карта[n.id]=новыйИд(); return {...n,id:карта[n.id]}; });
+      const свежие=список.map(n=>{ карта[n.id]=новыйИд(); return Object.assign({}, n, {id:карта[n.id]}); });
       for(const n of свежие) n.links=(n.links||[]).map(x=>карта[x]).filter(Boolean);
       a.notes=[...заметки(a),...свежие];
       сохранитьЗаметки(); renderNotes();
@@ -30879,7 +31046,7 @@ $$('#mi-save').onclick=()=>{
   askText('Название набора параметров',a.def.title,name=>savePresetAs(a,name)); }
 function savePresetAs(a,name){
   const all=LS.get('presets',{}); if(!all[S.active]) all[S.active]=[];
-  all[S.active].push({name,values:{...a.params}});
+  all[S.active].push({name,values:Object.assign({}, a.params)});
   LS.set('presets',all); renderPresets(); toast('Параметры сохранены');
 };
 $$('#mi-reset').onclick=()=>{
@@ -31235,7 +31402,7 @@ function renderPrefs(){
           <input type="file" id="pref-import-file" accept="application/json" style="display:none"></div></div>
 `;
     $('#pref-reset-all').onclick=()=>askConfirm('Вернуть все настройки к исходным значениям?',()=>{
-      S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Настройки сброшены');
+      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Настройки сброшены');
     });
     $('#pref-clear-presets').onclick=()=>askConfirm('Удалить все свои наборы параметров?',()=>{
       LS.set('presets',{}); renderPrefs(); toast('Наборы удалены');
@@ -31243,7 +31410,7 @@ function renderPrefs(){
     $('#pref-clear-all').onclick=()=>askConfirm('Удалить все сохранённые данные? Это нельзя отменить.',()=>{
       try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
         if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
-      S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Хранилище очищено');
+      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Хранилище очищено');
     });
     /* В файл идёт ВСЁ, что пользователь нажил, а не одни настройки. Раньше
        отметки о решённых задачах (solved) в него не попадали: человек делал
@@ -31266,7 +31433,7 @@ function renderPrefs(){
         try{
           const j=JSON.parse(rd.result);
           if(j.app!=='physim') throw 0;
-          if(j.settings) S.settings={...PREF_DEFAULTS,...j.settings};
+          if(j.settings) S.settings=Object.assign({}, PREF_DEFAULTS, j.settings);
           if(j.presets)  LS.set('presets',j.presets);
           if(j.marks){ S.marks=j.marks; LS.set('marks',S.marks); }
           /* Прогресс СЛИВАЕМ, а не заменяем: если человек успел решить
@@ -31274,9 +31441,9 @@ function renderPrefs(){
           /* Файл мог быть сделан прежней версией, где отметка хранилась по
              порядковому номеру задачи. Переводим тем же кодом, что и при
              запуске, иначе загруженный архив расставил бы галочки мимо. */
-          if(j.solved){ S.solved={...S.solved,...перевестиОтметки(j.solved)}; LS.set('solved',S.solved); }
+          if(j.solved){ S.solved=Object.assign({}, S.solved, перевестиОтметки(j.solved)); LS.set('solved',S.solved); }
           if(j.favs){ S.favs=[...new Set([...(S.favs||[]),...j.favs])]; LS.set('favs',S.favs); }
-          if(j.tstyle){ S.tstyle={...S.tstyle,...j.tstyle}; LS.set('tstyle',S.tstyle); }
+          if(j.tstyle){ S.tstyle=Object.assign({}, S.tstyle, j.tstyle); LS.set('tstyle',S.tstyle); }
           if(j.recent){ S.recent=j.recent; LS.set('recent',S.recent); }
           applySettings(); renderPrefs(); renderTree(); renderPane();
           toast(j.solved?`Загружено, решённых задач ${Object.keys(S.solved).length}`:'Данные загружены');
@@ -31287,7 +31454,7 @@ function renderPrefs(){
   } else if(prefCat==='about'){
     const nSim=Object.keys(SIMS).length;
     const nTop=SECTIONS.reduce((a,s)=>a+s.topics.length,0);
-    const nF=SECTIONS.flatMap(s=>s.topics).reduce((a,t)=>a+(t.formulas||[]).length,0);
+    const nF=[].concat(...SECTIONS.map(s=>s.topics)).reduce((a,t)=>a+(t.formulas||[]).length,0);
     body.innerHTML=`
       <div class="pset-h">Phy.Sim</div>
       <div class="prefs-stat">
@@ -31384,6 +31551,10 @@ function uiMode(){
 }
 function applyUiMode(){
   const m=uiMode(), root=document.documentElement;
+  /* Палец в компьютерной раскладке — это планшет боком. Раскладка та же,
+     но цели крупнее, а то, что открывалось наведением, видно сразу. */
+  const палец=matchMedia('(pointer:coarse)').matches;
+  if((root.dataset.touch==='1')!==палец) root.dataset.touch=палец?'1':'0';
   if(root.dataset.ui===m) return false;
   root.dataset.ui=m;
   return true;                                             // режим сменился
@@ -31828,6 +31999,13 @@ function onViewportChange(){
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
     lastNarrow=now;
+    /* Смена раскладки на лету (планшет повернули): всё временное, открытое
+       в прежней, закрываем. Ящик тем, меню и карточки принадлежат своей
+       раскладке и в чужой оказывались не на месте или под другими слоями. */
+    document.querySelectorAll('.pop').forEach(x=>x.classList.add('hidden'));
+    try{ закрытьПриём(); }catch(_){}
+    $('#sidebar').classList.remove('open');
+    $$('#drawer-bg').classList.remove('show');
     if(now){
       // перешли к узкому экрану: убираем разделитель и прячем сцену, чтобы
       // конспект не оказался зажат в полоску
@@ -31836,11 +32014,13 @@ function onViewportChange(){
     } else {
       // вернулись к широкому: восстанавливаем работу бок о бок
       $('#app').classList.remove('simfull');
+      try{ mSheet(false); }catch(_){}
       if(!$('#simpane').classList.contains('hidden')){
         $('#splitter').classList.remove('hidden');
         $('#content').classList.remove('wide');
       }
-      $('#sidebar').classList.remove('hidden');
+      // на средней ширине панель тем ложится поверх текста — не распахиваем её
+      toggleSidebar(innerWidth<1200);
     }
   }
   resize();
@@ -31898,9 +32078,15 @@ function applySettings(){
   LS.set('settings',s); resize();
 }
 // тема «как в системе» реагирует на смену темы устройства на лету
-matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{
-  if(S.settings.theme==='auto') applySettings();
-});
+/* Без ?.: одна такая запись роняла весь скрипт на Chrome младше 80 и Safari
+   младше 13.1 — пособие показывало картинку и больше ничего. У Safari до 14
+   у MediaQueryList есть только addListener. */
+{
+  const тёмная=matchMedia('(prefers-color-scheme: dark)');
+  const сменить=()=>{ if(S.settings.theme==='auto') applySettings(); };
+  if(тёмная.addEventListener) тёмная.addEventListener('change',сменить);
+  else if(тёмная.addListener) тёмная.addListener(сменить);
+}
 
 $$('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtoggle').textContent=$('#pvbox').classList.contains('collapsed')?'▸':'▾'; };
 
@@ -32136,7 +32322,7 @@ function toast(m){
 const FPANELS=['hud','energybox','pvbox','histobox','cmpbox'];
 function fpLoad(){ return LS.get('panels',{}); }
 function fpSave(id,geom){
-  const all=fpLoad(); all[id]={...(all[id]||{}),...geom}; LS.set('panels',all);
+  const all=fpLoad(); all[id]=Object.assign({}, all[id]||{}, geom); LS.set('panels',all);
 }
 function fpApply(el){
   const g=fpLoad()[el.id];
@@ -32542,7 +32728,7 @@ function plural(n,one,few,many){
 function answerParams(pr, params){
   const used=new Set();
   try{
-    pr.answer(new Proxy({...params},{ get(t,k){ if(typeof k==='string') used.add(k); return t[k]; } }));
+    pr.answer(new Proxy(Object.assign({}, params),{ get(t,k){ if(typeof k==='string') used.add(k); return t[k]; } }));
   }catch(_){ /* упавшая answer просто не даст списка — не беда */ }
   return [...used];
 }
@@ -32993,7 +33179,7 @@ const ЗАМ_КЛЮЧ='notes';
 function заметки(a){ if(a&&!a.notes) a.notes=[]; return a?a.notes:[]; }
 function загрузитьЗаметки(a,id){
   const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
-  a.notes=Array.isArray(все[id])?все[id].map(n=>({links:[],...n})):[];
+  a.notes=Array.isArray(все[id])?все[id].map(n=>(Object.assign({}, {links:[]}, n))):[];
 }
 function сохранитьЗаметки(){
   const a=A(); if(!a||!S.active) return;
@@ -33295,7 +33481,7 @@ function собратьРазвёртку(def, params, ключ, от, до, т�
     const шагП=(до-от)/Math.max(1,точек-1);
     let i=0, остановок=0;
     const одна=v=>{
-      const p={...params,[ключ]:v};
+      const p=Object.assign({}, params, {[ключ]:v});
       const st=def.init(p);
       if(!def.timeless && тДо>0){
         let охрана=0;
@@ -33399,6 +33585,12 @@ function холстНеПустой(cv){
    Порядок: мост оболочки → системный «Поделиться» → обычная ссылка →
    открыть в новой вкладке, чтобы человек сохранил вручную. Каждый шаг
    честно сообщает, чем кончилось. */
+/* Blob.text() появился в Chrome 76 и Safari 14 — читаем по-старому. */
+function текстФайла(blob){
+  return new Promise((r,j)=>{ const f=new FileReader();
+    f.onload=()=>r(String(f.result||''));
+    f.onerror=()=>j(new Error('не прочитался')); f.readAsText(blob); });
+}
 function blobВBase64(blob){
   return new Promise((r,j)=>{ const f=new FileReader();
     f.onload=()=>r(String(f.result).split(',')[1]||'');
@@ -33565,14 +33757,14 @@ function выполнитьКомпиляцию(){
     const подпись=`${a.def.title} · ${pp.label} от ${p0} до ${p1}`+
       (pp.unit?` ${pp.unit}`:'')+` · ${точек} точек`+
       (тДо>0?` · на момент t = ${тДо} с`:'');
-    LS.set('plotSweep',{...(LS.get('plotSweep',{})||{}),[S.active]:{key:ключ,p0,p1,at:тДо}});
+    LS.set('plotSweep',Object.assign({}, LS.get('plotSweep',{})||{}, {[S.active]:{key:ключ,p0,p1,at:тДо}}));
     имяФайла=`${S.active}-развёртка-${ключ}`;
     сбор=собратьРазвёртку(a.def,a.params,ключ,p0,p1,точек,тДо,дробь,какие,
         д=>{ $('#pl-note').textContent='Считаю… '+Math.round(д*100)+' %'; })
       .then(ряд=>{
         // ряд собран по выбранным показателям подряд, а рисуем по их номерам
         const по={}; какие.forEach((gi,k)=>{ по[gi]=ряд.ys[k]; });
-        return {...ряд, ys:по, xlab:pp.label+(pp.unit?`, ${pp.unit}`:''), подпись};
+        return Object.assign({}, ряд, {ys:по, xlab:pp.label+(pp.unit?`, ${pp.unit}`:''), подпись});
       });
   } else {
     const t0=чис('#pl-t0',0), t1=чис('#pl-t1',10);
@@ -33612,7 +33804,7 @@ function выполнитьКомпиляцию(){
           : `График сохранён · шаг ${ряд.dt.toFixed(5)} с`+(ряд.stop?' · '+ряд.stop.текст:'')+ужали);
     })
     .catch(e=>{ $('#pl-note').textContent='Не вышло: '+(e&&e.message||e); })
-    .finally(()=>{ кн.disabled=false; });
+    .then(()=>{ кн.disabled=false; });          // .finally — только с Chrome 63
 }
 
 $$('#mi-plot').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьКомпиляцию(); };

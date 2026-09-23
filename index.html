@@ -23,49 +23,109 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="physim-build" content="1.7.0">
 <script>
-  if (location.protocol === 'http:' || location.protocol === 'https:') {
-    addEventListener('load', () => navigator.serviceWorker?.register('sw.js').catch(() => {}));
+  /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
+     любом движке, иначе на старом планшете некому объяснить, что случилось.
+     В 1.7.0 и раньше здесь стояло navigator.serviceWorker?.register — на
+     Chrome/WebView младше 80 и Safari младше 13.1 этот скрипт падал так же,
+     как app.js, и человек видел отрисованную страницу без единого слова.
 
-    /* СТОРОЖ РАЗЪЕХАВШЕГОСЯ КЭША.
-       Служебный поток обновлял файлы поодиночке, и открытие могло получить
-       разметку от одного выпуска со скриптом от другого. Обработчики в
-       app.js вешаются на верхнем уровне: не хватило одного элемента — весь
-       скрипт умер на первой же строке, и пособие показывало отрисованную
-       страницу, где ничего не работает. Снаружи это выглядит как «грузится
-       только картинка».
+     Что он делает:
+       1. запоминает первую ошибку скрипта — её покажем в сообщении;
+       2. через 4 с после загрузки проверяет, что app.js дочитан до конца и
+          той же версии, что разметка;
+       3. если нет и движок слишком старый — так и говорит, с номером версии
+          и тем, что обновить (перезагрузка тут не поможет);
+       4. если нет, а движок подходящий и страница отдана по http(s) —
+          сносит кэш и служебный поток и перезагружается один раз
+          (разъехавшийся кэш, см. sw.js);
+       5. второй раз — показывает сообщение. В .apk и однофайловой сборке
+          (file://) кэша нет, и сообщение показывается сразу. */
+  (function () {
+    var первая = null;
+    window.addEventListener('error', function (e) {
+      if (первая) return;
+      var где = e && e.filename ? ' (' + String(e.filename).split('/').pop() + ':' + e.lineno + ')' : '';
+      первая = (e && e.message ? e.message : 'ошибка скрипта') + где;
+    });
 
-       Починить это задним числом нельзя ничем, кроме как из самой страницы:
-       у сломанного планшета уже лежит смесь в кэше. Поэтому здесь сторож —
-       если скрипт не доложил о себе или доложил чужой номер выпуска, сносим
-       кэш вместе со служебным потоком и перезагружаемся. Ровно один раз за
-       сеанс: бесконечная перезагрузка была бы хуже поломки. */
-    addEventListener('load', () => setTimeout(() => {
-      var метка = document.querySelector('meta[name=physim-build]');
-      var ждём = метка ? метка.content : null;
-      var цел = window.PHYSIM_READY === true && (!ждём || window.PHYSIM_BUILD === ждём);
-      if (цел) return;
-      try { if (sessionStorage.getItem('physim-чинили')) { показатьБеду(); return; }
-            sessionStorage.setItem('physim-чинили', '1'); } catch (e) {}
-      Promise.all([
-        caches.keys().then(k => Promise.all(k.map(n => caches.delete(n)))).catch(() => {}),
-        navigator.serviceWorker.getRegistrations()
-          .then(rs => Promise.all(rs.map(r => r.unregister()))).catch(() => {}),
-      ]).then(() => location.reload(true));
-    }, 4000));
+    var поСети = location.protocol === 'http:' || location.protocol === 'https:';
+    if (поСети && 'serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        try { navigator.serviceWorker.register('sw.js')['catch'](function () {}); } catch (e) {}
+      });
+    }
 
-    /* Второй раз не помогло — значит дело не в кэше. Молчать тут нельзя:
-       пустая страница ничего не объясняет и выглядит поломкой намертво. */
-    function показатьБеду() {
+    /* Чего пособие требует от движка. Chrome/WebView 58 и Safari 13 —
+       это Android 8 с заводским WebView и iPadOS 13 (iPad Air 2, mini 4 и
+       новее). Проверки — по возможностям, а не по строке браузера. */
+    function чегоНет() {
+      var нет = [];
+      try { new Function('async function f(){await 0}'); } catch (e) { нет.push('async/await'); }
+      if (!window.PointerEvent) нет.push('PointerEvent');
+      if (!Object.entries) нет.push('Object.entries');
+      if (!window.Promise) нет.push('Promise');
+      return нет;
+    }
+    function какойДвижок() {
+      var ua = navigator.userAgent || '', m;
+      if ((m = /Chrome\/(\d+)/.exec(ua))) return (/; wv\)/.test(ua) ? 'Android WebView ' : 'Chrome ') + m[1];
+      if ((m = /Version\/(\d+[.\d]*).*Safari/.exec(ua))) return 'Safari ' + m[1];
+      if ((m = /Firefox\/(\d+)/.exec(ua))) return 'Firefox ' + m[1];
+      return 'неизвестный браузер';
+    }
+
+    function показатьБеду(старый, нет) {
+      var движок = какойДвижок(), вWebView = /; wv\)/.test(navigator.userAgent || '');
       var d = document.createElement('div');
-      d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:grid;place-items:center;' +
-        'background:#f7f8fa;color:#15181d;font:15px/1.6 system-ui,sans-serif;padding:24px;text-align:center';
-      d.innerHTML = '<div style="max-width:32em"><b style="font-size:17px">Пособие не загрузилось</b>' +
-        '<p>Похоже, в памяти браузера осталась половина прошлой версии. ' +
-        'Очистка не помогла — попробуйте открыть страницу заново или зайти ' +
-        'в режиме инкогнито. Если повторится, напишите об этом в Issues.</p></div>';
+      d.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;overflow:auto;' +
+        'background:#f7f8fa;color:#15181d;font:15px/1.6 sans-serif;padding:24px;text-align:center';
+      var текст;
+      if (старый) {
+        текст = '<b style="font-size:17px">Браузер слишком старый для пособия</b>' +
+          '<p>Сейчас: ' + движок + (нет && нет.length ? ', и в нём нет ' + нет.join(', ') : '') +
+          '. Нужен Chrome или Android WebView 58 и новее, ' +
+          'Safari 13 и новее (iPad с iPadOS 13 и новее).</p><p>' +
+          (вWebView
+            ? 'Приложение показывает страницы через системный компонент «Android System WebView». ' +
+              'Обновите его (или Chrome) в магазине приложений и откройте пособие заново.'
+            : 'Обновите браузер или откройте пособие в другом — например, в свежем Chrome или Firefox.') +
+          '</p>';
+      } else {
+        текст = '<b style="font-size:17px">Пособие не загрузилось</b>' +
+          '<p>' + (поСети
+            ? 'Похоже, в памяти браузера осталась половина прошлой версии. Очистка не помогла — ' +
+              'попробуйте открыть страницу заново или в режиме инкогнито.'
+            : 'Попробуйте закрыть и открыть его заново.') +
+          ' Если повторится, напишите об этом в Issues — и приложите строку ниже.</p>';
+      }
+      текст += '<p style="font:12px/1.5 monospace;color:#5c6570;word-break:break-word">' +
+        движок + (первая ? ' · ' + String(первая).replace(/[<>&]/g, '') : '') + '</p>';
+      d.innerHTML = '<div style="max-width:32em;margin:12vh auto 0">' + текст + '</div>';
       document.body.appendChild(d);
     }
-  }
+
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var метка = document.querySelector('meta[name=physim-build]');
+        var ждём = метка ? метка.content : null;
+        if (window.PHYSIM_READY === true && (!ждём || window.PHYSIM_BUILD === ждём)) return;
+        var нет = чегоНет();
+        if (нет.length || !поСети || !window.caches) { показатьБеду(нет.length > 0, нет); return; }
+        try {
+          if (sessionStorage.getItem('physim-чинили')) { показатьБеду(false); return; }
+          sessionStorage.setItem('physim-чинили', '1');
+        } catch (e) {}
+        var сносим = [
+          caches.keys().then(function (k) { return Promise.all(k.map(function (n) { return caches.delete(n); })); })
+        ];
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations)
+          сносим.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+        Promise.all(сносим).then(function () { location.reload(); }, function () { location.reload(); });
+      }, 4000);
+    });
+  })();
 </script>
 
 <!-- KaTeX лежит рядом, а не на CDN: пособие должно одинаково работать в школе

@@ -1,7 +1,7 @@
 'use strict';
 /* =============================== СОСТОЯНИЕ ============================== */
-const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSON.parse(v):d}catch{return d}},
-          set:(k,v)=>{try{localStorage.setItem('physim.'+k,JSON.stringify(v))}catch{}}};
+const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSON.parse(v):d}catch(_){return d}},
+          set:(k,v)=>{try{localStorage.setItem('physim.'+k,JSON.stringify(v))}catch(_){}}};
 const RT={};
 const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:false,graphOn:true,rec:null,speed:1,
   snap:LS.get('snap',true), marks:LS.get('marks',[]), open:LS.get('open',['intro','mech']),
@@ -28,7 +28,7 @@ function rt(id){
     const def=SIMS[id];
     const params={};
     for(const p of def.params) if(p.type!=='group') params[p.key]=p.default;
-    RT[id]={def,params,state:def.init(params),view:{...def.fit(params,{W:CW,H:CH})},
+    RT[id]={def,params,state:def.init(params),view:Object.assign({}, def.fit(params,{W:CW,H:CH})),
             hist:[],tick:0,annos:[],draft:null,undo:[JSON.stringify(params)],redo:[]};
   }
   return RT[id];
@@ -40,6 +40,7 @@ const scene=$('#scene'), overlay=$('#overlay');
 const sctx=scene.getContext('2d'), octx=overlay.getContext('2d');
 let CW=0,CH=0,DPR=1, gcanvas=[];
 function resize(){
+  if(typeof разложитьКолонки==='function') разложитьКолонки();
   if(typeof fpClampAll==='function') setTimeout(fpClampAll,0);   // панели держим внутри сцены
   // на месте незанятой сцены — объяснение, а не белое поле
   { const пусто=$('#simempty'); if(пусто) пусто.classList.toggle('hidden', !!A()); }
@@ -54,7 +55,10 @@ function resize(){
     c.width=Math.max(1,b.width*DPR); c.height=Math.max(1,b.height*DPR); }
 }
 let _rzPending=false;
-new ResizeObserver(()=>{                       // rAF-обёртка гасит «ResizeObserver loop»
+/* ResizeObserver есть в Chrome 64 и Safari 13.1, а не везде, где пособие
+   должно открываться. Без него сцену пересчитывает обычный resize окна —
+   чуть позже при перетаскивании разделителя, но без поломки. */
+if(window.ResizeObserver) new ResizeObserver(()=>{   // rAF-обёртка гасит «ResizeObserver loop»
   if(_rzPending) return;
   _rzPending=true;
   requestAnimationFrame(()=>{ _rzPending=false; resize(); });
@@ -1299,8 +1303,10 @@ function openTopic(id){
     $('#splitter').classList.add('hidden');
     $('#content').classList.add('wide');
     $('#app').classList.remove('simfull');
-    $('#sidebar').classList.remove('hidden');
-    $('#btn-rail').setAttribute('aria-pressed','true');
+    if(!$('#app').classList.contains('mid')){
+      $('#sidebar').classList.remove('hidden');
+      $('#btn-rail').setAttribute('aria-pressed','true');
+    }
     renderParams(); buildGraphs(); renderPresets();
     try{ syncSheet(); }catch(_){}
     requestAnimationFrame(resize);
@@ -1419,7 +1425,7 @@ function needsHTML(t){
   const чипы=ns.map(d=>`<button class="need" data-to="${d.id}">
       <span class="need-t">${d.ch?d.ch+'. ':''}${d.title}</span>
       <span class="need-s">${d.section}</span></button>`).join('');
-  const вопросы=ns.flatMap(d=>(d.checks||[]).map(q=>({...q,from:d.title}))).slice(0,3);
+  const вопросы=[].concat(...ns.map(d=>(d.checks||[]).map(q=>(Object.assign({}, q, {from:d.title}))))).slice(0,3);
   return `<div class="needs">
     <div class="needs-h">Чтобы читать дальше, нужно понимать</div>
     <div class="need-row">${чипы}</div>
@@ -2061,7 +2067,7 @@ function renderPane(){
 }
 function typeset(el){
   if(!window.renderMathInElement) return;
-  try{ renderMathInElement(el,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false}); }catch{}
+  try{ renderMathInElement(el,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false}); }catch(_){}
   fitFormulas(el);
   /* И ещё раз следующим кадром, и после загрузки шрифтов. Пока шрифты KaTeX
      не подгрузились, формула меряется подстановочным шрифтом и выходит уже
@@ -2545,16 +2551,16 @@ $$('#cwrap').addEventListener('pointerdown',e=>{
     }
     return;
   }
-  if(S.tool==='pencil'){ a.draft={type:'pencil',pts:[[sx,sy]],...markStyle('pencil')}; drag={mode:'draw'}; }
+  if(S.tool==='pencil'){ a.draft=Object.assign({}, {type:'pencil', pts:[[sx,sy]]}, markStyle('pencil')); drag={mode:'draw'}; }
   else if(S.tool==='ruler'||S.tool==='circle'){
-    a.draft={type:S.tool,p:[sx,sy,sx,sy],...markStyle(S.tool)}; drag={mode:'draw'};
+    a.draft=Object.assign({}, {type:S.tool, p:[sx,sy,sx,sy]}, markStyle(S.tool)); drag={mode:'draw'};
   }
   else if(S.tool==='eraser'){ annSnapshot(a); erase(wx,wy); drag={mode:'erase'}; }
   else if(S.tool==='note'){ новаяЗаметка(px,py); }
   else if(S.tool==='area'){
     /* Площадь набирается кликами по вершинам и замыкается двойным кликом
        или клавишей Enter. */
-    if(!a.draft||a.draft.type!=='area') a.draft={type:'area',pts:[],...markStyle('area')};
+    if(!a.draft||a.draft.type!=='area') a.draft=Object.assign({}, {type:'area', pts:[]}, markStyle('area'));
     const пред=a.draft.pts[a.draft.pts.length-1];
     a.draft.pts.push(пред?подРавнение(пред[0],пред[1],sx,sy,e.shiftKey):[sx,sy]);
     if(e.detail>=2&&a.draft.pts.length>=4){
@@ -2840,7 +2846,7 @@ if(!S.tstyle){
   S.tstyle={};
   const old=LS.get('pen',null);
   for(const [t,d] of Object.entries(TOOL_STYLE)){
-    S.tstyle[t]={c:d.c,k:1,...(d.dash!==undefined?{dash:d.dash}:{})};
+    S.tstyle[t]=Object.assign({}, {c:d.c, k:1}, d.dash!==undefined?{dash:d.dash}:{});
   }
   if(old&&old.c) S.tstyle.pencil={c:old.c,k:(old.w||2)/TOOL_STYLE.pencil.base};
   LS.set('tstyle',S.tstyle);
@@ -3005,7 +3011,7 @@ function renderToolbar(){
   const ws=$('#pb-widths'), ex=$('#pb-extra'), rec=$('#pb-recent');
   ws.innerHTML=''; ex.innerHTML=''; rec.innerHTML='';
   const save=upd=>{ if(upd.c) запомнитьЦвет(upd.c);
-                    S.tstyle={...S.tstyle,[S.tool]:{...tstyle(S.tool),...upd}};
+                    S.tstyle=Object.assign({}, S.tstyle, {[S.tool]:Object.assign({}, tstyle(S.tool), upd)});
                     LS.set('tstyle',S.tstyle); renderToolbar(); };
   const есть=x=>(def.opts||[]).includes(x);
 
@@ -3157,7 +3163,7 @@ function renderToolbar(){
      к заводскому состоянию щелчками было бы долго. Кнопка стоит в разметке
      последней, чтобы «Ещё» и сброс не уезжали за край прокруткой полосы. */
   const сброс=$('#pb-reset');
-  if(сброс) сброс.onclick=()=>{ const t={...S.tstyle}; delete t[S.tool];
+  if(сброс) сброс.onclick=()=>{ const t=Object.assign({}, S.tstyle); delete t[S.tool];
                                 S.tstyle=t; LS.set('tstyle',S.tstyle); renderToolbar(); };
 }
 /* Размерная линия была отдельным инструментом, хотя строит то же измерение,
@@ -3169,7 +3175,7 @@ function линейкаСВыносками(){ линейкаВРежиме({ext
    отличался стрелкой на конце. Теперь это её настройка. */
 function вектором(){ линейкаВРежиме({arr:'end',ext:false}); }
 function линейкаВРежиме(режим){
-  S.tstyle={...S.tstyle, ruler:{...tstyle('ruler'), ...режим}};
+  S.tstyle=Object.assign({}, S.tstyle, {ruler:Object.assign({}, tstyle('ruler'), режим)});
   LS.set('tstyle',S.tstyle);
   setTool('ruler');
 }
@@ -3291,7 +3297,7 @@ $$('#btn-rail').onclick=()=>toggleSidebar();
 $$('#side-close').onclick=()=>toggleSidebar(true);
 /* в полноэкранном режиме накладная панель тем закрывается сразу после выбора темы */
 function autoCloseRail(){
-  if($('#app').classList.contains('simfull')){
+  if($('#app').classList.contains('simfull')||$('#app').classList.contains('mid')){
     $('#sidebar').classList.add('hidden');
     $('#btn-rail').setAttribute('aria-pressed','false');
   }
@@ -3310,8 +3316,10 @@ $$('#btn-simhide').onclick=()=>{
      симуляцию» — это «хочу читать», поэтому полный экран снимаем. */
   if(!was && $('#app').classList.contains('simfull')){
     $('#app').classList.remove('simfull');
-    $('#sidebar').classList.remove('hidden');
-    $('#btn-rail').setAttribute('aria-pressed','true');
+    if(!$('#app').classList.contains('mid')){
+      $('#sidebar').classList.remove('hidden');
+      $('#btn-rail').setAttribute('aria-pressed','true');
+    }
   }
   p.classList.toggle('hidden');
   if(isNarrow()){
@@ -3331,8 +3339,9 @@ $$('#btn-simfull').onclick=()=>{
   /* входя в полный экран, прячем список тем; выходя — возвращаем.
      Кнопкой ☰ (или клавишей B) его можно открыть поверх симуляции в любой момент. */
   const sb=$('#sidebar');
-  sb.classList.toggle('hidden',on);
-  $('#btn-rail').setAttribute('aria-pressed',String(!on));
+  const закрыть= on || $('#app').classList.contains('mid');   // на средней ширине панель поверх и так закрыта
+  sb.classList.toggle('hidden',закрыть);
+  $('#btn-rail').setAttribute('aria-pressed',String(!закрыть));
   if(on) toast('Список тем — кнопка ☰ слева вверху или клавиша B');
   requestAnimationFrame(resize);
 };
@@ -3415,20 +3424,77 @@ const bottom=$('#simbottom'), hsplit=$('#hsplit');
     const max=$('#simpane').getBoundingClientRect().height-180;
     const h=clamp(т.h-(e.clientY-т.y),0,Math.max(60,max));
     bottom.classList.toggle('collapsed',h<24);
+    высотаНиза=h; LS.set('bottomH',h);
     bottom.style.height=h+'px';
   });
 hsplit.addEventListener('dblclick',()=>{
   const col=bottom.classList.toggle('collapsed');
-  if(!col) bottom.style.height='300px';
+  if(!col){ высотаНиза=300; LS.set('bottomH',300); bottom.style.height='300px'; }
   requestAnimationFrame(resize);
 });
 
 тянуть($('#splitter'),
   ()=>({}),
   e=>{
-    const w=clamp(innerWidth-e.clientX,340,innerWidth-440);
-    $('#simpane').style.flex=`0 0 ${w}px`; $('#simpane').style.width=w+'px';
+    /* Запоминаем долю, а не пиксели: пиксели, выставленные в альбомной
+       ориентации, переживали поворот — сцена в 740 px оставалась на экране
+       в 820, а на iPad Pro конспект сжимался в ноль. */
+    const к=колонки(); if(!к) return;
+    const w=clamp(innerWidth-e.clientX-к.справа,300,Math.max(300,к.доступно-360));
+    LS.set('simFrac',w/к.доступно);
+    разложитьКолонки();
   });
+// двойной клик по разделителю — вернуть ширину по умолчанию
+$$('#splitter').addEventListener('dblclick',()=>{ LS.set('simFrac',null); requestAnimationFrame(resize); });
+
+/* ============ КОЛОНКИ НА КОМПЬЮТЕРНОЙ РАСКЛАДКЕ ============
+   Раньше сцена стояла ровно в 470 px, а панель тем — в 280. На мониторе в
+   1500 px это давало конспекту 700 px, на планшете боком (1080) — 281, на
+   восьмидюймовом (960) — 161: читать было нечего. Теперь:
+     • сцена — доля доступной ширины (по умолчанию 42 %, не шире 470 px),
+       а если человек потянул разделитель — его доля;
+     • конспекту всегда остаётся не меньше 360 px;
+     • на средней ширине (компьютерная раскладка уже 1200 px) панель тем
+       не отнимает ширину, а ложится поверх — класс .mid у #app.
+   Ширину пишем в style только здесь и только в компьютерной раскладке: в
+   телефонной style очищается, иначе он перебил бы её правила (так и было
+   после поворота планшета). */
+let высотаНиза=LS.get('bottomH',null);
+function колонки(){
+  const тело=document.querySelector('.body'); if(!тело) return null;
+  const рейка=$('#rail'), бок=$('#sidebar'), разд=$('#splitter');
+  const виден=el=>el&&!el.classList.contains('hidden')&&getComputedStyle(el).display!=='none';
+  const поверх=$('#app').classList.contains('mid')||$('#app').classList.contains('simfull');
+  const занято=(виден(рейка)?рейка.offsetWidth:0)+(виден(бок)&&!поверх?бок.offsetWidth:0)
+              +(виден(разд)?разд.offsetWidth:0);
+  const справа= document.documentElement.dataset.rail==='right'&&виден(рейка)? рейка.offsetWidth : 0;
+  return {доступно:Math.max(0,тело.clientWidth-занято), справа};
+}
+function разложитьКолонки(){
+  const app=$('#app'), sp=$('#simpane'); if(!app||!sp) return;
+  const средняя=!isNarrow()&&innerWidth<1200;
+  if(app.classList.contains('mid')!==средняя){
+    app.classList.toggle('mid',средняя);
+    /* на средней ширине панель тем по умолчанию закрыта, на широкой открыта.
+       В телефонной раскладке ею управляет ящик — не трогаем. */
+    if(!isNarrow()&&!app.classList.contains('simfull')) toggleSidebar(средняя);
+  }
+  const низ=$('#simbottom');
+  if(isNarrow()||app.classList.contains('simfull')||sp.classList.contains('hidden')){
+    sp.style.flex=''; sp.style.width='';
+    if(isNarrow()&&низ) низ.style.height='';
+    return;
+  }
+  const к=колонки(); if(!к||!к.доступно) return;
+  const доля=LS.get('simFrac',null);
+  let w= доля? доля*к.доступно : Math.min(470,Math.max(320,к.доступно*0.42));
+  w=Math.round(Math.max(300,Math.min(w,к.доступно-360)));
+  sp.style.flex=`0 0 ${w}px`; sp.style.width=w+'px';
+  if(низ&&высотаНиза!=null&&!низ.classList.contains('collapsed')){
+    const max=Math.max(60,sp.getBoundingClientRect().height-180);
+    низ.style.height=Math.min(высотаНиза,max)+'px';
+  }
+}
 
 function popup(btn,pop){
   btn.onclick=e=>{
@@ -3470,13 +3536,13 @@ $$('#mi-notes-load').onclick=()=>{
   вход.onchange=async()=>{
     const f=вход.files&&вход.files[0]; if(!f) return;
     try{
-      const д=JSON.parse(await f.text());
+      const д=JSON.parse(await текстФайла(f));
       const список=Array.isArray(д)?д:д.заметки;
       if(!Array.isArray(список)) throw new Error('это не файл заметок');
       /* Идентификаторы перевыдаём: иначе загруженные заметки склеились бы
          связями с теми, что уже лежат в этой симуляции. */
       const карта={};
-      const свежие=список.map(n=>{ карта[n.id]=новыйИд(); return {...n,id:карта[n.id]}; });
+      const свежие=список.map(n=>{ карта[n.id]=новыйИд(); return Object.assign({}, n, {id:карта[n.id]}); });
       for(const n of свежие) n.links=(n.links||[]).map(x=>карта[x]).filter(Boolean);
       a.notes=[...заметки(a),...свежие];
       сохранитьЗаметки(); renderNotes();
@@ -3497,7 +3563,7 @@ $$('#mi-save').onclick=()=>{
   askText('Название набора параметров',a.def.title,name=>savePresetAs(a,name)); }
 function savePresetAs(a,name){
   const all=LS.get('presets',{}); if(!all[S.active]) all[S.active]=[];
-  all[S.active].push({name,values:{...a.params}});
+  all[S.active].push({name,values:Object.assign({}, a.params)});
   LS.set('presets',all); renderPresets(); toast('Параметры сохранены');
 };
 $$('#mi-reset').onclick=()=>{
@@ -3853,7 +3919,7 @@ function renderPrefs(){
           <input type="file" id="pref-import-file" accept="application/json" style="display:none"></div></div>
 `;
     $('#pref-reset-all').onclick=()=>askConfirm('Вернуть все настройки к исходным значениям?',()=>{
-      S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Настройки сброшены');
+      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Настройки сброшены');
     });
     $('#pref-clear-presets').onclick=()=>askConfirm('Удалить все свои наборы параметров?',()=>{
       LS.set('presets',{}); renderPrefs(); toast('Наборы удалены');
@@ -3861,7 +3927,7 @@ function renderPrefs(){
     $('#pref-clear-all').onclick=()=>askConfirm('Удалить все сохранённые данные? Это нельзя отменить.',()=>{
       try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
         if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
-      S.settings={...PREF_DEFAULTS}; applySettings(); renderPrefs(); toast('Хранилище очищено');
+      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Хранилище очищено');
     });
     /* В файл идёт ВСЁ, что пользователь нажил, а не одни настройки. Раньше
        отметки о решённых задачах (solved) в него не попадали: человек делал
@@ -3884,7 +3950,7 @@ function renderPrefs(){
         try{
           const j=JSON.parse(rd.result);
           if(j.app!=='physim') throw 0;
-          if(j.settings) S.settings={...PREF_DEFAULTS,...j.settings};
+          if(j.settings) S.settings=Object.assign({}, PREF_DEFAULTS, j.settings);
           if(j.presets)  LS.set('presets',j.presets);
           if(j.marks){ S.marks=j.marks; LS.set('marks',S.marks); }
           /* Прогресс СЛИВАЕМ, а не заменяем: если человек успел решить
@@ -3892,9 +3958,9 @@ function renderPrefs(){
           /* Файл мог быть сделан прежней версией, где отметка хранилась по
              порядковому номеру задачи. Переводим тем же кодом, что и при
              запуске, иначе загруженный архив расставил бы галочки мимо. */
-          if(j.solved){ S.solved={...S.solved,...перевестиОтметки(j.solved)}; LS.set('solved',S.solved); }
+          if(j.solved){ S.solved=Object.assign({}, S.solved, перевестиОтметки(j.solved)); LS.set('solved',S.solved); }
           if(j.favs){ S.favs=[...new Set([...(S.favs||[]),...j.favs])]; LS.set('favs',S.favs); }
-          if(j.tstyle){ S.tstyle={...S.tstyle,...j.tstyle}; LS.set('tstyle',S.tstyle); }
+          if(j.tstyle){ S.tstyle=Object.assign({}, S.tstyle, j.tstyle); LS.set('tstyle',S.tstyle); }
           if(j.recent){ S.recent=j.recent; LS.set('recent',S.recent); }
           applySettings(); renderPrefs(); renderTree(); renderPane();
           toast(j.solved?`Загружено, решённых задач ${Object.keys(S.solved).length}`:'Данные загружены');
@@ -3905,7 +3971,7 @@ function renderPrefs(){
   } else if(prefCat==='about'){
     const nSim=Object.keys(SIMS).length;
     const nTop=SECTIONS.reduce((a,s)=>a+s.topics.length,0);
-    const nF=SECTIONS.flatMap(s=>s.topics).reduce((a,t)=>a+(t.formulas||[]).length,0);
+    const nF=[].concat(...SECTIONS.map(s=>s.topics)).reduce((a,t)=>a+(t.formulas||[]).length,0);
     body.innerHTML=`
       <div class="pset-h">Phy.Sim</div>
       <div class="prefs-stat">
@@ -4002,6 +4068,10 @@ function uiMode(){
 }
 function applyUiMode(){
   const m=uiMode(), root=document.documentElement;
+  /* Палец в компьютерной раскладке — это планшет боком. Раскладка та же,
+     но цели крупнее, а то, что открывалось наведением, видно сразу. */
+  const палец=matchMedia('(pointer:coarse)').matches;
+  if((root.dataset.touch==='1')!==палец) root.dataset.touch=палец?'1':'0';
   if(root.dataset.ui===m) return false;
   root.dataset.ui=m;
   return true;                                             // режим сменился
@@ -4446,6 +4516,13 @@ function onViewportChange(){
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
     lastNarrow=now;
+    /* Смена раскладки на лету (планшет повернули): всё временное, открытое
+       в прежней, закрываем. Ящик тем, меню и карточки принадлежат своей
+       раскладке и в чужой оказывались не на месте или под другими слоями. */
+    document.querySelectorAll('.pop').forEach(x=>x.classList.add('hidden'));
+    try{ закрытьПриём(); }catch(_){}
+    $('#sidebar').classList.remove('open');
+    $$('#drawer-bg').classList.remove('show');
     if(now){
       // перешли к узкому экрану: убираем разделитель и прячем сцену, чтобы
       // конспект не оказался зажат в полоску
@@ -4454,11 +4531,13 @@ function onViewportChange(){
     } else {
       // вернулись к широкому: восстанавливаем работу бок о бок
       $('#app').classList.remove('simfull');
+      try{ mSheet(false); }catch(_){}
       if(!$('#simpane').classList.contains('hidden')){
         $('#splitter').classList.remove('hidden');
         $('#content').classList.remove('wide');
       }
-      $('#sidebar').classList.remove('hidden');
+      // на средней ширине панель тем ложится поверх текста — не распахиваем её
+      toggleSidebar(innerWidth<1200);
     }
   }
   resize();
@@ -4516,9 +4595,15 @@ function applySettings(){
   LS.set('settings',s); resize();
 }
 // тема «как в системе» реагирует на смену темы устройства на лету
-matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{
-  if(S.settings.theme==='auto') applySettings();
-});
+/* Без ?.: одна такая запись роняла весь скрипт на Chrome младше 80 и Safari
+   младше 13.1 — пособие показывало картинку и больше ничего. У Safari до 14
+   у MediaQueryList есть только addListener. */
+{
+  const тёмная=matchMedia('(prefers-color-scheme: dark)');
+  const сменить=()=>{ if(S.settings.theme==='auto') applySettings(); };
+  if(тёмная.addEventListener) тёмная.addEventListener('change',сменить);
+  else if(тёмная.addListener) тёмная.addListener(сменить);
+}
 
 $$('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtoggle').textContent=$('#pvbox').classList.contains('collapsed')?'▸':'▾'; };
 
@@ -4754,7 +4839,7 @@ function toast(m){
 const FPANELS=['hud','energybox','pvbox','histobox','cmpbox'];
 function fpLoad(){ return LS.get('panels',{}); }
 function fpSave(id,geom){
-  const all=fpLoad(); all[id]={...(all[id]||{}),...geom}; LS.set('panels',all);
+  const all=fpLoad(); all[id]=Object.assign({}, all[id]||{}, geom); LS.set('panels',all);
 }
 function fpApply(el){
   const g=fpLoad()[el.id];
@@ -5160,7 +5245,7 @@ function plural(n,one,few,many){
 function answerParams(pr, params){
   const used=new Set();
   try{
-    pr.answer(new Proxy({...params},{ get(t,k){ if(typeof k==='string') used.add(k); return t[k]; } }));
+    pr.answer(new Proxy(Object.assign({}, params),{ get(t,k){ if(typeof k==='string') used.add(k); return t[k]; } }));
   }catch(_){ /* упавшая answer просто не даст списка — не беда */ }
   return [...used];
 }
@@ -5611,7 +5696,7 @@ const ЗАМ_КЛЮЧ='notes';
 function заметки(a){ if(a&&!a.notes) a.notes=[]; return a?a.notes:[]; }
 function загрузитьЗаметки(a,id){
   const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
-  a.notes=Array.isArray(все[id])?все[id].map(n=>({links:[],...n})):[];
+  a.notes=Array.isArray(все[id])?все[id].map(n=>(Object.assign({}, {links:[]}, n))):[];
 }
 function сохранитьЗаметки(){
   const a=A(); if(!a||!S.active) return;
@@ -5913,7 +5998,7 @@ function собратьРазвёртку(def, params, ключ, от, до, т�
     const шагП=(до-от)/Math.max(1,точек-1);
     let i=0, остановок=0;
     const одна=v=>{
-      const p={...params,[ключ]:v};
+      const p=Object.assign({}, params, {[ключ]:v});
       const st=def.init(p);
       if(!def.timeless && тДо>0){
         let охрана=0;
@@ -6017,6 +6102,12 @@ function холстНеПустой(cv){
    Порядок: мост оболочки → системный «Поделиться» → обычная ссылка →
    открыть в новой вкладке, чтобы человек сохранил вручную. Каждый шаг
    честно сообщает, чем кончилось. */
+/* Blob.text() появился в Chrome 76 и Safari 14 — читаем по-старому. */
+function текстФайла(blob){
+  return new Promise((r,j)=>{ const f=new FileReader();
+    f.onload=()=>r(String(f.result||''));
+    f.onerror=()=>j(new Error('не прочитался')); f.readAsText(blob); });
+}
 function blobВBase64(blob){
   return new Promise((r,j)=>{ const f=new FileReader();
     f.onload=()=>r(String(f.result).split(',')[1]||'');
@@ -6183,14 +6274,14 @@ function выполнитьКомпиляцию(){
     const подпись=`${a.def.title} · ${pp.label} от ${p0} до ${p1}`+
       (pp.unit?` ${pp.unit}`:'')+` · ${точек} точек`+
       (тДо>0?` · на момент t = ${тДо} с`:'');
-    LS.set('plotSweep',{...(LS.get('plotSweep',{})||{}),[S.active]:{key:ключ,p0,p1,at:тДо}});
+    LS.set('plotSweep',Object.assign({}, LS.get('plotSweep',{})||{}, {[S.active]:{key:ключ,p0,p1,at:тДо}}));
     имяФайла=`${S.active}-развёртка-${ключ}`;
     сбор=собратьРазвёртку(a.def,a.params,ключ,p0,p1,точек,тДо,дробь,какие,
         д=>{ $('#pl-note').textContent='Считаю… '+Math.round(д*100)+' %'; })
       .then(ряд=>{
         // ряд собран по выбранным показателям подряд, а рисуем по их номерам
         const по={}; какие.forEach((gi,k)=>{ по[gi]=ряд.ys[k]; });
-        return {...ряд, ys:по, xlab:pp.label+(pp.unit?`, ${pp.unit}`:''), подпись};
+        return Object.assign({}, ряд, {ys:по, xlab:pp.label+(pp.unit?`, ${pp.unit}`:''), подпись});
       });
   } else {
     const t0=чис('#pl-t0',0), t1=чис('#pl-t1',10);
@@ -6230,7 +6321,7 @@ function выполнитьКомпиляцию(){
           : `График сохранён · шаг ${ряд.dt.toFixed(5)} с`+(ряд.stop?' · '+ряд.stop.текст:'')+ужали);
     })
     .catch(e=>{ $('#pl-note').textContent='Не вышло: '+(e&&e.message||e); })
-    .finally(()=>{ кн.disabled=false; });
+    .then(()=>{ кн.disabled=false; });          // .finally — только с Chrome 63
 }
 
 $$('#mi-plot').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьКомпиляцию(); };

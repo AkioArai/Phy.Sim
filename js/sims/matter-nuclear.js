@@ -436,7 +436,7 @@ bands:{
       v.label(ctx,'температура',gx+gw2,gy,-56,16,ink3);
       // кривая
       let vals=[];
-      for(let i=0;i<=100;i++){ const T=50+i*7.5; vals.push(this.sigma({...p,T})); }
+      for(let i=0;i<=100;i++){ const T=50+i*7.5; vals.push(this.sigma(Object.assign({}, p, {T}))); }
       const mx=Math.max(...vals)||1;
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.beginPath();
       vals.forEach((val,i)=>{ const x=gx+gw2*i/100, y=gy+gh*0.9*(val/mx);

@@ -9807,7 +9807,7 @@ for(const sec of SECTIONS){
     formulas:[], problems:[], mistakes:[]
   });
 }
-const ALL=SECTIONS.flatMap(s=>s.topics.map(t=>({...t,section:s.title,hard:!!s.hard})));
+const ALL=[].concat(...SECTIONS.map(s=>s.topics.map(t=>(Object.assign({}, t, {section:s.title, hard:!!s.hard})))));
 
 /* ПЕРЕНОС ОТМЕТОК О РЕШЁННЫХ ЗАДАЧАХ. До 1.6.2 отметка хранилась по
    порядковому номеру задачи в теме («mech.1d#3»). Номер зависел от порядка, и

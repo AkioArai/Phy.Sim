@@ -56,6 +56,101 @@ function проверитьВерсии() {
   ok('версия одна во всех файлах', плохие.length === 0, { 'package.json': v, ...где });
 }
 
+/* ПЛАНШЕТЫ. Здесь ломалось чаще всего, и по трём разным причинам.
+   1. Поворот: ширина сцены, выставленная разделителем в альбомной
+      ориентации, оставалась в style и перебивала телефонную раскладку —
+      сцена в 740 px на экране в 820.
+   2. Средняя ширина: планшет боком получает компьютерную раскладку, а в ней
+      панель тем 280 px и сцена 470 px оставляли конспекту 161–481 px.
+   3. Палец: кнопки 26×24 и ручка разделителя в 5 px.
+   Проверяем на iPad Air (820×1180) и iPad Pro 12,9 (1024×1366) — первый в
+   портрете телефонный, боком компьютерный; второй компьютерный в обоих. */
+const UA_IPAD = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15';
+async function планшеты(b, url, label) {
+  console.log('--- ' + label + ' (планшет) ---');
+  const ctx = await b.newContext({ viewport: { width: 820, height: 1180 }, hasTouch: true, userAgent: UA_IPAD });
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.route('**cdnjs.cloudflare.com**', r => r.abort());
+  await p.goto(url);
+  await p.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {});
+  await p.waitForTimeout(500);
+  const вид = () => p.evaluate(() => {
+    const r = s => { const e = document.querySelector(s); const b = e.getBoundingClientRect();
+      return getComputedStyle(e).display === 'none' || !b.width ? 0 : Math.round(b.width); };
+    const мелкие = [...document.querySelectorAll('.statusbar button,.simhead button,.timeline button,.rail button')]
+      .filter(x => { const b = x.getBoundingClientRect(); return getComputedStyle(x).display !== 'none' && b.width > 0 &&
+        b.top < innerHeight && (b.width < 34 || b.height < 34); }).map(x => x.id || x.className);
+    return { ui: document.documentElement.dataset.ui, W: innerWidth, конспект: r('#content'), сцена: r('#simpane'),
+             styleСцены: document.querySelector('#simpane').getAttribute('style') || '',
+             темыПоверх: document.querySelector('#app').classList.contains('mid'),
+             темыОткрыты: !document.querySelector('#sidebar').classList.contains('hidden'), мелкие };
+  });
+  await p.evaluate(() => openTopic('mech.2d')); await p.waitForTimeout(300);
+  const портрет = await вид();
+  await p.setViewportSize({ width: 1180, height: 820 }); await p.waitForTimeout(600);
+  const альбом = await вид();
+  // пальцем растягиваем сцену почти во весь экран
+  const r = await (await p.$('#splitter')).boundingBox();
+  await p.mouse.move(r.x + r.width / 2, r.y + 150); await p.mouse.down();
+  await p.mouse.move(60, r.y + 150, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(300);
+  const растянули = await вид();
+  await p.setViewportSize({ width: 820, height: 1180 }); await p.waitForTimeout(600);
+  const назад = await вид();
+  await p.setViewportSize({ width: 1024, height: 1366 }); await p.waitForTimeout(600);
+  const про = await вид();
+  ok('планшет: поворот без ошибок', errs.length === 0, errs.slice(0, 3));
+  ok('планшет боком: конспекту не меньше 360 px, панель тем поверх',
+    альбом.ui === 'desktop' && альбом.конспект >= 360 && альбом.темыПоверх && !альбом.темыОткрыты &&
+    растянули.конспект >= 360 && про.конспект >= 360, { альбом, растянули, про });
+  ok('планшет: после поворота ширина сцены не перебивает телефонную раскладку',
+    портрет.ui === 'mobile' && назад.ui === 'mobile' && назад.styleСцены === '' && назад.сцена === 820,
+    { портрет, назад });
+  ok('планшет боком: кнопки под палец не меньше 34 px', альбом.мелкие.length === 0, альбом.мелкие);
+  await ctx.close();
+}
+
+/* СТОРОЖ СТРАНИЦЫ и старые движки. Настоящего старого браузера здесь нет,
+   поэтому (а) убираем из страницы то, чего в старых нет, и смотрим, что
+   пособие живо; (б) ломаем app.js и смотрим, что человек получает
+   объяснение, а не картинку без слов. Только исходники: в одностраничнике
+   app.js встроен в страницу, подменить его отдельно нельзя. */
+async function сторож(b) {
+  console.log('\n=== старые движки и сторож страницы ===');
+  const url = 'http://localhost:8971/';
+  const открыть = async (подготовка, опции) => {
+    const ctx = await b.newContext(Object.assign({ viewport: { width: 1200, height: 800 } }, опции || {}));
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+    await p.route('**cdnjs.cloudflare.com**', r => r.abort());
+    if (подготовка) await подготовка(p);
+    await p.goto(url); await p.waitForTimeout(5200);
+    const итог = await p.evaluate(() => {
+      const d = [...document.querySelectorAll('body > div')].find(x => (x.getAttribute('style') || '').includes('9999'));
+      return { готов: window.PHYSIM_READY === true, сообщение: d ? d.innerText.replace(/\s+/g, ' ') : '' };
+    });
+    await ctx.close();
+    return Object.assign(итог, { errs });
+  };
+  const безНового = await открыть(p => p.addInitScript(() => {
+    delete window.ResizeObserver; MediaQueryList.prototype.addEventListener = undefined;
+    Blob.prototype.text = undefined; delete Promise.prototype.finally;
+  }));
+  ok('без ResizeObserver, addEventListener у медиазапроса, Blob.text и finally пособие работает',
+    безНового.готов && !безНового.сообщение && безНового.errs.length === 0, безНового);
+  const упал = await открыть(async p => {
+    await p.route('**/js/app.js', r => r.fulfill({ contentType: 'text/javascript', body: 'const x = a?.b ?? ;' }));
+    await p.addInitScript(() => { try { sessionStorage.setItem('physim-чинили', '1'); } catch (e) {} });
+  });
+  ok('упал скрипт — сторож объясняет и показывает саму ошибку',
+    /не загрузилось/.test(упал.сообщение) && /app\.js:\d+/.test(упал.сообщение), упал.сообщение.slice(0, 200));
+  const старый = await открыть(async p => {
+    await p.route('**/js/app.js', r => r.fulfill({ contentType: 'text/javascript', body: 'const x = a?.b;' }));
+    await p.addInitScript(() => { delete window.PointerEvent; });
+  }, { userAgent: 'Mozilla/5.0 (Linux; Android 7.1.1; TB-X304L; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/55.0.2883.91 Safari/537.36' });
+  ok('старый WebView — сторож называет движок и что обновить',
+    /слишком старый/.test(старый.сообщение) && /Android WebView 55/.test(старый.сообщение) &&
+    /Android System WebView/.test(старый.сообщение), старый.сообщение.slice(0, 260));
+}
+
 (async () => {
   проверитьВерсии();
   await new Promise(r => server.listen(8971, r));
@@ -1004,7 +1099,11 @@ function проверитьВерсии() {
       приёмТел.поверх && приёмТел.высота <= приёмТел.экран * 0.8, приёмТел);
 
     await m.p.close();
+
+    await планшеты(b, url, label);
   }
+
+  await сторож(b);
 
   await b.close(); server.close();
   console.log('\n' + (fails.length ? 'ПРОВАЛЕНО: ' + fails.join(' | ') : 'всё прошло'));

@@ -89,7 +89,7 @@ button,a,input,select,label,.topic-item,.sec>.hd,.pop .item,.iconbtn,.tagsim{
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .iconbtn:active{background:var(--panel-2);color:var(--ink);transform:scale(.92)}
 .iconbtn.on:active,.iconbtn[aria-pressed="true"]:active{
-  background:color-mix(in srgb,var(--accent) 28%,transparent)}
+  background:transparent;background:color-mix(in srgb,var(--accent) 28%,transparent)}
 .topic-item:active,.sec>.hd:active,.pop .item:active{background:var(--accent-soft);color:var(--accent)}
 .tagsim:active{filter:brightness(.92)}
 input,select{font:inherit;color:inherit}
@@ -98,14 +98,14 @@ input,select{font:inherit;color:inherit}
 #app{height:100%;display:flex;flex-direction:column;background:var(--panel);
   /* viewport-fit=cover: без отступа верхняя панель оказывалась под статусбаром телефона */
   padding-top:env(safe-area-inset-top)}
-.topbar{display:flex;align-items:center;gap:6px;height:44px;padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-left));border-bottom:1px solid var(--line);flex:0 0 auto}
+.topbar{display:flex;align-items:center;gap:6px;height:44px;padding:0 8px 0 8px;padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-left));border-bottom:1px solid var(--line);flex:0 0 auto}
 .spacer{flex:1}
 /* Телефонные элементы по умолчанию выключены и включаются только в режиме
    [data-ui="mobile"]. Раньше .mbar тут не было, и на компьютере она
    разворачивалась обычным блоком прямо посреди сцены. */
 .mtop,.drawer-bg,.drawer-foot,.mbar,.mbar2{display:none}
 .mtop{align-items:center;gap:4px;flex:0 0 auto;height:46px;
-  padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
+  padding:0 6px 0 6px;padding:0 max(6px,env(safe-area-inset-left)) 0 max(6px,env(safe-area-inset-left));
   border-bottom:1px solid var(--line);background:var(--panel)}
 .mtop .iconbtn{width:40px;height:40px}
 .crumb{font-size:12px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono)}
@@ -147,16 +147,23 @@ input,select{font:inherit;color:inherit}
    панелей задаются настройками и живут на корневом элементе. */
 :root{--panel-a:93%}
 [data-bg="paper"]  .canvas-wrap{background-image:
+  linear-gradient(transparent 1px,transparent 1px),
+  linear-gradient(90deg,transparent 1px,transparent 1px);background-image:
   linear-gradient(color-mix(in srgb,var(--accent) 9%,transparent) 1px,transparent 1px),
   linear-gradient(90deg,color-mix(in srgb,var(--accent) 9%,transparent) 1px,transparent 1px);
   background-size:22px 22px}
 [data-bg="mm"]     .canvas-wrap{background-image:
+  linear-gradient(transparent 1px,transparent 1px),
+  linear-gradient(90deg,transparent 1px,transparent 1px),
+  linear-gradient(transparent 1px,transparent 1px),
+  linear-gradient(90deg,transparent 1px,transparent 1px);background-image:
   linear-gradient(color-mix(in srgb,var(--danger) 13%,transparent) 1px,transparent 1px),
   linear-gradient(90deg,color-mix(in srgb,var(--danger) 13%,transparent) 1px,transparent 1px),
   linear-gradient(color-mix(in srgb,var(--danger) 6%,transparent) 1px,transparent 1px),
   linear-gradient(90deg,color-mix(in srgb,var(--danger) 6%,transparent) 1px,transparent 1px);
   background-size:50px 50px,50px 50px,10px 10px,10px 10px}
 [data-bg="dots"]   .canvas-wrap{background-image:
+  radial-gradient(transparent 1px,transparent 1px);background-image:
   radial-gradient(color-mix(in srgb,var(--ink-3) 34%,transparent) 1px,transparent 1px);
   background-size:18px 18px}
 [data-bg="dark"]   .canvas-wrap{background:#161821}
@@ -166,8 +173,8 @@ input,select{font:inherit;color:inherit}
 [data-rail="right"] .rail{order:9;border-right:none;border-left:1px solid var(--line)}
 
 /* прозрачность плавающих панелей */
-.hud{background:color-mix(in srgb,var(--panel) var(--panel-a),transparent)}
-.pvbox{background:color-mix(in srgb,var(--canvas) var(--panel-a),transparent)}
+.hud{background:var(--panel);background:color-mix(in srgb,var(--panel) var(--panel-a),transparent)}
+.pvbox{background:var(--canvas);background:color-mix(in srgb,var(--canvas) var(--panel-a),transparent)}
 .rail .simtool{font-family:var(--mono);font-size:14px;line-height:1;font-weight:600}
 
 .sidebar{width:280px;flex:0 0 280px;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
@@ -189,19 +196,19 @@ input,select{font:inherit;color:inherit}
 .topic-item.active{background:var(--accent-soft);color:var(--accent);font-weight:500}
 /* разделы повышенной сложности: приглушённый серый текст + красная метка */
 .sec.hard>.hd{color:var(--ink-3)}
-.sec.hard>.hd .dot{background:var(--danger);box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 18%,transparent)}
+.sec.hard>.hd .dot{background:var(--danger);box-shadow:0 0 0 3px transparent;box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 18%,transparent)}
 .hardtag{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono);
-  color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);
-  background:color-mix(in srgb,var(--danger) 10%,transparent);
+  color:var(--danger);border:1px solid var(--danger);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);
+  background:transparent;background:color-mix(in srgb,var(--danger) 10%,transparent);
   padding:1px 5px;border-radius:999px;margin-left:6px;white-space:nowrap}
 .topic-item.hard{color:var(--ink-3)}
 .topic-item.hard .ch{color:var(--danger);opacity:.75}
 .topic-item.hard:hover{color:var(--ink-2)}
-.topic-item.hard.active{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
+.topic-item.hard.active{background:transparent;background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
 /* шапка темы из сложного раздела */
 .hardnote{display:flex;align-items:flex-start;gap:8px;margin:0 0 14px;padding:9px 11px;border-radius:8px;
-  border:1px solid color-mix(in srgb,var(--danger) 32%,transparent);
-  background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-3);font-size:12.5px;line-height:1.5}
+  border:1px solid var(--danger);border:1px solid color-mix(in srgb,var(--danger) 32%,transparent);
+  background:transparent;background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-3);font-size:12.5px;line-height:1.5}
 .hardnote b{color:var(--danger);font-weight:600}
 .topic-item .ch{font-family:var(--mono);font-size:10px;color:var(--ink-3);flex:0 0 auto;width:20px}
 .topic-item.wip{opacity:.6}
@@ -249,8 +256,8 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    один — метки подписаны словами, чтобы работало и при дальтонизме, и в ч/б. */
 .pitfall{border:1px solid var(--line);border-radius:var(--radius);margin:10px 0;overflow:hidden}
 .pf-row{display:flex;gap:10px;align-items:flex-start;padding:10px 13px;font-size:.95em;line-height:1.6}
-.pf-row.bad{background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-2)}
-.pf-row.good{background:color-mix(in srgb,var(--ok) 8%,transparent);border-top:1px solid var(--line-soft)}
+.pf-row.bad{background:transparent;background:color-mix(in srgb,var(--danger) 7%,transparent);color:var(--ink-2)}
+.pf-row.good{background:transparent;background:color-mix(in srgb,var(--ok) 8%,transparent);border-top:1px solid var(--line-soft)}
 .pf-tag{flex:0 0 auto;width:94px;font-family:var(--mono);font-size:10px;text-transform:uppercase;
   letter-spacing:.06em;padding-top:3px}
 .pf-row.bad .pf-tag{color:var(--danger)}
@@ -342,19 +349,19 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .op-chip:hover{border-color:var(--accent);color:var(--accent)}
 .op-chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .op-chip.fiz{border-style:dashed;background:transparent;color:var(--measure);
-  border-color:color-mix(in srgb,var(--measure) 55%,transparent)}
-.op-chip.fiz.on,.op-chip.fiz:hover{background:color-mix(in srgb,var(--measure) 12%,transparent);color:var(--measure)}
+  border-color:var(--measure);border-color:color-mix(in srgb,var(--measure) 55%,transparent)}
+.op-chip.fiz.on,.op-chip.fiz:hover{background:transparent;background:color-mix(in srgb,var(--measure) 12%,transparent);color:var(--measure)}
 [data-ui="mobile"] .op-chip{font-size:12px;padding:6px 11px}
 .dv-step.flash{animation:dvFlash 1.8s ease}
 @keyframes dvFlash{0%,35%{background:var(--accent-soft)}100%{background:transparent}}
 
 /* Карточка приёма: у метки на компьютере, нижним листом на телефоне. */
-.opcard{position:fixed;z-index:250;width:min(400px,calc(100vw - 16px));max-height:min(72vh,560px);
+.opcard{position:fixed;z-index:250;width:calc(100vw - 16px);width:min(400px,calc(100vw - 16px));max-height:72vh;max-height:min(72vh,560px);
   display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow-lg);font-size:13px;line-height:1.55;color:var(--ink)}
 .opcard.hidden{display:none}
 .opcard.center{left:50%;top:50%;transform:translate(-50%,-50%)}
-.opcard.sheet{left:0;right:0;top:auto;bottom:0;width:auto;max-height:78dvh;
+.opcard.sheet{left:0;right:0;top:auto;bottom:0;width:auto;max-height:78vh;max-height:78dvh;
   border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom);font-size:14px}
 .opc-h{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 0 14px}
 .opc-grp{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
@@ -408,7 +415,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    «Главное» — плотная выжимка. Подробный разбор свёрнут и намеренно тише.
    --------------------------------------------------------------------------- */
 .explore{border:1px solid var(--accent);border-radius:var(--radius);padding:13px 15px;margin:0 0 14px;
-  background:color-mix(in srgb, var(--accent) 5%, var(--panel))}
+  background:var(--panel);background:color-mix(in srgb, var(--accent) 5%, var(--panel))}
 .ex-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
   font-weight:700;margin-bottom:9px}
 .ex-list{margin:0;padding-left:20px}
@@ -476,7 +483,7 @@ table.ref tr:last-child td{border-bottom:0}
   border-radius:4px;padding:2px 7px;flex:0 0 auto}
 .pp-reset:hover{border-color:var(--danger);color:var(--danger)}
 .pr-done{display:none;margin-left:auto;color:var(--ok);font-size:13px;font-weight:700}
-.problem.done{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.problem.done{border-color:var(--line);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
 .problem.done .pr-done{display:inline}
 .problem.done .head .pr-hard{margin-left:0}
 /* заголовок группы задач = кнопка, открывающая нужную симуляцию */
@@ -489,7 +496,7 @@ table.ref tr:last-child td{border-bottom:0}
 .pr-grp.static{color:var(--ink-3)}
 .pr-n{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 .pr-hard{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
-  color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 45%,transparent);
+  color:var(--danger);border:1px solid var(--danger);border:1px solid color-mix(in srgb,var(--danger) 45%,transparent);
   border-radius:4px;padding:1px 5px;margin-left:auto}
 
 .problem{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
@@ -519,6 +526,13 @@ table.ref tr:last-child td{border-bottom:0}
 /* и своя кнопка закрытия внутри списка — на случай, когда он лежит поверх */
 .side-close{display:none}
 #app.simfull .side-close{display:grid;flex:0 0 auto}
+/* Средняя ширина (планшет боком, узкое окно): панель тем не отнимает ширину
+   у конспекта, а ложится поверх него — как в полноэкранном режиме — и
+   закрывается после выбора темы (autoCloseRail). */
+#app.mid .sidebar{position:absolute;left:44px;top:0;bottom:0;z-index:60;height:auto;
+  background:var(--panel);border-right:1px solid var(--line);box-shadow:6px 0 28px -14px #0007}
+[data-rail="right"] #app.mid .sidebar{left:0}
+#app.mid .side-close{display:grid;flex:0 0 auto}
 #app.simfull .sidebar.hidden{display:none}
 #app.simfull .simpane{padding-left:0}
 #app.simfull .simpane{flex:1 1 auto;width:auto}
@@ -531,9 +545,9 @@ table.ref tr:last-child td{border-bottom:0}
    медиазапрос, и на телефоне симуляцию было невозможно закрыть. */
 #btn-simback{display:none}
 .warnbar{padding:6px 10px;font-size:12px;line-height:1.45;
-  color:color-mix(in srgb,var(--measure) 78%,var(--ink));
-  background:color-mix(in srgb,var(--measure) 12%,var(--panel));
-  border-bottom:1px solid color-mix(in srgb,var(--measure) 30%,var(--line))}
+  color:var(--measure);color:color-mix(in srgb,var(--measure) 78%,var(--ink));
+  background:var(--panel);background:color-mix(in srgb,var(--measure) 12%,var(--panel));
+  border-bottom:1px solid var(--line);border-bottom:1px solid color-mix(in srgb,var(--measure) 30%,var(--line))}
 .warnbar.hidden{display:none}
 /* Вся область сцены — не текст. Без этого ЛКМ по панели показаний начинала
    нативное выделение, а следующий же ход мыши превращал выделение в перетас-
@@ -542,13 +556,13 @@ table.ref tr:last-child td{border-bottom:0}
 .canvas-wrap{position:relative;flex:1;min-height:170px;background:var(--canvas);overflow:hidden;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .canvas-wrap *{-webkit-user-drag:none}
-.canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%;
+.canvas-wrap canvas{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;
   /* без этого на планшете и телефоне перетаскивание тел прокручивало бы страницу */
   touch-action:none; -ms-touch-action:none}
 #overlay{pointer-events:none}
 /* показатели вынесены в отдельную рамку, чтобы не сливались с рисунком */
 .hud{position:absolute;left:8px;top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-2);
-  background:color-mix(in srgb,var(--panel) 93%,transparent);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) 93%,transparent);
   line-height:1.55;
   border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;
   box-shadow:0 3px 12px -6px rgba(0,0,0,.45)}
@@ -556,7 +570,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* без полосы прокрутки: лишние строки не прячутся под скролл, а честно
    сворачиваются в «… ещё N» (см. updateHud) */
 .hud-body{padding:6px 10px 7px;white-space:pre;font-family:var(--mono);overflow:hidden!important}
-.pvbox{position:absolute;right:8px;top:8px;width:320px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
+.pvbox{position:absolute;right:8px;top:8px;width:320px;background:var(--canvas);background:color-mix(in srgb,var(--canvas) 92%,transparent);
   border:1px solid var(--line-soft);border-radius:8px;pointer-events:auto;overflow:hidden;
   transition:width .18s ease,height .18s ease;font-family:var(--sans)}
 .pvbox.hidden{display:none}
@@ -572,7 +586,7 @@ table.ref tr:last-child td{border-bottom:0}
 .pvbox svg{display:block;width:100%;height:auto}
 .pvbox .pvrow{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-2);padding:1px 3px}
 .pvbox .pvrow span:last-child{color:var(--ink)}
-.histobox{position:absolute;right:8px;bottom:8px;background:color-mix(in srgb,var(--canvas) 92%,transparent);
+.histobox{position:absolute;right:8px;bottom:8px;background:var(--canvas);background:color-mix(in srgb,var(--canvas) 92%,transparent);
   border-radius:7px;border:1px solid var(--line)}
 .histo-body{padding:8px 11px 7px}
 .histobox.hidden{display:none}
@@ -582,10 +596,10 @@ table.ref tr:last-child td{border-bottom:0}
 .histobox .hwrap{position:relative}
 .histobox .hbars{display:flex;gap:3px;align-items:flex-end;height:96px}
     .histobox .hb{width:13px;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;transition:height .08s linear}
-.histobox .hcurve{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.histobox .hcurve{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .histobox .hx{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:2px;text-align:center}
 .energybox{position:absolute;right:8px;top:8px;
-  background:color-mix(in srgb,var(--canvas) 92%,transparent);border-radius:7px;
+  background:var(--canvas);background:color-mix(in srgb,var(--canvas) 92%,transparent);border-radius:7px;
   border:1px solid var(--line)}
 .energy-body{display:flex;gap:10px;align-items:flex-end;padding:8px 10px 6px}
 .energybox.hidden{display:none}
@@ -711,7 +725,7 @@ table.ref tr:last-child td{border-bottom:0}
    120 лист показаний (126) лежал поперёк открытых настроек: он закреплён у
    корня страницы, а не внутри #simpane, поэтому свой слой считает от корня.
    Экран во весь экран обязан накрывать обвязку целиком. */
-.prefs{position:fixed;inset:0;z-index:140;display:flex;background:var(--bg);animation:prefsIn .14s ease}
+.prefs{position:fixed;top:0;right:0;bottom:0;left:0;z-index:140;display:flex;background:var(--bg);animation:prefsIn .14s ease}
 .prefs.hidden{display:none}
 @keyframes prefsIn{from{opacity:0;transform:scale(.995)}to{opacity:1;transform:none}}
 .prefs-side{width:238px;flex-shrink:0;border-right:1px solid var(--line);background:var(--panel);
@@ -728,13 +742,13 @@ table.ref tr:last-child td{border-bottom:0}
    мониторах она занимает почти всю ширину (справа больше не пустует), а на
    сверхшироких — центрируется, чтобы строки не растягивались бесконечно */
 .prefs-top{display:flex;align-items:center;gap:12px;
-  padding:12px max(18px,calc((100% - 1280px)/2));border-bottom:1px solid var(--line)}
+  padding:12px 18px;padding:12px max(18px,calc((100% - 1280px)/2));border-bottom:1px solid var(--line)}
 .prefs-top h3{font-size:15px;flex-shrink:0}
 .prefs-search{flex:1;max-width:340px;margin-left:auto;padding:7px 10px;border:1px solid var(--line);
   border-radius:var(--radius);background:var(--panel-2);color:var(--ink);font:inherit;font-size:13px}
 .prefs-search:focus{outline:none;border-color:var(--accent)}
 .prefs-body{flex:1;overflow-y:auto;width:100%;
-  padding:6px max(26px,calc((100% - 1280px)/2)) 40px}
+  padding:6px 26px 40px;padding:6px max(26px,calc((100% - 1280px)/2)) 40px}
 .pset-h{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);
   margin:24px 0 2px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .pset{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:13px 2px;
@@ -757,7 +771,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* переключатель-тумблер, как в современных приложениях */
 .sw-t{position:relative;width:38px;height:21px;flex-shrink:0}
 .sw-t input{opacity:0;width:0;height:0;position:absolute}
-.sw-t i{position:absolute;inset:0;background:var(--line);border-radius:11px;transition:background .15s;cursor:pointer}
+.sw-t i{position:absolute;top:0;right:0;bottom:0;left:0;background:var(--line);border-radius:11px;transition:background .15s;cursor:pointer}
 .sw-t i::after{content:'';position:absolute;left:2px;top:2px;width:17px;height:17px;border-radius:50%;
   background:#fff;transition:transform .15s;box-shadow:0 1px 3px #0004}
 .sw-t input:checked + i{background:var(--accent)}
@@ -786,11 +800,11 @@ table.ref tr:last-child td{border-bottom:0}
   .prefs-top h3{font-size:14px}
   #prefs-close{flex:0 0 auto}
 }
-.modal-bg{position:fixed;inset:0;background:#00000066;z-index:80;display:grid;place-items:center}
+.modal-bg{position:fixed;top:0;right:0;bottom:0;left:0;background:#00000066;z-index:80;display:grid;place-items:center}
 .modal-bg.hidden{display:none}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;width:min(460px,92vw);max-height:80vh;overflow-y:auto}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;width:92vw;width:min(460px,92vw);max-height:80vh;overflow-y:auto}
 .modal h3{font-size:15px;margin-bottom:14px}
-.modal.ask{width:min(380px,92vw)}
+.modal.ask{width:92vw;width:min(380px,92vw)}
 .ask-text{font-size:13px;color:var(--ink-2);line-height:1.5}
 .ask-inp{margin-top:12px}
 .ask-inp.hidden{display:none}
@@ -814,7 +828,7 @@ table.ref tr:last-child td{border-bottom:0}
 .fp-head{touch-action:none;display:flex;align-items:center;gap:6px;flex:0 0 auto;cursor:grab;
   padding:5px 8px 4px;border-bottom:1px solid var(--line-soft);user-select:none;
   font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--ink-3);background:color-mix(in srgb,var(--panel) 55%,transparent)}
+  color:var(--ink-3);background:var(--panel);background:color-mix(in srgb,var(--panel) 55%,transparent)}
 .fp-head b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fpanel.dragging .fp-head{cursor:grabbing}
 .fp-head .iconbtn{width:20px;height:18px;border-radius:4px}
@@ -860,10 +874,10 @@ table.ref tr:last-child td{border-bottom:0}
 @media (pointer:coarse){.p-undo{opacity:.75}}
 
 /* ==================== КОМАНДНАЯ ПАЛИТРА (Ctrl+P) ==================== */
-.cmdk{position:fixed;inset:0;z-index:300;background:#0006;display:flex;
+.cmdk{position:fixed;top:0;right:0;bottom:0;left:0;z-index:300;background:#0006;display:flex;
   justify-content:center;align-items:flex-start;padding:12vh 16px 16px}
 .cmdk.hidden{display:none}
-.cmdk-box{width:min(620px,100%);background:var(--panel);border:1px solid var(--line);
+.cmdk-box{width:100%;width:min(620px,100%);background:var(--panel);border:1px solid var(--line);
   border-radius:10px;box-shadow:0 22px 60px -20px #000a;overflow:hidden;display:flex;flex-direction:column;
   max-height:70vh}
 .cmdk-inp{width:100%;padding:14px 16px;border:0;border-bottom:1px solid var(--line);
@@ -885,7 +899,7 @@ table.ref tr:last-child td{border-bottom:0}
 
 /* ==================== ПАНЕЛЬ СРАВНЕНИЯ СО СНИМКОМ ==================== */
 .cmpbox{position:absolute;right:8px;bottom:8px;z-index:20;width:290px;max-height:52%;
-  background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--line);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--line);
   border-radius:8px;box-shadow:0 8px 26px -14px #0008;display:flex;flex-direction:column;overflow:hidden}
 .cmpbox.hidden{display:none}
 .cmp-body{overflow-y:auto;padding:6px 10px 9px;font-family:var(--mono);font-size:11px}
@@ -905,9 +919,9 @@ table.ref tr:last-child td{border-bottom:0}
 
    z-index выше экрана доступа (500): заставка играет и до ввода пароля.
    Половины непрозрачные — они и есть «занавес», который раздвигается. */
-.splash{position:fixed;inset:0;z-index:600;overflow:hidden;
+.splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:600;overflow:hidden;
   font-family:var(--mono);font-weight:650;letter-spacing:-.02em;
-  font-size:clamp(30px,11vw,64px);color:var(--ink)}
+  font-size:30px;font-size:clamp(30px,11vw,64px);color:var(--ink)}
 .splash.done{display:none}
 .sp-half{position:absolute;top:0;bottom:0;width:50%;background:var(--bg);
   display:flex;align-items:center;will-change:transform}
@@ -1012,13 +1026,13 @@ table.ref tr:last-child td{border-bottom:0}
      оставшуюся высоту и плавающая панель управления снизу. Высоту берём из
      --vh: адресная строка браузера то появляется, то исчезает, и обычные
      100vh на телефоне врут (в Safari — на высоту всей панели). */
-[data-ui="mobile"] #app{height:var(--appvh,100dvh);min-height:0}
+[data-ui="mobile"] #app{height:var(--appvh,100vh);height:var(--appvh,100dvh);min-height:0}
 [data-ui="mobile"] .topbar,
 [data-ui="mobile"] .statusbar{display:none}
 /* весь верхний и нижний UI компьютера убран */
 [data-ui="mobile"] .mtop{display:flex}
 [data-ui="mobile"] .body{min-height:0}
-[data-ui="mobile"] .sidebar{position:fixed;z-index:141;top:0;bottom:0;left:0;width:min(78vw,320px);
+[data-ui="mobile"] .sidebar{position:fixed;z-index:141;top:0;bottom:0;left:0;width:78vw;width:min(78vw,320px);
     height:auto;display:flex;flex-direction:column;
     background:var(--panel);border-right:1px solid var(--line);
     box-shadow:8px 0 34px -14px #0009;
@@ -1032,7 +1046,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .drawer-foot .brand span{color:var(--accent)}
 /* Ящик тем и его затемнение — тоже выше обвязки: иначе панели снизу
    оставались нажимаемыми поверх открытого ящика. */
-[data-ui="mobile"] .drawer-bg{display:block;position:fixed;inset:0;z-index:140;background:#0007;
+[data-ui="mobile"] .drawer-bg{display:block;position:fixed;top:0;right:0;bottom:0;left:0;z-index:140;background:#0007;
     opacity:0;pointer-events:none;transition:opacity .26s}
 [data-ui="mobile"] .drawer-bg.show{opacity:1;pointer-events:auto}
 [data-ui="mobile"] .splitter{display:none}
@@ -1072,7 +1086,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .pf-tag{width:auto}
 [data-ui="mobile"] .pf-why{padding-left:13px}
 /* чтобы панель не накрывала последний абзац */
-[data-ui="mobile"] .simpane{position:fixed;inset:0;z-index:70;width:100%;flex:none;
+[data-ui="mobile"] .simpane{position:fixed;top:0;right:0;bottom:0;left:0;z-index:70;width:100%;flex:none;
     background:var(--bg);box-shadow:none;
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom)}
@@ -1120,8 +1134,8 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .timeline{display:none}
 /* Панель показаний не должна съедать пол-экрана телефона. */
 [data-ui="mobile"] .hud{font-size:calc(10px*var(--hudk,1));padding:5px 8px 6px;left:6px;top:6px;
-    max-width:62vw;max-height:34dvh;
-    background:color-mix(in srgb,var(--panel) 82%,transparent)}
+    max-width:62vw;max-height:34vh;max-height:34dvh;
+    background:var(--panel);background:color-mix(in srgb,var(--panel) 82%,transparent)}
 [data-ui="mobile"] .hud::before{font-size:8px;margin-bottom:3px}
 /* на телефоне шапку берут пальцем — делаем её выше и уголок крупнее */
 [data-ui="mobile"] .fpanel .fp-head{font-size:9px;padding:9px 8px 8px}
@@ -1204,15 +1218,15 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] [data-dock="big"] .mbar .mb-btn{width:46px;height:46px}
 [data-ui="mobile"] [data-dock="big"] .mbplay{width:52px;height:52px}
 [data-ui="mobile"] [data-dock="big"] .mbplay svg{width:24px;height:24px}
-[data-ui="mobile"] .pop{z-index:200;max-height:min(62dvh,62vh);overflow-y:auto}
+[data-ui="mobile"] .pop{z-index:200;max-height:62vh;max-height:min(62dvh,62vh);overflow-y:auto}
 [data-ui="mobile"] .pop .item{padding:11px 10px;font-size:14px}
 /* ---- Инструменты на телефоне: папки с раскрытием вбок ----
    Плоский список из двух десятков строк на маленьком экране не читался.
    Слева столбик папок, справа от раскрытой — её инструменты иконками.
    Открыта всегда одна папка: две колонки по ширине телефона не помещаются. */
-.toolfan{padding:6px;min-width:0;width:min(94vw,430px);
+.toolfan{padding:6px;min-width:0;width:94vw;width:min(94vw,430px);
   /* панель не должна уезжать за край экрана: инструментов бывает много */
-  max-height:min(58vh,440px);overflow-y:auto;overscroll-behavior:contain}
+  max-height:58vh;max-height:min(58vh,440px);overflow-y:auto;overscroll-behavior:contain}
 .tf-cols{display:flex;flex-direction:column;gap:4px}
 .tf-row{display:flex;align-items:flex-start;gap:6px}
 .tf-folder{display:flex;align-items:center;gap:7px;flex:0 0 auto;width:104px;
@@ -1240,7 +1254,7 @@ table.ref tr:last-child td{border-bottom:0}
    пуст, поэтому там полоса остаётся сверху. */
 .penbar{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;z-index:35;
   display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:999px;
-  background:color-mix(in srgb,var(--panel) var(--panel-a),transparent);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) var(--panel-a),transparent);
   border:1px solid var(--line);box-shadow:0 8px 26px -14px #0009}
 .penbar.hidden{display:none}
 #cwrap.has-toolbar .eventflag{bottom:52px}   /* уступает место полосе инструмента */
@@ -1264,7 +1278,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* На телефоне панель инструментов прижата к низу и растёт вверх — тогда
    раскрытие папки не выносит её за экран, где бы ни стояла кнопка. */
 [data-ui="mobile"] .toolfan{position:fixed;left:8px;right:8px;width:auto;
-  top:auto;bottom:calc(var(--mbot,64px) + 12px);max-height:min(62vh,520px)}
+  top:auto;bottom:calc(var(--mbot,64px) + 12px);max-height:62vh;max-height:min(62vh,520px)}
 [data-ui="mobile"] .crumb{display:none}
 
 /* Телефон в альбомной ориентации: экономим высоту. */
@@ -1290,7 +1304,7 @@ table.ref tr:last-child td{border-bottom:0}
    Диалог сборки и сама контрольная. Контрольная — отдельный слой поверх
    приложения со своими правилами печати: по Ctrl+P на бумагу уходит
    только она, без панелей, дерева тем и симуляций. */
-.modal.teacher{width:min(680px,94vw);max-height:88vh;overflow:auto;text-align:left}
+.modal.teacher{width:94vw;width:min(680px,94vw);max-height:88vh;overflow:auto;text-align:left}
 .tm-lead{color:var(--ink-2);font-size:13px;line-height:1.5;margin:0 0 14px}
 .tm-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
 .tm-field span{font-size:12px;color:var(--ink-3)}
@@ -1311,13 +1325,13 @@ table.ref tr:last-child td{border-bottom:0}
 .tm-topic i{font-style:normal;font-size:11px;color:var(--ink-3);font-family:var(--mono)}
 [data-ui="mobile"] .tm-grid,[data-ui="mobile"] .tm-topics{grid-template-columns:1fr}
 
-.worksheet{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column}
+.worksheet{position:fixed;top:0;right:0;bottom:0;left:0;z-index:200;background:var(--bg);display:flex;flex-direction:column}
 .worksheet.hidden{display:none}
 .ws-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;
   border-bottom:1px solid var(--line);background:var(--panel);font-size:13px;color:var(--ink-2)}
 .ws-bar .spacer{flex:1}
 .ws-body{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;align-items:center;gap:20px}
-.ws-page{width:min(820px,100%);background:var(--panel);color:var(--ink);
+.ws-page{width:100%;width:min(820px,100%);background:var(--panel);color:var(--ink);
   border:1px solid var(--line);border-radius:10px;padding:26px 30px}
 .ws-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:16px;flex-wrap:wrap}
@@ -1496,7 +1510,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .eventflag{bottom:calc(var(--sheet) + var(--vvbottom,0px) + 8px)}
 
 /* ---- Диалог компиляции графика ---- */
-.modal.plot{width:min(520px,94vw)}
+.modal.plot{width:94vw;width:min(520px,94vw)}
 .pl-lead{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:-4px 0 16px}
 .pl-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .pl-row>label{flex:1;font-size:13px;color:var(--ink-2)}
@@ -1512,7 +1526,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* Диалоги на телефоне не должны заезжать под лист: он всегда занимает низ
    экрана, и кнопки «Отмена / ОК» оказывались под ним — нажать нельзя. */
 [data-ui="mobile"] .modal-bg{padding:12px 12px calc(var(--sheet,0px) + 12px)}
-[data-ui="mobile"] .modal{max-height:calc(100dvh - var(--sheet,0px) - 40px)}
+[data-ui="mobile"] .modal{max-height:calc(100vh - var(--sheet,0px) - 40px);max-height:calc(100dvh - var(--sheet,0px) - 40px)}
 /* Пока симуляция не открыта, листу нечего показывать. */
 [data-ui="mobile"] .msheet.hidden{display:none}
 
@@ -1527,12 +1541,12 @@ table.ref tr:last-child td{border-bottom:0}
   position:fixed;z-index:128;left:10px;top:calc(var(--simhead-h,36px) + 12px)}
 [data-ui="mobile"] .stripctl .sc-play{width:36px;height:36px;border-radius:18px;
   display:grid;place-items:center;border:1px solid var(--line);
-  background:color-mix(in srgb,var(--chrome) 88%,transparent);color:var(--ink)}
+  background:var(--chrome);background:color-mix(in srgb,var(--chrome) 88%,transparent);color:var(--ink)}
 [data-ui="mobile"] .stripctl .sc-play svg{width:16px;height:16px;stroke:currentColor;fill:none;
   stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 [data-ui="mobile"] .stripctl .sc-play:active{background:var(--accent-800);color:var(--accent-300)}
 [data-ui="mobile"] .stripctl .sc-chip{height:30px;padding:0 12px;border-radius:15px;
-  border:1px solid var(--line);background:color-mix(in srgb,var(--chrome) 88%,transparent);
+  border:1px solid var(--line);background:var(--chrome);background:color-mix(in srgb,var(--chrome) 88%,transparent);
   color:var(--ink-2);font-size:12px}
 [data-ui="mobile"] .stripctl .sc-chip:active{background:var(--accent-800);color:var(--accent-300)}
 /* В полном положении низ листа освобождается целиком. */
@@ -1564,7 +1578,7 @@ table.ref tr:last-child td{border-bottom:0}
 .pb-custom{position:relative;overflow:hidden;display:grid;place-items:center;
   background:conic-gradient(#e14,#fa0,#2d5,#2af,#84f,#e14)}
 .pb-custom.on{border-color:var(--ink);transform:scale(1.12)}
-.pb-custom input{position:absolute;inset:-6px;opacity:0;cursor:pointer;border:0;padding:0}
+.pb-custom input{position:absolute;top:-6px;right:-6px;bottom:-6px;left:-6px;opacity:0;cursor:pointer;border:0;padding:0}
 .pb-reset{width:24px;height:22px;border-radius:6px;color:var(--ink-3);font-size:13px;line-height:1}
 .pb-reset:hover{background:var(--panel-2);color:var(--ink)}
 [data-ui="mobile"] .pb-s{min-width:32px;height:30px;font-size:12px}
@@ -1577,7 +1591,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* ПУСТАЯ СЦЕНА. Скрытая симуляция в полноэкранном режиме оставляла пустой
    экран, а закрытая — белое поле там, где ждёшь модель. Объяснение вместо
    пустоты: видно, что всё работает, и сказано, что делать дальше. */
-.simempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+.simempty{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:10px;padding:24px;text-align:center;pointer-events:none;
   color:var(--ink-3);background:var(--bg)}
 .simempty.hidden{display:none}
@@ -1637,7 +1651,7 @@ table.ref tr:last-child td{border-bottom:0}
   font-family:var(--mono);font-size:12px;padding:4px 6px;margin:0 6px 0 2px;color:var(--ink);text-transform:lowercase}
 .cw-ok{margin-left:auto;padding:4px 12px;font-size:12px}
 @media (pointer:coarse){
-  .cwheel{width:min(92vw,268px)}
+  .cwheel{width:92vw;width:min(92vw,268px)}
   .cw-top canvas{width:150px;height:150px}
 }
 
@@ -1673,11 +1687,11 @@ table.ref tr:last-child td{border-bottom:0}
    правились только через диалог, стирались случайным мазком резинки.
    Стали карточками в экранных координатах — заголовок виден всегда, тело
    раскрывается, размер меняется, связи ведут к соседним карточкам. */
-.notelayer{position:absolute;inset:0;pointer-events:none;z-index:26}
-.notelinks{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.notelayer{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;z-index:26}
+.notelinks{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;overflow:visible}
 .ncard{position:absolute;pointer-events:auto;display:flex;flex-direction:column;
   min-width:150px;min-height:38px;border-radius:10px;overflow:hidden;
-  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);
   border:1px solid var(--line);box-shadow:0 10px 30px -16px #0009;
   font-size:12.5px;color:var(--ink-2)}
 .ncard.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft),0 10px 30px -16px #0009}
@@ -1743,3 +1757,30 @@ table.ref tr:last-child td{border-bottom:0}
 .nc-ti:focus{outline:none;border-color:var(--accent)}
 .nc-body textarea{height:auto;flex:1}
 .nc-body{display:flex;flex-direction:column}
+
+/* ================= ПАЛЕЦ В КОМПЬЮТЕРНОЙ РАСКЛАДКЕ =================
+   Планшет боком получает раскладку компьютера, а в ней кнопки рассчитаны на
+   мышь: 26×24 на шкале времени, 30×28 в нижней панели, ручка разделителя в
+   5 пикселей. Пальцем в такое не попасть. Размеры тут — не меньше 36–40 px,
+   как в рекомендациях Apple и Google (44 и 48 pt при плотной раскладке
+   сводим к 40 — иначе не влезает панель). То, что открывалось наведением
+   мыши (отмена у параметра, сброс набора), на сенсоре видно всегда. */
+[data-touch="1"][data-ui="desktop"] .rail{width:52px;flex:0 0 52px}
+[data-touch="1"][data-ui="desktop"] #app.mid .sidebar{left:52px}
+[data-touch="1"][data-ui="desktop"][data-rail="right"] #app.mid .sidebar{left:0}
+[data-touch="1"][data-ui="desktop"] .rail .iconbtn,
+[data-touch="1"][data-ui="desktop"] .topbar .iconbtn,
+[data-touch="1"][data-ui="desktop"] .statusbar .iconbtn{width:40px;height:40px}
+/* рейка на невысоком экране прокручивается — кнопки в ней не должны сжиматься */
+[data-touch="1"][data-ui="desktop"] .rail>*{flex-shrink:0}
+[data-touch="1"][data-ui="desktop"] .statusbar{height:48px}
+[data-touch="1"][data-ui="desktop"] .simhead .iconbtn{width:36px!important;height:36px!important}
+[data-touch="1"][data-ui="desktop"] .timeline .tl-btn{width:36px;height:36px}
+[data-touch="1"][data-ui="desktop"] .timeline .tl-range{height:36px}
+[data-touch="1"][data-ui="desktop"] #simsel{min-height:36px;font-size:13px}
+[data-touch="1"][data-ui="desktop"] .fp-head .fp-fold{min-width:32px;min-height:28px;padding:4px 8px}
+[data-touch="1"][data-ui="desktop"] .topic-item{padding:10px 9px}
+[data-touch="1"][data-ui="desktop"] .sec>.hd{padding:11px 8px}
+[data-touch="1"][data-ui="desktop"] .splitter{width:14px;flex:0 0 14px}
+[data-touch="1"][data-ui="desktop"] .hsplit{height:14px;flex:0 0 14px}
+[data-touch="1"] .p-undo,[data-touch="1"] .pset-reset{opacity:1}
