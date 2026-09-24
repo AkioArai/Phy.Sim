@@ -148,28 +148,50 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **New: the derivative and the integral, on a graph that is still moving.** Tap
-          any graph under a simulation and a tangent appears at that moment — its slope is
-          the derivative. Drag along a graph and the area under the curve fills in — that
-          area is the integral. The same moment is marked on every graph at once.
+          ## 2.0.0 — a course that knows where you are
 
-          Where a quantity and its rate of change are both on screen, the handbook checks
-          one against the other in numbers: the slope of x(t) against v(t), the area under
-          v(t) against the change in x, the pendulum's angle in degrees against its angular
-          velocity in rad/s, and the EMF against the slope of the flux taken with a minus
-          sign — that minus is Lenz's law. 14 such pairs in 11 simulations, marked by hand
-          and only where the relation is exact. A card explains what a derivative or an
-          integral is and leads back into the derivations that use one.
+          **My path** (top bar, Ctrl+M) does the three things a teacher does for someone
+          learning alone, and nothing leaves the device:
 
-          The slope is taken from a polynomial through five recorded points, not from two:
-          on fast oscillations the simple difference is off by per cent. A new check,
-          `npm run graphs`, runs every simulation with a marked pair and requires the pair
-          to agree; thirteen of the fourteen agree within half a per cent.
+          - **Map** — all 27 topics laid out by what stands on what, each coloured by its
+            state. Topics you are ready for right now are outlined; pick any topic and the map
+            names which prerequisites are missing.
+          - **Diagnostic** — twelve problems across the whole course with fresh numbers. At the
+            end: where to start — the earliest failed topic with no failed prerequisites.
+          - **Today** — spaced review (2, 5, 12, 28, 60, 120 days, one problem with new numbers
+            per topic), skills to repair, topics you are stuck on and what blocks them, what to
+            learn next.
+          - **Why the answer is wrong** — a wrong answer is compared with what typical slips
+            produce: sin for cos, degrees in radian mode, unconverted centimetres, a forgotten
+            ×10²⁴, friction left out, swapped quantities, a lost sign, prefix, ½ or 2π,
+            g = 10. The slip is named under the problem, with a button to its skill. Works for
+            all 384 problems without per-problem markup; the new `npm run learn` reproduces 490
+            slips and requires each to be named.
+          - **Skills** — ten of them, each with an explanation, a rule, the technique in the
+            reference and a trainer with random numbers: five right in a row and it is repaired.
+          - **From a question** — forty questions ("why doesn't a satellite fall?"), each opening
+            its topic and simulation.
 
-          **Fix: damped oscillations.** The simulation used a half-step scheme in which the
-          velocity lagged the position by half a step, so the slope of x(t) and the v(t)
-          graph disagreed by up to 5 % near v = 0. It now uses fourth-order Runge–Kutta;
-          all 530 physics checks still pass.
+          Topics in the list carry a mastery mark, and each topic shows its mastery and what
+          it is waiting for under the title. Your progress so far is carried over.
+
+          **Design.** Buttons lift, press in and ripple from the touch point; menus, dialogs and
+          panels slide in; tabs have a moving underline; right and wrong answers flash and shake.
+          Hover hints appear at once and show the shortcut. Top-bar buttons can carry labels.
+          Everything follows the system's "reduce motion" and can be calmed or turned off.
+
+          **Settings.** A new Main page: 8 themes as preview cards (paper, mint, nord, midnight
+          for OLED, high contrast among them), 10 accents or any colour, text size, density,
+          animation, button style, corners. New: UI font, column width, line spacing, shadows,
+          colour-blind graph colours. Profiles — Projector, Reading, Evening, Economy, or your
+          own — with "undo", and a `PHYSIM1:` code to pass your setup to someone else. Short
+          option lists are buttons now, not drop-downs.
+
+          **Fixes.** Dynamics with three bodies showed no parameters for the second body (the
+          panel only knew the two-body switch of kinematics); groups now appear by the number of
+          bodies, and damped oscillations show only the group of the chosen experiment. Closing
+          a simulation on a phone by any path other than the back button could leave a blank
+          white screen.
 
           ### Must read
 

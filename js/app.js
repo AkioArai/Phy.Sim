@@ -912,8 +912,8 @@ function buildGraphs(){
     const show2 = g.series ? (g.series.length>1) : two;
     const t=document.createElement('div'); t.className='gtitle';
     t.innerHTML=`<span>${g.label}, ${g.unit}</span>
-      <span class="lg"><span class="sw" style="background:var(--accent)"></span>${names[0]}</span>
-      ${show2?`<span class="lg"><span class="sw" style="background:var(--second)"></span>${names[1]}</span>`:''}`;
+      <span class="lg"><span class="sw" style="background:var(--g1,var(--accent))"></span>${names[0]}</span>
+      ${show2?`<span class="lg"><span class="sw" style="background:var(--g2,var(--second))"></span>${names[1]}</span>`:''}`;
     const c=document.createElement('canvas');
     c.className='gcv'; c.dataset.g=i;
     box.append(t,c); gcanvas.push(c);
@@ -946,7 +946,7 @@ function drawGraphs(){
       ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(W,Y(0)); ctx.stroke(); }
     for(let s=0;s<2;s++){
       if(H[H.length-1].v[gi][s]===null) continue;
-      ctx.strokeStyle=s?css('--second'):css('--accent'); ctx.lineWidth=1.6;
+      ctx.strokeStyle=s?(css('--g2')||css('--second')):(css('--g1')||css('--accent')); ctx.lineWidth=1.6;
       if(s) ctx.setLineDash([4,3]);
       ctx.beginPath();
       let started=false;
@@ -1074,7 +1074,7 @@ function площадьВ(H,gi,s,t1,t2){
 }
 function рисоватьАнализ(ctx,a,gi,X,Y,W,Hh){
   const H=a.hist, g=a.def.graphs[gi], ан=анализ;
-  const цвет=s=>s?css('--second'):css('--accent');
+  const цвет=s=>s?(css('--g2')||css('--second')):(css('--g1')||css('--accent'));
   ctx.save();
   ctx.strokeStyle=css('--measure'); ctx.lineWidth=1; ctx.setLineDash([2,3]);
   for(const t of ан.вид==='площадь'?[ан.t1,ан.t2]:[ан.t1]){ ctx.beginPath(); ctx.moveTo(X(t),0); ctx.lineTo(X(t),Hh); ctx.stroke(); }
@@ -1434,6 +1434,8 @@ function toggleMark(id){
 }
 function renderTree(q=''){
   const box=$('#tree'); box.innerHTML=''; q=q.trim().toLowerCase();
+  // состояние тем из «Моего пути»: метка освоения у каждой темы с задачами
+  let сост=null; try{ if(typeof естьПуть==='function'&&естьПуть()) сост=состояниеПути(); }catch(_){}
   let total=0;
   for(const sec of SECTIONS){
     const kids=sec.topics.filter(t=>{
@@ -1470,6 +1472,7 @@ function renderTree(q=''){
       ch.textContent=t.kind==='recap'?'✓':(t.ch?t.ch+'.':'§');
       const tx=document.createElement('span'); tx.textContent=t.title; tx.style.flex='1';
       b.append(st,ch,tx);
+      if(сост){ const м=меткаТемы(t,сост); if(м) b.append(м); }
       b.onclick=()=>{ openTopic(t.id); autoCloseRail(); };
       kbox.append(b);
     }
@@ -1499,6 +1502,7 @@ function openTopic(id){
   if(pb) pb.classList.toggle('empty-tab',!t.problems.length);
   $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
+  if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
@@ -2200,6 +2204,7 @@ function renderPane(){
       ${linksHTML(t)}
     </article>`;
     wireLinks(pane); wireLesson(pane);
+    if(typeof подключитьСамопроверку==='function') подключитьСамопроверку(pane,t);
     pane.querySelectorAll('.f-solve').forEach(b=>b.onclick=e=>{ e.stopPropagation(); решитьФормулуКурса(t,+b.dataset.f); });
   } else {
     if(!t.problems.length){ pane.innerHTML='<div class="empty">Задач по этой главе пока нет.</div>'; return; }
@@ -2220,7 +2225,7 @@ function renderPane(){
         const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid);
         const done=grp.filter(x=>S.solved[идЗадачи(t,x.p)]).length;
         const head=sid&&SIMS[sid]
-          ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>${done}/${grp.length} · открыть ▷</span></button>`
+          ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>решено ${done} из ${grp.length} · <b>Открыть модель</b></span></button>`
           : '<div class="pr-grp static">Без симуляции</div>';
         return head+grp.map(({p:pr,i},k)=>`
         <div class="problem${S.solved[идЗадачи(t,pr)]?' done':''}" data-i="${i}">
@@ -2267,8 +2272,16 @@ function renderPane(){
         const ans=pr.answer(P());
         if(!isFinite(ans)){ out.className='verdict no'; out.textContent='при этих параметрах события нет'; return; }
         const ok=Math.abs(u-ans)<=Math.max(Math.abs(ans)*0.015,1e-9);
+        /* Неверный ответ сверяется с веером типовых промахов (js/learn.js):
+           «похоже, перепутаны sin и cos» полезнее, чем «не сходится». Если
+           промах не узнан — остаётся прежняя грубая подсказка по числу. */
+        const веер=ok||typeof веерДляЗадачи!=='function'?[]:веерДляЗадачи(pr,P(),u);
         out.className='verdict '+(ok?'ok':'no');
-        out.textContent=(ok?'✓ верно':('✗ не сходится'+разбор(u,ans)))+(переведено?` (в единицах задачи: ${fmt(u)} ${pr.unit})`:'');
+        out.textContent=(ok?'✓ верно':('✗ не сходится'+(веер.length?'':разбор(u,ans))))+(переведено?` (в единицах задачи: ${fmt(u)} ${pr.unit})`:'');
+        if(typeof показатьВеер==='function') показатьВеер(el,веер);
+        el.classList.remove('flash-ok','shake'); void el.offsetWidth;
+        el.classList.add(ok?'flash-ok':'shake');
+        if(typeof отметитьПопытку==='function'){ отметитьПопытку(t,pr,ok,веер,'тема'); try{ полосаТемы(t); }catch(_){} }
         if(ok&&!S.solved[key]){
           S.solved[key]=1; LS.set('solved',S.solved);
           el.classList.add('done'); updateProgress();
@@ -2278,6 +2291,9 @@ function renderPane(){
       // Enter в поле ответа = «Проверить»: с клавиатуры так быстрее
       inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); check(); } };
       el.querySelector('.reveal').onclick=()=>{
+        // подсмотренный ответ — тоже сведение о теме: засчитываем как промах,
+        // если задача ещё не решена (решённую подсмотреть не стыдно)
+        if(!S.solved[key]&&typeof отметитьПопытку==='function') отметитьПопытку(t,pr,false,[],'ответ');
         const ans=pr.answer(P()); out.className='verdict ok';
         out.textContent=isFinite(ans)?`${fmt(ans)} ${pr.unit}`:'события не происходит';
       };
@@ -2294,7 +2310,7 @@ function renderPane(){
         const grp=t.problems.map((p,k)=>({p,k})).filter(x=>(x.p.sim||'')===sid);
         const done=grp.filter(x=>S.solved[идЗадачи(t,x.p)]).length;
         const hd=pane.querySelector(`.pr-grp[data-sim="${sid}"] span`);
-        if(hd) hd.textContent=`${done}/${grp.length} · открыть ▷`;
+        if(hd) hd.innerHTML=`решено ${done} из ${grp.length} · <b>Открыть модель</b>`;
       }
       const nb=$('#nprob');
       if(nb) nb.textContent=t.problems.length;
@@ -2417,13 +2433,16 @@ function свернутьГруппу(a,label,как){
 function renderParams(){
   const box=$('#params'), a=A(); box.innerHTML='';
   if(!a){ box.innerHTML='<div class="empty" style="padding:10px 0">Симуляция не открыта.</div>'; return; }
-  const two=a.params.bodies==='2';
+  /* Видимость группы или поля — условие `если(p)` в описании параметра.
+     Раньше здесь было зашито «Тело 2 видно при bodies==='2'»: у «Второго
+     закона» число тел задаёт n, поля bodies нет вовсе — и «Тело 2»
+     не показывалось никогда, а «Тело 3» висело и при одном теле. */
   let skip=false;
   const всегоПолей=a.def.params.filter(p=>p.type!=='group').length;
   let тело=box, номерГруппы=0;
   for(const p of a.def.params){
     if(p.type==='group'){
-      skip = (p.label==='Тело 2' && !two);
+      skip = !видноПараметр(a,p);
       if(skip) continue;
       const g=document.createElement('div'); g.className='pgroup';
       const h=document.createElement('button');
@@ -2438,8 +2457,8 @@ function renderParams(){
                       свернутьГруппу(a,p.label,теперь); пометитьГруппы(); };
       тело=b; continue;
     }
-    if(skip) continue;
-    const d=document.createElement('div'); d.className='param';
+    if(skip||!видноПараметр(a,p)) continue;
+    const d=document.createElement('div'); d.className='param'; d.dataset.key=p.key;
     if(p.type==='check'){
       d.innerHTML=`<label class="chk"><input type="checkbox" ${a.params[p.key]?'checked':''}>${p.label}</label>`;
       d.querySelector('input').onchange=e=>commit(p.key,e.target.checked);
@@ -2557,11 +2576,25 @@ if($('#btn-prand')) $('#btn-prand').onclick=()=>{
   pushUndo(a); restart(a); renderParams(); buildGraphs(); toast('Случайные параметры — Ctrl+Z вернёт');
 };
 const round=(v,step)=>{ const dg=(String(step).split('.')[1]||'').length; return +(+v).toFixed(dg); };
+function видноПараметр(a,p){
+  if(typeof p.если!=='function') return true;
+  try{ return !!p.если(a.params); }catch(_){ return true; }
+}
+function видимостьПараметров(a){ return a.def.params.map(p=>видноПараметр(a,p)?1:0).join(''); }
 function commit(key,val){
   const a=A(); if(!a) return;
+  const было=видимостьПараметров(a);
   a.params[key]=val;
   restart(a); fitView();
   pushUndo(a);
+  // поменялось, какие группы нужны (число тел, режим опыта) — перестраиваем
+  // панель, но курсор оставляем в том же поле: человек мог ещё печатать
+  if(было!==видимостьПараметров(a)){
+    const фокус=document.activeElement, вПоле=фокус&&фокус.closest&&фокус.closest('#params .param');
+    renderParams();
+    if(вПоле){ const inp=document.querySelector(`#params .param[data-key="${key}"] input[data-num]`);
+      if(inp){ inp.focus(); try{ inp.setSelectionRange(inp.value.length,inp.value.length); }catch(_){} } }
+  }
 }
 /* Запись текущих параметров в историю Undo (общая точка для commit,
    сброса к умолчаниям и случайных значений). */
@@ -3897,6 +3930,7 @@ function renderPresets(){
    и значение по умолчанию. Отсюда сами собой получаются поиск по всем разделам
    и сброс отдельной настройки — не нужно дублировать разметку. */
 const PREF_CATS=[
+  {id:'quick',name:'Главное',       icon:'<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>'},
   {id:'look', name:'Внешний вид', icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>'},
   {id:'scene',name:'Сцена',        icon:'<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/>'},
   {id:'behav',name:'Поведение',    icon:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1"/>'},
@@ -3923,14 +3957,53 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   handles:'hover',
   // кастомизация окружения
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
-  panelAlpha:93,railSide:'left'};
+  panelAlpha:93,railSide:'left',
+  // 2.0.0: персонализация
+  palette:'std',accentCustom:'#5d5294',radius:8,uiFont:'sans',readW:'norm',lineH:1.65,
+  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std'};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
    options:[['light','Светлая'],['dark','Тёмная'],['auto','Как в системе']]},
   {cat:'look',key:'accent',type:'select',def:'violet',
    name:'Акцентный цвет',desc:'Цвет выделения, активных кнопок и первого ряда на графиках.',
-   options:[['violet','Фиолетовый'],['blue','Синий'],['teal','Бирюзовый'],['amber','Янтарный'],['rose','Красный']]},
+   options:[['violet','Фиолетовый'],['blue','Синий'],['teal','Бирюзовый'],['amber','Янтарный'],['rose','Красный'],
+            ['green','Зелёный'],['indigo','Индиго'],['orange','Оранжевый'],['pink','Розовый'],['graphite','Графит'],['custom','Свой цвет']]},
+  {cat:'look',key:'accentCustom',type:'color',def:'#5d5294',
+   name:'Свой акцентный цвет',desc:'Любой цвет — оттенки для текста, заливок и границ приложение подберёт само. Действует, когда выше выбран «Свой цвет».'},
+  {cat:'look',key:'palette',type:'select',def:'std',
+   name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага» — тёплая, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
+   options:[['std','Обычная'],['sepia','Бумага'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
+  {cat:'look',key:'radius',type:'range',def:8,min:0,max:18,step:1,unit:' px',
+   name:'Скругление углов',desc:'От строгих прямых углов до мягких «таблеток». Меняет кнопки, карточки, поля и панели.'},
+  {cat:'look',key:'uiFont',type:'select',def:'sans',
+   name:'Шрифт интерфейса',desc:'Шрифты берутся из системы — ничего не скачивается. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
+   options:[['sans','Системный гротеск'],['humanist','Гуманистический'],['readable','Крупный читаемый'],['serif','С засечками'],['mono','Моноширинный']]},
+  {cat:'look',key:'readW',type:'select',def:'norm',
+   name:'Ширина колонки текста',desc:'Длинная строка утомляет: глазу трудно найти начало следующей. Узкая колонка — как в книге.',
+   options:[['narrow','Узкая'],['norm','Обычная'],['wide','Широкая'],['full','Во всю ширину']]},
+  {cat:'look',key:'lineH',type:'range',def:1.65,min:1.35,max:2.1,step:0.05,unit:'',
+   name:'Межстрочный интервал',desc:'Расстояние между строками конспекта. Больше — легче читать с экрана, меньше — больше текста видно сразу.'},
+  {cat:'look',key:'motion',type:'select',def:'auto',
+   name:'Анимации',desc:'«Как в системе» следует за настройкой «уменьшить движение» устройства. «Спокойные» оставляют только плавную смену цвета.',
+   options:[['auto','Как в системе'],['full','Все'],['calm','Спокойные'],['off','Выключены']]},
+  {cat:'look',key:'ripple',type:'toggle',def:true,
+   name:'Волна при нажатии',desc:'Мягкий круг расходится от точки, куда вы нажали, — видно, что кнопка сработала.'},
+  {cat:'look',key:'btnStyle',type:'select',def:'fill',
+   name:'Стиль кнопок',desc:'Как выглядят главные кнопки: «Проверить», «Открыть модель».',
+   options:[['fill','Заливка'],['soft','Мягкие'],['outline','Контур']]},
+  {cat:'look',key:'shadows',type:'select',def:'soft',
+   name:'Тени',desc:'Глубина плавающих панелей, меню и карточек.',
+   options:[['none','Без теней'],['soft','Мягкие'],['deep','Глубокие']]},
+  {cat:'look',key:'labels',type:'select',def:'auto',
+   name:'Подписи у кнопок',desc:'Текст рядом со значками в верхней панели. «Авто» — когда на экране хватает места.',
+   options:[['auto','Авто'],['on','Всегда'],['off','Только значки']]},
+  {cat:'look',key:'tips',type:'select',def:'fast',
+   name:'Подсказки при наведении',desc:'«Быстрые» появляются сразу и показывают горячую клавишу; «системные» — как в браузере, с задержкой.',
+   options:[['fast','Быстрые'],['native','Системные'],['off','Не показывать']]},
+  {cat:'look',key:'graphPal',type:'select',def:'std',
+   name:'Цвета графиков',desc:'«Для дальтоников» — пара синий/оранжевый, которую различают при любом типе цветовой слепоты.',
+   options:[['std','Как акцент'],['cb','Для дальтоников'],['vivid','Яркие']]},
   {cat:'look',key:'fs',type:'range',def:12,min:10,max:16,step:0.5,unit:' pt',
    name:'Размер шрифта',desc:'Влияет на конспект, формулы и подписи в интерфейсе.'},
   {cat:'look',key:'density',type:'select',def:'cozy',
@@ -4068,15 +4141,17 @@ const PREFS=[
    options:[['low','Экономное — 2,5 Мбит/с, 24 кадра'],['med','Среднее — 8 Мбит/с, 30 кадров'],
             ['high','Высокое — 16 Мбит/с, 60 кадров'],['max','Максимальное — 40 Мбит/с, 60 кадров, 2×']]}
 ];
-let prefCat='look';
+let prefCat='quick';
 function prefGet(k){ const v=S.settings[k]; return v===undefined? PREF_DEFAULTS[k] : v; }
-function prefSet(k,v){ S.settings[k]=v; applySettings(); renderPrefs(); }
+function prefSet(k,v){ S.settings[k]=v; applySettings(); renderPrefs(); renderPrefsSide(); }
 
 function renderPrefsSide(){
   const box=$('#prefs-side'); if(!box) return;
-  box.innerHTML='<div class="grp">Разделы</div>'+PREF_CATS.map(c=>
-    `<button class="prefs-cat${c.id===prefCat?' on':''}" data-cat="${c.id}">
-       <svg viewBox="0 0 24 24">${c.icon}</svg><span>${c.name}</span></button>`).join('');
+  // сколько настроек раздела отличается от исходных — видно, где вы уже что-то меняли
+  const изменено=id=>PREFS.filter(p=>p.cat===id&&String(prefGet(p.key))!==String(p.def)).length;
+  box.innerHTML='<div class="grp">Разделы</div>'+PREF_CATS.map(c=>{ const n=изменено(c.id);
+    return `<button class="prefs-cat${c.id===prefCat?' on':''}" data-cat="${c.id}">
+       <svg viewBox="0 0 24 24">${c.icon}</svg><span>${c.name}</span>${n?`<b class="pc-n" title="Изменено настроек: ${n}">${n}</b>`:''}</button>`; }).join('');
   box.querySelectorAll('.prefs-cat').forEach(b=>b.onclick=()=>{
     prefCat=b.dataset.cat;
     // подсветку переключаем сразу здесь: перерисовывается только правая часть,
@@ -4085,14 +4160,24 @@ function renderPrefsSide(){
     $('#prefs-search').value=''; renderPrefs();
   });
 }
+function сегментами(p){
+  return p.options.length<=4 && p.options.every(o=>String(o[1]).length<=15) && p.options.reduce((a,o)=>a+String(o[1]).length,0)<=40;
+}
 function prefRow(p){
   const v=prefGet(p.key), isDef=String(v)===String(p.def);
   let ctl='';
   if(p.type==='toggle')
     ctl=`<label class="sw-t"><input type="checkbox" data-k="${p.key}" ${v?'checked':''}><i></i></label>`;
+  else if(p.type==='select'&&сегментами(p))
+    /* Два-четыре коротких варианта видны сразу и выбираются одним нажатием:
+       выпадающий список прятал их и требовал двух. */
+    ctl=`<div class="seg" role="radiogroup" data-seg="${p.key}">${p.options.map(([ov,ot])=>
+      `<button role="radio" aria-checked="${String(ov)===String(v)}" class="${String(ov)===String(v)?'on':''}" data-v="${ov}">${ot}</button>`).join('')}</div>`;
   else if(p.type==='select')
     ctl=`<select data-k="${p.key}">${p.options.map(([ov,ot])=>
       `<option value="${ov}"${String(ov)===String(v)?' selected':''}>${ot}</option>`).join('')}</select>`;
+  else if(p.type==='color')
+    ctl=`<input type="color" data-k="${p.key}" value="${v}"><span class="pset-val">${v}</span>`;
   else if(p.type==='range')
     ctl=`<input type="range" data-k="${p.key}" min="${p.min}" max="${p.max}" step="${p.step}" value="${v}">
          <span class="pset-val">${v}${p.unit||''}</span>`;
@@ -4126,6 +4211,9 @@ function renderPrefs(){
       html+=`<div class="pset-h">Горячие клавиши</div><div class="prefs-keys">`+
         keys.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('')+`</div>`;
     body.innerHTML = html || `<div class="prefs-empty">Ничего не найдено по запросу «${q}».</div>`;
+  } else if(prefCat==='quick'){
+    body.innerHTML=страницаГлавное();
+    подключитьГлавное(body);
   } else if(prefCat==='keys'){
     body.innerHTML=`<div class="pset-h">Клавиши и мышь</div><div class="prefs-keys">`+
       KEYS.map(([k,v])=>`<div class="kb"><span>${v}</span><kbd>${k}</kbd></div>`).join('')+`</div>`;
@@ -4179,7 +4267,8 @@ function renderPrefs(){
       const solved=Object.keys(S.solved||{}).length;
       const data=JSON.stringify({app:'physim',v:2,settings:S.settings,
         presets:LS.get('presets',{}),marks:S.marks,
-        solved:S.solved,favs:S.favs,tstyle:S.tstyle,recent:S.recent},null,1);
+        solved:S.solved,favs:S.favs,tstyle:S.tstyle,recent:S.recent,
+        journal:LS.get('journal',null)},null,1);
       сохранитьФайл('physim-данные.json',new Blob([data],{type:'application/json'}));
       toast(`Сохранено: решённых задач ${solved}`);
     };
@@ -4203,6 +4292,7 @@ function renderPrefs(){
           if(j.favs){ S.favs=[...new Set([...(S.favs||[]),...j.favs])]; LS.set('favs',S.favs); }
           if(j.tstyle){ S.tstyle=Object.assign({}, S.tstyle, j.tstyle); LS.set('tstyle',S.tstyle); }
           if(j.recent){ S.recent=j.recent; LS.set('recent',S.recent); }
+          if(j.journal&&typeof слитьЖурнал==='function') слитьЖурнал(j.journal);
           applySettings(); renderPrefs(); renderTree(); renderPane();
           toast(j.solved?`Загружено, решённых задач ${Object.keys(S.solved).length}`:'Данные загружены');
         }catch(_){ toast('Это не файл настроек Phy.Sim'); }
@@ -4255,7 +4345,13 @@ function renderPrefs(){
   // общие обработчики для всех отрисованных управляющих элементов
   body.querySelectorAll('[data-k]').forEach(el=>{
     const k=el.dataset.k, p=PREFS.find(x=>x.key===k);
+    if(!p) return;
     if(p.type==='toggle') el.onchange=()=>prefSet(k,el.checked);
+    else if(p.type==='color'){
+      el.oninput=()=>{ S.settings[k]=el.value; if(k==='accentCustom') S.settings.accent='custom';
+        const lab=el.parentElement.querySelector('.pset-val'); if(lab) lab.textContent=el.value; applySettings(); };
+      el.onchange=()=>renderPrefs();
+    }
     // у числовых настроек приводим тип: select всегда отдаёт строку
     else if(p.type==='select') el.onchange=()=>
       prefSet(k, typeof p.def==='number'? +el.value : el.value);
@@ -4267,10 +4363,233 @@ function renderPrefs(){
       el.onchange=()=>renderPrefs();
     }
   });
+  body.querySelectorAll('[data-seg]').forEach(g=>{
+    const k=g.dataset.seg, p=PREFS.find(x=>x.key===k); if(!p) return;
+    g.querySelectorAll('button').forEach(b=>b.onclick=()=>prefSet(k, typeof p.def==='number'? +b.dataset.v : b.dataset.v));
+  });
   body.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{
     const p=PREFS.find(x=>x.key===b.dataset.reset); prefSet(p.key,p.def);
   });
 }
+/* ======================= НАСТРОЙКИ: «ГЛАВНОЕ» (2.0.0) =======================
+   Всё, что меняют чаще всего, на одном экране и без выпадающих списков:
+   тема — карточками с живым образцом, акцент — образцами цвета, размер
+   текста — кнопками. Ниже — профили: готовые наборы («Проектор», «Чтение»)
+   и свои, которые можно сохранить и передать другому кодом. */
+const ТЕМЫ_ОФОРМЛЕНИЯ=[
+  {id:'light', имя:'Светлая',  theme:'light',palette:'std',     c:['#f6f7f8','#ffffff','#171a1f','#5d5294']},
+  {id:'dark',  имя:'Тёмная',   theme:'dark', palette:'std',     c:['#161826','#232532','#e9e9ed','#9184d9']},
+  {id:'auto',  имя:'Как в системе',theme:'auto',palette:'std',  c:['#f6f7f8','#232532','#171a1f','#5d5294']},
+  {id:'sepia', имя:'Бумага',   theme:'light',palette:'sepia',   c:['#f3eee3','#fbf8f0','#2a2318','#8a5a2b']},
+  {id:'mint',  имя:'Мята',     theme:'light',palette:'mint',    c:['#eef4f1','#fbfdfc','#14211b','#0d9488']},
+  {id:'nord',  имя:'Северная', theme:'dark', palette:'nord',    c:['#1f2530','#262e3b','#e6ebf2','#88c0d0']},
+  {id:'oled',  имя:'Полночь',  theme:'dark', palette:'oled',    c:['#000000','#0a0a0d','#f0f0f4','#9184d9']},
+  {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']}
+];
+const АКЦЕНТЫ={violet:'#7c5cff',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
+  green:'#16a34a',indigo:'#4f46e5',orange:'#ea580c',pink:'#db2777',graphite:'#475569'};
+const ГОТОВЫЕ_ПРОФИЛИ=[
+  {имя:'Проектор',что:'крупный текст, толстые линии, контраст',
+   н:{fs:15,density:'roomy',lineW:1.6,labelSize:14,hudScale:1.4,theme:'light',palette:'contrast',arrowScale:1.4}},
+  {имя:'Чтение',что:'бумажная палитра, засечки, узкая колонка',
+   н:{theme:'light',palette:'sepia',serifNotes:true,fs:13,lineH:1.85,readW:'narrow'}},
+  {имя:'Вечер',что:'тёмная северная палитра, тёплый акцент, спокойные анимации',
+   н:{theme:'dark',palette:'nord',accent:'amber',motion:'calm'}},
+  {имя:'Экономия',что:'для слабых устройств: без анимаций, теней и лишней чёткости',
+   н:{quality:'low',fps:30,motion:'off',ripple:false,shadows:'none',dprCap:1}}
+];
+function темаСейчас(){
+  const t=prefGet('theme'), p=prefGet('palette');
+  const x=ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.theme===t&&y.palette===p);
+  return x?x.id:'';
+}
+function страницаГлавное(){
+  const тм=темаСейчас(), ак=prefGet('accent')||'violet', fs=prefGet('fs');
+  const свои=LS.get('profiles',{});
+  const сег=(k,опции)=>`<div class="seg" data-seg="${k}">${опции.map(([v,t])=>
+    `<button class="${String(prefGet(k))===String(v)?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>`;
+  return `<div class="q">
+  <section class="q-s"><h4>Тема</h4><div class="q-themes">${ТЕМЫ_ОФОРМЛЕНИЯ.map(x=>
+    `<button class="q-theme${x.id===тм?' on':''}" data-theme-id="${x.id}" title="${x.имя}">
+       <span class="q-prev" style="background:${x.c[0]}">${x.id==='auto'?`<span class="q-half" style="background:${x.c[1]}"></span>`:''}
+         <span class="q-win" style="background:${x.c[1]}"><i style="background:${x.c[2]}"></i><i style="background:${x.c[2]};width:55%"></i><b style="background:${x.c[3]}"></b></span></span>
+       <span class="q-name">${x.имя}</span></button>`).join('')}</div></section>
+  <section class="q-s"><h4>Акцентный цвет</h4><div class="q-acc">${Object.keys(АКЦЕНТЫ).map(k=>
+    `<button class="q-sw${ак===k?' on':''}" data-acc="${k}" style="--c:${АКЦЕНТЫ[k]}" title="${(PREFS.find(p=>p.key==='accent').options.find(o=>o[0]===k)||[0,k])[1]}"></button>`).join('')}
+    <label class="q-sw q-own${ак==='custom'?' on':''}" title="Свой цвет" style="--c:${prefGet('accentCustom')}"><input type="color" id="q-own" value="${prefGet('accentCustom')}"></label></div></section>
+  <section class="q-s"><h4>Текст</h4>
+    <div class="q-row"><div class="q-fs"><button class="btn" data-fs="-0.5" title="Мельче">A−</button><b>${fs} pt</b><button class="btn" data-fs="0.5" title="Крупнее">A+</button></div>
+      ${сег('serifNotes',[[false,'Без засечек'],[true,'С засечками']])}</div>
+    <p class="q-sample">Сила, действующая на тело, равна произведению массы на ускорение: $F=ma$.</p></section>
+  <section class="q-s"><h4>Интерфейс</h4>
+    <div class="q-grid">
+      <span>Плотность</span>${сег('density',[['compact','Плотно'],['cozy','Обычно'],['roomy','Просторно']])}
+      <span>Анимации</span>${сег('motion',[['auto','Авто'],['full','Все'],['calm','Спокойно'],['off','Нет']])}
+      <span>Подписи у кнопок</span>${сег('labels',[['auto','Авто'],['on','Всегда'],['off','Значки']])}
+      <span>Кнопки</span>${сег('btnStyle',[['fill','Заливка'],['soft','Мягкие'],['outline','Контур']])}
+      <span>Углы</span><div class="q-rad"><input type="range" min="0" max="18" step="1" value="${prefGet('radius')}" id="q-rad"><b>${prefGet('radius')} px</b></div>
+    </div></section>
+  <section class="q-s"><h4>Профили</h4>
+    <p class="q-help">Профиль — набор настроек одним нажатием. Применение запоминает, как было, — его можно вернуть.</p>
+    <div class="q-prof">${ГОТОВЫЕ_ПРОФИЛИ.map((x,i)=>`<button class="pt-card" data-prof="${i}"><b>${x.имя}</b><span>${x.что}</span></button>`).join('')}
+      ${Object.keys(свои).map(имя=>`<div class="pt-card q-mine"><b>${esc(имя)}</b><span>ваш профиль · ${Object.keys(свои[имя]).length} настроек</span>
+        <div class="q-mine-a"><button class="btn primary" data-mine="${esc(имя)}">Применить</button><button class="btn ghost" data-mine-del="${esc(имя)}" title="Удалить профиль">Удалить</button></div></div>`).join('')}</div>
+    <div class="q-act">
+      ${LS.get('prefsUndo',null)?'<button class="btn" id="q-undo">Вернуть как было</button>':''}
+      <button class="btn" id="q-save">Сохранить текущие как профиль…</button>
+      <button class="btn" id="q-code">Код для обмена</button>
+      <button class="btn" id="q-paste">Вставить код</button>
+    </div>
+    <div class="q-codebox hidden" id="q-codebox"><textarea id="q-codetext" rows="3" spellcheck="false"></textarea>
+      <div class="q-act"><button class="btn primary" id="q-code-go"></button><button class="btn ghost" id="q-code-x">Закрыть</button></div></div>
+  </section></div>`;
+}
+/* какие настройки несёт профиль и код: всё, что отличается от исходного */
+function изменённыеНастройки(){
+  const out={};
+  for(const p of PREFS){ const v=prefGet(p.key); if(String(v)!==String(p.def)) out[p.key]=v; }
+  return out;
+}
+function применитьПрофиль(н,имя){
+  LS.set('prefsUndo',Object.assign({},S.settings));
+  S.settings=Object.assign({},S.settings,н);
+  applySettings(); renderPrefs(); renderPrefsSide();
+  toast(`Профиль «${имя}» применён`);
+}
+function кодНастроек(){
+  const json=JSON.stringify(изменённыеНастройки());
+  return 'PHYSIM1:'+btoa(unescape(encodeURIComponent(json)));
+}
+function разобратьКод(код){
+  const m=/PHYSIM1:([A-Za-z0-9+/=]+)/.exec(String(код).replace(/\s+/g,''));
+  if(!m) throw new Error('это не код настроек Phy.Sim');
+  const н=JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+  // только известные ключи известных типов: код пришёл снаружи
+  const out={};
+  for(const k in н){ const p=PREFS.find(x=>x.key===k); if(!p) continue;
+    const v=н[k];
+    if(p.type==='toggle'&&typeof v==='boolean') out[k]=v;
+    else if(p.type==='range'&&typeof v==='number'&&isFinite(v)) out[k]=Math.min(p.max,Math.max(p.min,v));
+    else if(p.type==='select'&&p.options.some(o=>String(o[0])===String(v))) out[k]=typeof p.def==='number'?+v:v;
+    else if(p.type==='color'&&/^#[0-9a-f]{6}$/i.test(v)) out[k]=v; }
+  return out;
+}
+function подключитьГлавное(body){
+  typeset(body);
+  body.querySelectorAll('[data-theme-id]').forEach(b=>b.onclick=()=>{
+    const x=ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.id===b.dataset.themeId);
+    S.settings.theme=x.theme; S.settings.palette=x.palette; applySettings(); renderPrefs(); renderPrefsSide();
+  });
+  body.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>prefSet('accent',b.dataset.acc));
+  const own=body.querySelector('#q-own');
+  own.oninput=()=>{ S.settings.accentCustom=own.value; S.settings.accent='custom'; own.parentElement.style.setProperty('--c',own.value); applySettings(); };
+  own.onchange=()=>{ renderPrefs(); renderPrefsSide(); };
+  body.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{
+    const v=Math.min(16,Math.max(10,(+prefGet('fs')||12)+(+b.dataset.fs))); prefSet('fs',v); });
+  body.querySelectorAll('[data-seg]').forEach(g=>{ const k=g.dataset.seg;
+    g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const v=b.dataset.v;
+      prefSet(k, v==='true'?true:v==='false'?false:v); }); });
+  const рад=body.querySelector('#q-rad');
+  рад.oninput=()=>{ S.settings.radius=+рад.value; рад.nextElementSibling.textContent=рад.value+' px'; applySettings(); };
+  рад.onchange=()=>renderPrefsSide();
+  body.querySelectorAll('[data-prof]').forEach(b=>b.onclick=()=>{ const x=ГОТОВЫЕ_ПРОФИЛИ[+b.dataset.prof]; применитьПрофиль(x.н,x.имя); });
+  body.querySelectorAll('[data-mine]').forEach(b=>b.onclick=()=>{ const свои=LS.get('profiles',{}); if(свои[b.dataset.mine]) применитьПрофиль(свои[b.dataset.mine],b.dataset.mine); });
+  body.querySelectorAll('[data-mine-del]').forEach(b=>b.onclick=()=>askConfirm(`Удалить профиль «${b.dataset.mineDel}»?`,()=>{
+    const свои=LS.get('profiles',{}); delete свои[b.dataset.mineDel]; LS.set('profiles',свои); renderPrefs(); }));
+  const undo=body.querySelector('#q-undo');
+  if(undo) undo.onclick=()=>{ const было=LS.get('prefsUndo',null); if(!было) return;
+    S.settings=было; LS.set('prefsUndo',null); applySettings(); renderPrefs(); renderPrefsSide(); toast('Настройки возвращены'); };
+  const коробка=body.querySelector('#q-codebox'), текст=body.querySelector('#q-codetext'), го=body.querySelector('#q-code-go');
+  текст.addEventListener('keydown',e=>e.stopPropagation());
+  body.querySelector('#q-save').onclick=()=>{
+    коробка.classList.remove('hidden'); текст.value=''; текст.placeholder='Название профиля, например «Мой вечерний»';
+    текст.rows=1; го.textContent='Сохранить профиль'; текст.focus();
+    го.onclick=()=>{ const имя=текст.value.trim().slice(0,40); if(!имя){ текст.focus(); return; }
+      const свои=LS.get('profiles',{}); свои[имя]=изменённыеНастройки(); LS.set('profiles',свои);
+      toast(`Профиль «${имя}» сохранён`); renderPrefs(); };
+  };
+  body.querySelector('#q-code').onclick=()=>{
+    коробка.classList.remove('hidden'); текст.rows=3; текст.value=кодНастроек(); текст.select();
+    го.textContent='Скопировать';
+    го.onclick=()=>{ текст.select(); let ок=false; try{ ок=document.execCommand('copy'); }catch(_){}
+      if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(текст.value).then(()=>toast('Код скопирован'),()=>{});
+      else toast(ок?'Код скопирован':'Выделите код и скопируйте'); };
+  };
+  body.querySelector('#q-paste').onclick=()=>{
+    коробка.classList.remove('hidden'); текст.rows=3; текст.value=''; текст.placeholder='Вставьте код вида PHYSIM1:…';
+    го.textContent='Применить код'; текст.focus();
+    го.onclick=()=>{ try{ const н=разобратьКод(текст.value);
+        if(!Object.keys(н).length){ toast('В коде нет знакомых настроек'); return; }
+        применитьПрофиль(н,'из кода'); }catch(e){ toast('Не получилось: '+e.message); } };
+  };
+  body.querySelector('#q-code-x').onclick=()=>коробка.classList.add('hidden');
+}
+
+/* ======================= ОТКЛИК ИНТЕРФЕЙСА (2.0.0) =======================
+   Волна от точки нажатия, быстрые подсказки с горячей клавишей вместо
+   системных (те появляются через секунду и без клавиши), подписи у
+   кнопок верхней панели. Всё отключается в настройках. */
+const ВОЛНА='.btn,.iconbtn,.tbtn,.pt-card,.pt-chip,.pop .item,.tabs button,.path-tabs button,.sk-i,.aq-i,.dg-t,.prefs-cat,.seg button,.q-theme,.pr-grp,.topic-item';
+function подключитьВолну(){
+  document.addEventListener('pointerdown',e=>{
+    const root=document.documentElement;
+    if(root.dataset.motion==='off'||root.dataset.motion==='calm'||root.dataset.ripple==='0') return;
+    const el=e.target.closest&&e.target.closest(ВОЛНА); if(!el||el.disabled) return;
+    const r=el.getBoundingClientRect(); if(r.width<8||r.height<8) return;
+    if(getComputedStyle(el).position==='static') el.style.position='relative';
+    let box=el.querySelector(':scope>.rpl');
+    if(!box){ box=document.createElement('span'); box.className='rpl'; el.append(box); }
+    const d=Math.max(r.width,r.height)*2.2, w=document.createElement('i');
+    w.style.width=w.style.height=d+'px';
+    w.style.left=(e.clientX-r.left-d/2)+'px'; w.style.top=(e.clientY-r.top-d/2)+'px';
+    box.append(w);
+    setTimeout(()=>{ w.remove(); if(!box.childNodes.length) box.remove(); },600);
+  },{passive:true});
+}
+let подсказка=null, подсказкаТаймер=0;
+function подключитьПодсказки(){
+  const tip=document.createElement('div'); tip.className='tip'; tip.setAttribute('role','tooltip'); document.body.append(tip);
+  подсказка=tip;
+  const спрятать=()=>{ clearTimeout(подсказкаТаймер); tip.classList.remove('on'); };
+  document.addEventListener('pointerover',e=>{
+    if(e.pointerType!=='mouse') return;
+    const режим=prefGet('tips'); if(режим==='native') return;
+    const el=e.target.closest&&e.target.closest('.iconbtn,.tbtn,.btn,.op-chip,.f-solve');
+    if(!el) return;
+    // заголовок могли поменять после прошлого наведения — забираем свежий
+    if(el.hasAttribute('title')){ el.dataset.tip=el.getAttribute('title'); el.removeAttribute('title'); }
+    const t=el.dataset.tip; if(!t||режим==='off') return;
+    clearTimeout(подсказкаТаймер);
+    подсказкаТаймер=setTimeout(()=>{
+      const m=/^(.*?)\s*\(([^()]*(?:Ctrl|Shift|Alt|Tab|Esc|Space|F\d+|^[A-Z0-9,.\[\]`+−-]$)[^()]*)\)\s*$/.exec(t);
+      tip.innerHTML=m?`${esc(m[1])}<kbd>${esc(m[2])}</kbd>`:esc(t);
+      tip.classList.add('on');
+      const r=el.getBoundingClientRect(), tw=tip.offsetWidth, th=tip.offsetHeight;
+      let x=r.left+r.width/2-tw/2, y=r.bottom+8;
+      if(y+th>innerHeight-4) y=r.top-th-8;
+      x=Math.max(6,Math.min(innerWidth-tw-6,x));
+      tip.style.left=x+'px'; tip.style.top=y+'px';
+    },320);
+  });
+  document.addEventListener('pointerout',e=>{ if(e.target.closest&&e.target.closest('.iconbtn,.tbtn,.btn,.op-chip,.f-solve')) спрятать(); });
+  document.addEventListener('pointerdown',спрятать,true);
+  addEventListener('scroll',спрятать,true);
+  addEventListener('blur',спрятать);
+}
+function подключитьПодписи(){
+  for(const b of document.querySelectorAll('.topbar .iconbtn[data-label]')){
+    if(b.querySelector('.lbl')) continue;
+    const s=document.createElement('span'); s.className='lbl'; s.textContent=b.dataset.label; b.append(s);
+  }
+}
+/* оттенки акцента: -300 (текст), -700 (заливка), -800 (тихая граница) — из
+   одного цвета, иначе у «своего» акцента они оставались фиолетовыми */
+function смешать(a,b,t){
+  const h=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16));
+  const A=h(a),B=h(b);
+  return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+
 function openPrefs(cat){
   if(cat) prefCat=cat;
   $('#prefs').classList.remove('hidden');
@@ -4332,6 +4651,10 @@ function closeSimMobile(){
   $('#splitter').classList.add('hidden');
   $('#content').classList.add('wide');
   $('#app').classList.remove('simfull');
+  /* Лист мог спрятать конспект инлайновым display, пока сцена была открыта.
+     Любой путь закрытия сцены (кнопка «назад», «От вопроса», переход по
+     теме) обязан вернуть экран чтения — иначе остаётся пустой белый экран. */
+  try{ syncSheet(); }catch(_){}
   resize();
 }
 $$('#btn-simback').onclick=()=>{ closeSimMobile(); syncMbar(); };
@@ -4820,12 +5143,38 @@ function applySettings(){
   root.dataset.hudside = prefGet('hudSide')==='right' ? 'right' : 'left';
   root.style.setProperty('--fs',s.fs+'pt');
   root.style.setProperty('--hudk',String(prefGet('hudScale')||1));
-  // акцентный цвет: подкрашиваем и полупрозрачную заливку под ним
-  const ACC={blue:'#3b82f6',teal:'#0d9488',violet:'#7c5cff',amber:'#d97706',rose:'#e11d48'};
-  if(s.accent && ACC[s.accent]){
-    root.style.setProperty('--accent',ACC[s.accent]);
-    root.style.setProperty('--accent-soft',ACC[s.accent]+'22');
-  } else { root.style.removeProperty('--accent'); root.style.removeProperty('--accent-soft'); }
+  // палитра поверх тона (2.0.0): бумага, мята, северная, полночь, контраст
+  root.dataset.palette = prefGet('palette')||'std';
+  /* Акцентный цвет. Оттенки -300/-700/-800 выводятся из него же: раньше
+     менялся только сам акцент, а подписи и заливки оставались фиолетовыми. */
+  const тёмная=root.dataset.theme==='dark';
+  const ACC=typeof АКЦЕНТЫ!=='undefined'?АКЦЕНТЫ:{};
+  const акц = s.accent==='custom' ? (/^#[0-9a-f]{6}$/i.test(prefGet('accentCustom'))?prefGet('accentCustom'):null) : ACC[s.accent];
+  const оттенки=['--accent','--accent-soft','--accent-300','--accent-700','--accent-800'];
+  if(акц){
+    root.style.setProperty('--accent',акц);
+    root.style.setProperty('--accent-soft',акц+(тёмная?'2e':'1f'));
+    root.style.setProperty('--accent-300',тёмная?смешать(акц,'#ffffff',.6):смешать(акц,'#000000',.22));
+    root.style.setProperty('--accent-700',тёмная?смешать(акц,'#000000',.3):смешать(акц,'#ffffff',.2));
+    root.style.setProperty('--accent-800',тёмная?смешать(акц,'#000000',.55):смешать(акц,'#ffffff',.78));
+  } else for(const v of оттенки) root.style.removeProperty(v);
+  // форма и типографика
+  const рад=+prefGet('radius'); root.style.setProperty('--radius',рад+'px'); root.style.setProperty('--radius-sm',Math.max(0,Math.round(рад*0.75))+'px');
+  const ШРИФТЫ={sans:'var(--sans)',humanist:'"Segoe UI","Noto Sans","Open Sans","Helvetica Neue",Arial,sans-serif',
+    readable:'Verdana,"DejaVu Sans","Tahoma",sans-serif',serif:'Georgia,"Noto Serif","Times New Roman",serif',mono:'var(--mono)'};
+  root.style.setProperty('--ui-font',ШРИФТЫ[prefGet('uiFont')]||ШРИФТЫ.sans);
+  root.style.setProperty('--read-w',({narrow:'620px',norm:'760px',wide:'960px',full:'none'})[prefGet('readW')]||'760px');
+  root.style.setProperty('--lh',String(prefGet('lineH')||1.65));
+  root.dataset.shadows=prefGet('shadows')||'soft';
+  root.dataset.btnstyle=prefGet('btnStyle')||'fill';
+  const движ=prefGet('motion');
+  root.dataset.motion = движ==='auto' ? (matchMedia('(prefers-reduced-motion: reduce)').matches?'calm':'full') : (движ||'full');
+  root.dataset.ripple = prefGet('ripple')===false ? '0' : '1';
+  root.dataset.labels = prefGet('labels')||'auto';
+  // цвета двух рядов на графиках
+  const ГП={cb:['#0072b2','#e69f00'],vivid:['#e6194b','#3cb44b']}[prefGet('graphPal')];
+  if(ГП){ root.style.setProperty('--g1',ГП[0]); root.style.setProperty('--g2',ГП[1]); }
+  else { root.style.removeProperty('--g1'); root.style.removeProperty('--g2'); }
   /* Кастомизация окружения: стиль фона, насыщенность сетки, шрифт и кегль
      подписей, размер стрелок, прозрачность панелей и сторона панели
      инструментов. Всё через data-атрибуты и CSS-переменные, поэтому подхваты-
@@ -4859,7 +5208,7 @@ function applySettings(){
 
 $$('#pvhead').onclick=()=>{ $('#pvbox').classList.toggle('collapsed'); $('#pvtoggle').textContent=$('#pvbox').classList.contains('collapsed')?'▸':'▾'; };
 
-const KEYS=[['Ctrl + P','Командная палитра: темы, симуляции, команды'],
+const KEYS=[['Ctrl + M','Мой путь: повторение, карта тем, диагностика, навыки'],['Ctrl + P','Командная палитра: темы, симуляции, команды'],
  ['Ctrl + Shift + P','Палитра: только команды'],
  ['Ctrl + D','Снимок показаний для сравнения'],['S','Закладка на тему'],['F11','Режим окна: окно → весь экран → весь экран в окне'],
  ['J','Симуляция в избранное'],['Ctrl + L','Зациклить проигрывание'],
@@ -4887,6 +5236,8 @@ addEventListener('keydown',e=>{
   // палитра перехватывает клавиатуру целиком (её поле слушает отдельно)
   const ck=document.getElementById('cmdk');
   if(ck && !ck.classList.contains('hidden')) return;
+  // «Мой путь» поверх всего: клавиши сцены под ним не работают
+  if(typeof путьОткрыт==='function'&&путьОткрыт()&&!(e.ctrlKey||e.metaKey)) return;
   const t=e.target, typing=/INPUT|SELECT|TEXTAREA/.test(t.tagName)||t.isContentEditable;
   const C=e.code, mod=e.ctrlKey||e.metaKey;                 // e.code не зависит от раскладки
   // настройки открыты — гасим все прочие сочетания, чтобы не управлять сценой вслепую
@@ -4895,6 +5246,7 @@ addEventListener('keydown',e=>{
   if(mod&&C==='KeyP'){ e.preventDefault(); cmdkOpen(e.shiftKey?'>':''); return; }
   if(mod&&C==='KeyD'){ e.preventDefault(); takeSnapshot(); return; }
   if(mod&&C==='KeyE'){ e.preventDefault(); вычислительОткрыт()?закрытьВычислитель():открытьВычислитель(); return; }
+  if(mod&&C==='KeyM'&&typeof открытьПуть==='function'){ e.preventDefault(); путьОткрыт()?закрытьПуть():открытьПуть(); return; }
   if(mod&&C==='KeyL'){ e.preventDefault(); $('#tl-loop').click(); return; }
   if(mod&&C==='Comma'){ e.preventDefault(); prefsOpen? closePrefs() : openPrefs(); return; }
   if(prefsOpen){ if(e.key==='Escape'){ e.preventDefault(); closePrefs(); } return; }
@@ -5226,6 +5578,11 @@ function resetPanels(){
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
+  {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
+  {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
+  {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
+  {k:'Мой путь',t:'Тренажёр навыков: ремонт типовых ошибок',run:()=>открытьПуть('skills')},
+  {k:'Мой путь',t:'От вопроса: почему небо голубое и другие',run:()=>открытьПуть('ask')},
   {k:'Вычислитель',t:'Вычислитель: счёт с единицами', hint:'Ctrl+E', run:()=>открытьВычислитель({вкладка:'expr'})},
   {k:'Вычислитель',t:'Решить формулу курса относительно величины', run:()=>открытьВычислитель({вкладка:'form'})},
   {k:'Симуляция',t:'Пуск / пауза',       hint:'Space', run:()=>$('#btn-play').click()},
@@ -6836,6 +7193,7 @@ function решитьФормулуКурса(тема,i){
   if(f) открытьВычислитель({формула:f});
 }
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&typeof путьОткрыт==='function'&&путьОткрыт()&&!приёмОткрыт()){ e.preventDefault(); e.stopPropagation(); закрытьПуть(); return; }
   if(e.key==='Escape'&&вычислительОткрыт()&&!приёмОткрыт()){ e.preventDefault(); e.stopPropagation(); закрытьВычислитель(); }
 },true);
 $$('#btn-calc').onclick=()=>вычислительОткрыт()?закрытьВычислитель():открытьВычислитель();
@@ -6856,6 +7214,8 @@ $$('#mi-calc').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); откр
    тему, на которой упали. */
 function запуск(){
   applySettings();
+  if(typeof подключитьПуть==='function') try{ подключитьПуть(); }catch(e){ console.error('Мой путь не подключился',e); }
+  try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   // дальше applySettings вызывается уже по действию пользователя
   S.__ready=true;
   setTool('pan'); renderTree(); renderParams();
@@ -6886,5 +7246,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '1.9.0';
+window.PHYSIM_BUILD = '2.0.0';
 window.PHYSIM_READY = true;

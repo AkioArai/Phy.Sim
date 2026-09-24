@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.9.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.9.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.9.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.9.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-2.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-2.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-2.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-2.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -86,6 +86,9 @@ KaTeX and its fonts ship inside the repository.
 
 |  |  |
 |---|---|
+| **My path** | the handbook remembers what you solved and when: a map of all topics and what each stands on, a 12-problem diagnostic, spaced review, and a trainer for the skill behind your mistakes |
+| **why the answer is wrong** | a wrong answer is checked against the answers that typical slips produce — sin for cos, degrees in radian mode, centimetres left unconverted, forgotten friction, a lost sign — and the slip is named |
+| **40** questions to start from | "why doesn't a satellite fall?" — each opens the topic and the simulation where you can see the answer |
 | **76** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear |
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
@@ -103,8 +106,63 @@ KaTeX and its fonts ship inside the repository.
 | **83** self-checks | three questions per topic, answers hidden until you have tried |
 | **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
-| **57** settings | theme, density, scene decorations, performance, recording |
+| **70** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### My path: a course that knows where you are
+
+Someone learning alone has no one to say what they don't know, why an answer is
+wrong, or when it is time to go back. **My path** (the button in the top bar, Ctrl+M)
+does those three things, with nothing leaving the device.
+
+- **Map.** All 27 topics laid out by what stands on what, each coloured by its state:
+  not started, in progress, mastered, due for review, in trouble. Topics whose every
+  prerequisite you have mastered are outlined — that is where you can go next. Pick a
+  topic and the map names exactly which prerequisites are not there yet.
+- **Diagnostic.** Twelve problems, one from each key topic from kinematics to quanta,
+  with fresh numbers and a "Given" list. At the end it tells you where to start: the
+  earliest failed topic that has no failed prerequisites of its own — fix that one and
+  the others follow.
+- **Today.** Mastered topics come back for review after 2, 5, 12, 28, 60 and 120 days;
+  each review is one problem with new numbers, and a miss brings the topic back
+  tomorrow. Below: skills to repair, topics where you are stuck and what is blocking
+  them, and what to learn next.
+- **Why the answer is wrong.** A wrong answer is compared with the answers typical slips
+  produce, computed by the problem's own answer function with "spoiled" inputs: the
+  angle measured from the other axis (sin for cos), degrees fed to a calculator in
+  radian mode, centimetres or grams plugged in unconverted, a forgotten ×10²⁴, friction
+  left out, two quantities swapped, a checkbox of the model ignored — and, from the
+  number itself, a lost sign, a lost prefix, a lost ½ or 2π, g = 10 instead of 9.8. It
+  needs no per-problem markup, so it works for all 384 problems. `npm run learn`
+  reproduces 490 such slips across 158 problems and requires every one to be named,
+  the correct answer never to be called a slip, and a random wrong number to get an
+  explanation less than 10 % of the time (it is 1.8 %).
+- **Skills.** Each slip belongs to one of ten skills — projections, radians, units,
+  signs, numerical factors, powers, constants, reading the condition, the model, the
+  forces. A skill has a short explanation, a rule to keep in front of you, a link to
+  its technique in the reference, and a trainer with random numbers: five right in a
+  row and the skill counts as repaired.
+- **From a question.** Forty questions — why the sky is blue, why a satellite does not
+  fall, how carbon dating works — each opening its topic and simulation.
+
+There are no points, streaks or badges. Someone who opened a physics textbook on
+their own already has the motivation; the job is not to waste it.
+
+### Make it yours
+
+Settings open on **Main**: themes as live preview cards (light, dark, system, paper,
+mint, nord, midnight for OLED, high contrast), ten accent colours or any colour you
+pick — the text, fill and border shades are derived from it — text size, density,
+animation level, button labels and style, corner radius. **Profiles** apply a set of
+settings in one tap (Projector, Reading, Evening, Economy) and remember how it was,
+so you can go back; your own profile can be saved and passed to someone else as a
+short `PHYSIM1:` code. Short option lists are now segmented buttons, not drop-downs;
+each section shows how many of its settings you have changed.
+
+Buttons lift under the cursor, press in, and send a ripple from the point you touched;
+menus, dialogs and panels slide in; hover hints appear at once and show the keyboard
+shortcut. All of it follows the device's "reduce motion" setting and can be calmed or
+switched off.
 
 ### A calculator that knows units
 
@@ -432,6 +490,7 @@ tests/answers.mjs     all 384 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
 tests/calc.mjs        the calculator, and every course formula solved both ways
 tests/graphs.mjs      every graph marked as a derivative of another, checked in numbers
+tests/learn.mjs       the learner model: mastery, map, review, diagnostic, every slip
 tests/compat.js       the engine floor: ES2017, an ES5 watchdog, CSS fallbacks
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
@@ -440,6 +499,8 @@ js/topics.js          course content: notes, derivations, formulas, worked
                       examples, mistakes, self-checks, links, problems
 js/ops.js             the 40 math techniques the derivation steps are tagged with
 js/calc.js            the calculator: units, uncertainty, formula parser and solver
+js/learn.js           the learner model: journal, mastery, review, slips, skills
+js/path.js            the My path panel: today, map, diagnostic, skills, questions
 js/app.js             the core: state, canvases, render loop, the entire UI
 vendor/katex/         KaTeX + fonts, so formulas render without a network
 build-standalone.mjs  bundles everything into one HTML file
@@ -456,7 +517,7 @@ double-clicking on any school computer.
 for the full contract.
 
 **Before releasing**, run all the suites. `npm test` checks the engine floor, the
-calculator and the derivative pairs between graphs, then boots both the source and the bundled single file, runs 300 steps of
+calculator, the derivative pairs between graphs and the learner model, then boots both the source and the bundled single file, runs 300 steps of
 every simulation, checks that no formula overflows its column, and walks the desktop,
 phone and tablet layouts, rotating the tablet. `npm run physics` compares the
 simulations with the textbook, `npm run audit` checks the problems, `npm run

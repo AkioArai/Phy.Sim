@@ -437,11 +437,11 @@ damped:{
     {key:'k',label:'Жёсткость k',unit:'Н/м',min:1,max:400,step:1,default:40},
     {key:'b',label:'Коэффициент трения b',unit:'кг/с',min:0,max:20,step:0.05,default:0.6},
 
-    {type:'group',label:'Свободные колебания'},
+    {type:'group',label:'Свободные колебания',если:p=>p.mode==='free'},
     {key:'x0',label:'Начальное отклонение',unit:'м',min:-3,max:3,step:0.05,default:1.5},
     {key:'v0',label:'Начальная скорость',unit:'м/с',min:-10,max:10,step:0.1,default:0},
 
-    {type:'group',label:'Вынужденная сила'},
+    {type:'group',label:'Вынужденная сила',если:p=>p.mode==='driven'},
     {key:'F0',label:'Амплитуда силы F₀',unit:'Н',min:0,max:100,step:0.5,default:10},
     {key:'w', label:'Частота силы ω',unit:'рад/с',min:0.2,max:30,step:0.05,default:6.3},
 

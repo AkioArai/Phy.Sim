@@ -62,7 +62,7 @@ kin1d:{
     {key:'v01',label:'Начальная скорость v₀',  unit:'м/с', min:-100,max:100,step:0.5,default:20},
     {key:'a1', label:'Ускорение a',            unit:'м/с²',min:-50, max:50, step:0.1,default:-9.8},
 
-    {type:'group',label:'Тело 2'},
+    {type:'group',label:'Тело 2',если:p=>p.bodies==='2'},
     {key:'x02',  label:'Начальная координата x₀',unit:'м',   min:-500,max:500,step:0.5,default:0},
     {key:'v02',  label:'Начальная скорость v₀',  unit:'м/с', min:-100,max:100,step:0.5,default:20},
     {key:'a2',   label:'Ускорение a',            unit:'м/с²',min:-50, max:50, step:0.1,default:-9.8},
@@ -281,7 +281,7 @@ proj2d:{
     {key:'v01',label:'Начальная скорость v₀',  unit:'м/с',min:0,    max:400, step:0.5,default:25},
     {key:'a01',label:'Угол броска θ',          unit:'°',  min:0,    max:360, step:1,  default:45},
 
-    {type:'group',label:'Тело 2'},
+    {type:'group',label:'Тело 2',если:p=>p.bodies==='2'},
     {key:'x02',  label:'Начальная координата x₀',unit:'м',  min:-1000,max:1000,step:0.5,default:40},
     {key:'y02',  label:'Начальная высота y₀',    unit:'м',  min:0,    max:1000,step:0.5,default:25},
     {key:'v02',  label:'Начальная скорость v₀',  unit:'м/с',min:0,    max:400, step:0.5,default:0},
@@ -812,13 +812,13 @@ newton2:{
     {key:'v1',label:'Скорость v₀',unit:'м/с',min:-50,max:50,step:0.1,default:0},
     {key:'r1',label:'Шероховатое (трение о поверхность)',type:'check',default:true},
 
-    {type:'group',label:'Тело 2'},
+    {type:'group',label:'Тело 2',если:p=>(p.n|0)>=2},
     {key:'m2',label:'Масса m₂',unit:'кг',min:0.1,max:2000,step:0.1,default:5},
     {key:'x2',label:'Координата x₀',unit:'м',min:-50,max:50,step:0.1,default:8},
     {key:'v2',label:'Скорость v₀',unit:'м/с',min:-50,max:50,step:0.1,default:0},
     {key:'r2',label:'Шероховатое',type:'check',default:true},
 
-    {type:'group',label:'Тело 3'},
+    {type:'group',label:'Тело 3',если:p=>(p.n|0)>=3},
     {key:'m3',label:'Масса m₃',unit:'кг',min:0.1,max:2000,step:0.1,default:5},
     {key:'x3',label:'Координата x₀',unit:'м',min:-50,max:50,step:0.1,default:16},
     {key:'v3',label:'Скорость v₀',unit:'м/с',min:-50,max:50,step:0.1,default:0},
@@ -833,7 +833,7 @@ newton2:{
     {type:'group',label:'Приложенная сила'},
     {key:'F',      label:'Сила F',unit:'Н',min:0,max:20000,step:1,default:0},
     {key:'alpha',  label:'Угол приложения α',unit:'°',min:-89,max:89,step:1,default:0},
-    {key:'applyTo',label:'К какому телу приложена',min:1,max:3,step:1,default:1},
+    {key:'applyTo',label:'К какому телу приложена',min:1,max:3,step:1,default:1,если:p=>(p.n|0)>=2},
 
     {type:'group',label:'Показывать'},
     {key:'dist',label:'Пройденное расстояние',type:'check',default:true},
@@ -847,13 +847,16 @@ newton2:{
     {key:'tStop',   label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   N(p){ return Math.min(3,Math.max(1,p.n|0)); },
+  /* к какому телу приложена сила: номер больше числа тел — последнее тело,
+     иначе при n = 1 и «телу 2» сила молча пропадала бы */
+  цель(p){ return Math.min(this.N(p),Math.max(1,p.applyTo|0)); },
   rough(p,i){ return [p.r1,p.r2,p.r3][i]; },
   mass(p,i){ return [p.m1,p.m2,p.m3][i]; },
   half(p,i){ return 0.25+0.12*Math.cbrt(this.mass(p,i)/10); },
   warn(p){
     if(p.mud>p.mus) return 'μd > μs: трение скольжения не может быть больше трения покоя.';
     const al=p.alpha*Math.PI/180;
-    if(p.F*Math.sin(al)>=this.mass(p,p.applyTo-1)*p.g && p.F>0)
+    if(p.F*Math.sin(al)>=this.mass(p,this.цель(p)-1)*p.g && p.F>0)
       return 'Вертикальная составляющая силы больше веса: тело отрывается от поверхности.';
     if(this.N(p)>1){
       const xs=[p.x1,p.x2,p.x3].slice(0,this.N(p));
@@ -882,7 +885,7 @@ newton2:{
       /* --- независимые тела на поверхности + удары --- */
       for(let i=0;i<n;i++){
         const b=s.b[i], m=this.mass(p,i);
-        const mine=(p.applyTo===i+1);
+        const mine=(this.цель(p)===i+1);
         const fx=mine?Fx:0, fy=mine?Fy:0;
         const N=Math.max(0,m*g-fy);
         const muS=this.rough(p,i)?p.mus:0, muD=this.rough(p,i)?p.mud:0;
@@ -1036,7 +1039,7 @@ newton2:{
           v.label(ctx,`s${'₁₂₃'[i]} = ${b.path.toFixed(2)} м`+(same?'':` (смещение ${dx.toFixed(2)} м)`),
             (b.x0+b.x)/2,yd,-30,-9,cols[i%3]);
         }
-        if(p.fbd && p.applyTo===i+1){
+        if(p.fbd && this.цель(p)===i+1){
           const F=[{fx:0,fy:-this.mass(p,i)*p.g,label:'Fg',color:v.c('--ink-2')},
                    {fx:0,fy:b.N,label:'N',color:v.c('--second')},
                    {fx:b.fr,fy:0,label:'Fтр',color:v.c('--measure')}];

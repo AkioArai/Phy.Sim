@@ -801,7 +801,7 @@ async function сторож(b) {
     });
     ok('меню сцены разложено по вкладкам',
         menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
-        && menu.обычная.сцена.length === 5 && menu.обычная.ещё.length === 5
+        && menu.обычная.сцена.length === 5 && menu.обычная.ещё.length === 6 && menu.обычная.ещё.includes('Мой путь')
         && menu.всего > menu.обычная.сцена.length, menu.обычная);
     ok('конструктор получает свою вкладку и открывает её сразу',
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
@@ -1095,6 +1095,147 @@ async function сторож(b) {
     const сброс = await p.evaluate(() => { restart(A()); drawGraphs(); return document.querySelector('#g-an').innerText; });
     ok('сброс симуляции снимает разбор', /Коснитесь графика/.test(сброс), сброс);
 
+    /* ============ 2.0.0 ============ */
+    /* «Второй закон»: число тел задаёт n, поля bodies там нет. Группа
+       «Тело 2» была зашита под bodies и не показывалась никогда. */
+    await p.evaluate(() => { openTopic('mech.dyn'); openSim('newton2'); });
+    const группыТел = () => p.evaluate(() => [...document.querySelectorAll('#params .pg-h span')].map(x => x.textContent).filter(x => /^Тело/.test(x)).join());
+    const полеN = p.locator('#params .param[data-key="n"] input');
+    await полеN.fill('3'); await полеN.press('Enter'); await p.waitForTimeout(150);
+    const три = await группыТел();
+    await полеN.fill('1'); await полеN.press('Enter'); await p.waitForTimeout(150);
+    const одно = await группыТел();
+    await полеN.fill('2'); await полеN.press('Enter'); await p.waitForTimeout(150);
+    ok('динамика: при трёх телах видны параметры всех трёх, при одном — только первого',
+      три === 'Тело 1,Тело 2,Тело 3' && одно === 'Тело 1' && (await группыТел()) === 'Тело 1,Тело 2', { три, одно });
+
+    /* «Мой путь»: кнопка, пять вкладок, карта из 27 тем, Esc закрывает */
+    await p.evaluate(() => { localStorage.removeItem('physim.journal'); журналУч = null; });
+    await p.click('#btn-path'); await p.waitForTimeout(350);
+    const путьВид = await p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      const r = { открыт: путьОткрыт(), вкладки: [...document.querySelectorAll('#path [data-pt]')].map(b => b.textContent) };
+      r.старт = !!document.querySelector('#path .pt-start');
+      document.querySelector('#path [data-pt="map"]').click(); await жди(150);
+      r.узлов = document.querySelectorAll('#path .pm-n').length;
+      r.фронт = [...document.querySelectorAll('#path .pm-n.front')].map(g => g.dataset.id);
+      document.querySelector('#path .pm-n[data-id="mech.dyn"]').dispatchEvent(new MouseEvent('click', { bubbles: true })); await жди(100);
+      r.карточка = (document.querySelector('#pm-card') || {}).textContent || '';
+      document.querySelector('#path [data-pt="ask"]').click(); await жди(100);
+      r.вопросов = document.querySelectorAll('#path .aq-i').length;
+      return r;
+    });
+    await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+    const закрылся = await p.evaluate(() => !путьОткрыт());
+    ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
+      путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
+      путьВид.узлов === 27 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.вопросов >= 36 && закрылся, путьВид);
+
+    /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
+    const веер = await p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      for (const t of ALL) for (const [i, pr] of (t.problems || []).entries()) {
+        if (!pr.sim || !SIMS[pr.sim]) continue;
+        const P = rt(pr.sim).params, def = SIMS[pr.sim];
+        const q = def.params.find(q => answerParams(pr, P).includes(q.key) && q.unit === '°' && P[q.key] !== 45 && P[q.key] !== 0);
+        if (!q) continue;
+        let v; try { v = pr.answer(Object.assign({}, P, { [q.key]: 90 - P[q.key] })); } catch (e) { continue; }
+        if (!isFinite(v) || Math.abs(v - pr.answer(P)) <= Math.abs(pr.answer(P)) * 0.02) continue;
+        openTopic(t.id); document.querySelector('#tabs button[data-tab="problems"]').click(); await жди(150);
+        const el = document.querySelector(`#pane .problem[data-i="${i}"]`);
+        el.querySelector('input').value = String(v); el.querySelector('.check').click(); await жди(80);
+        const з = журнал().задачи[идЗадачи(t, pr)];
+        return { тема: t.id, вердикт: el.querySelector('.verdict').textContent, разбор: (el.querySelector('.pr-fan') || {}).textContent || '',
+          кнопка: !!el.querySelector('.pr-fan-go'), записано: !!з && з.п.length === 1 && з.п[0][2] === 'sin-cos',
+          полоса: (document.querySelector('#t-path') || {}).textContent || '' };
+      }
+      return null;
+    });
+    ok('неверный ответ: «похоже, перепутаны sin и cos», попытка в журнале, полоса темы обновилась',
+      веер && /sin и cos/.test(веер.разбор) && веер.кнопка && веер.записано && /в работе|трудности/.test(веер.полоса), веер);
+
+    /* Диагностика целиком: двенадцать «не знаю» → совет начать с 1D */
+    const диагн = await p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      localStorage.removeItem('physim.diagRun'); диаг = null;
+      открытьПуть('diag'); await жди(100);
+      document.querySelector('#dg-go').click(); await жди(80);
+      let n = 0;
+      while (document.querySelector('#path .pc-skip') && n < 20) {
+        document.querySelector('#path .pc-skip').click(); await жди(30);
+        document.querySelector('#path .pc-nextbtn').click(); await жди(30); n++;
+      }
+      const r = { задач: n, итог: (document.querySelector('#path .dg-res') || {}).textContent || '', хранится: !!журнал().диагн };
+      закрытьПуть(); return r;
+    });
+    ok('диагностика: 12 задач и совет начать с «Одномерного движения»',
+      диагн.задач === 12 && /Начните с темы «Одномерное движение»/.test(диагн.итог) && диагн.хранится, диагн);
+
+    /* Тренажёр навыка: пять верных подряд чинят его */
+    const трен = await p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      открытьПуть('skills', { навык: 'знак' }); await жди(100);
+      for (let k = 0; k < 5; k++) {
+        const inp = document.querySelector('#sk-train input');
+        inp.value = String(тренажёр.упр.ответ).replace('.', ',');
+        document.querySelector('#sk-train .sk-check').click(); await жди(40);
+        if (k < 4) { document.querySelector('#sk-train .sk-check').click(); await жди(40); }
+      }
+      const r = { починен: !!(document.querySelector('#sk-train .sk-fixed')), журнал: журнал().тренажёр['знак'] };
+      закрытьПуть(); return r;
+    });
+    ok('тренажёр: пять верных подряд — навык починен', трен.починен && трен.журнал.верно === 5, трен);
+
+    /* «От вопроса» открывает тему и симуляцию */
+    const вопрос = await p.evaluate(async () => {
+      открытьПуть('ask'); await new Promise(r => setTimeout(r, 100));
+      const b = [...document.querySelectorAll('#path .aq-i')].find(x => x.dataset.s === 'orbit'); b.click();
+      await new Promise(r => setTimeout(r, 200));
+      return { тема: S.topic.id, сим: S.active, закрыт: !путьОткрыт() };
+    });
+    ok('«От вопроса»: «Почему спутник не падает?» ведёт в гравитацию и орбиту', вопрос.тема === 'mech.grav' && вопрос.сим === 'orbit' && вопрос.закрыт, вопрос);
+
+    /* Настройки: карточка темы, код обмена туда и обратно, профиль с возвратом */
+    const настр = await p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      const было = JSON.stringify(S.settings);
+      openPrefs('quick'); await жди(100);
+      document.querySelector('[data-theme-id="oled"]').click(); await жди(50);
+      const r = { палитра: document.documentElement.dataset.palette, тон: document.documentElement.dataset.theme };
+      document.querySelector('[data-acc="teal"]').click(); await жди(50);
+      r.акцент = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      r.оттенок = getComputedStyle(document.documentElement).getPropertyValue('--accent-300').trim();
+      const код = кодНастроек(); r.код = /^PHYSIM1:/.test(код);
+      S.settings = JSON.parse(было); applySettings();
+      r.обратно = разобратьКод(код);
+      let чужой = ''; try { разобратьКод('PHYSIM1:' + btoa('{"fs":"<img>","palette":"virus","theme":"dark"}')); } catch (e) { чужой = e.message; }
+      r.чужой = разобратьКод('PHYSIM1:' + btoa('{"fs":"<img>","palette":"virus","theme":"dark"}'));
+      openPrefs('quick'); await жди(50);
+      document.querySelector('[data-prof="0"]').click(); await жди(50);
+      r.проектор = prefGet('fs') === 15 && prefGet('palette') === 'contrast';
+      document.querySelector('#q-undo').click(); await жди(50);
+      r.вернули = prefGet('palette') === JSON.parse(было).palette || prefGet('palette') === 'std';
+      r.сегменты = document.querySelectorAll('#prefs-body .seg').length;
+      closePrefs(); S.settings = JSON.parse(было); applySettings();
+      return r;
+    });
+    ok('настройки: тема карточкой, производные оттенки акцента, код обмена, профиль и «вернуть как было»',
+      настр.палитра === 'oled' && настр.тон === 'dark' && настр.акцент === '#0d9488' && настр.оттенок && настр.оттенок !== '#d2cefd' &&
+      настр.код && настр.обратно.palette === 'oled' && настр.обратно.accent === 'teal' &&
+      настр.чужой.theme === 'dark' && !('fs' in настр.чужой) && !('palette' in настр.чужой) &&
+      настр.проектор && настр.вернули && настр.сегменты >= 4, настр);
+
+    /* журнал сливается из файла, а не затирается */
+    const слияние = await p.evaluate(() => {
+      const ж = журнал(), n0 = Object.keys(ж.задачи).length;
+      const чужой = УЧ.новыйЖурнал();
+      УЧ.записатьПопытку(чужой, { тема: 'mech.1d', задача: 'чужая#1', уровень: 2, ok: true, t: 1 });
+      слитьЖурнал(JSON.parse(JSON.stringify(чужой)));
+      return { было: n0, стало: Object.keys(журнал().задачи).length };
+    });
+    ok('прогресс из файла сливается с текущим', слияние.стало === слияние.было + 1, слияние);
+
     await p.close();
 
     // --- телефон ---
@@ -1268,7 +1409,7 @@ async function сторож(b) {
     const вычТел = await m.p.evaluate(async () => {
       const жди = ms => new Promise(r => setTimeout(r, ms));
       закрытьПриём();
-      открытьВычислитель({ вкладка: 'expr' }); await жди(200);
+      открытьВычислитель({ вкладка: 'expr' }); await жди(450);   // панель въезжает снизу за 0,32 с
       const c = document.querySelector('#calc').getBoundingClientRect();
       const вход = document.querySelector('#calc-in');
       вход.value = '72 км/ч в м/с'; вход.dispatchEvent(new Event('input')); await жди(200);
@@ -1296,6 +1437,27 @@ async function сторож(b) {
       return { текст: box.innerText.replace(/\s+/g, ' '), виден: r.height > 0 && r.top < innerHeight && r.bottom > 0 };
     });
     ok('на телефоне касание графика даёт касательную и сверку', графТел.виден && /Касательная в момент/.test(графТел.текст) && /совпадает/.test(графТел.текст), графТел);
+
+    /* 2.0.0 на телефоне: «Мой путь» во весь экран; закрытие сцены
+       возвращает конспект (раньше при закрытии не через кнопку оставался
+       пустой белый экран) */
+    const путьТел = await m.p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      открытьПуть('today'); await жди(400);
+      const b = document.querySelector('#path .path-box').getBoundingClientRect();
+      const r = { весь: Math.round(b.width) === innerWidth && Math.round(b.height) >= innerHeight - 2, значок: !!document.querySelector('#m-path') };
+      document.querySelector('#path [data-pt="map"]').click(); await жди(200);
+      const svg = document.querySelector('#path svg.pm').getBoundingClientRect();
+      r.картаВлезла = svg.width <= innerWidth;
+      закрытьПуть();
+      openTopic('mech.dyn'); openSim('newton2'); openSimMobile(); await жди(200);
+      closeSimMobile(); await жди(300);
+      const c = document.querySelector('#content').getBoundingClientRect();
+      r.конспект = c.height > 300 && getComputedStyle(document.querySelector('#content')).display !== 'none';
+      return r;
+    });
+    ok('телефон: «Мой путь» во весь экран, карта в ширину экрана, после закрытия сцены виден конспект',
+      путьТел.весь && путьТел.значок && путьТел.картаВлезла && путьТел.конспект, путьТел);
     ok('на телефоне карточка приёма — нижний лист поверх панелей',
       приёмТел.лист && приёмТел.отступСнизу === 0 && приёмТел.воВсюШирину &&
       приёмТел.поверх && приёмТел.высота <= приёмТел.экран * 0.8, приёмТел);
