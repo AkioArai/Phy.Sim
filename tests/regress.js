@@ -1043,6 +1043,58 @@ async function сторож(b) {
     ok('ответ задачи с единицами переводится, не та размерность названа',
       /верно/.test(выч.сЕдиницами) && /размерность не та/.test(выч.неТа), { сЕдиницами: выч.сЕдиницами, неТа: выч.неТа, единица: выч.единица });
 
+    /* ПРОИЗВОДНАЯ И ИНТЕГРАЛ НА ГРАФИКАХ. Числа сверяет tests/graphs.mjs;
+       здесь — что настоящий щелчок и протяжка мышью по холсту доходят до
+       разбора. Историю набираем шагами расчёта, а не ожиданием: так
+       быстрее и одинаково на любой машине. */
+    const набрать = async (тема, сим, секунд) => {
+      await p.evaluate(([тема, сим, секунд]) => {
+        openTopic(тема); openSim(сим); S.playing = false;
+        const a = A();
+        for (let k = 0; k < секунд / DT; k++) { a.def.step(a.state, DT, a.params); if (++a.tick % 6 === 0) record(a); }
+        drawGraphs();
+      }, [тема, сим, секунд]);
+      await p.waitForTimeout(100);
+    };
+    const холст = async n => { const c = (await p.$$('#gbox canvas.gcv'))[n]; await c.scrollIntoViewIfNeeded(); return c.boundingBox(); };
+    const разбор = () => p.evaluate(() => document.querySelector('#g-an').innerText.replace(/\s+/g, ' '));
+    await набрать('mech.1d', 'kin1d', 3);
+    const подсказка = await разбор();
+    let r = await холст(0);
+    await p.mouse.click(r.x + r.width * 0.55, r.y + r.height / 2); await p.waitForTimeout(150);
+    const касательная = await разбор();
+    r = await холст(1);
+    await p.mouse.move(r.x + r.width * 0.2, r.y + r.height / 2); await p.mouse.down();
+    await p.mouse.move(r.x + r.width * 0.8, r.y + r.height / 2, { steps: 8 }); await p.mouse.up();
+    await p.waitForTimeout(150);
+    const площадь = await разбор();
+    ok('касание графика x(t): наклон сверен с v(t)',
+      /Коснитесь графика/.test(подсказка) && /Касательная в момент/.test(касательная) &&
+      /Наклон графика «x\(t\)»: [\d,−-]+ м\/с\. График «v\(t\)» в этот же момент: [\d,−-]+ м\/с — совпадает/.test(касательная), { подсказка, касательная });
+    ok('протяжка по графику v(t): площадь сверена с изменением x(t)',
+      /Площадь под графиком «v\(t\)»: [\d,−-]+ м\. Изменение величины «x\(t\)» за это время: [\d,−-]+ м — совпадает/.test(площадь), площадь);
+    await набрать('mech.osc', 'pendulum', 3);
+    r = await холст(0);
+    await p.mouse.click(r.x + r.width * 0.4, r.y + r.height / 2); await p.waitForTimeout(150);
+    const маятник = await разбор();
+    ok('угол в градусах против угловой скорости в рад/с — через вычислитель', /рад\/с — совпадает/.test(маятник), маятник);
+    await набрать('em.induction', 'lenz', 3);
+    const ленц = await p.evaluate(() => {
+      const a = A(); if (!a || a.def !== SIMS.lenz) return 'нет симуляции';
+      // момент большой ЭДС, где сверка не вырождается в «0 = 0», — и не на
+      // ступеньке: поток через рамку кусочно-линейный, на изломе наклон по
+      // точкам неточен (и текст это признаёт), а на полке он точен
+      const H = a.hist, э = k => H[k].v[1][0], ровно = k => [-3, -2, -1, 1, 2, 3].every(d => Math.abs(э(k + d) - э(k)) < 0.05 * Math.abs(э(k)));
+      let i = -1;
+      for (let k = 4; k < H.length - 4; k++) if (ровно(k) && (i < 0 || Math.abs(э(k)) > Math.abs(э(i)))) i = k;
+      if (i < 0) return 'нет полки ЭДС';
+      анализ = { вид: 'касательная', t1: H[i].t, g: 0 }; drawGraphs();
+      return document.querySelector('#g-an').innerText.replace(/\s+/g, ' ');
+    });
+    ok('ЭДС = −dΦ/dt: наклон берётся с минусом', /взятый с минусом: [\d,−-]*[1-9]/.test(ленц) && /совпадает/.test(ленц), ленц);
+    const сброс = await p.evaluate(() => { restart(A()); drawGraphs(); return document.querySelector('#g-an').innerText; });
+    ok('сброс симуляции снимает разбор', /Коснитесь графика/.test(сброс), сброс);
+
     await p.close();
 
     // --- телефон ---
@@ -1227,6 +1279,23 @@ async function сторож(b) {
       return r;
     });
     ok('на телефоне вычислитель во весь экран поверх панелей', вычТел.во_весь_экран && вычТел.поверх && вычТел.ответ === '20 м/с', вычТел);
+
+    /* касание графика пальцем на телефоне: разбор появляется под графиками */
+    await m.p.evaluate(() => {
+      openTopic('mech.osc'); openSim('spring'); openSimMobile(); S.playing = false;
+      const a = A();
+      for (let k = 0; k < 3 / DT; k++) { a.def.step(a.state, DT, a.params); if (++a.tick % 6 === 0) record(a); }
+      setSheetTab('params'); setDetent('full'); drawGraphs();
+      document.querySelector('#gbox canvas.gcv').scrollIntoView({ block: 'center' });
+    });
+    await m.p.waitForTimeout(400);
+    const гк = await (await m.p.$('#gbox canvas.gcv')).boundingBox();
+    await m.p.touchscreen.tap(гк.x + гк.width * 0.5, гк.y + гк.height / 2); await m.p.waitForTimeout(400);
+    const графТел = await m.p.evaluate(() => {
+      const box = document.querySelector('#g-an'), r = box.getBoundingClientRect();
+      return { текст: box.innerText.replace(/\s+/g, ' '), виден: r.height > 0 && r.top < innerHeight && r.bottom > 0 };
+    });
+    ok('на телефоне касание графика даёт касательную и сверку', графТел.виден && /Касательная в момент/.test(графТел.текст) && /совпадает/.test(графТел.текст), графТел);
     ok('на телефоне карточка приёма — нижний лист поверх панелей',
       приёмТел.лист && приёмТел.отступСнизу === 0 && приёмТел.воВсюШирину &&
       приёмТел.поверх && приёмТел.высота <= приёмТел.экран * 0.8, приёмТел);

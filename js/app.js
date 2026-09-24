@@ -915,19 +915,23 @@ function buildGraphs(){
       <span class="lg"><span class="sw" style="background:var(--accent)"></span>${names[0]}</span>
       ${show2?`<span class="lg"><span class="sw" style="background:var(--second)"></span>${names[1]}</span>`:''}`;
     const c=document.createElement('canvas');
+    c.className='gcv'; c.dataset.g=i;
     box.append(t,c); gcanvas.push(c);
+    подключитьАнализ(c);
   });
+  const разбор=document.createElement('div'); разбор.className='g-an'; разбор.id='g-an';
+  box.append(разбор);
+  анализ=null; последнийРазбор='';
   requestAnimationFrame(resize);
 }
 function drawGraphs(){
   const a=A(); if(!a||!S.graphOn||!gcanvas.length) return;
   if(S.settings.graphs===false) return;
-  const H=a.hist; if(H.length<2) return;
+  const H=a.hist; if(H.length<2){ обновитьРазбор(a); return; }   // после сброса снять разбор
   /* Ось времени строится по РЕАЛЬНОМУ диапазону истории, а не от нуля.
      Раньше начало оси было жёстко привязано к t = 0, и стоило первой точке
      истории уехать вперёд, как кривая переставала доставать до левого края. */
-  const t0=H[0].t, tMax=Math.max(H[H.length-1].t,t0+1e-3);
-  const span=Math.max(tMax-t0,1e-3);
+  const {t0,tMax,span}=осьГрафиков(a);
   a.def.graphs.forEach((g,gi)=>{
     const cv=gcanvas[gi], ctx=cv.getContext('2d');
     const W=cv.width/DPR, Hh=cv.height/DPR;
@@ -958,12 +962,232 @@ function drawGraphs(){
         ctx.fillStyle=css('--measure'); ctx.beginPath(); ctx.arc(X(ev.t),Y(ev.x),3.5,0,7); ctx.fill();
       }
     }
+    if(анализ) рисоватьАнализ(ctx,a,gi,X,Y,W,Hh);
     ctx.fillStyle=css('--ink-3'); ctx.font='9px ui-monospace,monospace';
     ctx.fillText(fmt(hi),3,9); ctx.fillText(fmt(lo),3,Hh-3);
     // если начало истории уже не в нуле, честно показываем видимый интервал
     const tlab = t0>0.05 ? `${t0.toFixed(1)}…${tMax.toFixed(1)} c` : `t=${tMax.toFixed(1)} c`;
     ctx.fillText(tlab,W-6-ctx.measureText(tlab).width,Hh-3);
   });
+  обновитьРазбор(a);
+}
+
+/* ------------------ ПРОИЗВОДНАЯ И ИНТЕГРАЛ НА ГРАФИКЕ ------------------
+   Касание графика ставит касательную: её наклон — производная величины в
+   этот момент. Протяжка по графику закрашивает площадь под кривой: она —
+   интеграл, то есть накопленное изменение. Оба приёма из статей курса
+   («Производная», «Интеграл») здесь видны на живой кривой.
+
+   Главное — сверка. У части графиков в симуляциях помечено, чьей
+   производной они являются (поле наклон, при нужде знак: ЭДС = −dΦ/dt).
+   Тогда под графиками написано: «наклон x(t) в момент 1,2 с — 11,8 м/с;
+   график v(t) в этот же момент — 11,8 м/с». То, что в учебнике говорится
+   словами, здесь сходится числами. Связь помечена руками, а не выведена из
+   единиц: у орбиты r(t) и v(t) единицы подходят, но v — не dr/dt.
+
+   Наклон — квадратичная аппроксимация по точкам истории в окне вокруг
+   момента (кривая записывается с шагом 1/40 с), площадь — трапеции.
+   Время касания хранится абсолютным: пауза, прокрутка и прореживание
+   истории его не сбивают; после сброса симуляции разбор снимается. */
+let анализ=null, последнийРазбор='';
+function осьГрафиков(a){
+  const H=a.hist, t0=H[0].t, tMax=Math.max(H[H.length-1].t,t0+1e-3);
+  return {t0,tMax,span:Math.max(tMax-t0,1e-3)};
+}
+function времяПоТочке(cv,clientX){
+  const a=A(); if(!a||!a.hist||a.hist.length<2) return null;
+  const r=cv.getBoundingClientRect(), {t0,span}=осьГрафиков(a);
+  const W=r.width, x=clientX-r.left;
+  return t0+Math.max(0,Math.min(1,(x-2)/(W-4)))*span;
+}
+function подключитьАнализ(c){
+  let тяга=null;
+  c.addEventListener('pointerdown',e=>{
+    const t=времяПоТочке(c,e.clientX); if(t===null) return;
+    тяга={x:e.clientX,t,сдвиг:false};
+    try{ c.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  c.addEventListener('pointermove',e=>{
+    if(!тяга) return;
+    if(Math.abs(e.clientX-тяга.x)>6) тяга.сдвиг=true;
+    if(тяга.сдвиг){ const t=времяПоТочке(c,e.clientX); if(t!==null) анализ={вид:'площадь',t1:тяга.t,t2:t,g:+c.dataset.g}; drawGraphs(); }
+  });
+  const конец=e=>{
+    if(!тяга) return;
+    if(!тяга.сдвиг) анализ={вид:'касательная',t1:тяга.t,g:+c.dataset.g};
+    тяга=null; drawGraphs();
+    // сверка стоит под графиками — показываем её, но только когда палец отпущен:
+    // прокрутка во время протяжки увела бы график из-под пальца
+    const р=document.getElementById('g-an'); if(р&&р.scrollIntoView) р.scrollIntoView({block:'nearest'});
+  };
+  c.addEventListener('pointerup',конец);
+  c.addEventListener('pointercancel',()=>{ тяга=null; });
+}
+/* значение ряда в момент t — линейная интерполяция по истории */
+function значениеВ(H,gi,s,t){
+  let lo=0,hi=H.length-1;
+  if(t<=H[0].t) return H[0].v[gi][s];
+  if(t>=H[hi].t) return H[hi].v[gi][s];
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(H[m].t<=t) lo=m; else hi=m; }
+  const a=H[lo].v[gi][s], b=H[hi].v[gi][s];
+  if(a===null||b===null||!isFinite(a)||!isFinite(b)) return null;
+  return a+(b-a)*(t-H[lo].t)/Math.max(1e-12,H[hi].t-H[lo].t);
+}
+/* Значение и наклон в момент t — по многочлену через 5 ближайших точек
+   истории (формула численного дифференцирования 4-го порядка). Центральная
+   разность по двум соседям при записи раз в 1/40 с ошибается на (ωh)²/6 —
+   на быстрых колебаниях это проценты; многочлен по пяти точкам — сотые
+   доли процента. Значение парного графика берётся тем же многочленом, а не
+   прямой между точками: иначе сравнивались бы разные приближения. */
+function локально(H,gi,s,t,n){
+  n=n||5;
+  let k=0; while(k<H.length-1&&H[k].t<t) k++;
+  let от=Math.max(0,k-(n>>1)); const до=Math.min(H.length-1,от+n-1); от=Math.max(0,до-n+1);
+  const xs=[],ys=[];
+  for(let i=от;i<=до;i++){ const y=H[i].v[gi][s]; if(y===null||!isFinite(y)) return null; xs.push(H[i].t-t); ys.push(y); }
+  const m=xs.length; if(m<2) return null;
+  const h=Math.max(1e-12,(xs[m-1]-xs[0])/(m-1));
+  // Вандермонд в масштабе шага: c0 + c1·u + … , u = (tᵢ − t)/h
+  const M=xs.map((x,i)=>{ const r=[]; let q=1; for(let j=0;j<m;j++){ r.push(q); q*=x/h; } r.push(ys[i]); return r; });
+  for(let c=0;c<m;c++){
+    let piv=c; for(let r=c+1;r<m;r++) if(Math.abs(M[r][c])>Math.abs(M[piv][c])) piv=r;
+    if(!M[piv][c]) return null;
+    const tmp=M[c]; M[c]=M[piv]; M[piv]=tmp;
+    for(let r=0;r<m;r++) if(r!==c){ const f=M[r][c]/M[c][c]; for(let j=c;j<=m;j++) M[r][j]-=f*M[c][j]; }
+  }
+  return { y:M[0][m]/M[0][0], k:M[1][m]/M[1][1]/h };
+}
+function наклонВ(H,gi,s,t){ const л=локально(H,gi,s,t); return л?л.k:null; }
+/* площадь под кривой между t1 и t2 — трапеции, со знаком */
+function площадьВ(H,gi,s,t1,t2){
+  const a=Math.min(t1,t2), b=Math.max(t1,t2);
+  const точки=[[a,значениеВ(H,gi,s,a)]];
+  for(const h of H) if(h.t>a&&h.t<b) точки.push([h.t,h.v[gi][s]]);
+  точки.push([b,значениеВ(H,gi,s,b)]);
+  let S=0;
+  for(let i=1;i<точки.length;i++){
+    const [x0,y0]=точки[i-1],[x1,y1]=точки[i];
+    if(y0===null||y1===null||!isFinite(y0)||!isFinite(y1)) return null;
+    S+=(x1-x0)*(y0+y1)/2;
+  }
+  return t2>=t1?S:-S;
+}
+function рисоватьАнализ(ctx,a,gi,X,Y,W,Hh){
+  const H=a.hist, g=a.def.graphs[gi], ан=анализ;
+  const цвет=s=>s?css('--second'):css('--accent');
+  ctx.save();
+  ctx.strokeStyle=css('--measure'); ctx.lineWidth=1; ctx.setLineDash([2,3]);
+  for(const t of ан.вид==='площадь'?[ан.t1,ан.t2]:[ан.t1]){ ctx.beginPath(); ctx.moveTo(X(t),0); ctx.lineTo(X(t),Hh); ctx.stroke(); }
+  ctx.setLineDash([]);
+  for(let s=0;s<2;s++){
+    if(H[H.length-1].v[gi][s]===null) continue;
+    if(ан.вид==='касательная'){
+      const л=локально(H,gi,s,ан.t1); if(!л) continue;
+      const y=л.y, k=л.k;
+      const dt=(X(ан.t1+1)-X(ан.t1))>0 ? 0.18*W/(X(ан.t1+1)-X(ан.t1)) : 0;
+      ctx.strokeStyle=css('--measure'); ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(X(ан.t1-dt),Y(y-k*dt)); ctx.lineTo(X(ан.t1+dt),Y(y+k*dt)); ctx.stroke();
+      ctx.fillStyle=цвет(s); ctx.beginPath(); ctx.arc(X(ан.t1),Y(y),3.2,0,7); ctx.fill();
+    } else {
+      const a1=Math.min(ан.t1,ан.t2), b1=Math.max(ан.t1,ан.t2);
+      ctx.beginPath(); ctx.moveTo(X(a1),Y(0));
+      const y1=значениеВ(H,gi,s,a1); if(y1!==null) ctx.lineTo(X(a1),Y(y1));
+      for(const h of H) if(h.t>a1&&h.t<b1&&h.v[gi][s]!==null) ctx.lineTo(X(h.t),Y(h.v[gi][s]));
+      const y2=значениеВ(H,gi,s,b1); if(y2!==null) ctx.lineTo(X(b1),Y(y2));
+      ctx.lineTo(X(b1),Y(0)); ctx.closePath();
+      ctx.globalAlpha=0.22; ctx.fillStyle=цвет(s); ctx.fill(); ctx.globalAlpha=1;
+    }
+  }
+  ctx.restore();
+}
+/* Подпись графика без разметки и индексов — для текста разбора. */
+function имяГрафика(g){
+  const t=String(g.label).replace(/<sub>(.*?)<\/sub>/g,'$1');
+  const знак=/^\S+\(t\)/.exec(t);                       // «x(t) — координата» → x(t)
+  if(знак) return знак[0];
+  let и=t.split(/\s+[—=]\s+/)[0].replace(/\s+во времени$/,'').trim();
+  // «Угол» → «угол», но «ЭДС» остаётся ЭДС
+  if(и.length>1&&и[1]!==и[1].toUpperCase()) и=и[0].toLowerCase()+и.slice(1);
+  return и;
+}
+/* Единица наклона и площади: у связанного графика — его единица, иначе
+   «единица/с» и «единица·с» как есть. Единицы графиков в разных единицах
+   (угол в градусах, угловая скорость в рад/с) сверяются через вычислитель. */
+function множительЕдиницы(u){
+  if(!u) return 1;
+  try{ return естьВычислитель()? ВЫЧ.считать('1 '+u).siv : NaN; }catch(_){ return NaN; }
+}
+function обновитьРазбор(a){
+  const box=document.getElementById('g-an'); if(!box) return;
+  const H=a.hist, gs=a.def.graphs, ан=анализ;
+  let html;
+  if(!ан||!H.length||(ан.t1<H[0].t-1e-9)){
+    анализ=null;
+    html=`<span class="g-hint">Коснитесь графика — касательная: её наклон и есть производная.
+      Проведите по графику — площадь под кривой: это интеграл.</span>`;
+  } else {
+    // шум счёта вроде 7·10⁻¹⁶ при нулевом наклоне показываем нулём: мерилом
+    // служит размах самого графика, а не абсолютный порог
+    const размах=gi=>{ let m=0; for(const h of H) for(const y of h.v[gi]) if(y!==null&&isFinite(y)) m=Math.max(m,Math.abs(y)); return m; };
+    const чисто=(v,gi,мера)=>Math.abs(v)<1e-9*размах(gi)*(мера||1)?0:v;
+    const t=v=>ВЫЧ?ВЫЧ.число(v,3):v.toFixed(2);
+    const строки=[];
+    const ряды=gi=>[0,1].filter(s=>H[H.length-1].v[gi][s]!==null).map(s=>({s,имя:(gs[gi].series||[])[s]}));
+    const хвост=(s,gi)=>ряды(gi).length>1?` (${gs[gi].series?gs[gi].series[s]:'тело '+(s+1)})`:'';
+    if(ан.вид==='касательная'){
+      строки.push(`<b>Касательная в момент ${t(ан.t1)} с.</b> Наклон касательной — производная: как быстро величина меняется именно сейчас.`);
+      gs.forEach((g,gi)=>{
+        for(const {s} of ряды(gi)){
+          const k=наклонВ(H,gi,s,ан.t1); if(k===null) continue;
+          // есть ли график, который объявлен производной этого?
+          const j=gs.findIndex(x=>x.наклон===gi);
+          if(j>=0){
+            const gj=gs[j], знак=gj.знак||1;
+            const kSI=k*множительЕдиницы(g.unit), fj=множительЕдиницы(gj.unit);
+            const наклонВЕд=чисто(kSI/fj*знак,j), лу=локально(H,j,s,ан.t1), у=лу?лу.y:null;
+            // у нуля относительная разница ничего не значит: 0,001 против 0,0012 —
+            // это «20 %» — поэтому знаменатель не меньше 5 % размаха графика
+            const расх=у!==null&&isFinite(наклонВЕд)? Math.abs(наклонВЕд-у)/Math.max(Math.abs(у),Math.abs(наклонВЕд),0.05*размах(j),1e-12) : NaN;
+            строки.push(`Наклон графика «<i>${esc(имяГрафика(g))}</i>»${хвост(s,gi)}${знак<0?', взятый с минусом':''}: ${t(наклонВЕд)} ${esc(gj.unit)}. `+
+              `График «<i>${esc(имяГрафика(gj))}</i>» в этот же момент: ${у===null?'—':t(у)} ${esc(gj.unit)}`+
+              (isFinite(расх)?(расх<0.03?` — <span class="g-ok">совпадает</span>${расх>0.001?` (расхождение ${ВЫЧ.число(расх*100,2)} %)`:''}.`:` — расхождение ${ВЫЧ.число(расх*100,2)} %: здесь кривая меняется резче, чем записываются её точки (раз в 1/40 с), и наклон по ним неточен. Возьмите соседний момент.`):'.'));
+          } else if(gi===ан.g) {
+            // у графика нет пары — просто его наклон, и только у того, которого коснулись
+            строки.push(`Наклон графика «<i>${esc(имяГрафика(g))}</i>»${хвост(s,gi)}: ${t(чисто(k,gi,1/осьГрафиков(a).span))} ${esc(g.unit?g.unit+'/с':'1/с')}.`);
+          }
+        }
+      });
+    } else {
+      const [a1,b1]=[ан.t1,ан.t2];
+      строки.push(`<b>Площадь под кривой от ${t(Math.min(a1,b1))} до ${t(Math.max(a1,b1))} с.</b> Площадь — интеграл: сколько величина накопила за этот промежуток.`);
+      gs.forEach((g,gi)=>{
+        for(const {s} of ряды(gi)){
+          const S=площадьВ(H,gi,s,Math.min(a1,b1),Math.max(a1,b1)); if(S===null) continue;
+          const i=g.наклон;
+          if(i!==undefined){
+            const gi2=gs[i], знак=g.знак||1;
+            const SSI=S*множительЕдиницы(g.unit)*знак, fi=множительЕдиницы(gi2.unit);
+            const площВЕд=чисто(SSI/fi,i);
+            const y1=значениеВ(H,i,s,Math.min(a1,b1)), y2=значениеВ(H,i,s,Math.max(a1,b1));
+            const Δ=y1!==null&&y2!==null?y2-y1:null;
+            const расх=Δ!==null&&isFinite(площВЕд)? Math.abs(площВЕд-Δ)/Math.max(Math.abs(Δ),Math.abs(площВЕд),0.05*размах(i),1e-12) : NaN;
+            строки.push(`Площадь под графиком «<i>${esc(имяГрафика(g))}</i>»${хвост(s,gi)}${знак<0?', взятая с минусом':''}: ${t(площВЕд)} ${esc(gi2.unit)}. `+
+              `Изменение величины «<i>${esc(имяГрафика(gi2))}</i>» за это время: ${Δ===null?'—':t(Δ)} ${esc(gi2.unit)}`+
+              (isFinite(расх)?(расх<0.03||Math.abs(площВЕд-Δ)<1e-9?` — <span class="g-ok">совпадает</span>.`:` — расхождение ${ВЫЧ.число(расх*100,2)} %.`):'.'));
+          } else if(gi===ан.g) {
+            строки.push(`Площадь под графиком «<i>${esc(имяГрафика(g))}</i>»${хвост(s,gi)}: ${t(чисто(S,gi,осьГрафиков(a).span))} ${esc(g.unit?g.unit+'·с':'с')}.`);
+          }
+        }
+      });
+    }
+    html=строки.map(x=>`<div>${x}</div>`).join('')+
+      `<div class="g-act">${естьПриёмы()?`<button class="op-chip" data-op="${ан.вид==='касательная'?'производная':'интеграл'}">${ан.вид==='касательная'?'что такое производная':'что такое интеграл'}</button>`:''}
+       <button class="btn g-clear">убрать</button></div>`;
+  }
+  if(html===последнийРазбор) return;
+  последнийРазбор=html; box.innerHTML=html;
+  const x=box.querySelector('.g-clear'); if(x) x.onclick=()=>{ анализ=null; drawGraphs(); };
+  const ч=box.querySelector('.op-chip'); if(ч) ч.onclick=e=>{ e.stopPropagation(); открытьПриём(ч.dataset.op,null,ч); };
 }
 
 /* ================================= ЦИКЛ ================================= */
@@ -2347,7 +2571,7 @@ function pushUndo(a){
   if(a.undo[a.undo.length-1]!==s){ a.undo.push(s); if(a.undo.length>60) a.undo.shift(); a.redo=[]; }
 }
 function restart(a){
-  a.state=a.def.init(a.params); a.hist=[]; a.tick=0; acc=0;
+  a.state=a.def.init(a.params); a.hist=[]; a.tick=0; acc=0; анализ=null;
   a.tape=[]; S.scrub=null; updateTimeline();
   /* След тоже начинаем заново: тело скачком возвращается в начало, и без
      сброса от последней точки к новой протягивалась прямая через весь
@@ -6662,5 +6886,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '1.8.1';
+window.PHYSIM_BUILD = '1.9.0';
 window.PHYSIM_READY = true;

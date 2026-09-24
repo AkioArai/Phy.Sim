@@ -148,28 +148,28 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **Fix: every repeat launch broke, since 1.6.0.** The start-up code sat in the
-          middle of the main script. On a second launch it reopened the last topic; if that
-          topic had a simulation, the simulation read its notes, and the notes' storage key
-          was declared further down the script — not yet initialised. The script stopped
-          half-way: part of the interface had no handlers, and since the topic was
-          remembered, the same thing happened on every launch after. The first launch opens
-          the introduction, which has no simulation, so it always worked — and so did every
-          test, because each started from empty storage. This is very likely what made
-          settings "eat" the notes and what made the tablet look half-dead.
+          **New: the derivative and the integral, on a graph that is still moving.** Tap
+          any graph under a simulation and a tangent appears at that moment — its slope is
+          the derivative. Drag along a graph and the area under the curve fills in — that
+          area is the integral. The same moment is marked on every graph at once.
 
-          Start-up now runs last, after everything is declared. If restoring the last topic
-          fails for any other reason, the handbook opens the introduction and forgets that
-          topic instead of locking itself up. A new check relaunches the page with saved
-          state for each of the 34 topics.
+          Where a quantity and its rate of change are both on screen, the handbook checks
+          one against the other in numbers: the slope of x(t) against v(t), the area under
+          v(t) against the change in x, the pendulum's angle in degrees against its angular
+          velocity in rad/s, and the EMF against the slope of the flux taken with a minus
+          sign — that minus is Lenz's law. 14 such pairs in 11 simulations, marked by hand
+          and only where the relation is exact. A card explains what a derivative or an
+          integral is and leads back into the derivations that use one.
 
-          **Fix: on an Android tablet, opening settings could hide the notes for good.** The
-          settings search box took focus, the on-screen keyboard shrank the window below
-          560 px, the tablet was taken for a phone on its side and switched layouts; the
-          phone layout hid the notes in an inline style that survived the switch back. The
-          layout is now decided by the screen, not the window, so the keyboard cannot flip
-          it; leftovers of the phone layout are cleared on every switch; and on a touch
-          screen settings no longer summon the keyboard just by opening.
+          The slope is taken from a polynomial through five recorded points, not from two:
+          on fast oscillations the simple difference is off by per cent. A new check,
+          `npm run graphs`, runs every simulation with a marked pair and requires the pair
+          to agree; thirteen of the fourteen agree within half a per cent.
+
+          **Fix: damped oscillations.** The simulation used a half-step scheme in which the
+          velocity lagged the position by half a step, so the slope of x(t) and the v(t)
+          graph disagreed by up to 5 % near v = 0. It now uses fourth-order Runge–Kutta;
+          all 530 physics checks still pass.
 
           ### Must read
 

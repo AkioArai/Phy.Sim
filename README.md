@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-1.8.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-1.8.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-1.8.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.8.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-1.9.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-1.9.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-1.9.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-1.9.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -169,6 +169,31 @@ on your own.
 `npm run curriculum` requires every step to name its techniques, every name to have
 an article, and every article to be used by at least one step — so the reference
 cannot quietly grow into the separate maths course it replaced.
+
+### The derivative and the integral, on a graph that is still moving
+
+Tap any graph under a running simulation and a tangent appears at that moment; its
+slope *is* the derivative. Drag along a graph and the area under the curve fills in;
+that area *is* the integral. The same moment is marked on every graph at once.
+
+Where the course has both a quantity and its rate of change on screen, the handbook
+checks one against the other in numbers. Tap x(t): the slope of the tangent, 6.27 m/s,
+and the v(t) graph at the same instant, 6.27 m/s, marked *matches*. Drag along v(t)
+from 3.85 s to 7.9 s: the area, −152 m, and the change in x over the same interval,
+−152 m. The pendulum's angle is plotted in degrees and its angular velocity in rad/s;
+the calculator converts one to the other before comparing. The EMF graph of Lenz's
+law is compared with the slope of the flux taken *with a minus sign* — that minus is
+the law. A card on each explains what a derivative or an integral is and links back
+into the derivations that use one.
+
+14 such pairs in 11 simulations: kinematics, projectile motion, circular motion,
+rolling, the rocket, the three pendulums, damped oscillations, a point on a wave and
+Lenz's law. They are marked by hand and only where the relation is exact: an orbit's
+r(t) and v(t) have compatible units, but v is not dr/dt, and the handbook will not
+pretend otherwise. `npm run graphs` runs each simulation for four seconds and requires
+every marked pair to agree on average to within 5 %. Thirteen agree within half a per
+cent; the EMF of a loop entering a field has genuine steps and agrees within 4 %. Flip
+the sign on the EMF and the check fails at 200 %.
 
 ### Problems that can't be looked up
 
@@ -406,6 +431,7 @@ tests/physics.mjs     530 checks of readouts against closed-form solutions
 tests/answers.mjs     all 384 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
 tests/calc.mjs        the calculator, and every course formula solved both ways
+tests/graphs.mjs      every graph marked as a derivative of another, checked in numbers
 tests/compat.js       the engine floor: ES2017, an ES5 watchdog, CSS fallbacks
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
@@ -429,8 +455,8 @@ double-clicking on any school computer.
 `init` / `step` / `draw` / `fit`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 for the full contract.
 
-**Before releasing**, run all the suites. `npm test` checks the engine floor and the
-calculator, then boots both the source and the bundled single file, runs 300 steps of
+**Before releasing**, run all the suites. `npm test` checks the engine floor, the
+calculator and the derivative pairs between graphs, then boots both the source and the bundled single file, runs 300 steps of
 every simulation, checks that no formula overflows its column, and walks the desktop,
 phone and tablet layouts, rotating the tablet. `npm run physics` compares the
 simulations with the textbook, `npm run audit` checks the problems, `npm run

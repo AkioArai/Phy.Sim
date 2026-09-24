@@ -67,7 +67,7 @@ spring:{
   },
   graphs:[
     {label:'Смещение Δx во времени',unit:'м',series:['x'],get:s=>[s.q,null]},
-    {label:'Скорость',unit:'м/с',series:['v'],get:s=>[s.v,null]},
+    {label:'Скорость',unit:'м/с',наклон:0,series:['v'],get:s=>[s.v,null]},
     {label:'Энергия: кинетическая и упругая',unit:'Дж',series:['K','U'],
      get(s,p){ const E=SIMS.spring.energies(s,p); return [E.Ek,E.Eel]; }},
     {label:'Механическая энергия и тепло',unit:'Дж',series:['K+U','тепло'],
@@ -211,7 +211,7 @@ pendulum:{
   },
   graphs:[
     {label:'Угол во времени',unit:'°',series:['θ'],get:s=>[s.q*180/Math.PI,null]},
-    {label:'Угловая скорость',unit:'рад/с',series:['ω'],get:s=>[s.v,null]},
+    {label:'Угловая скорость',unit:'рад/с',наклон:0,series:['ω'],get:s=>[s.v,null]},
     {label:'Энергия: кинетическая и потенциальная',unit:'Дж',series:['K','U'],
      get(s,p){ const E=SIMS.pendulum.energies(s,p); return [E.Ek,E.Ep]; }}
   ],
@@ -347,7 +347,7 @@ physpend:{
   },
   graphs:[
     {label:'Угол во времени',unit:'°',series:['θ'],get:s=>[s.q*180/Math.PI,null]},
-    {label:'Угловая скорость',unit:'рад/с',series:['ω'],get:s=>[s.v,null]},
+    {label:'Угловая скорость',unit:'рад/с',наклон:0,series:['ω'],get:s=>[s.v,null]},
     {label:'Энергия: кинетическая и потенциальная',unit:'Дж',series:['K','U'],
      get(s,p){ const E=SIMS.physpend.energies(s,p); return [E.Ek,E.Ep]; }}
   ],
@@ -473,10 +473,20 @@ damped:{
             xmax:0, event:null, __stop:null};
   },
   step(s,dt,p){
-    // полушаговая схема (Эйлер–Кромер): устойчива и сохраняет вид колебаний
-    const F = p.mode==='driven'? p.F0*Math.cos(p.w*s.t) : 0;
-    const a = (F - p.b*s.v - p.k*s.x)/p.m;
-    s.v += a*dt; s.x += s.v*dt; s.t += dt;
+    /* Рунге–Кутта 4-го порядка. Раньше была полушаговая схема Эйлера–Кромера:
+       она устойчива, но скорость в ней отстаёт от координаты на полшага, и
+       наклон графика x(t) расходился с графиком v(t) на a·dt/2 — у нуля
+       скорости это 5 %. Разбор графиков такое честно показывал бы как
+       «расхождение», хотя v = dx/dt здесь по определению. */
+    const acc = (t,x,v) => ((p.mode==='driven'? p.F0*Math.cos(p.w*t) : 0) - p.b*v - p.k*x)/p.m;
+    const t0=s.t, x0=s.x, v0=s.v, h=dt/2;
+    const k1x=v0,          k1v=acc(t0,x0,v0);
+    const k2x=v0+h*k1v,    k2v=acc(t0+h,x0+h*k1x,v0+h*k1v);
+    const k3x=v0+h*k2v,    k3v=acc(t0+h,x0+h*k2x,v0+h*k2v);
+    const k4x=v0+dt*k3v,   k4v=acc(t0+dt,x0+dt*k3x,v0+dt*k3v);
+    s.x += dt*(k1x+2*k2x+2*k3x+k4x)/6;
+    s.v += dt*(k1v+2*k2v+2*k3v+k4v)/6;
+    s.t += dt;
     if(s.t>1) s.xmax=Math.max(s.xmax,Math.abs(s.x));   // после переходного процесса
   },
   readouts(s,p){
@@ -506,7 +516,7 @@ damped:{
   },
   graphs:[
     {label:'x(t) — смещение',unit:'м',series:['x'],get(s,p){ return [s.x,null]; }},
-    {label:'v(t) — скорость',unit:'м/с',series:['v'],get(s,p){ return [s.v,null]; }},
+    {label:'v(t) — скорость',unit:'м/с',наклон:0,series:['v'],get(s,p){ return [s.v,null]; }},
     {label:'Энергия: полная',unit:'Дж',series:['E'],
      get(s,p){ return [0.5*p.m*s.v*s.v+0.5*p.k*s.x*s.x,null]; }}
   ],

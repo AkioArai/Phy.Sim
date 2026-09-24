@@ -164,9 +164,9 @@ kin1d:{
   graphs:[
     {label:'x(t) — координата', unit:'м',
      get:(s,p)=>[s.b[0].x, p.bodies==='2'?s.b[1].x:null]},
-    {label:'v(t) — скорость (наклон x(t))', unit:'м/с',
+    {label:'v(t) — скорость (наклон x(t))', unit:'м/с', наклон:0,
      get:(s,p)=>[s.b[0].v, p.bodies==='2'?s.b[1].v:null]},
-    {label:'a(t) — ускорение (наклон v(t))', unit:'м/с²',
+    {label:'a(t) — ускорение (наклон v(t))', unit:'м/с²', наклон:1,
      get:(s,p)=>[s.b[0].started?p.a1:0, p.bodies==='2'?(s.b[1].started?p.a2:0):null]}
   ],
   /* вписываем весь «прогон»: считаем координаты обоих тел до события/до 12 с */
@@ -418,9 +418,9 @@ proj2d:{
       return [SIMS.proj2d.posOf(p,0,t).y, p.bodies==='2'?SIMS.proj2d.posOf(p,1,t).y:null]; }},
     {label:'x(t) — дальность', unit:'м', get(s,p){ const t=s.t;
       return [SIMS.proj2d.posOf(p,0,t).x, p.bodies==='2'?SIMS.proj2d.posOf(p,1,t).x:null]; }},
-    {label:'v<sub>x</sub>(t) — горизонтальная проекция', unit:'м/с', get(s,p){ const t=s.t;
+    {label:'v<sub>x</sub>(t) — горизонтальная проекция', unit:'м/с', наклон:1, get(s,p){ const t=s.t;
       return [SIMS.proj2d.posOf(p,0,t).vx, p.bodies==='2'?SIMS.proj2d.posOf(p,1,t).vx:null]; }},
-    {label:'v<sub>y</sub>(t) — вертикальная проекция', unit:'м/с', get(s,p){ const t=s.t;
+    {label:'v<sub>y</sub>(t) — вертикальная проекция', unit:'м/с', наклон:0, get(s,p){ const t=s.t;
       return [SIMS.proj2d.posOf(p,0,t).vy, p.bodies==='2'?SIMS.proj2d.posOf(p,1,t).vy:null]; }}
   ],
   fit(p,vp){
@@ -749,9 +749,9 @@ circular:{
   graphs:[
     {label:'x(t) и y(t) — координаты',unit:'м',series:['x','y'],
      get(s,p){ const r=SIMS.circular.pos(s,p); return [r.x,r.y]; }},
-    {label:'v<sub>x</sub>(t) и v<sub>y</sub>(t) — проекции скорости',unit:'м/с',series:['vx','vy'],
+    {label:'v<sub>x</sub>(t) и v<sub>y</sub>(t) — проекции скорости',unit:'м/с',наклон:0,series:['vx','vy'],
      get(s,p){ const r=SIMS.circular.pos(s,p); return [r.vx,r.vy]; }},
-    {label:'a<sub>x</sub>(t) и a<sub>y</sub>(t) — проекции ускорения',unit:'м/с²',series:['ax','ay'],
+    {label:'a<sub>x</sub>(t) и a<sub>y</sub>(t) — проекции ускорения',unit:'м/с²',наклон:1,series:['ax','ay'],
      get(s,p){ const r=SIMS.circular.pos(s,p); return [r.ax,r.ay]; }}
   ],
   fit(p,vp){
@@ -3070,7 +3070,7 @@ rolling:{
   graphs:[
     {label:'Путь по склону',unit:'м',series:['обруч','шар'],
      get(s,p){ return [s.hoop?s.hoop.s:null, s.sphere?s.sphere.s:null]; }},
-    {label:'Скорость',unit:'м/с',series:['обруч','шар'],
+    {label:'Скорость',unit:'м/с',наклон:0,series:['обруч','шар'],
      get(s,p){ return [s.hoop?s.hoop.v:null, s.sphere?s.sphere.v:null]; }}
   ],
   presets:[
@@ -3452,7 +3452,7 @@ rocket:{
   graphs:[
     {label:'Скорость ракеты',unit:'м/с',series:['v'],get(s,p){ return [s.v,null]; }},
     {label:'Масса ракеты',unit:'кг',series:['m'],get(s,p){ return [s.m,null]; }},
-    {label:'Ускорение',unit:'м/с²',series:['a'],get(s,p){ return [s.a||0,null]; }}
+    {label:'Ускорение',unit:'м/с²',наклон:0,series:['a'],get(s,p){ return [s.a||0,null]; }}
   ],
   presets:[
     {name:'В космосе: чистая формула Циолковского',

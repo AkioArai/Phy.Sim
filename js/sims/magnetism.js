@@ -1021,7 +1021,7 @@ lenz:{
   },
   graphs:[
     {label:'Магнитный поток Φ',unit:'Вб',series:['Φ'],get(s,p){ return [SIMS.lenz.flux(p,s.x),null]; }},
-    {label:'ЭДС = −dΦ/dt',unit:'В',series:['ЭДС'],get(s,p){ return [SIMS.lenz.emf(p,s.x,s.v),null]; }},
+    {label:'ЭДС = −dΦ/dt',unit:'В',наклон:0,знак:-1,series:['ЭДС'],get(s,p){ return [SIMS.lenz.emf(p,s.x,s.v),null]; }},
     {label:'Индукционный ток',unit:'А',series:['I'],get(s,p){ return [SIMS.lenz.emf(p,s.x,s.v)/p.R,null]; }}
   ],
   presets:[

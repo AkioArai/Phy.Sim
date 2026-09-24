@@ -49,7 +49,7 @@ wave:{
   },
   graphs:[
     {label:'Смещение частицы y(t)',unit:'м',series:['y'],get(s,p){ return [SIMS.wave.yAt(p,p.px,s.t),null]; }},
-    {label:'Скорость частицы',unit:'м/с',series:['vy'],get(s,p){ return [SIMS.wave.vyAt(p,p.px,s.t),null]; }}
+    {label:'Скорость частицы',unit:'м/с',наклон:0,series:['vy'],get(s,p){ return [SIMS.wave.vyAt(p,p.px,s.t),null]; }}
   ],
   presets:[
     {name:'Основная волна',values:{A:1,lam:4,f:0.5,dir:'right'}},
