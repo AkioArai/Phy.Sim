@@ -148,52 +148,28 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          **Tablets.** On tablets the handbook broke often, on the web and in the app
-          alike, and for three separate reasons.
+          **Fix: every repeat launch broke, since 1.6.0.** The start-up code sat in the
+          middle of the main script. On a second launch it reopened the last topic; if that
+          topic had a simulation, the simulation read its notes, and the notes' storage key
+          was declared further down the script — not yet initialised. The script stopped
+          half-way: part of the interface had no handlers, and since the topic was
+          remembered, the same thing happened on every launch after. The first launch opens
+          the introduction, which has no simulation, so it always worked — and so did every
+          test, because each started from empty storage. This is very likely what made
+          settings "eat" the notes and what made the tablet look half-dead.
 
-          *Old engines.* An app installed outside a store keeps the WebView it shipped
-          with. One `?.` in the main script made the whole script unparseable on
-          Chrome/WebView below 80 and Safari below 13.1: the page painted and nothing
-          worked. The page watchdog was written with `?.` too, so nothing could say
-          why. The scripts are now ES2017 (Chrome 58, Safari 13), every modern CSS
-          function has a plain fallback (readout panels were transparent on older
-          engines, dialogs lost their position), and the watchdog is ES5 and also runs
-          in the app. On an engine that really is too old it now names it and says
-          what to update — "Android System WebView" in the app — instead of showing a
-          dead page. A new check (`tests/compat.js`) keeps it that way on every build.
+          Start-up now runs last, after everything is declared. If restoring the last topic
+          fails for any other reason, the handbook opens the introduction and forgets that
+          topic instead of locking itself up. A new check relaunches the page with saved
+          state for each of the 34 topics.
 
-          *Rotation.* Dragging the splitter wrote the scene width in pixels, which
-          survived the switch back to the upright layout: a 740 px scene on an 820 px
-          screen. The width is now a share of the screen, applied only in the side-by-
-          side layout, and whatever was open in the old layout is closed on the switch.
-
-          *Width.* A tablet on its side gets the desktop layout, whose fixed columns left
-          the notes 161-481 px wide on 960-1180 px screens. The scene now takes a share
-          of the width, the notes never get less than 360 px, the topic list lies over
-          the notes below 1200 px instead of taking their width, and with a finger every
-          control is at least 36-40 px; what used to appear only on mouse hover is always
-          visible.
-
-          **A calculator that knows units** (Ctrl+E, or the new button in the header).
-          `72 км/ч в м/с` → `20 м/с`. `(2,5 ± 0,1) м / (3,0 ± 0,2) с` → `0,83 ± 0,06 м/с`,
-          rounded the way a measurement is written. `2 м + 3 с` is refused with the
-          reason; `Дж = Н` says the left side is larger by a metre; `sin 30` warns that it
-          was taken in radians. Uncertainty is propagated exactly, correlations included:
-          a quantity minus itself is 0 ± 0.
-
-          **Any course formula, solved for any quantity.** 183 of the 252 formulas parse
-          into something solvable. Press *решить* next to a formula in the notes, pick
-          the unknown, type the rest with units, and get the answer with its unit and
-          uncertainty — and the formula rearranged for it, `g = 4π²L/T²`. When the unknown
-          appears twice the root is found numerically and its dimension is inferred from
-          the formula. Formulas with vectors, integrals, derivatives or inequalities are
-          not offered, rather than solved wrongly. Every parsed formula is checked by
-          solving it for each of its quantities and substituting back — 920 cases.
-
-          **Answers to problems can carry units.** `2,5 мДж` where the problem asks for
-          µJ is converted. `3 Н` where it asks for joules is no longer just "wrong" but
-          "wrong dimension — a factor of metres is missing": a different mistake, with a
-          different cure.
+          **Fix: on an Android tablet, opening settings could hide the notes for good.** The
+          settings search box took focus, the on-screen keyboard shrank the window below
+          560 px, the tablet was taken for a phone on its side and switched layouts; the
+          phone layout hid the notes in an inline style that survived the switch back. The
+          layout is now decided by the screen, not the window, so the keyboard cannot flip
+          it; leftovers of the phone layout are cleared on every switch; and on a touch
+          screen settings no longer summon the keyboard just by opening.
 
           ### Must read
 

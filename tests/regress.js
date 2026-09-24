@@ -107,6 +107,74 @@ async function планшеты(b, url, label) {
     { портрет, назад });
   ok('планшет боком: кнопки под палец не меньше 34 px', альбом.мелкие.length === 0, альбом.мелкие);
   await ctx.close();
+
+  /* Настройки на Android-планшете. Поле поиска получало фокус, выезжала
+     клавиатура, окно становилось ниже 560 px — и планшет считался телефоном
+     на боку: раскладка переключалась, телефонный лист ставил конспекту
+     display:none прямо в style, а после возврата стиль оставался. Текст
+     пропадал насовсем. Проверяем обе защиты: (1) клавиатура раскладку не
+     переключает — высоту решает экран, а не окно; (2) если раскладка всё же
+     переключилась туда и обратно, конспект возвращается. */
+  const клав = await b.newContext({ viewport: { width: 1280, height: 800 }, isMobile: true, hasTouch: true,
+    userAgent: 'Mozilla/5.0 (Linux; Android 13; SM-X200) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' });
+  const видКонспекта = pg => pg.evaluate(() => { const c = document.querySelector('#content'), r = c.getBoundingClientRect();
+    return { ui: document.documentElement.dataset.ui, виден: getComputedStyle(c).display !== 'none' && r.width > 300 && r.height > 100,
+             фокус: document.activeElement && document.activeElement.id }; });
+  const сценарий = async закрепитьЭкран => {
+    const pg = await клав.newPage();
+    if (закрепитьЭкран) await pg.addInitScript(() => { Object.defineProperty(screen, 'width', { get: () => 1280 });
+      Object.defineProperty(screen, 'height', { get: () => 800 }); });
+    await pg.route('**cdnjs.cloudflare.com**', r => r.abort());
+    await pg.goto(url); await pg.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {});
+    await pg.waitForTimeout(400);
+    await pg.setViewportSize({ width: 1280, height: 800 });
+    await pg.evaluate(() => openTopic('mech.2d')); await pg.waitForTimeout(300);
+    await pg.click('#btn-settings'); await pg.waitForTimeout(150);
+    const фокус = (await видКонспекта(pg)).фокус;
+    await pg.setViewportSize({ width: 1280, height: 380 }); await pg.waitForTimeout(400);     // клавиатура
+    const при = await видКонспекта(pg);
+    await pg.click('#prefs-close'); await pg.setViewportSize({ width: 1280, height: 800 }); await pg.waitForTimeout(500);
+    const после = await видКонспекта(pg);
+    await pg.close();
+    return { фокус, при, после };
+  };
+  const настоящий = await сценарий(true), переключили = await сценарий(false);
+  await клав.close();
+  ok('настройки на планшете: клавиатура не переключает раскладку и не зовётся зря',
+    настоящий.при.ui === 'desktop' && настоящий.фокус !== 'prefs-search' && настоящий.после.виден, настоящий);
+  ok('после смены раскладки туда и обратно конспект виден', переключили.после.ui === 'desktop' && переключили.после.виден, переключили);
+}
+
+/* ПОВТОРНЫЙ ЗАПУСК. Все остальные проверки открывают страницу с чистым
+   хранилищем — а человек открывает пособие во второй, десятый, сотый раз.
+   С 1.6.0 по 1.8.0 каждый повторный запуск падал: блок запуска стоял в
+   середине app.js, восстанавливал прошлую тему с симуляцией, та читала
+   заметки, а ключ заметок был объявлен ниже — «мёртвая зона» const. Первый
+   запуск открывал введение и проскакивал, поэтому тесты молчали.
+   Здесь: для каждой темы (в одностраничнике — для трёх) запоминаем её,
+   кладём заметку и перезапускаем страницу в том же хранилище. */
+async function повторныйЗапуск(b, url, label, всеТемы) {
+  console.log('--- ' + label + ' (повторный запуск) ---');
+  const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } });
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.route('**cdnjs.cloudflare.com**', r => r.abort());
+  await p.goto(url); await p.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {});
+  const темы = await p.evaluate(() => ALL.map(t => t.id));
+  const выбор = всеТемы ? темы : ['intro', 'mech.2d', 'el.current'].filter(t => темы.includes(t));
+  const упали = [];
+  for (const id of выбор) {
+    errs.length = 0;
+    await p.evaluate(id => { openTopic(id);
+      // заметка к открытой симуляции — ровно то, что роняло запуск
+      if (S.active) { const все = LS.get('notes', {}) || {}; все[S.active] = [{ id: 'n1', x: .5, y: .5, title: 'проверка', body: '', links: [] }]; LS.set('notes', все); }
+    }, id);
+    await p.reload(); await p.waitForTimeout(250);
+    const r = await p.evaluate(() => ({ готов: window.PHYSIM_READY === true, тема: S.topic && S.topic.id,
+      текст: (document.querySelector('#pane').textContent || '').trim().length }));
+    if (errs.length || !r.готов || r.тема !== id || r.текст < 50) упали.push(id + ': ' + (errs[0] || JSON.stringify(r)));
+  }
+  await ctx.close();
+  ok(`повторный запуск восстанавливает тему без ошибок (${выбор.length} тем)`, упали.length === 0, упали.slice(0, 4));
 }
 
 /* СТОРОЖ СТРАНИЦЫ и старые движки. Настоящего старого браузера здесь нет,
@@ -1166,6 +1234,7 @@ async function сторож(b) {
     await m.p.close();
 
     await планшеты(b, url, label);
+    await повторныйЗапуск(b, url, label, label === 'исходники');
   }
 
   await сторож(b);

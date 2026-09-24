@@ -4051,7 +4051,8 @@ function openPrefs(cat){
   if(cat) prefCat=cat;
   $('#prefs').classList.remove('hidden');
   renderPrefsSide(); renderPrefs();
-  setTimeout(()=>$('#prefs-search').focus(),30);
+  // на сенсоре фокус в поле поиска выдвигает клавиатуру ради ничего — не ставим
+  if(document.documentElement.dataset.touch!=='1') setTimeout(()=>$('#prefs-search').focus(),30);
 }
 function closePrefs(){ $('#prefs').classList.add('hidden'); resize(); }
 $$('#prefs-close').onclick=closePrefs;
@@ -4078,8 +4079,13 @@ function uiMode(){
      компьютера — с крошечными кнопками на 412 пикселях высоты. Порог 560 по
      высоте разделяет телефон на боку и планшет (у самого маленького iPad
      короткая сторона 744). */
-  const narrow = matchMedia('(max-width:900px)').matches
-              || matchMedia('(max-height:560px)').matches;
+  /* Высоту берём у ЭКРАНА, а не у окна. Экранная клавиатура на Android
+     уменьшает окно: планшет боком при открытых настройках (поле поиска)
+     проваливался ниже 560 px, считался телефоном на боку, раскладка
+     переключалась — и конспект пропадал. Короткая сторона экрана от
+     клавиатуры не зависит. */
+  const экран=window.screen&&screen.width&&screen.height ? Math.min(screen.width,screen.height) : innerHeight;
+  const narrow = matchMedia('(max-width:900px)').matches || экран<=560;
   const uaMob  = /Android|iPhone|iPad|iPod|IEMobile|Mobile Safari|Silk/i.test(navigator.userAgent||'');
   return (((coarse&&noHover)||uaMob) && narrow) ? 'mobile' : 'desktop';
 }
@@ -4403,7 +4409,11 @@ function setSheetTab(t){
   requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
 }
 function syncSheet(){
-  if(!isNarrow()) return;
+  /* В компьютерной раскладке листа нет — и его инлайновых display тоже не
+     должно быть. Раньше функция просто выходила, и то, что лист успел
+     поставить в телефонной раскладке, оставалось: после выезда клавиатуры
+     на планшете конспект стоял display:none без всякой возможности вернуть. */
+  if(!isNarrow()){ $$('#content').style.display=''; $$('#simbottom').style.display=''; return; }
   /* Нет симуляции — нечего и показывать: лист с пустой строкой показаний
      просто отъедал бы низ экрана у конспекта.
 
@@ -4555,6 +4565,7 @@ function onViewportChange(){
       }
       // на средней ширине панель тем ложится поверх текста — не распахиваем её
       toggleSidebar(innerWidth<1200);
+      syncSheet();                      // снять то, что телефонный лист прятал руками
     }
   }
   resize();
@@ -5414,22 +5425,7 @@ function initTeacher(){
 initTeacher();
 
 
-/* ================================= СТАРТ =============================== */
-applySettings();
-// дальше applySettings вызывается уже по действию пользователя
-S.__ready=true;
-setTool('pan'); renderTree(); renderParams();
-/* Лист телефона открывается там же, где его закрыли в прошлый раз. */
-document.documentElement.dataset.detent=LS.get('detent','peek');
-/* Лист занимает высоту не сразу: строку транспорта и перемотку надо сперва
-   измерить. Поэтому первое вписывание делаем после первой раскладки. */
-if(isNarrow()) requestAnimationFrame(()=>{ try{ syncSheet(); resize(); fitView(); }catch(_){} });
-// при следующем запуске откроем ту же тему, если это разрешено в настройках
-if(isNarrow()) closeSimMobile();          // на телефоне начинаем с конспекта
-openTopic((S.settings.restore!==false && LS.get('lastTopic',null) && ALL.some(t=>t.id===LS.get('lastTopic',null)))
-  ? LS.get('lastTopic',null) : 'intro');
-resize();
-addEventListener('load',()=>{ typeset($('#pane')); resize(); });
+/* СТАРТ — функция запуск() в самом конце файла, см. там. */
 
 /* ============================== ЗАСТАВКА ==============================
    Разметка заставки лежит в index.html и показывается с первого кадра —
@@ -6622,11 +6618,49 @@ $$('#btn-calc').onclick=()=>вычислительОткрыт()?закрыть�
 $$('#m-calc').onclick=()=>открытьВычислитель();
 $$('#mi-calc').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьВычислитель(); };
 
+/* ================================= СТАРТ ===============================
+   Стоит последним, после всех объявлений. Раньше он был в середине файла, и
+   всё, что объявлено ниже, при запуске ещё лежало в «мёртвой зоне» const.
+   Первый запуск открывал введение и проскакивал; повторный восстанавливал
+   тему с симуляцией, та читала свои заметки — ключ ЗАМ_КЛЮЧ объявлен ниже —
+   и скрипт падал на полпути. С 1.6.0 по 1.8.0 так ломался каждый повторный
+   запуск: пол-интерфейса без обработчиков, а тема запомнена, и падение
+   повторялось снова и снова.
+
+   Теперь, во-первых, объявлено всё. Во-вторых, неудачное восстановление
+   прошлой темы не должно запирать пособие: открываем введение и забываем
+   тему, на которой упали. */
+function запуск(){
+  applySettings();
+  // дальше applySettings вызывается уже по действию пользователя
+  S.__ready=true;
+  setTool('pan'); renderTree(); renderParams();
+  /* Лист телефона открывается там же, где его закрыли в прошлый раз. */
+  document.documentElement.dataset.detent=LS.get('detent','peek');
+  /* Лист занимает высоту не сразу: строку транспорта и перемотку надо сперва
+     измерить. Поэтому первое вписывание делаем после первой раскладки. */
+  if(isNarrow()) requestAnimationFrame(()=>{ try{ syncSheet(); resize(); fitView(); }catch(_){} });
+  if(isNarrow()) closeSimMobile();          // на телефоне начинаем с конспекта
+  // при следующем запуске откроем ту же тему, если это разрешено в настройках
+  const прошлая=LS.get('lastTopic',null);
+  const тема=(S.settings.restore!==false && прошлая && ALL.some(t=>t.id===прошлая)) ? прошлая : 'intro';
+  try{ openTopic(тема); }
+  catch(e){
+    console.error('не открылась тема '+тема, e);
+    LS.set('lastTopic','intro');
+    if(тема!=='intro') openTopic('intro');
+    else throw e;
+  }
+  resize();
+  addEventListener('load',()=>{ typeset($('#pane')); resize(); });
+}
+запуск();
+
 /* ===================== ОТМЕТКА ОБ УСПЕШНОЙ ЗАГРУЗКЕ =====================
    Последняя строка файла. Если она выполнилась — скрипт дочитан до конца и
    весь интерфейс подключён. Сторож в index.html смотрит на эту отметку:
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '1.8.0';
+window.PHYSIM_BUILD = '1.8.1';
 window.PHYSIM_READY = true;
