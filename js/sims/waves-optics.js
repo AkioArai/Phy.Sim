@@ -16,7 +16,8 @@ wave:{
     {type:'group',label:'Показывать'},
     {key:'run',    label:'Волна бежит',type:'check',default:true},
     {key:'lamMark',label:'Отметка длины волны',type:'check',default:true},
-    {key:'trail',  label:'След частицы (колебание)',type:'check',default:true}
+    {key:'trail',  label:'След частицы (колебание)',type:'check',default:true},
+    {key:'phasor', label:'Вектор фазы частицы',type:'check',default:true}
   ],
   k(p){ return 2*Math.PI/p.lam; },
   omega(p){ return 2*Math.PI*p.f; },
@@ -29,6 +30,9 @@ wave:{
     const sgn=p.dir==='right'?1:-1;
     return -sgn*this.omega(p)*p.A*Math.cos(this.k(p)*x - sgn*this.omega(p)*t);
   },
+  /* фаза пробной частицы, приведённая к [0, 2π) */
+  phase(p,t){ const sgn=p.dir==='right'?1:-1, f=this.k(p)*p.px-sgn*this.omega(p)*t, T=2*Math.PI;
+    return ((f%T)+T)%T; },
   init(p){ return {t:0,trail:[],event:null,__stop:null}; },
   step(s,dt,p){
     if(p.run) s.t+=dt;
@@ -44,6 +48,7 @@ wave:{
       ['волновое число k = 2π/λ',this.k(p),'1/м'],
       ['круговая частота ω = 2πf',this.omega(p),'рад/с'],
       ['проверка ω/k = v',this.omega(p)/this.k(p),'м/с'],
+      ['фаза частицы φ = kx − ωt',this.phase(p,s.t)*180/Math.PI,'° (по модулю 360°)'],
       ['смещение частицы y',this.yAt(p,p.px,s.t),'м'],
       ['скорость частицы',this.vyAt(p,p.px,s.t),'м/с']];
   },
@@ -59,8 +64,9 @@ wave:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-60)/(20*PX_PER_M),(H-60)/(8*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const w=p.phasor?23.5:20;
+    const scale=clamp(Math.min((W-60)/(w*PX_PER_M),(H-60)/(8*PX_PER_M)),0.002,30);
+    return {x:p.phasor?-1.75:0,y:0,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink3=v.c('--ink-3');
@@ -105,6 +111,24 @@ wave:{
       ctx.strokeStyle=meas; ctx.globalAlpha=.7; ctx.lineWidth=v.lw(1.4); ctx.beginPath();
       s.trail.forEach((y,i)=>{ const x=9.6+ (i-s.trail.length)*0.012; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
       ctx.stroke(); ctx.globalAlpha=1;
+    }
+    /* Вектор фазы: смещение частицы — проекция вращающегося вектора длины A
+       на вертикаль. Угол вектора и есть фаза kx − ωt. Пунктир связывает конец
+       вектора с частицей: высота у них одна. */
+    if(p.phasor){
+      const cx=-11.6, ph=this.phase(p,s.t), ex=cx+p.A*Math.cos(ph), ey=p.A*Math.sin(ph);
+      ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.arc(cx,0,p.A,0,7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx-p.A-0.2,0); ctx.lineTo(cx+p.A+0.2,0); ctx.stroke();
+      v.arrow(ctx,cx,0,ex,ey,dang);
+      ctx.strokeStyle=dang; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(p.px,yp); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      // дуга угла фазы
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.2); ctx.beginPath();
+      for(let k=0;k<=24;k++){ const a=ph*k/24, r=p.A*0.3; k?ctx.lineTo(cx+r*Math.cos(a),r*Math.sin(a)):ctx.moveTo(cx+r,0); }
+      ctx.stroke();
+      v.label(ctx,`φ = ${(ph*180/Math.PI).toFixed(0)}°`,cx,-p.A,-24,16,dang);
+      v.label(ctx,'y — проекция вектора',cx,-p.A,-44,32,ink3);
     }
     v.label(ctx,'частицы колеблются поперёк, а волна переносит энергию вдоль',0,-p.A-1.6,-108,0,ink3);
     v.label(ctx,'пробную частицу можно перетаскивать',0,-p.A-1.6,-64,16,ink3);

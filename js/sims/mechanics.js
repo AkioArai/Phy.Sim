@@ -1375,6 +1375,13 @@ orbit:{
     {key:'circleV',label:'Подсказать круговую скорость',type:'check',default:true},
     {key:'trail',  label:'След орбиты',type:'check',default:true},
     {key:'vecs',   label:'Векторы силы и скорости',type:'check',default:true},
+    {key:'kepler', label:'Площади за равные времена (II закон Кеплера)',type:'check',default:false},
+    {type:'group',label:'Импульс двигателя'},
+    {key:'burn',label:'Когда включить',type:'select',default:'none',
+     options:[{v:'none',t:'Не включать'},{v:'apo',t:'В апогее (дальней точке)'},
+              {v:'peri',t:'В перигее (ближней точке)'},{v:'time',t:'В момент t'}]},
+    {key:'dv',label:'Прибавка скорости Δv (минус — торможение)',unit:'км/с',min:-3,max:3,step:0.05,default:0.5,если:p=>p.burn!=='none'},
+    {key:'tBurn',label:'Момент включения',unit:'ч',min:0,max:1000,step:0.5,default:6,если:p=>p.burn==='time'},
     {type:'group',label:'Остановка таймера'},
     {key:'turns',label:'Через N витков (0 — выкл)',min:0,max:50,step:0.25,default:0},
     {key:'tStop',label:'В момент t (0 — выкл)',unit:'ч',min:0,max:10000,step:1,default:0}
@@ -1391,7 +1398,15 @@ orbit:{
     return {t:0, x:S.r0, y:0,
       vx:S.v0*Math.cos(a), vy:S.v0*Math.sin(a),
       trail:[[S.r0,0]], turns:0, prevAng:0, rmin:S.r0, rmax:S.r0,
+      vr:0, burned:null, ksecs:[], ksec:[[S.r0,0]], kT:this.kStep(S,S.r0,0,S.v0*Math.cos(a),S.v0*Math.sin(a)), kNext:0,
       crashed:false, escaped:false, event:null, __stop:null};
+  },
+  /* Шаг меток Кеплера — двенадцатая часть периода (в часах). У незамкнутой
+     орбиты периода нет, и площади не размечаем. */
+  kStep(S,x,y,vx,vy){
+    const r=Math.hypot(x,y), E=(vx*vx+vy*vy)/2-S.mu/r;
+    if(E>=0) return 0;
+    const a=-S.mu/(2*E); return 2*Math.PI*Math.sqrt(a*a*a/S.mu)/3600/12;
   },
   accel(S,x,y){ const r=Math.hypot(x,y), k=-S.mu/(r*r*r); return [k*x,k*y,r]; },
   step(s,dt0,p){
@@ -1410,6 +1425,30 @@ orbit:{
     }
     s.t+=dt0;
     const r=Math.hypot(s.x,s.y);
+    /* Импульс двигателя: скорость меняется мгновенно вдоль направления
+       движения. Апогей и перигей узнаём по смене знака радиальной скорости. */
+    const vr=(s.x*s.vx+s.y*s.vy)/r;
+    if(p.burn!=='none' && !s.burned && p.dv){
+      /* Старт под 90° к радиусу — это уже апсида: перигей, если скорость
+         больше круговой, апогей — если меньше. Круговая орбита годится для обоих. */
+      const vc=this.vCirc(p), старт=s.t<=dt0*1.5 && p.ang===90 &&
+        (Math.abs(S.v0-vc)<vc*0.01 || (p.burn==='peri') === (S.v0>vc));
+      const пора = старт ? true : p.burn==='time' ? s.t>=p.tBurn
+        : p.burn==='apo' ? (s.vr>=0 && vr<0) : (s.vr<=0 && vr>0);   // в самой точке старта — тоже
+      if(пора){
+        const v=Math.hypot(s.vx,s.vy), k=Math.max(0,v+p.dv*1e3)/Math.max(v,1e-9);
+        s.vx*=k; s.vy*=k; s.burned={x:s.x,y:s.y,t:s.t};
+        s.rmin=s.rmax=r;
+        s.kT=this.kStep(S,s.x,s.y,s.vx,s.vy); s.ksecs=[]; s.ksec=[[s.x,s.y]]; s.kNext=s.t;
+      }
+    }
+    s.vr=vr;
+    // секторы для второго закона Кеплера
+    if(s.kT>0){
+      s.ksec.push([s.x,s.y]);
+      if(s.t>=s.kNext+s.kT){ s.kNext+=s.kT; s.ksecs.push(s.ksec); s.ksec=[[s.x,s.y]];
+        if(s.ksecs.length>12) s.ksecs.shift(); }
+    }
     s.rmin=Math.min(s.rmin,r); s.rmax=Math.max(s.rmax,r);
     if(p.trail){ s.trail.push([s.x,s.y]); if(s.trail.length>6000) s.trail.shift(); }
     // счётчик витков по накоплению угла
@@ -1449,7 +1488,8 @@ orbit:{
             ['период T',isFinite(o.T)?o.T/3600:NaN,
               isFinite(o.T)?'ч':'орбита незамкнута — тело уходит от планеты'],
             ['перигей',s.rmin/1e6,'×10³ км'],['апогей',isFinite(o.a)?s.rmax/1e6:NaN,'×10³ км'],
-            ['витки',s.turns,'']];
+            ['витки',s.turns,''],
+            ['секторная скорость ΔS/Δt = L/2',o.L/2/1e10,'×10¹⁰ м²/с — постоянна']];
   },
   graphs:[
     {label:'r(t) — расстояние до центра',unit:'×10³ км',series:['r'],
@@ -1471,13 +1511,24 @@ orbit:{
      values:{M:5.97,Rc:6.37,r0:42,v0:4.4,ang:90,turns:0,tStop:0}},
     {name:'Падение: слишком малая скорость',
      values:{M:5.97,Rc:6.37,r0:42,v0:1.2,ang:90,turns:0,tStop:0}},
+    {name:'Переход на высокую орбиту: импульс в перигее',
+     values:{M:5.97,Rc:6.37,r0:10,v0:6.31,ang:90,burn:'peri',dv:1.2,kepler:false,turns:0,tStop:0}},
+    {name:'II закон Кеплера на вытянутом эллипсе',
+     values:{M:5.97,Rc:6.37,r0:42,v0:1.9,ang:90,burn:'none',kepler:true,turns:0,tStop:0}},
     {name:'Луна вокруг Земли',
      values:{M:5.97,Rc:6.37,r0:384,v0:1.02,ang:90,turns:0,tStop:0}}
   ],
   fit(p,vp){
     const S=this.si(p);
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const span=S.r0*2.6/1e6;                        // в единицах сцены (×10³ км → делим)
+    /* в кадр должна влезть и орбита после импульса: её апогей считаем по
+       энергии и моменту, как будто импульс дан в точке старта */
+    const апо=v0=>{ const a0=p.ang*Math.PI/180, E=v0*v0/2-S.mu/S.r0, L=S.r0*v0*Math.sin(a0);
+      if(E>=0) return S.r0*3; const a=-S.mu/(2*E), e=Math.sqrt(Math.max(0,1+2*E*L*L/(S.mu*S.mu)));
+      return Math.min(a*(1+e),S.r0*6); };
+    let R=Math.max(S.r0,апо(S.v0));
+    if(p.burn&&p.burn!=='none'&&p.dv) R=Math.max(R,апо(Math.max(0,S.v0+p.dv*1e3)));
+    const span=R*2.3/1e6;                           // в единицах сцены (×10³ км → делим)
     const scaleW=(W-60)/(span*PX_PER_M), scaleH=(H-60)/(span*PX_PER_M);
     return {x:0,y:0,scale:clamp(Math.min(scaleW,scaleH),0.002,30)};
   },
@@ -1496,6 +1547,23 @@ orbit:{
     if(p.circleV){
       ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(4),v.lw(5)]);
       ctx.beginPath(); ctx.arc(0,0,p.r0,0,7); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // II закон Кеплера: секторы, заметённые радиусом за равные времена
+    if(p.kepler && s.ksecs.length){
+      s.ksecs.forEach((P,i)=>{
+        ctx.fillStyle=v.c(i%2?'--accent':'--measure'); ctx.globalAlpha=.16;
+        ctx.beginPath(); ctx.moveTo(0,0); P.forEach(q=>ctx.lineTo(q[0]/U,q[1]/U)); ctx.closePath(); ctx.fill();
+      });
+      ctx.globalAlpha=1;
+      const P=s.ksecs[s.ksecs.length-1], q=P[P.length>>1];
+      v.label(ctx,`за каждые ${s.kT.toFixed(1)} ч — одна и та же площадь`,q[0]/U,q[1]/U,8,-12,v.c('--ink-2'));
+    }
+    // точка включения двигателя
+    if(s.burned){
+      const bx=s.burned.x/U, by=s.burned.y/U;
+      ctx.strokeStyle=v.c('--danger'); ctx.lineWidth=v.lw(2);
+      ctx.beginPath(); ctx.arc(bx,by,v.lw(7),0,7); ctx.stroke();
+      v.label(ctx,`импульс Δv = ${p.dv>0?'+':''}${p.dv} км/с`,bx,by,10,14,v.c('--danger'));
     }
     // след орбиты
     if(p.trail&&s.trail.length>1&&v.quality!=='low'){
@@ -3754,12 +3822,13 @@ lift:{
     if(p.forces){
       // длина mg — от центра масс до пола: стрелки не протыкают кабину
       const L=Math.max(0.6,cm-(by0+0.05));
-      v.arrow(ctx,px,cm,px,cm-L,dang);
-      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px,cm-L,10,6,dang);
+      const cg=v.c('--f-grav')||dang, cn=v.c('--f-norm')||acc;     // общие цвета сил (3.0.0)
+      v.arrow(ctx,px,cm,px,cm-L,cg);
+      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px,cm-L,10,6,cg);
       if(P>1e-6){
         const LN=L*P/mg;
-        v.arrow(ctx,px,cm,px,cm+LN,acc);
-        v.label(ctx,`N = ${P.toFixed(0)} Н`,px,cm+LN,10,-4,acc);
+        v.arrow(ctx,px,cm,px,cm+LN,cn);
+        v.label(ctx,`N = ${P.toFixed(0)} Н`,px,cm+LN,10,-4,cn);
       } else v.label(ctx,'N = 0 — невесомость',px,cm,12,-14,meas);
     }
     // ускорение кабины

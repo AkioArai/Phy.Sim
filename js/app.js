@@ -96,7 +96,14 @@ const VIEW={
      подписи запоминается её вертикальная поправка, она переиспользуется, пока
      не мешает, а меняется — плавно, по несколько пикселей за кадр. */
   _lblMem:new Map(), _lblSeq:0, _lblFrame:0,
+  /* Ореол под подписью (3.0.0): тонкая обводка цветом фона. Подпись,
+     легшая на линию, стрелку или сетку, остаётся читаемой — так делают
+     на картах. Цвет берём раз в кадр: getComputedStyle не бесплатен. */
+  _halo:null,
   labelFrame(){
+    this._halo = prefGet('labelHalo')===false ? null
+      : (prefGet('bgStyle')==='dark' ? '#161821' : (css('--canvas')||'#fff'));
+    this._fbd=null;
     this._lbl.length=0; this._lblSeq=0; this._lblFrame++;
     if(this._lblFrame%600===0){                      // изредка чистим память
       for(const [k,m] of this._lblMem) if(this._lblFrame-m.f>600) this._lblMem.delete(k);
@@ -164,6 +171,11 @@ const VIEW={
       this._lbl.push({x,y:y-h/2,w,h});
       if(this._lbl.length>400) this._lbl.shift();      // страховка от разрастания
     }
+    if(this._halo){
+      ctx.lineJoin='round'; ctx.lineWidth=3; ctx.strokeStyle=this._halo;
+      ctx.globalAlpha=Math.min(1,ctx.globalAlpha*0.9); ctx.strokeText(text,x,y);
+      ctx.globalAlpha=1;
+    }
     ctx.fillText(text,x,y); ctx.restore();
   },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
@@ -180,6 +192,13 @@ const VIEW={
     const k=(o.len||2)/maxF;                       // метров сцены на ньютон
     const u=o.units||'Н';
     const rx=F.reduce((a,f)=>a+f.fx,0), ry=F.reduce((a,f)=>a+f.fy,0);
+    /* Одна сила — один цвет во всех сценах (3.0.0): вид силы узнаём по
+       подписи. Первая диаграмма кадра задаёт масштаб для легенды. */
+    for(const f of F){ const в=typeof видСилы==='function'?видСилы(f.label):null;
+      if(в){ f.color=this.c(в.цвет); f.имя=в.имя; } }
+    if(!this._fbd) this._fbd={k, u, сил:[]};
+    for(const f of F) if(!this._fbd.сил.some(x=>x.label===f.label))
+      this._fbd.сил.push({label:f.label, color:f.color||this.c('--ink-2'), имя:f.имя});
     for(const f of F){
       const c=f.color||this.c('--ink-2');
       this.arrow(ctx,o.x,o.y,o.x+f.fx*k,o.y+f.fy*k,c);
@@ -486,6 +505,7 @@ const fmt=v=>{
 function drawAll(){
   const a=A(); if(!a) return;
   VIEW.labelFrame();                       // новый кадр — раскладка подписей с чистого листа
+  if(typeof слоиКамера==='function') слоиКамера(a);
   applyWorld(sctx);
   if(S.settings.grid!==false) drawGrid(sctx);
   /* Сцену рисуем в собственном состоянии холста. Внутри draw бывают ранние
@@ -494,8 +514,10 @@ function drawAll(){
      и в следующий кадр. save/restore закрывает это раз и навсегда. */
   sctx.save();
   sctx.globalAlpha=1; sctx.setLineDash(EMPTY_DASH); sctx.lineWidth=1;
-  try{ a.def.draw(sctx,a.state,VIEW,a.params); }
+  try{ a.def.draw(sctx,a.state,VIEW,a.params);
+       if(typeof слоиРисовать==='function') слоиРисовать(sctx,a); }
   finally{ sctx.restore(); }
+  if(typeof легендаСил==='function') легендаСил(sctx);
   applyWorld(octx);
   const list=a.draft?a.annos.concat([a.draft]):a.annos;
   for(const an of list){
@@ -1384,6 +1406,7 @@ function record(a){
   /* Записывать нечего: у таких симуляций ни одно показание не меняется со
      временем, и лента снимков только ела бы память. */
   if(a.def.timeless) return;
+  if(typeof слоиЗапись==='function') слоиЗапись(a);
   if(a.def.graphs){
     a.hist.push({t:a.state.t, v:a.def.graphs.map(g=>g.get(a.state,a.params))});
     /* Переполнение истории раньше выбрасывало САМЫЕ СТАРЫЕ точки: на длинном
@@ -2620,6 +2643,7 @@ function restart(a){
      сброса от последней точки к новой протягивалась прямая через весь
      экран — та самая «телепортация траектории». */
   $('#eventflag').classList.add('hidden');
+  if(typeof слоиСброс==='function') слоиСброс(a);
 }
 
 /* ======================= ШКАЛА ВРЕМЕНИ (перемотка) =======================
@@ -3966,7 +3990,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,
   handles:'hover',
   // кастомизация окружения
-  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
@@ -4033,6 +4057,16 @@ const PREFS=[
    name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
    options:[['norm','Обычный'],['big','Крупный']]},
 
+  {cat:'scene',key:'strobe',type:'toggle',def:false,
+   name:'Стробоскоп',desc:'Метки положения тела через равные промежутки времени — как на снимке с многократной вспышкой. Где метки гуще, тело медленнее.'},
+  {cat:'scene',key:'strobeDt',type:'range',def:0.25,min:0.05,max:1,step:0.05,unit:' с',
+   name:'Шаг стробоскопа',desc:'Через сколько секунд ставится следующая метка.'},
+  {cat:'scene',key:'ghost',type:'toggle',def:false,
+   name:'Призрак прошлого прогона',desc:'После перезапуска пунктиром остаётся прежний путь тела и кружок там, где оно было в тот же момент. Удобно сравнивать, что изменил параметр.'},
+  {cat:'scene',key:'follow',type:'toggle',def:false,
+   name:'Камера за телом',desc:'Вид сам едет за телом, если оно улетает из кадра.'},
+  {cat:'scene',key:'forceLegend',type:'toggle',def:true,
+   name:'Легенда сил и масштаб',desc:'У диаграммы сил — список цветов и линейка: сколько ньютонов в такой длине стрелки.'},
   {cat:'scene',key:'nums',type:'toggle',def:true,
    name:'Числа на сцене',desc:'Подписи величин прямо у тел и векторов. Выключите, если хотите, чтобы ученики считали сами.'},
   {cat:'scene',key:'hud',type:'toggle',def:true,
@@ -4097,6 +4131,8 @@ const PREFS=[
    options:[['mono','Моноширинный'],['sans','Без засечек'],['serif','С засечками']]},
   {cat:'look',key:'labelSize',type:'range',def:11,min:9,max:16,step:0.5,unit:' px',
    name:'Кегль подписей на сцене',desc:'Размер надписей у тел и векторов. Крупнее — видно с задней парты.'},
+  {cat:'look',key:'labelHalo',type:'toggle',def:true,
+   name:'Ореол под подписями',desc:'Тонкая обводка цветом фона: подпись, легшая на линию или стрелку, остаётся читаемой.'},
   {cat:'look',key:'arrowScale',type:'range',def:1,min:0.6,max:2,step:0.1,unit:'×',
    name:'Размер наконечников стрелок',desc:'Величина «оперения» у векторов сил, скоростей и полей.'},
   {cat:'look',key:'panelAlpha',type:'range',def:93,min:40,max:100,step:1,unit:' %',
@@ -5366,6 +5402,7 @@ function setMenuTab(id){
    потому что остальные страницы лежат в разметке скрытыми. */
 function собратьМенюСцены(){
   const pop=$('#pop-simmenu');
+  if(typeof обновитьМенюСлоёв==='function') обновитьМенюСлоёв();
   // инструменты конструктора (если симуляция их объявляет)
   const tl=$('#simmenu-tools');
   tl.innerHTML='';
@@ -5641,6 +5678,10 @@ const CMDS=[
   {k:'Вид',t:'Режим окна: следующий', hint:'F11', run:()=>cycleWindowMode()},
   {k:'Вид',t:'Во весь экран (браузер)', run:()=>toggleFullscreen()},
   {k:'Вид',t:'Симуляция во весь экран', hint:'F', run:()=>$('#btn-simfull').click()},
+  {k:'Сцена',t:'Стробоскоп: вкл/выкл', run:()=>переключитьСлой('strobe')},
+  {k:'Сцена',t:'Призрак прошлого прогона: вкл/выкл', run:()=>переключитьСлой('ghost')},
+  {k:'Сцена',t:'Камера за телом: вкл/выкл', run:()=>переключитьСлой('follow')},
+  {k:'Сцена',t:'Легенда сил: вкл/выкл', run:()=>переключитьСлой('forceLegend')},
   {k:'Вид',t:'Скрыть/показать симуляцию', hint:'H', run:()=>$('#btn-simhide').click()},
   {k:'Вид',t:'Скрыть/показать панель тем', hint:'Tab', run:()=>$('#btn-rail').click()},
   {k:'Вид',t:'Светлая тема',  run:()=>prefSet('theme','light')},
@@ -7321,6 +7362,7 @@ function запуск(){
   if(typeof подключитьПуть==='function') try{ подключитьПуть(); }catch(e){ console.error('Мой путь не подключился',e); }
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
+  if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   // дальше applySettings вызывается уже по действию пользователя
   S.__ready=true;
   setTool('pan'); renderTree(); renderParams();

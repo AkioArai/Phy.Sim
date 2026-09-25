@@ -13,12 +13,17 @@
    лишней рамки. Сцена — ground, конспект — well, плавающие панели — chrome. */
 :root{
   --bg:#f6f7f8; --panel:#fff; --panel-2:#eef0f2; --line:#d7dbe0; --line-soft:#e7eaee;
-  --ink:#171a1f; --ink-2:#5c6570; --ink-3:#8b939d;
+  --ink:#171a1f; --ink-2:#5c6570; --ink-3:#6b737d;   /* 4,7:1 на холсте — не ниже AA */
   --accent:#5d5294; --accent-soft:#5d52941a;
   --accent-300:#4b4180; --accent-700:#7a6fc0; --accent-800:#d9d5f0;
   --second:#7a4fa3; --measure:#c07615; --danger:#b3452f;
   --grid:#dfe3e8; --grid-major:#c9cfd6; --canvas:#fbfcfd;
   --ok:#2e7d4f;                       /* «верно», прирост величины */
+  /* Силы в механике (3.0.0): одна сила — один цвет во всех сценах.
+     Тяжесть красная, реакция опоры синяя, трение оранжевое, натяжение
+     малиновое, упругость бирюзовая, Архимед зелёный, приложенная — акцент. */
+  --f-grav:#b3452f; --f-norm:#2563eb; --f-fric:#c07615; --f-tens:#be185d;
+  --f-elas:#0e7490; --f-arch:#15803d; --f-app:#5d5294;
   --ground:#eceef2; --well:#f2f3f6; --chrome:#ffffff; --rail:#f7f8fa;
   --divider:#171a1f29;
   --shadow-md:0 6px 18px -8px #171a1f40;
@@ -29,12 +34,14 @@
 }
 [data-theme="dark"]{
   --bg:#161826; --panel:#232532; --panel-2:#2b2d3c; --line:#3f424d; --line-soft:#292b31;
-  --ink:#e9e9ed; --ink-2:#b2b6ca; --ink-3:#75798c;
+  --ink:#e9e9ed; --ink-2:#b2b6ca; --ink-3:#8f93a6;
   --accent:#9184d9; --accent-soft:#9184d92e;
   --accent-300:#d2cefd; --accent-700:#5d5294; --accent-800:#423a6a;
   --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62;
   --grid:#242739; --grid-major:#2f3346; --canvas:#12141f;
   --ok:#6fcf97;
+  --f-grav:#e07a62; --f-norm:#60a5fa; --f-fric:#f0a24b; --f-tens:#f472b6;
+  --f-elas:#22d3ee; --f-arch:#4ade80; --f-app:#a79bea;
   --ground:#12141f; --well:#13151f; --chrome:#1d1f2c; --rail:#191b28;
   --divider:#e9e9ed29;
   --shadow-md:0 8px 22px -10px #05060acc;
@@ -2207,15 +2214,15 @@ input[type="checkbox"],input[type="radio"]{accent-color:var(--accent)}
    правил. Палитра (data-palette) лишь перекрашивает основу поверх тона. */
 [data-palette="sepia"]{
   --bg:#f3eee3;--panel:#fbf8f0;--panel-2:#efe7d7;--line:#dccfb8;--line-soft:#e9dfcc;
-  --ink:#2a2318;--ink-2:#5d5140;--ink-3:#8a7c65;--canvas:#fcf9f2;
+  --ink:#2a2318;--ink-2:#5d5140;--ink-3:#716550;--canvas:#fcf9f2;
   --ground:#eee6d6;--well:#f5efe2;--chrome:#fdfaf3;--rail:#f6f0e3;--grid:#e6dcc8;--grid-major:#d6c8ad;--divider:#2a231829}
 [data-palette="oled"]{
   --bg:#000;--panel:#0a0a0d;--panel-2:#16161c;--line:#2a2a33;--line-soft:#17171d;
-  --ink:#f0f0f4;--ink-2:#b8b8c6;--ink-3:#7c7c8c;--canvas:#000;
+  --ink:#f0f0f4;--ink-2:#b8b8c6;--ink-3:#8e8e9e;--canvas:#000;
   --ground:#000;--well:#030304;--chrome:#0e0e12;--rail:#060608;--grid:#121218;--grid-major:#1c1c24;--divider:#f0f0f429}
 [data-palette="nord"]{
   --bg:#1f2530;--panel:#262e3b;--panel-2:#2e3746;--line:#3d4758;--line-soft:#2b3341;
-  --ink:#e6ebf2;--ink-2:#b4bfcf;--ink-3:#7f8a9c;--canvas:#1b212b;
+  --ink:#e6ebf2;--ink-2:#b4bfcf;--ink-3:#909bad;--canvas:#1b212b;
   --ground:#1b212b;--well:#1d232d;--chrome:#242b37;--rail:#20262f;--grid:#262e3a;--grid-major:#303a49;--divider:#e6ebf229}
 [data-palette="contrast"]{
   --ink:#000;--ink-2:#1a1a1a;--ink-3:#3a3a3a;--line:#5c5c5c;--line-soft:#8f8f8f;
@@ -2225,7 +2232,7 @@ input[type="checkbox"],input[type="radio"]{accent-color:var(--accent)}
   --bg:#000;--panel:#000;--panel-2:#1c1c1c;--canvas:#000;--grid:#2f2f2f;--grid-major:#555;--divider:#ffffff59}
 [data-palette="mint"]{
   --bg:#eef4f1;--panel:#fbfdfc;--panel-2:#e3ede8;--line:#c9d9d1;--line-soft:#dde8e2;
-  --ink:#14211b;--ink-2:#4b5f55;--ink-3:#7d9187;--canvas:#f7fbf9;
+  --ink:#14211b;--ink-2:#4b5f55;--ink-3:#63766c;--canvas:#f7fbf9;
   --ground:#e6efea;--well:#edf4f0;--chrome:#fbfdfc;--rail:#f1f7f4;--grid:#d9e6df;--grid-major:#c1d4ca}
 
 /* колонка текста, межстрочие и шрифт интерфейса — настраиваются */
@@ -2533,3 +2540,10 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 .path-box{border-radius:var(--radius-lg)}
 .tsearch,.tnav,.seg{border-radius:var(--radius)}
 .tnav .tbtn,.seg button{border-radius:var(--radius-sm)}
+
+/* ==================== СЛОИ СЦЕНЫ (3.0.0) ====================
+   Переключатели в меню сцены: справа кружок состояния — пустой или залитый. */
+.pop .item.tog::after{content:"";margin-left:auto;width:9px;height:9px;border-radius:50%;flex:0 0 auto;
+  border:2px solid var(--line);transition:background-color var(--t2) var(--ease),border-color var(--t2) var(--ease)}
+.pop .item.tog.on{color:var(--ink)}
+.pop .item.tog.on::after{background:var(--accent);border-color:var(--accent)}
