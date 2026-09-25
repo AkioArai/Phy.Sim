@@ -148,6 +148,18 @@ jobs:
           34 topics, 78 step-by-step derivations, 253 formulas and 389 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 2.2.1 — a stricter look
+
+          **Design.** Less playful, more precise: corners of 3–7 px on one scale instead of
+          rounded pills, short straight transitions without bounce, cards and buttons that no
+          longer jump under the cursor, monochrome icons with the section colour kept to a thin
+          line, a plainer home screen, difficulty shown as bars instead of coloured dots. The
+          ripple on tap is off by default (Settings → Appearance brings it back).
+
+          **Lift.** The stick figure is gone: the load on the scales is a block, and both forces,
+          mg and N, act at its centre of mass — the material point of the second law. Problem
+          texts follow; your marks on them are kept.
+
           ## 2.2.0 — quieter, flatter, and out of the way
 
           **The topic header gets out of the way.** Scroll down to read and the title, summary

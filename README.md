@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-2.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-2.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-2.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-2.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-2.2.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-2.2.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-2.2.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-2.2.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -174,7 +174,8 @@ open. Boxes in the notes are flat cards now, without coloured frames or gradient
 
 ### Weight, in a lift
 
-A new simulation in *Dynamics*: a person on bathroom scales in a lift. The ride has a
+A new simulation in *Dynamics*: a load on bathroom scales in a lift, drawn as a block whose
+forces, mg and N, both act at its centre of mass — the material point of the second law. The ride has a
 real lift's profile — accelerate, run at constant speed, brake; if the floor is too close
 to reach full speed, the ride is triangular. The scales read m(g + a)/g: more than the
 mass while accelerating upwards or braking on the way down, less in the opposite cases,
@@ -185,6 +186,10 @@ the lift starts; the profile is computed analytically, so the trip time in a pro
 matches the model to the last digit, and three new physics checks hold it there.
 
 ### Make it yours
+
+Since 2.2.1 the look is deliberately strict: corners of 3–7 px on one scale, short
+straight transitions without overshoot, nothing that jumps under the cursor, monochrome
+icons, section colour as a thin line only, difficulty as bars rather than coloured dots.
 
 Settings open on **Main**: themes as live preview cards (light, dark, system, paper,
 mint, nord, midnight for OLED, high contrast), ten accent colours or any colour you

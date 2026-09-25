@@ -3574,7 +3574,7 @@ rocket:{
 
 /* ======================= ЛИФТ: ВЕС И НЕВЕСОМОСТЬ =======================
    Орир, т.1: вес — это сила, с которой тело давит на опору, а не сила
-   тяжести. Человек стоит на весах в кабине; по второму закону для оси,
+   тяжести. Груз стоит на весах в кабине; по второму закону для оси,
    направленной вверх,
        N − mg = m·a   ⇒   P = N = m(g + a).
    Разгон вверх и торможение при спуске (a > 0) — весы показывают больше,
@@ -3595,7 +3595,7 @@ lift:{
   params:[
     {key:'mode',label:'Опыт',type:'select',default:'trip',
      options:[{v:'trip',t:'Поездка: разгон, ход, торможение'},{v:'break',t:'Обрыв троса: свободное падение'}]},
-    {key:'m',label:'Масса человека m',unit:'кг',min:20,max:200,step:1,default:70},
+    {key:'m',label:'Масса груза m',unit:'кг',min:1,max:500,step:1,default:70},
     {key:'g',label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
 
     {type:'group',label:'Поездка',если:p=>p.mode==='trip'},
@@ -3609,7 +3609,7 @@ lift:{
     {key:'tBreak',label:'Трос обрывается в момент',unit:'с',min:0,max:10,step:0.1,default:1,если:p=>p.mode==='break'},
 
     {type:'group',label:'Показывать'},
-    {key:'forces',label:'Силы на человека',type:'check',default:true},
+    {key:'forces',label:'Силы на груз (в центре масс)',type:'check',default:true},
     {key:'accel', label:'Ускорение кабины',type:'check',default:true},
     {key:'stopEnd',label:'Остановить таймер, когда кабина встала',type:'check',default:true}
   ],
@@ -3739,29 +3739,28 @@ lift:{
     v.label(ctx,`${кг.toFixed(1)} кг`,tx+0.15,ty+th*0.62,0,0,цвет);
     v.label(ctx,'весы',tx+0.15,ty+th,0,9,ink3);
     ctx.strokeStyle=line; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(wx1,wy+wh/2); ctx.lineTo(tx,ty+th/2); ctx.stroke(); ctx.setLineDash([]);
-    // человек: в невесомости чуть приподнимается над весами
+    /* Груз — брусок на весах. Для второго закона это материальная точка:
+       обе силы, mg и N, приложены к центру масс и лежат на одной прямой,
+       поэтому их можно складывать как числа со знаком. В невесомости
+       брусок чуть отходит от весов: опора его больше не держит. */
     const всплыл=s.свобода?clamp((s.t-p.tBreak)*0.5,0,0.6):0;
-    const px=0.1, py=wy+wh+всплыл, рост=4.3;
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3); ctx.lineCap='round';
-    const таз=py+рост*0.47, плечи=py+рост*0.78;
-    ctx.beginPath();
-    ctx.moveTo(px-0.35,py); ctx.lineTo(px,таз); ctx.lineTo(px+0.35,py);           // ноги
-    ctx.moveTo(px,таз); ctx.lineTo(px,плечи);                                      // корпус
-    const руки=s.свобода?0.55:-0.6;                                                // в невесомости руки всплывают
-    ctx.moveTo(px-0.62,плечи+руки); ctx.lineTo(px,плечи); ctx.lineTo(px+0.62,плечи+руки);
-    ctx.stroke();
-    ctx.beginPath(); ctx.arc(px,плечи+0.5,0.36,0,Math.PI*2); ctx.stroke();
-    ctx.lineCap='butt';
-    // силы на человека: mg из центра масс вниз, N от ступней вверх
+    const бш=Math.min(2.6,1.7+0.4*Math.cbrt(p.m/70)), бв=бш*0.8;
+    const px=(wx0+wx1)/2, низ=wy+wh+всплыл, cm=низ+бв/2;
+    ctx.fillStyle=v.c('--panel-2'); ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6);
+    ctx.fillRect(px-бш/2,низ,бш,бв); ctx.strokeRect(px-бш/2,низ,бш,бв);
+    v.label(ctx,`m = ${p.m} кг`,px-бш/2,низ+бв*0.7,-66,0,ink3);
+    // центр масс: точка, к которой приложены силы
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(px,cm,v.lw(3.2),0,Math.PI*2); ctx.fill();
     if(p.forces){
-      const L=2.1, cm=py+рост*0.52;
-      v.arrow(ctx,px+0.18,cm,px+0.18,cm-L,dang);
-      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px+0.18,cm-L,10,8,dang);
+      // длина mg — от центра масс до пола: стрелки не протыкают кабину
+      const L=Math.max(0.6,cm-(by0+0.05));
+      v.arrow(ctx,px,cm,px,cm-L,dang);
+      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px,cm-L,10,6,dang);
       if(P>1e-6){
         const LN=L*P/mg;
-        v.arrow(ctx,px-0.18,py,px-0.18,py+LN,acc);
-        v.label(ctx,`N = P = ${P.toFixed(0)} Н`,px-0.18,py+LN,10,-4,acc);
-      } else v.label(ctx,'N = 0 — невесомость',px+0.4,py,6,-16,meas);
+        v.arrow(ctx,px,cm,px,cm+LN,acc);
+        v.label(ctx,`N = ${P.toFixed(0)} Н`,px,cm+LN,10,-4,acc);
+      } else v.label(ctx,'N = 0 — невесомость',px,cm,12,-14,meas);
     }
     // ускорение кабины
     if(p.accel&&Math.abs(s.a)>1e-6){

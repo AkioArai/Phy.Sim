@@ -3966,8 +3966,8 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
-  palette:'std',accentCustom:'#5d5294',radius:8,uiFont:'sans',readW:'norm',lineH:1.65,
-  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std',
+  palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
+  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
@@ -3982,7 +3982,7 @@ const PREFS=[
   {cat:'look',key:'palette',type:'select',def:'std',
    name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага» — тёплая, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
    options:[['std','Обычная'],['sepia','Бумага'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
-  {cat:'look',key:'radius',type:'range',def:8,min:0,max:18,step:1,unit:' px',
+  {cat:'look',key:'radius',type:'range',def:5,min:0,max:14,step:1,unit:' px',
    name:'Скругление углов',desc:'От строгих прямых углов до мягких «таблеток». Меняет кнопки, карточки, поля и панели.'},
   {cat:'look',key:'uiFont',type:'select',def:'sans',
    name:'Шрифт интерфейса',desc:'Шрифты берутся из системы — ничего не скачивается. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
@@ -3995,7 +3995,7 @@ const PREFS=[
   {cat:'look',key:'motion',type:'select',def:'auto',
    name:'Анимации',desc:'«Как в системе» следует за настройкой «уменьшить движение» устройства. «Спокойные» оставляют только плавную смену цвета.',
    options:[['auto','Как в системе'],['full','Все'],['calm','Спокойные'],['off','Выключены']]},
-  {cat:'look',key:'ripple',type:'toggle',def:true,
+  {cat:'look',key:'ripple',type:'toggle',def:false,
    name:'Волна при нажатии',desc:'Мягкий круг расходится от точки, куда вы нажали, — видно, что кнопка сработала.'},
   {cat:'look',key:'btnStyle',type:'select',def:'fill',
    name:'Стиль кнопок',desc:'Как выглядят главные кнопки: «Проверить», «Открыть модель».',
@@ -4439,7 +4439,7 @@ function страницаГлавное(){
       <span>Анимации</span>${сег('motion',[['auto','Авто'],['full','Все'],['calm','Спокойно'],['off','Нет']])}
       <span>Подписи у кнопок</span>${сег('labels',[['auto','Авто'],['on','Всегда'],['off','Значки']])}
       <span>Кнопки</span>${сег('btnStyle',[['fill','Заливка'],['soft','Мягкие'],['outline','Контур']])}
-      <span>Углы</span><div class="q-rad"><input type="range" min="0" max="18" step="1" value="${prefGet('radius')}" id="q-rad"><b>${prefGet('radius')} px</b></div>
+      <span>Углы</span><div class="q-rad"><input type="range" min="0" max="14" step="1" value="${prefGet('radius')}" id="q-rad"><b>${prefGet('radius')} px</b></div>
     </div></section>
   <section class="q-s"><h4>Профили</h4>
     <p class="q-help">Профиль — набор настроек одним нажатием. Применение запоминает, как было, — его можно вернуть.</p>
@@ -7351,5 +7351,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '2.2.0';
+window.PHYSIM_BUILD = '2.2.1';
 window.PHYSIM_READY = true;

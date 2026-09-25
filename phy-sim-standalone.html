@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="2.2.0">
+<meta name="physim-build" content="2.2.1">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -481,7 +481,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
    «Физика» — пунктиром и другим цветом: это вход закона в вывод, а не
    преобразование. */
 .dv-ops{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-.op-chip{font:inherit;font-size:11px;line-height:1.2;padding:3px 8px;border-radius:20px;
+.op-chip{font:inherit;font-size:11px;line-height:1.2;padding:3px 8px;border-radius:var(--radius-lg);
   border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);cursor:pointer;transition:.12s}
 .op-chip:hover{border-color:var(--accent);color:var(--accent)}
 .op-chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
@@ -499,7 +499,7 @@ h3.sub{font-size:.95em;font-weight:600;margin:18px 0 8px}
 .opcard.hidden{display:none}
 .opcard.center{left:50%;top:50%;transform:translate(-50%,-50%)}
 .opcard.sheet{left:0;right:0;top:auto;bottom:0;width:auto;max-height:78vh;max-height:78dvh;
-  border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom);font-size:14px}
+  border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding-bottom:env(safe-area-inset-bottom);font-size:14px}
 .opc-h{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 0 14px}
 .opc-grp{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
 .opc-x{width:30px;height:30px;border:0;border-radius:var(--radius-sm);background:none;
@@ -939,7 +939,7 @@ table.ref tr:last-child td{border-bottom:0}
 }
 .modal-bg{position:fixed;top:0;right:0;bottom:0;left:0;background:#00000066;z-index:80;display:grid;place-items:center}
 .modal-bg.hidden{display:none}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px;width:92vw;width:min(460px,92vw);max-height:80vh;overflow-y:auto}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:22px 24px;width:92vw;width:min(460px,92vw);max-height:80vh;overflow-y:auto}
 .modal h3{font-size:15px;margin-bottom:14px}
 .modal.ask{width:92vw;width:min(380px,92vw)}
 .ask-text{font-size:13px;color:var(--ink-2);line-height:1.5}
@@ -948,7 +948,7 @@ table.ref tr:last-child td{border-bottom:0}
 .ask-row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
 .kb{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--ink-2)}
 .kb kbd{font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 6px;color:var(--ink)}
-.toast{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);z-index:90;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;max-width:70vw;text-align:center}
+.toast{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);z-index:90;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--radius-lg);font-size:13px;opacity:0;pointer-events:none;transition:.2s;max-width:70vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
@@ -1015,7 +1015,7 @@ table.ref tr:last-child td{border-bottom:0}
   justify-content:center;align-items:flex-start;padding:12vh 16px 16px}
 .cmdk.hidden{display:none}
 .cmdk-box{width:100%;width:min(620px,100%);background:var(--panel);border:1px solid var(--line);
-  border-radius:10px;box-shadow:0 22px 60px -20px #000a;overflow:hidden;display:flex;flex-direction:column;
+  border-radius:var(--radius-lg);box-shadow:0 22px 60px -20px #000a;overflow:hidden;display:flex;flex-direction:column;
   max-height:70vh}
 .cmdk-inp{width:100%;padding:14px 16px;border:0;border-bottom:1px solid var(--line);
   background:none;color:var(--ink);font:inherit;font-size:15px}
@@ -1469,7 +1469,7 @@ table.ref tr:last-child td{border-bottom:0}
 .ws-bar .spacer{flex:1}
 .ws-body{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;align-items:center;gap:20px}
 .ws-page{width:100%;width:min(820px,100%);background:var(--panel);color:var(--ink);
-  border:1px solid var(--line);border-radius:10px;padding:26px 30px}
+  border:1px solid var(--line);border-radius:var(--radius-lg);padding:26px 30px}
 .ws-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:16px;flex-wrap:wrap}
 .ws-meta{font-size:12px;color:var(--ink-3)}
@@ -1545,7 +1545,7 @@ table.ref tr:last-child td{border-bottom:0}
   left:0;right:0;height:var(--sheet-head);
   bottom:calc(var(--sheet) - var(--sheet-head) + var(--vvbottom,0px));
   background:var(--chrome);border-top:1px solid var(--line);
-  border-radius:20px 20px 0 0;box-shadow:var(--shadow-lg);
+  border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-lg);
   transition:bottom .22s cubic-bezier(.32,.72,0,1)}
 [data-ui="mobile"] .msheet-grab{flex:0 0 18px;display:grid;place-items:center;position:relative}
 [data-ui="mobile"] .msheet-grab::after{content:"";width:36px;height:4px;border-radius:2px;background:var(--line)}
@@ -1564,7 +1564,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* Вкладки листа — пилюли, видны с половины и выше. */
 [data-ui="mobile"] .msheet-tabs{display:none;gap:8px;padding:0 12px 10px}
 [data-ui="mobile"]:not([data-detent="peek"]) .msheet-tabs{display:flex}
-[data-ui="mobile"] .msheet-tabs button{flex:1;height:44px;border-radius:12px;border:1px solid transparent;
+[data-ui="mobile"] .msheet-tabs button{flex:1;height:44px;border-radius:var(--radius-lg);border:1px solid transparent;
   font-size:14.5px;color:var(--ink-2);background:none}
 [data-ui="mobile"] .msheet-tabs button.on{background:var(--accent-800);color:var(--accent-300)}
 [data-ui="mobile"] .msheet-tabs .nprob{font-family:var(--mono);font-size:11px;margin-left:6px;color:var(--ink-3)}
@@ -1682,7 +1682,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .stripctl .sc-play svg{width:16px;height:16px;stroke:currentColor;fill:none;
   stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 [data-ui="mobile"] .stripctl .sc-play:active{background:var(--accent-800);color:var(--accent-300)}
-[data-ui="mobile"] .stripctl .sc-chip{height:30px;padding:0 12px;border-radius:15px;
+[data-ui="mobile"] .stripctl .sc-chip{height:30px;padding:0 12px;border-radius:var(--radius-lg);
   border:1px solid var(--line);background:var(--chrome);background:color-mix(in srgb,var(--chrome) 88%,transparent);
   color:var(--ink-2);font-size:12px}
 [data-ui="mobile"] .stripctl .sc-chip:active{background:var(--accent-800);color:var(--accent-300)}
@@ -1827,7 +1827,7 @@ table.ref tr:last-child td{border-bottom:0}
 .notelayer{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;z-index:26}
 .notelinks{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;overflow:visible}
 .ncard{position:absolute;pointer-events:auto;display:flex;flex-direction:column;
-  min-width:150px;min-height:38px;border-radius:10px;overflow:hidden;
+  min-width:150px;min-height:38px;border-radius:var(--radius-lg);overflow:hidden;
   background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);
   border:1px solid var(--line);box-shadow:0 10px 30px -16px #0009;
   font-size:12.5px;color:var(--ink-2)}
@@ -1934,7 +1934,7 @@ table.ref tr:last-child td{border-bottom:0}
 .calc-h{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 12px;
   border-bottom:1px solid var(--line-soft);flex:0 0 auto}
 .calc-tabs{display:flex;gap:4px}
-.calc-tabs button{font:inherit;font-size:13px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);
+.calc-tabs button{font:inherit;font-size:13px;padding:6px 12px;border-radius:var(--radius-lg);border:1px solid var(--line);
   background:none;color:var(--ink-2);cursor:pointer}
 .calc-tabs button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .calc-x{font-size:20px}
@@ -1956,7 +1956,7 @@ table.ref tr:last-child td{border-bottom:0}
 .calc-verdict.bad{border:1px solid var(--danger);color:var(--danger)}
 .calc-l{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 6px}
 .calc-ex{display:flex;flex-wrap:wrap;gap:5px}
-.calc-chip,.calc-hrow{font:inherit;font-family:var(--mono);font-size:12px;padding:5px 9px;border-radius:14px;
+.calc-chip,.calc-hrow{font:inherit;font-family:var(--mono);font-size:12px;padding:5px 9px;border-radius:var(--radius-lg);
   border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);cursor:pointer;text-align:left}
 .calc-chip:hover,.calc-hrow:hover{border-color:var(--accent);color:var(--accent)}
 .calc-hist{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
@@ -1973,7 +1973,7 @@ table.ref tr:last-child td{border-bottom:0}
 .calc-ftex{overflow-x:auto;overflow-y:hidden}
 .calc-fwho{font-size:12px;color:var(--ink-3)}
 .calc-unk{display:flex;flex-wrap:wrap;gap:5px}
-.calc-v{font:inherit;padding:4px 10px;border-radius:14px;border:1px solid var(--line);background:none;color:var(--ink);cursor:pointer;min-height:32px}
+.calc-v{font:inherit;padding:4px 10px;border-radius:var(--radius-lg);border:1px solid var(--line);background:none;color:var(--ink);cursor:pointer;min-height:32px}
 .calc-v.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .calc-row{display:grid;grid-template-columns:minmax(52px,auto) 1fr;gap:2px 10px;align-items:center;margin:6px 0}
 .calc-var{text-align:right}
@@ -1986,7 +1986,7 @@ table.ref tr:last-child td{border-bottom:0}
 .calc-fres .calc-res{font-size:18px}
 /* кнопка «решить» у формулы в конспекте */
 .formula{position:relative}
-.f-solve{position:absolute;right:8px;bottom:6px;font:inherit;font-size:11px;padding:2px 8px;border-radius:12px;
+.f-solve{position:absolute;right:8px;bottom:6px;font:inherit;font-size:11px;padding:2px 8px;border-radius:var(--radius-lg);
   border:1px solid var(--line);background:var(--panel);color:var(--ink-3);cursor:pointer;opacity:.75}
 .f-solve:hover{opacity:1;border-color:var(--accent);color:var(--accent)}
 [data-touch="1"] .f-solve{opacity:1;padding:5px 10px;font-size:12px}
@@ -2045,7 +2045,7 @@ table.ref tr:last-child td{border-bottom:0}
 .tp-txt{font-size:12px;color:var(--ink-3)}
 .tp-txt b{color:var(--st);font-weight:600}
 .tp-need{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px;font-size:12px;color:var(--ink-3)}
-.tp-need-b,.pt-link{font:inherit;font-size:12px;padding:3px 9px;border-radius:14px;border:1px solid var(--st,var(--line));color:var(--ink-2);
+.tp-need-b,.pt-link{font:inherit;font-size:12px;padding:3px 9px;border-radius:var(--radius-lg);border:1px solid var(--st,var(--line));color:var(--ink-2);
   transition:background-color .15s,color .15s}
 .tp-need-b:hover,.pt-link:hover{background:var(--panel-2);color:var(--ink)}
 .tp-need-b small,.pt-link small{color:var(--ink-3);font-family:var(--mono);font-size:10.5px;margin-left:3px}
@@ -2062,7 +2062,7 @@ table.ref tr:last-child td{border-bottom:0}
 /* самопроверка: «знали ли вы ответ» */
 .qa-self{display:none;align-items:center;gap:6px;margin-top:9px;font-size:12px;color:var(--ink-3)}
 .qa.open .qa-self{display:flex}
-.qa-self button{font:inherit;font-size:12px;padding:3px 11px;border-radius:14px;border:1px solid var(--line);color:var(--ink-2);transition:.15s}
+.qa-self button{font:inherit;font-size:12px;padding:3px 11px;border-radius:var(--radius-lg);border:1px solid var(--line);color:var(--ink-2);transition:.15s}
 .qa-self .qa-y.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .qa-self .qa-n.on{background:var(--danger);border-color:var(--danger);color:#fff}
 
@@ -2071,7 +2071,7 @@ table.ref tr:last-child td{border-bottom:0}
   background:#0b0d1459;padding:24px}
 .path.hidden{display:none}
 .path-box{width:100%;max-width:1080px;height:100%;max-height:900px;display:flex;flex-direction:column;background:var(--panel);
-  border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);overflow:hidden;animation:всплыть .28s cubic-bezier(.2,.9,.25,1)}
+  border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;animation:всплыть .28s cubic-bezier(.2,.9,.25,1)}
 .path-h{display:flex;align-items:center;gap:14px;padding:10px 12px 0 18px;border-bottom:1px solid var(--line)}
 .path-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;padding-bottom:10px;white-space:nowrap}
 .path-title svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round}
@@ -2094,7 +2094,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .path-body{padding:14px 14px 40px}
 
 /* Сегодня */
-.pt-sum{padding:14px 16px;border-radius:12px;background:var(--panel-2);margin-bottom:18px}
+.pt-sum{padding:14px 16px;border-radius:var(--radius-lg);background:var(--panel-2);margin-bottom:18px}
 .pt-sum-t{font-size:14px;margin-bottom:10px}
 .pt-sum-t b{font-size:22px;margin-right:4px}
 .pt-sum-t span{color:var(--ink-3);font-size:12.5px}
@@ -2106,14 +2106,14 @@ table.ref tr:last-child td{border-bottom:0}
 .pt-block h3{font-size:15px;margin-bottom:4px}
 .pt-sub{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-bottom:10px;max-width:720px}
 .pt-start{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
-.pt-card{display:flex;flex-direction:column;gap:5px;text-align:left;padding:14px 15px;border-radius:12px;border:1px solid var(--line);
+.pt-card{display:flex;flex-direction:column;gap:5px;text-align:left;padding:14px 15px;border-radius:var(--radius-lg);border:1px solid var(--line);
   background:var(--panel);transition:border-color .18s,transform .18s,box-shadow .18s}
 .pt-card b{font-size:14px;color:var(--ink)}
 .pt-card span{font-size:12.5px;color:var(--ink-3);line-height:1.5}
 .pt-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-md)}
 .pt-card:active{transform:translateY(0) scale(.98)}
 .pt-chips{display:flex;flex-wrap:wrap;gap:8px}
-.pt-chip{font:inherit;font-size:13px;padding:7px 13px;border-radius:18px;border:1px solid var(--line);transition:.15s}
+.pt-chip{font:inherit;font-size:13px;padding:7px 13px;border-radius:var(--radius-lg);border:1px solid var(--line);transition:.15s}
 .pt-chip small{color:var(--ink-3);margin-left:4px}
 .pt-chip.warn{border-color:var(--measure)}
 .pt-chip:hover{background:var(--measure);color:#fff;border-color:var(--measure)}
@@ -2122,12 +2122,12 @@ table.ref tr:last-child td{border-bottom:0}
 .pt-arrow{color:var(--ink-3)}
 
 /* карточка задачи */
-.pc{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:var(--panel);transition:border-color .3s,box-shadow .3s}
+.pc{border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:12px;background:var(--panel);transition:border-color .3s,box-shadow .3s}
 .pc.ok{border-color:var(--ok)}
 .pc.no{border-color:var(--danger)}
 .pc-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px;font-size:11.5px;color:var(--ink-3)}
 .pc-topic{font-weight:600;color:var(--ink-2)}
-.pc-tag{margin-left:auto;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:10px;background:var(--accent-soft);color:var(--accent)}
+.pc-tag{margin-left:auto;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:var(--radius-lg);background:var(--accent-soft);color:var(--accent)}
 .pc-st{line-height:1.6;margin-bottom:10px}
 .pc-given{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin-bottom:12px;font-size:12.5px}
 .pc-gl{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin-right:2px}
@@ -2169,9 +2169,9 @@ svg.pm{display:block;margin:0 auto;font-family:var(--sans)}
 .pm-s{font-size:10px;fill:var(--ink-3);font-family:var(--mono)}
 .pm-card{max-width:640px;margin:18px auto 0}
 .pm-card:empty{display:none}
-.pm-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;animation:появиться .25s ease-out}
+.pm-card{border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px;animation:появиться .25s ease-out}
 .pm-c-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;font-size:15px}
-.pm-st{font-size:11.5px;padding:2px 9px;border-radius:10px;border:1px solid var(--st);color:var(--st)}
+.pm-st{font-size:11.5px;padding:2px 9px;border-radius:var(--radius-lg);border:1px solid var(--st);color:var(--st)}
 .pm-c-bar{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden;margin-bottom:8px}
 .pm-c-bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
 .pm-c-l{font-size:12.5px;color:var(--ink-2);line-height:1.6;margin-bottom:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
@@ -2193,7 +2193,7 @@ svg.pm{display:block;margin:0 auto;font-family:var(--sans)}
 .dg-t i{font-style:normal;font-weight:700;width:14px;text-align:center}
 .dg-t.ok i{color:var(--ok)} .dg-t.fail i{color:var(--danger)} .dg-t.skip i{color:var(--ink-3)}
 .dg-t:hover{background:var(--panel-2)}
-.dg-advice{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--accent-soft);font-size:13px;line-height:1.6}
+.dg-advice{margin-top:14px;padding:12px 14px;border-radius:var(--radius-lg);background:var(--accent-soft);font-size:13px;line-height:1.6}
 .dg-advice.ok{background:var(--panel-2)}
 
 /* навыки */
@@ -2206,13 +2206,13 @@ svg.pm{display:block;margin:0 auto;font-family:var(--sans)}
 .sk-i small.warn{color:var(--measure)} .sk-i small.ok{color:var(--ok)}
 .sk-main h3{font-size:17px;margin-bottom:8px}
 .sk-why{font-size:13.5px;line-height:1.65;color:var(--ink-2);margin-bottom:10px;max-width:700px}
-.sk-rule{display:flex;flex-direction:column;gap:3px;padding:10px 13px;border-radius:10px;border-left:3px solid var(--accent);background:var(--panel-2);
+.sk-rule{display:flex;flex-direction:column;gap:3px;padding:10px 13px;border-radius:var(--radius-lg);border-left:3px solid var(--accent);background:var(--panel-2);
   font-size:13px;line-height:1.55;margin-bottom:10px;max-width:700px}
 .sk-rule b{font-size:10.5px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--accent)}
 .sk-op{margin-bottom:12px}
 .sk-where{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px;font-size:12.5px}
 .sk-where b{font-size:12px;color:var(--ink-3);font-weight:500;margin-right:4px}
-.sk-train{border:1px solid var(--line);border-radius:12px;padding:14px 16px;max-width:700px}
+.sk-train{border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px;max-width:700px}
 .sk-t-h{display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:13px}
 .sk-dots{display:flex;gap:4px}
 .sk-dots i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ok);transition:background-color .25s,transform .25s}
@@ -2228,7 +2228,7 @@ svg.pm{display:block;margin:0 auto;font-family:var(--sans)}
 /* от вопроса */
 .aq-h{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
 .aq-h p{flex:1 1 320px;font-size:13px;color:var(--ink-2);line-height:1.6}
-.aq-h input{flex:0 1 260px;font:inherit;font-size:13px;padding:7px 11px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
+.aq-h input{flex:0 1 260px;font:inherit;font-size:13px;padding:7px 11px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel)}
 .aq-h input:focus{outline:none;border-color:var(--accent)}
 .aq{columns:2 340px;column-gap:24px}
 .aq-s{break-inside:avoid;margin-bottom:18px}
@@ -2378,7 +2378,7 @@ article p,article ul{line-height:var(--lh)}
 [data-btnstyle="soft"] .btn:hover{background:var(--accent-soft)}
 
 /* ==================== НАСТРОЙКИ: сегменты и «Главное» (2.0.0) ==================== */
-.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:2px;border-radius:calc(var(--radius) + 2px);background:var(--panel-2);border:1px solid var(--line-soft)}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:2px;border-radius:var(--radius-lg);background:var(--panel-2);border:1px solid var(--line-soft)}
 .seg button{font:inherit;font-size:12.5px;padding:5px 11px;border-radius:var(--radius);color:var(--ink-2);white-space:nowrap;
   transition:background-color var(--t2) var(--ease),color var(--t2) var(--ease),box-shadow var(--t2) var(--ease)}
 .seg button:hover{color:var(--ink)}
@@ -2391,7 +2391,7 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
 .q-s{margin-bottom:24px}
 .q-s h4{font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin-bottom:10px}
 .q-themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
-.q-theme{display:flex;flex-direction:column;gap:6px;padding:6px;border-radius:calc(var(--radius) + 4px);border:2px solid transparent;
+.q-theme{display:flex;flex-direction:column;gap:6px;padding:6px;border-radius:var(--radius-lg);border:2px solid transparent;
   transition:border-color var(--t2),transform var(--t2) var(--ease)}
 .q-theme:hover{transform:translateY(-2px)}
 .q-theme.on{border-color:var(--accent)}
@@ -2463,12 +2463,12 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
 .chead.sx::before{content:none}
 .chead.sx::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sec);opacity:.85}
 .chead>*{position:relative}
-.t-ic{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:calc(var(--radius) + 2px);margin-bottom:8px;
+.t-ic{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:var(--radius-lg);margin-bottom:8px;
   color:var(--sec);background:var(--panel);border:1px solid var(--line-soft);box-shadow:0 2px 8px -4px var(--sec)}
 .t-ic svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .t-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .t-meta:empty{display:none}
-.tm-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2);padding:3px 9px 3px 7px;border-radius:20px;
+.tm-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2);padding:3px 9px 3px 7px;border-radius:var(--radius-lg);
   background:var(--panel);border:1px solid var(--line-soft)}
 .tm-chip svg{width:13px;height:13px;stroke:var(--sec,var(--ink-3));fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 [data-ui="mobile"] .t-ic{width:28px;height:28px;margin-bottom:4px}
@@ -2495,13 +2495,13 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
 .home-on .statusbar{visibility:hidden}
 [data-ui="mobile"].home-on .msheet,[data-ui="mobile"].home-on .mbar,[data-ui="mobile"].home-on .mbar2{visibility:hidden}
 .hm{max-width:1120px;margin:0 auto;padding:30px 28px 48px;animation:появиться var(--t3) var(--ease)}
-.hm-hero{padding:26px 28px 24px;border-radius:calc(var(--radius) + 10px);margin-bottom:16px;position:relative;overflow:hidden;
+.hm-hero{padding:26px 28px 24px;border-radius:var(--radius-lg);margin-bottom:16px;position:relative;overflow:hidden;
   background:var(--panel);border:1px solid var(--line-soft)}
 .hm-hero::before{content:none}
 .hm-brand{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.02em}
 .hm-brand span{color:var(--accent)}
 .hm-lead{margin:6px 0 16px;color:var(--ink-2);font-size:14px;line-height:1.55;max-width:640px}
-.hm-search{display:flex;align-items:center;gap:10px;width:100%;max-width:560px;padding:11px 14px;border-radius:calc(var(--radius) + 4px);
+.hm-search{display:flex;align-items:center;gap:10px;width:100%;max-width:560px;padding:11px 14px;border-radius:var(--radius-lg);
   border:1px solid var(--line);background:var(--bg);color:var(--ink-3);font-size:14px;text-align:left;
   transition:border-color var(--t2),box-shadow var(--t2)}
 .hm-search:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -2509,7 +2509,7 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
 .hm-search span{flex:1}
 .hm-search kbd{font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--panel)}
 .hm-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}
-.hm-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px 18px;border-radius:calc(var(--radius) + 6px);
+.hm-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px 18px;border-radius:var(--radius-lg);
   background:var(--panel);border:1px solid var(--line-soft);position:relative;overflow:hidden;
   transition:border-color var(--t2),transform var(--t2) var(--ease),box-shadow var(--t2)}
 button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(-2px);box-shadow:var(--shadow-md)}
@@ -2525,19 +2525,19 @@ button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(
 .hm-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .hm-h{font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin:22px 2px 10px}
 .hm-secs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:18px}
-.hm-sec{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px 16px 14px;border-radius:calc(var(--radius) + 6px);
+.hm-sec{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px 16px 14px;border-radius:var(--radius-lg);
   background:var(--panel);border:1px solid var(--line-soft);position:relative;overflow:hidden;
   transition:border-color var(--t2),transform var(--t2) var(--ease),box-shadow var(--t2)}
 .hm-sec::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sec);opacity:.8;pointer-events:none}
 .hm-sec:hover{border-color:var(--sec);transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .hm-sec:active{transform:translateY(-1px) scale(.99)}
-.hm-sec-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--panel);border:1px solid var(--line-soft);
+.hm-sec-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:var(--radius-lg);background:var(--panel);border:1px solid var(--line-soft);
   box-shadow:0 3px 10px -5px var(--sec);position:relative}
 .hm-sec-ic .hm-ic{width:22px;height:22px}
 .hm-sec-t{font-weight:650;font-size:15px;color:var(--ink);position:relative}
 .hm-sec-t small{display:block;font-weight:500;font-size:11px;color:var(--danger);margin-top:1px}
 .hm-sec-ts{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
-.hm-sec-ts i{font-style:normal;font-size:11px;color:var(--ink-2);padding:2px 7px;border-radius:10px;background:var(--panel-2)}
+.hm-sec-ts i{font-style:normal;font-size:11px;color:var(--ink-2);padding:2px 7px;border-radius:var(--radius-lg);background:var(--panel-2)}
 .hm-sec-p{display:flex;flex-direction:column;gap:3px;width:100%;margin-top:4px;font-size:11px;color:var(--ink-3)}
 .hm-q b{font-size:16px;line-height:1.4;color:var(--ink)}
 .hm-tgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:100%;margin-top:4px}
@@ -2570,13 +2570,13 @@ button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(
 .ro-v.ro-txt{font-family:var(--sans);font-size:.92em;color:var(--accent);white-space:nowrap}
 
 /* ---------- верхняя панель: навигация словами и поиск по курсу ---------- */
-.tnav{display:flex;gap:2px;padding:2px;border-radius:calc(var(--radius) + 2px);background:var(--panel-2)}
+.tnav{display:flex;gap:2px;padding:2px;border-radius:var(--radius-lg);background:var(--panel-2)}
 .tnav .tbtn{border:0;height:30px;background:transparent;color:var(--ink-2);padding:0 12px 0 10px}
 .tnav .tbtn:hover{background:var(--panel);color:var(--ink)}
 .tnav .tbtn.on{background:transparent;color:var(--ink-2)}
 .tnav .tbtn.cur{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 1px 2px #0000001a,0 0 0 1px var(--line-soft)}
 .path-on .tbtn#btn-path{background:var(--panel);border-color:transparent;color:var(--accent)}
-.tsearch{display:flex;align-items:center;gap:9px;width:360px;max-width:34vw;height:32px;padding:0 8px 0 11px;border-radius:calc(var(--radius) + 2px);
+.tsearch{display:flex;align-items:center;gap:9px;width:360px;max-width:34vw;height:32px;padding:0 8px 0 11px;border-radius:var(--radius-lg);
   border:1px solid var(--line);background:var(--bg);color:var(--ink-3);font-size:12.5px;text-align:left;
   transition:border-color var(--t2),box-shadow var(--t2),color var(--t2)}
 .tsearch:hover{border-color:var(--accent);color:var(--ink-2)}
@@ -2596,18 +2596,80 @@ button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(
    Раньше у каждого блока была своя рамка: толстая черта слева у «Зачем»,
    зелёная у «Главного», синяя обводка у «Покрутите сами». Теперь все
    блоки — одна спокойная карточка; различает их подпись цветом. */
-.why,.keybox,.callout{border:0;border-radius:calc(var(--radius) + 4px);background:var(--panel-2)}
-.explore{border:1px solid var(--line-soft);border-radius:calc(var(--radius) + 4px);background:var(--panel)}
-.needs{border:1px solid var(--line-soft);border-radius:calc(var(--radius) + 4px)}
+.why,.keybox,.callout{border:0;border-radius:var(--radius-lg);background:var(--panel-2)}
+.explore{border:1px solid var(--line-soft);border-radius:var(--radius-lg);background:var(--panel)}
+.needs{border:1px solid var(--line-soft);border-radius:var(--radius-lg)}
 .why-h,.ex-h,.key-h{display:inline-block;font-weight:700;letter-spacing:.07em}
 h2.sect{border-left:0;padding-left:0;display:flex;align-items:center;gap:10px}
 h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 .qa,.problem,.formula,.deriv{border-color:var(--line-soft)}
-.formula{border-radius:calc(var(--radius) + 4px)}
+.formula{border-radius:var(--radius-lg)}
 :root{--read-wc:760px}
 /* без сцены шапка темы стоит по той же колонке, что и текст */
 .content.wide .chead{padding-left:12vw;padding-right:12vw;
   padding-left:max(34px,calc(50% - var(--read-wc) / 2));padding-right:max(34px,calc(50% - var(--read-wc) / 2))}
+
+/* ==================== СТРОГИЙ СТИЛЬ (2.2.1) ====================
+   Отзыв: «слишком детский». Детскими интерфейс делали конкретные вещи —
+   таблетки с большими скруглениями, пружинящие анимации, карточки, которые
+   подпрыгивают под курсором, цветные значки в рамках со свечением, круглые
+   точки-рейтинги. Здесь всё это сведено к одной сдержанной системе:
+     · скругления 3–7 px по одной шкале (--radius-sm, --radius, --radius-lg);
+     · движения короткие и прямые, без перелёта;
+     · под курсором меняется граница или фон, а не положение;
+     · цвет раздела — тонкая линия, значки монохромные;
+     · акцент — только у того, что активно. */
+:root{--radius:5px;--radius-sm:4px;--radius-lg:calc(var(--radius) + 2px);--ease-spring:var(--ease);--lift:0px}
+
+/* ничего не подпрыгивает */
+.btn:hover,.pt-card:hover,.hm-card:hover,button.hm-card:hover,.hm-sec:hover,.hm-sec:active,.q-theme:hover,
+.aq-i:hover,.to-top:hover,.pt-card:active{transform:none}
+.btn:hover{box-shadow:none}
+.btn.primary,.btn.primary:hover{box-shadow:none}
+.pt-card:hover,button.hm-card:hover,.hm-sec:hover{box-shadow:none;background:var(--panel-2)}
+.iconbtn:hover svg{transform:none}
+.q-sw:hover{transform:none}
+.sk-dots i.on{transform:none}
+
+/* подписи-«таблетки» — прямоугольные ярлыки */
+.op-chip,.tm-chip,.tp-need-b,.pt-link,.pt-chip,.qa-self button,.hm-sec-ts i,.pc-tag,.calc-tabs button,.calc-v,.pm-st,.f-solve{border-radius:var(--radius-sm)}
+.toast{border-radius:var(--radius)}
+.badge{border-radius:3px}
+
+/* значки без рамок и свечения, монохромные */
+.t-ic{width:auto;height:auto;border:0;background:none;box-shadow:none;margin-bottom:6px;color:var(--ink-3)}
+.t-ic svg{width:18px;height:18px}
+.hm-sec-ic{width:auto;height:auto;border:0;background:none;box-shadow:none;place-items:start}
+.hm-ic,.hm-sec-ic .hm-ic{stroke:var(--ink-2)}
+.sec>.hd .sec-ic{stroke:var(--ink-3)}
+.sec.open>.hd .sec-ic{stroke:var(--ink-2)}
+.tm-chip svg{stroke:var(--ink-3)}
+.chead.sx::after{height:2px;opacity:.9}
+.hm-sec::before{height:2px}
+.hm-cont.sx::before{width:2px}
+
+/* главный экран сдержаннее: без плашки-героя, заголовок обычным шрифтом */
+.hm-hero{background:none;border:0;padding:6px 2px 18px;border-bottom:1px solid var(--line-soft);border-radius:0;margin-bottom:20px}
+.hm-brand{font-family:var(--ui-font);font-size:26px;font-weight:700;letter-spacing:-.02em}
+.hm-card,.hm-sec{border-color:var(--line)}
+.hm-sec{padding:14px 16px 12px}
+.hm-sec-t{font-weight:600}
+.hm-sec-ts i{background:none;padding:0;color:var(--ink-3)}
+.hm-sec-ts{gap:2px 10px}
+
+/* сложность задачи — полоски, а не цветные точки */
+.dots{gap:2px;align-items:flex-end}
+.dots i,.dots i.f{width:3px;border-radius:0}
+.dots i:nth-child(1){height:5px}.dots i:nth-child(2){height:7px}.dots i:nth-child(3){height:9px}
+.dots i:nth-child(4){height:11px}.dots i:nth-child(5){height:13px}
+.dots i.f{background:var(--ink-2)}
+
+/* заголовки разделов конспекта и панели — ровнее */
+.chead h1{font-weight:700;letter-spacing:-.025em}
+.pm-n rect:first-of-type{rx:3px}
+.path-box{border-radius:var(--radius-lg)}
+.tsearch,.tnav,.seg{border-radius:var(--radius)}
+.tnav .tbtn,.seg button{border-radius:var(--radius-sm)}
 </style>
 </head>
 <body>
@@ -6842,7 +6904,7 @@ rocket:{
 
 /* ======================= ЛИФТ: ВЕС И НЕВЕСОМОСТЬ =======================
    Орир, т.1: вес — это сила, с которой тело давит на опору, а не сила
-   тяжести. Человек стоит на весах в кабине; по второму закону для оси,
+   тяжести. Груз стоит на весах в кабине; по второму закону для оси,
    направленной вверх,
        N − mg = m·a   ⇒   P = N = m(g + a).
    Разгон вверх и торможение при спуске (a > 0) — весы показывают больше,
@@ -6863,7 +6925,7 @@ lift:{
   params:[
     {key:'mode',label:'Опыт',type:'select',default:'trip',
      options:[{v:'trip',t:'Поездка: разгон, ход, торможение'},{v:'break',t:'Обрыв троса: свободное падение'}]},
-    {key:'m',label:'Масса человека m',unit:'кг',min:20,max:200,step:1,default:70},
+    {key:'m',label:'Масса груза m',unit:'кг',min:1,max:500,step:1,default:70},
     {key:'g',label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
 
     {type:'group',label:'Поездка',если:p=>p.mode==='trip'},
@@ -6877,7 +6939,7 @@ lift:{
     {key:'tBreak',label:'Трос обрывается в момент',unit:'с',min:0,max:10,step:0.1,default:1,если:p=>p.mode==='break'},
 
     {type:'group',label:'Показывать'},
-    {key:'forces',label:'Силы на человека',type:'check',default:true},
+    {key:'forces',label:'Силы на груз (в центре масс)',type:'check',default:true},
     {key:'accel', label:'Ускорение кабины',type:'check',default:true},
     {key:'stopEnd',label:'Остановить таймер, когда кабина встала',type:'check',default:true}
   ],
@@ -7007,29 +7069,28 @@ lift:{
     v.label(ctx,`${кг.toFixed(1)} кг`,tx+0.15,ty+th*0.62,0,0,цвет);
     v.label(ctx,'весы',tx+0.15,ty+th,0,9,ink3);
     ctx.strokeStyle=line; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(wx1,wy+wh/2); ctx.lineTo(tx,ty+th/2); ctx.stroke(); ctx.setLineDash([]);
-    // человек: в невесомости чуть приподнимается над весами
+    /* Груз — брусок на весах. Для второго закона это материальная точка:
+       обе силы, mg и N, приложены к центру масс и лежат на одной прямой,
+       поэтому их можно складывать как числа со знаком. В невесомости
+       брусок чуть отходит от весов: опора его больше не держит. */
     const всплыл=s.свобода?clamp((s.t-p.tBreak)*0.5,0,0.6):0;
-    const px=0.1, py=wy+wh+всплыл, рост=4.3;
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3); ctx.lineCap='round';
-    const таз=py+рост*0.47, плечи=py+рост*0.78;
-    ctx.beginPath();
-    ctx.moveTo(px-0.35,py); ctx.lineTo(px,таз); ctx.lineTo(px+0.35,py);           // ноги
-    ctx.moveTo(px,таз); ctx.lineTo(px,плечи);                                      // корпус
-    const руки=s.свобода?0.55:-0.6;                                                // в невесомости руки всплывают
-    ctx.moveTo(px-0.62,плечи+руки); ctx.lineTo(px,плечи); ctx.lineTo(px+0.62,плечи+руки);
-    ctx.stroke();
-    ctx.beginPath(); ctx.arc(px,плечи+0.5,0.36,0,Math.PI*2); ctx.stroke();
-    ctx.lineCap='butt';
-    // силы на человека: mg из центра масс вниз, N от ступней вверх
+    const бш=Math.min(2.6,1.7+0.4*Math.cbrt(p.m/70)), бв=бш*0.8;
+    const px=(wx0+wx1)/2, низ=wy+wh+всплыл, cm=низ+бв/2;
+    ctx.fillStyle=v.c('--panel-2'); ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6);
+    ctx.fillRect(px-бш/2,низ,бш,бв); ctx.strokeRect(px-бш/2,низ,бш,бв);
+    v.label(ctx,`m = ${p.m} кг`,px-бш/2,низ+бв*0.7,-66,0,ink3);
+    // центр масс: точка, к которой приложены силы
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(px,cm,v.lw(3.2),0,Math.PI*2); ctx.fill();
     if(p.forces){
-      const L=2.1, cm=py+рост*0.52;
-      v.arrow(ctx,px+0.18,cm,px+0.18,cm-L,dang);
-      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px+0.18,cm-L,10,8,dang);
+      // длина mg — от центра масс до пола: стрелки не протыкают кабину
+      const L=Math.max(0.6,cm-(by0+0.05));
+      v.arrow(ctx,px,cm,px,cm-L,dang);
+      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px,cm-L,10,6,dang);
       if(P>1e-6){
         const LN=L*P/mg;
-        v.arrow(ctx,px-0.18,py,px-0.18,py+LN,acc);
-        v.label(ctx,`N = P = ${P.toFixed(0)} Н`,px-0.18,py+LN,10,-4,acc);
-      } else v.label(ctx,'N = 0 — невесомость',px+0.4,py,6,-16,meas);
+        v.arrow(ctx,px,cm,px,cm+LN,acc);
+        v.label(ctx,`N = ${P.toFixed(0)} Н`,px,cm+LN,10,-4,acc);
+      } else v.label(ctx,'N = 0 — невесомость',px,cm,12,-14,meas);
     }
     // ускорение кабины
     if(p.accel&&Math.abs(s.a)>1e-6){
@@ -19160,7 +19221,7 @@ const T_dyn={
     {sim:'incline', do:`Медленно увеличивайте угол, пока брусок не поедет`, see:`это и есть угол, при котором $\\operatorname{tg}\\alpha=\\mu$`},
     {sim:'incline', do:`Поставьте $\\mu=0$ и меняйте массу`, see:`ускорение $g\\sin\\alpha$ не изменится: масса сокращается`},
     {sim:'atwood', do:`Сделайте грузы одинаковыми`, see:`система замрёт при любой массе — важна разность, а не вес`},
-    {sim:'lift', do:`Прокатитесь в лифте вверх и посмотрите на весы`, see:`на разгоне весы показывают больше массы, на торможении меньше, а на ходу — ровно массу: вес зависит от ускорения, а не от скорости`},
+    {sim:'lift', do:`Прокатитесь с грузом на весах вверх и посмотрите на показания`, see:`на разгоне весы показывают больше массы, на торможении меньше, а на ходу — ровно массу: вес зависит от ускорения, а не от скорости`},
   ],
   theory:`
   <p>Кинематика описывала движение, ничего не спрашивая о его причине. Динамика отвечает на вопрос
@@ -19657,37 +19718,39 @@ const T_dyn={
     /* ---------- Лифт ---------- */
     /* Ответы считаются по поездке (режим «Поездка»): профилем той же
        симуляции, поэтому время и путь разгона совпадают с моделью. */
-    {level:1, sim:'lift', unit:'кг',
-     statement:`Человек стоит на весах в лифте. Что покажут весы, пока лифт <strong>разгоняется</strong>
+    /* Имена задач закреплены: в 2.2.1 человек в кабине стал грузом, и
+       условия переписаны — отметки о решении не должны от этого слететь. */
+    {id:'mech.dyn#1ih875b', level:1, sim:'lift', unit:'кг',
+     statement:`Груз стоит на весах в лифте. Что покажут весы, пока лифт <strong>разгоняется</strong>
        в выбранном направлении?`,
      hint:'Весы показывают вес, делённый на $g$: $P=m(g+a)$, ось вверх, $a$ со знаком.',
      answer:p=>{ const σ=p.dir==='down'?-1:1; return Math.max(0,p.m*(p.g+σ*p.a))/p.g; }},
 
-    {level:2, sim:'lift', unit:'',
-     statement:`Во сколько раз вес человека при <strong>торможении</strong> лифта отличается от силы тяжести
+    {id:'mech.dyn#yirr8n', level:2, sim:'lift', unit:'',
+     statement:`Во сколько раз вес груза при <strong>торможении</strong> лифта отличается от силы тяжести
        (найдите отношение $P/mg$)?`,
      hint:'При торможении ускорение направлено против скорости.',
      answer:p=>{ const σ=p.dir==='down'?-1:1; return Math.max(0,p.g-σ*p.a)/p.g; }},
 
-    {level:3, sim:'lift', unit:'с',
+    {id:'mech.dyn#s97bbz', level:3, sim:'lift', unit:'с',
      statement:`Сколько секунд длится поездка лифта целиком — от начала разгона до остановки?`,
      hint:'Разгон и торможение одинаковы. Проверьте, успевает ли лифт разогнаться до $v_{max}$: если нет, ход треугольный.',
      answer:p=>SIMS.lift.профиль(Object.assign({},p,{mode:'trip'}),0).T},
 
-    {level:4, sim:'lift', unit:'Дж',
-     statement:`Какую работу совершает сила реакции пола над человеком за участок <strong>разгона</strong>?
-       Знак важен: при спуске пол давит вверх, а человек движется вниз.`,
+    {id:'mech.dyn#6pn6fo', level:4, sim:'lift', unit:'Дж',
+     statement:`Какую работу совершает сила реакции весов над грузом за участок <strong>разгона</strong>?
+       Знак важен: при спуске опора давит вверх, а груз движется вниз.`,
      hint:'Сила постоянна на всём участке: $A=N\\cdot s\\cdot\\cos\\alpha$, а путь разгона $s=v^2/2a$.',
      answer:p=>{ const σ=p.dir==='down'?-1:1, пр=SIMS.lift.профиль(Object.assign({},p,{mode:'trip'}),0);
        return Math.max(0,p.m*(p.g+σ*p.a))*σ*пр.d1; }},
 
-    {level:5, sim:'lift', unit:'с',
-     statement:`В момент, когда лифт трогается, человек выпускает из руки монету с высоты 1,5 м над полом кабины.
-       Через сколько секунд она коснётся пола?`,
-     hint:'Решайте в системе кабины: монета падает с ускорением $g+a$ относительно пола — пока кабина разгоняется. Не забудьте, что разгон может кончиться раньше.',
+    {id:'mech.dyn#1nhl3pi', level:5, sim:'lift', unit:'с',
+     statement:`В момент, когда лифт трогается, от потолка кабины отрывается болт, висевший на высоте 1,5 м над полом.
+       Через сколько секунд он коснётся пола?`,
+     hint:'Решайте в системе кабины: болт падает с ускорением $g+a$ относительно пола — пока кабина разгоняется. Не забудьте, что разгон может кончиться раньше.',
      answer:p=>{
        const q=Object.assign({},p,{mode:'trip'}), σ=p.dir==='down'?-1:1;
-       // пол движется по профилю поездки, монета — свободно из покоя
+       // пол движется по профилю поездки, болт — свободно из покоя
        const зазор=t=>1.5-p.g*t*t/2-σ*SIMS.lift.профиль(q,t).s;
        let lo=0, hi=0.05; while(зазор(hi)>0&&hi<60) hi*=2;
        for(let i=0;i<80;i++){ const m=(lo+hi)/2; if(зазор(m)>0) lo=m; else hi=m; }
@@ -30467,7 +30530,7 @@ function рисоватьКарту(body){
     const фронт=сост.фронт.includes(t.id);
     const секц=typeof разделТемы==='function'?разделТемы(t):null;
     узлы+=`<g class="pm-n s-${x.статус}${фронт?' front':''}${путь.тема===t.id?' sel':''}${секц?' sx':''}" style="${секц?стильРаздела(секц):''}" data-id="${t.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(t.title)}: ${СТАТУС[x.статус]}">
-      <title>${esc(t.title)}</title><rect width="${w}" height="${h}" rx="9"/>${секц?`<rect class="pm-sec" x="0" y="9" width="3" height="${h-18}" rx="1.5"/>`:''}
+      <title>${esc(t.title)}</title><rect width="${w}" height="${h}" rx="4"/>${секц?`<rect class="pm-sec" x="0" y="9" width="3" height="${h-18}" rx="1.5"/>`:''}
       <rect class="pm-fill" y="${h-4}" width="${Math.max(0,w*x.освоение)}" height="4" rx="2"/>
       <text x="9" y="19" class="pm-t">${esc(обрезать(t.title,w))}</text>
       <text x="9" y="36" class="pm-s">${esc(t.ch?t.section.split(' ')[0]+' · '+t.ch:t.section)} · ${Math.round(x.освоение*100)}%</text>
@@ -34985,8 +35048,8 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
-  palette:'std',accentCustom:'#5d5294',radius:8,uiFont:'sans',readW:'norm',lineH:1.65,
-  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std',
+  palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
+  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
@@ -35001,7 +35064,7 @@ const PREFS=[
   {cat:'look',key:'palette',type:'select',def:'std',
    name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага» — тёплая, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
    options:[['std','Обычная'],['sepia','Бумага'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
-  {cat:'look',key:'radius',type:'range',def:8,min:0,max:18,step:1,unit:' px',
+  {cat:'look',key:'radius',type:'range',def:5,min:0,max:14,step:1,unit:' px',
    name:'Скругление углов',desc:'От строгих прямых углов до мягких «таблеток». Меняет кнопки, карточки, поля и панели.'},
   {cat:'look',key:'uiFont',type:'select',def:'sans',
    name:'Шрифт интерфейса',desc:'Шрифты берутся из системы — ничего не скачивается. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
@@ -35014,7 +35077,7 @@ const PREFS=[
   {cat:'look',key:'motion',type:'select',def:'auto',
    name:'Анимации',desc:'«Как в системе» следует за настройкой «уменьшить движение» устройства. «Спокойные» оставляют только плавную смену цвета.',
    options:[['auto','Как в системе'],['full','Все'],['calm','Спокойные'],['off','Выключены']]},
-  {cat:'look',key:'ripple',type:'toggle',def:true,
+  {cat:'look',key:'ripple',type:'toggle',def:false,
    name:'Волна при нажатии',desc:'Мягкий круг расходится от точки, куда вы нажали, — видно, что кнопка сработала.'},
   {cat:'look',key:'btnStyle',type:'select',def:'fill',
    name:'Стиль кнопок',desc:'Как выглядят главные кнопки: «Проверить», «Открыть модель».',
@@ -35458,7 +35521,7 @@ function страницаГлавное(){
       <span>Анимации</span>${сег('motion',[['auto','Авто'],['full','Все'],['calm','Спокойно'],['off','Нет']])}
       <span>Подписи у кнопок</span>${сег('labels',[['auto','Авто'],['on','Всегда'],['off','Значки']])}
       <span>Кнопки</span>${сег('btnStyle',[['fill','Заливка'],['soft','Мягкие'],['outline','Контур']])}
-      <span>Углы</span><div class="q-rad"><input type="range" min="0" max="18" step="1" value="${prefGet('radius')}" id="q-rad"><b>${prefGet('radius')} px</b></div>
+      <span>Углы</span><div class="q-rad"><input type="range" min="0" max="14" step="1" value="${prefGet('radius')}" id="q-rad"><b>${prefGet('radius')} px</b></div>
     </div></section>
   <section class="q-s"><h4>Профили</h4>
     <p class="q-help">Профиль — набор настроек одним нажатием. Применение запоминает, как было, — его можно вернуть.</p>
@@ -38370,7 +38433,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '2.2.0';
+window.PHYSIM_BUILD = '2.2.1';
 window.PHYSIM_READY = true;
 </script>
 </body>
