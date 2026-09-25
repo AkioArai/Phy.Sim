@@ -8,7 +8,7 @@ are what you read when the simulation surprises you.
 This is not a course that teaches physics from zero — it is a **full revision** of one,
 from kinematics to quarks. Every topic opens with three things to try in a live
 simulation, five points worth remembering, and the derivations behind the formulas.
-76 simulations, 78 derivations and 384 problems, in a single HTML file that runs
+77 simulations, 78 derivations and 389 problems, in a single HTML file that runs
 offline, with no install and no account.
 
 > The course content is in **Russian** (it follows J. Orear's *Physics*, vols. 1–2).
@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-2.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-2.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-2.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-2.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-2.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-2.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-2.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-2.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -89,7 +89,7 @@ KaTeX and its fonts ship inside the repository.
 | **My path** | the handbook remembers what you solved and when: a map of all topics and what each stands on, a 12-problem diagnostic, spaced review, and a trainer for the skill behind your mistakes |
 | **why the answer is wrong** | a wrong answer is checked against the answers that typical slips produce — sin for cos, degrees in radian mode, centimetres left unconverted, forgotten friction, a lost sign — and the slip is named |
 | **40** questions to start from | "why doesn't a satellite fall?" — each opens the topic and the simulation where you can see the answer |
-| **76** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear |
+| **77** interactive simulations | mechanics · thermodynamics · electricity · magnetism · waves & optics · quantum · nuclear |
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
 | **34** topics in **7** sections | each one opens with what to try, then five points to remember; the full notes are one click below, collapsed |
@@ -97,11 +97,11 @@ KaTeX and its fonts ship inside the repository.
 | **135** points to remember | the five sentences per topic you would want on an exam morning |
 | **78** derivations, **306** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
 | **calculator with units** | 72 км/ч в м/с, (2,5 ± 0,1) м / (3,0 ± 0,2) с, h c / (500 нм) в эВ — every number carries its dimension, adding metres to seconds is refused, uncertainty propagates |
-| **183** course formulas, solvable | any of them for any of its quantities: T = 2π√(L/g) solved for g, with units and uncertainty; the rearranged formula is shown, not just the number |
+| **184** course formulas, solvable | any of them for any of its quantities: T = 2π√(L/g) solved for g, with units and uncertainty; the rearranged formula is shown, not just the number |
 | **40** math techniques, on the steps | every step is tagged with the mathematics it uses; a tag opens what the technique is, when it is legitimate, where it breaks — and every other derivation in the course that uses it |
 | **prerequisites, stated** | a topic names what you must know first and offers a one-minute check before you start reading |
-| **252** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
-| **384** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
+| **253** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
+| **389** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
 | **133** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
 | **83** self-checks | three questions per topic, answers hidden until you have tried |
 | **125** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
@@ -133,8 +133,8 @@ does those three things, with nothing leaving the device.
   radian mode, centimetres or grams plugged in unconverted, a forgotten ×10²⁴, friction
   left out, two quantities swapped, a checkbox of the model ignored — and, from the
   number itself, a lost sign, a lost prefix, a lost ½ or 2π, g = 10 instead of 9.8. It
-  needs no per-problem markup, so it works for all 384 problems. `npm run learn`
-  reproduces 490 such slips across 158 problems and requires every one to be named,
+  needs no per-problem markup, so it works for all 389 problems. `npm run learn`
+  reproduces 495 such slips across 163 problems and requires every one to be named,
   the correct answer never to be called a slip, and a random wrong number to get an
   explanation less than 10 % of the time (it is 1.8 %).
 - **Skills.** Each slip belongs to one of ten skills — projections, radians, units,
@@ -161,6 +161,28 @@ Each section keeps its colour everywhere: in the topic list, on the map, and in 
 topic header, which now shows the section icon and a summary — reading time, formulas,
 derivations, problems, simulations. A thin bar along the top shows how far you have
 read, and a button takes you back to the start.
+
+### Reading without the header in the way
+
+The top bar now says where you can be — **Home · Course · My path** — in words, with a
+search box for the whole course in the middle (Ctrl+P). The header of a topic — title,
+summary, mastery, tabs — slides up out of the way as soon as you scroll down to read,
+and comes back with the slightest scroll up; the text underneath does not move by a
+pixel, so a card opened next to a formula stays next to it. **Reading mode** (the book
+icon) hides the scene and the topic list in one click and brings back exactly what was
+open. Boxes in the notes are flat cards now, without coloured frames or gradients.
+
+### Weight, in a lift
+
+A new simulation in *Dynamics*: a person on bathroom scales in a lift. The ride has a
+real lift's profile — accelerate, run at constant speed, brake; if the floor is too close
+to reach full speed, the ride is triangular. The scales read m(g + a)/g: more than the
+mass while accelerating upwards or braking on the way down, less in the opposite cases,
+exactly the mass at constant speed — weight depends on acceleration, not on speed. Cut the
+cable and the scales read zero while gravity is unchanged: weightlessness is free fall,
+not the absence of gravity. Five problems come with it, up to a coin dropped at the moment
+the lift starts; the profile is computed analytically, so the trip time in a problem
+matches the model to the last digit, and three new physics checks hold it there.
 
 ### Make it yours
 
@@ -199,7 +221,7 @@ carries its dimension.
 - **Dimension check.** `2 м + 3 с` is refused with the reason. `Дж = Н` answers that
   the left side is larger by a metre. `ln(5 м)` explains that a logarithm needs a ratio.
   `sin 30` warns that it was taken in radians.
-- **Solve any course formula for any quantity.** 183 of the 252 formulas parse into
+- **Solve any course formula for any quantity.** 184 of the 253 formulas parse into
   something solvable. Pick one — or press *решить* next to it in the notes — choose
   the unknown, type the rest with units, and get the answer with its unit and
   uncertainty, plus the formula rearranged for it: `g = 4π²L/T²`. When the unknown
@@ -258,12 +280,12 @@ law is compared with the slope of the flux taken *with a minus sign* — that mi
 the law. A card on each explains what a derivative or an integral is and links back
 into the derivations that use one.
 
-14 such pairs in 11 simulations: kinematics, projectile motion, circular motion,
+16 such pairs in 12 simulations: kinematics, the lift, projectile motion, circular motion,
 rolling, the rocket, the three pendulums, damped oscillations, a point on a wave and
 Lenz's law. They are marked by hand and only where the relation is exact: an orbit's
 r(t) and v(t) have compatible units, but v is not dr/dt, and the handbook will not
 pretend otherwise. `npm run graphs` runs each simulation for four seconds and requires
-every marked pair to agree on average to within 5 %. Thirteen agree within half a per
+every marked pair to agree on average to within 5 %. Fifteen agree within half a per
 cent; the EMF of a loop entering a field has genuine steps and agrees within 4 %. Flip
 the sign on the EMF and the check fails at 200 %.
 
@@ -271,7 +293,7 @@ the sign on the EMF and the check fails at 200 %.
 
 Most answers are computed from the **current parameters of the linked simulation**.
 Change the mass and the answer changes — so your neighbour's answer is different.
-An audit (`npm run audit`) runs all 384 problems against 40 randomised parameter
+An audit (`npm run audit`) runs all 389 problems against 40 randomised parameter
 sets each and checks that none of them throws, returns a non-number, is unanswerable
 for every input, compares a switch against a value the simulation doesn't have, or —
 above level 1 — simply equals a number already shown in the readouts panel.
@@ -307,14 +329,14 @@ Events are honoured: if the body lands, the curve stops there and the moment is 
 — the landing time matches `2v₀sinθ/g` to the digit. The plot has real margins on every
 side, so the curve never touches the frame and the axis numbers are never clipped.
 
-**The x-axis does not have to be time.** 37 of the 76 simulations are timeless —
+**The x-axis does not have to be time.** 37 of the 77 simulations are timeless —
 nothing about them depends on time, they carry no graphs, and until now the compiler
 refused them outright. That is all of quantum mechanics, most of optics, nuclear
 physics and electrostatics. Put a *parameter* on the x-axis instead and each point
 becomes a separate run of the model: the range against the angle of throw, the period
 against the length, the efficiency against the cold-side temperature, the field against
 the distance. Nothing is authored per simulation — the x menu is built from the numeric
-parameters and the y menu from the readouts — so 73 of the 76 can now be compiled
+parameters and the y menu from the readouts — so 74 of the 77 can now be compiled
 instead of 36. Checked against Coulomb's law: sweeping a probe across a charged sphere,
 `E·r²` outside it is constant to 2·10⁻¹⁶ relative spread, and the picture is the one
 the textbook draws — linear inside, a peak at the surface, `1/r²` beyond.
@@ -329,7 +351,7 @@ data all did nothing there.
 
 ### Every simulation checked against the textbook
 
-`npm run physics` is a separate harness: **530 checks** that take a simulation's
+`npm run physics` is a separate harness: **543 checks** that take a simulation's
 readouts and compare them with a number computed from the closed-form solution,
 written out independently of the simulation's own code. Parameters are deliberately
 un-round (a wrong coefficient hides behind a nice number), the reference constants
@@ -499,8 +521,8 @@ email, put on a flash drive, or open by double-clicking.
 ```
 index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
-tests/physics.mjs     530 checks of readouts against closed-form solutions
-tests/answers.mjs     all 384 problems against 40 random parameter sets each
+tests/physics.mjs     543 checks of readouts against closed-form solutions
+tests/answers.mjs     all 389 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
 tests/calc.mjs        the calculator, and every course formula solved both ways
 tests/graphs.mjs      every graph marked as a derivative of another, checked in numbers
@@ -508,7 +530,7 @@ tests/learn.mjs       the learner model: mastery, map, review, diagnostic, every
 tests/compat.js       the engine floor: ES2017, an ES5 watchdog, CSS fallbacks
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
-js/sims/*.js          the 76 simulations, grouped by branch of physics
+js/sims/*.js          the 77 simulations, grouped by branch of physics
 js/topics.js          course content: notes, derivations, formulas, worked
                       examples, mistakes, self-checks, links, problems
 js/ops.js             the 40 math techniques the derivation steps are tagged with

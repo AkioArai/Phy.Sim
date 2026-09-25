@@ -220,11 +220,13 @@ function открытьПуть(вкладка,опц){
   if(опц.навык) путь.навык=опц.навык;
   p.classList.remove('hidden');
   document.documentElement.classList.add('path-on');
+  if(typeof обновитьНав==='function') обновитьНав();
   вкладкаПути(вкладка||путь.вкладка);
 }
 function закрытьПуть(){
   const p=document.getElementById('path'); if(!p) return;
   p.classList.add('hidden'); document.documentElement.classList.remove('path-on');
+  if(typeof обновитьНав==='function') обновитьНав();
   обновитьЗначокПути();
   if(typeof renderTree==='function') renderTree(($('#search')||{}).value||'');
 }

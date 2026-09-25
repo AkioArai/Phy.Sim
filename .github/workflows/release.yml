@@ -144,33 +144,34 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 76 live simulations,
-          34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 77 live simulations,
+          34 topics, 78 step-by-step derivations, 253 formulas and 389 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          ## 2.1.0 — a home screen and a face for every section
+          ## 2.2.0 — quieter, flatter, and out of the way
 
-          **Home screen.** The handbook now opens on it: continue where you stopped, what
-          My path has for today, the six sections as cards with their progress, a question of
-          the day and a search box. A section card leads to its first topic you have not
-          mastered yet. Prefer the old way? Settings → Behaviour → *On start → Topic*.
+          **The topic header gets out of the way.** Scroll down to read and the title, summary
+          and tabs slide up; the slightest scroll up brings them back. The text underneath does
+          not move by a pixel.
 
-          **Every section has its colour and icon** — mechanics, thermodynamics, electricity,
-          magnetism, optics, quantum — in the topic list, on the map and in the topic header.
-          The header also shows reading time, formulas, derivations, problems and simulations.
-          A thin bar shows how far you have read; a button takes you back to the top.
+          **A new top bar.** Home · Course · My path, in words, and a search box for the whole
+          course in the middle. **Reading mode** hides the scene and the topic list in one click
+          and brings back exactly what was open.
 
-          **Fix: confirmation dialogs opened under Settings.** "Reset settings", "Delete my
-          presets" and "Clear everything" showed their dialog beneath the settings screen, so
-          the buttons seemed to do nothing. Dialogs and messages now sit above everything;
-          destructive actions have a red button with focus on *Cancel*.
+          **Fewer gradients.** The fades on the topic header, the home screen, the section cards
+          and the gloss on buttons are gone; notes use flat cards instead of coloured frames.
 
-          **Fix: "Clear everything" did not really clear.** The progress still held in memory
-          was written straight back, and the offline copy stayed cached. It now wipes the
-          storage and the offline cache and restarts the handbook from scratch.
+          **New simulation: a lift.** In *Dynamics*: a person on bathroom scales, a real ride
+          profile (accelerate, cruise, brake) and a cable that can break. The scales read
+          m(g + a)/g — weight depends on acceleration, not on speed, and in free fall it is zero
+          while gravity is unchanged. Five problems and three new physics checks come with it.
 
-          Everything from 2.0 — My path, the diagnostic, named slips, skills and the new
-          settings — is here as well.
+          **Fixes in scene notes.** While editing, clicking the title closed the editor; "delete"
+          lost its first click; a tucked note could not be restored with a tap (only a double
+          click, which phones do not have); a note near the edge slid off the scene after the
+          window shrank or the phone turned; after a dialog the editor did not close on a click
+          elsewhere; a note file with missing fields put a card at NaN. All fixed, and the text
+          is now saved while you type.
 
           ### Must read
 

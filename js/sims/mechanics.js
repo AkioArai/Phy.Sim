@@ -3571,6 +3571,215 @@ rocket:{
 }
 ,
 
+
+/* ======================= ЛИФТ: ВЕС И НЕВЕСОМОСТЬ =======================
+   Орир, т.1: вес — это сила, с которой тело давит на опору, а не сила
+   тяжести. Человек стоит на весах в кабине; по второму закону для оси,
+   направленной вверх,
+       N − mg = m·a   ⇒   P = N = m(g + a).
+   Разгон вверх и торможение при спуске (a > 0) — весы показывают больше,
+   разгон вниз и торможение при подъёме (a < 0) — меньше, свободное падение
+   (a = −g) — ноль: невесомость.
+
+   Поездка задана так же, как у настоящего лифта: разгон с ускорением a до
+   скорости v_max, равномерный ход, торможение с тем же ускорением. Если
+   этаж близко и до v_max разогнаться не успеть, ход треугольный. Профиль
+   считается аналитически (профиль()), а не интегрированием — поэтому время
+   поездки и путь разгона в задачах совпадают с моделью до последней цифры.
+
+   Сцена — схема (schema): слева вся шахта в масштабе поездки, справа
+   кабина крупно. Метров на сетке нет, есть этажи по 3 м. */
+lift:{
+  title:'Лифт: вес, перегрузка и невесомость',
+  schema:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'trip',
+     options:[{v:'trip',t:'Поездка: разгон, ход, торможение'},{v:'break',t:'Обрыв троса: свободное падение'}]},
+    {key:'m',label:'Масса человека m',unit:'кг',min:20,max:200,step:1,default:70},
+    {key:'g',label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
+
+    {type:'group',label:'Поездка',если:p=>p.mode==='trip'},
+    {key:'dir',label:'Направление',type:'select',default:'up',если:p=>p.mode==='trip',
+     options:[{v:'up',t:'Вверх'},{v:'down',t:'Вниз'}]},
+    {key:'H',label:'Путь кабины',unit:'м',min:3,max:300,step:1,default:30},
+    {key:'a',label:'Ускорение разгона и торможения',unit:'м/с²',min:0.2,max:8,step:0.1,default:1.5,если:p=>p.mode==='trip'},
+    {key:'vmax',label:'Скорость хода v_max',unit:'м/с',min:0.5,max:12,step:0.1,default:3,если:p=>p.mode==='trip'},
+
+    {type:'group',label:'Обрыв троса',если:p=>p.mode==='break'},
+    {key:'tBreak',label:'Трос обрывается в момент',unit:'с',min:0,max:10,step:0.1,default:1,если:p=>p.mode==='break'},
+
+    {type:'group',label:'Показывать'},
+    {key:'forces',label:'Силы на человека',type:'check',default:true},
+    {key:'accel', label:'Ускорение кабины',type:'check',default:true},
+    {key:'stopEnd',label:'Остановить таймер, когда кабина встала',type:'check',default:true}
+  ],
+  /* Профиль поездки: путь s ≥ 0 вдоль направления, скорость и ускорение
+     вдоль него, фаза и полное время T. */
+  профиль(p,t){
+    const d=Math.max(0,p.H), a=Math.max(1e-6,p.a), vm=Math.max(1e-6,p.vmax);
+    let vpk=vm, t1=vm/a, d1=vm*vm/(2*a), tc=(d-2*d1)/vm;
+    if(tc<0){ vpk=Math.sqrt(a*d); t1=vpk/a; d1=d/2; tc=0; }
+    const T=2*t1+tc;
+    if(t<=0) return {s:0,v:0,acc:a,фаза:'разгон',T,t1,tc,d1,vpk};
+    if(t<t1) return {s:a*t*t/2,v:a*t,acc:a,фаза:'разгон',T,t1,tc,d1,vpk};
+    if(t<t1+tc) return {s:d1+vpk*(t-t1),v:vpk,acc:0,фаза:'равномерный ход',T,t1,tc,d1,vpk};
+    if(t<T){ const τ=t-t1-tc; return {s:d1+vpk*tc+vpk*τ-a*τ*τ/2,v:vpk-a*τ,acc:-a,фаза:'торможение',T,t1,tc,d1,vpk}; }
+    return {s:d,v:0,acc:0,фаза:'приехали',T,t1,tc,d1,vpk};
+  },
+  /* Кинематика кабины по оси «вверх»: высота, скорость, ускорение, фаза. */
+  кабина(p,t){
+    if(p.mode==='break'){
+      const H=Math.max(0,p.H), tb=Math.max(0,p.tBreak);
+      if(t<tb) return {y:H,v:0,a:0,фаза:'трос держит',свобода:false};
+      const τ=t-tb, y=H-p.g*τ*τ/2;
+      if(y<=0) return {y:0,v:0,a:0,фаза:'удар о дно шахты',свобода:false,дно:true};
+      return {y,v:-p.g*τ,a:-p.g,фаза:'свободное падение',свобода:true};
+    }
+    const σ=p.dir==='down'?-1:1, y0=p.dir==='down'?p.H:0, пр=this.профиль(p,t);
+    return {y:y0+σ*пр.s,v:σ*пр.v,a:σ*пр.acc,фаза:пр.фаза,T:пр.T};
+  },
+  вес(p,к){ return Math.max(0,p.m*(p.g+к.a)); },
+  init(p){ const s={t:0,event:null,__stop:null}; Object.assign(s,this.кабина(p,0)); return s; },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt, к=this.кабина(p,t);
+    Object.assign(s,к); s.t=t;
+    if(p.mode==='trip'&&к.фаза==='приехали'){
+      s.event={t,type:'arrive'};
+      if(p.stopEnd) s.__stop=`Лифт приехал: ${p.H} м за ${к.T.toFixed(2)} с`;
+    }
+    if(p.mode==='break'&&к.дно){
+      const vуд=Math.sqrt(2*p.g*p.H);
+      s.event={t,type:'hit'};
+      if(p.stopEnd) s.__stop=`Кабина упала с ${p.H} м: скорость удара ${vуд.toFixed(1)} м/с (${(vуд*3.6).toFixed(0)} км/ч)`;
+    }
+  },
+  readouts(s,p){
+    const P=this.вес(p,s);
+    return [['t',s.t,'с'],
+      ['фаза',s.фаза,''],
+      ['высота кабины h',s.y,'м'],
+      ['скорость v (ось вверх)',s.v,'м/с'],
+      ['ускорение a (ось вверх)',s.a,'м/с²'],
+      ['сила тяжести mg',p.m*p.g,'Н'],
+      ['вес P = m(g + a)',P,'Н'],
+      ['показания весов',P/p.g,'кг'],
+      ['перегрузка P / mg',P/(p.m*p.g),'']];
+  },
+  graphs:[
+    {label:'h(t) — высота кабины',unit:'м',series:['h'],get:s=>[s.y,null]},
+    {label:'v(t) — скорость (наклон h(t))',unit:'м/с',наклон:0,series:['v'],get:s=>[s.v,null]},
+    {label:'a(t) — ускорение (наклон v(t))',unit:'м/с²',наклон:1,series:['a'],get:s=>[s.a,null]},
+    {label:'Вес P и сила тяжести mg',unit:'Н',series:['P','mg'],get(s,p){ return [SIMS.lift.вес(p,s),p.m*p.g]; }}
+  ],
+  presets:[
+    {name:'Скоростной лифт небоскрёба',values:{mode:'trip',dir:'up',H:240,a:1.2,vmax:10,m:70}},
+    {name:'Один этаж вниз: разогнаться не успевает',values:{mode:'trip',dir:'down',H:3,a:1,vmax:3,m:70}},
+    {name:'Резкий разгон вверх — перегрузка',values:{mode:'trip',dir:'up',H:30,a:5,vmax:6,m:70}},
+    {name:'Обрыв троса: невесомость',values:{mode:'break',H:30,tBreak:1,m:70}},
+    {name:'Лифт на Луне',values:{mode:'trip',dir:'up',H:30,a:1.5,vmax:3,g:1.6}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    /* Рисунок занимает правые две трети: левый верхний угол по умолчанию
+       отдан панели показаний, и шахта под ней была не видна. */
+    const spanX=15, spanY=10.4;
+    const scale=clamp(Math.min((W-24)/(spanX*PX_PER_M),(H-24)/(spanY*PX_PER_M)),0.002,30);
+    return {x:1.6,y:4.3,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), ok=v.c('--ok'), panel=v.c('--panel');
+    const P=this.вес(p,s), mg=p.m*p.g, Hs=Math.max(3,p.H);
+    /* ---- шахта целиком: 8 единиц схемы на весь путь ---- */
+    const sx0=6.2, sx1=7.8, sy0=0, sy1=8.2, k=(sy1-sy0)/Hs;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4);
+    ctx.strokeRect(sx0,sy0,sx1-sx0,sy1-sy0);
+    const шагЭт=Math.max(3,Math.ceil(Hs/24/3)*3);           // не больше ~24 отметок
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
+    for(let h=шагЭт;h<Hs;h+=шагЭт){ const y=sy0+h*k; ctx.beginPath(); ctx.moveTo(sx0,y); ctx.lineTo(sx0+0.3,y); ctx.moveTo(sx1-0.3,y); ctx.lineTo(sx1,y); ctx.stroke(); }
+    v.label(ctx,`${fmtKm(Hs)}`,sx0,sy1,0,-10,ink3);
+    v.label(ctx,'0 м',sx0,sy0,0,12,ink3);
+    v.label(ctx,'шахта',sx0,sy0,0,26,ink3);
+    const cy=sy0+clamp(s.y,0,Hs)*k, ch=0.55;
+    // трос (в обрыве — оборванный конец висит сверху)
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.2);
+    ctx.beginPath(); const mx=(sx0+sx1)/2;
+    if(p.mode==='break'&&s.t>=p.tBreak){ ctx.moveTo(mx,sy1); ctx.lineTo(mx,sy1-0.5); }
+    else { ctx.moveTo(mx,sy1); ctx.lineTo(mx,cy+ch); }
+    ctx.stroke();
+    ctx.fillStyle=acc; ctx.fillRect(sx0+0.18,cy,sx1-sx0-0.36,ch);
+    v.label(ctx,`h = ${s.y.toFixed(1)} м`,sx0,cy+ch/2,-70,0,acc);
+
+    /* ---- кабина крупно ---- */
+    const bx0=-1.6, bx1=4.6, by0=0.4, by1=8.2;
+    // стены шахты за кабиной: отметки этажей проплывают мимо — видно движение
+    ctx.save(); ctx.beginPath(); ctx.rect(bx0-1.1,by0-0.4,bx1-bx0+2.2,by1-by0+0.8); ctx.clip();
+    const этаж=3, пикс=(by1-by0)/6;                         // 6 м шахты на высоту кабины
+    const сдвиг=((s.y%этаж)+этаж)%этаж;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4);
+    for(let i=-2;i<5;i++){
+      const y=by0+(i*этаж-сдвиг)*пикс;
+      ctx.beginPath(); ctx.moveTo(bx0-1.1,y); ctx.lineTo(bx0-0.25,y); ctx.moveTo(bx1+0.25,y); ctx.lineTo(bx1+1.1,y); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle=panel; ctx.fillRect(bx0,by0,bx1-bx0,by1-by0);
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2.2); ctx.strokeRect(bx0,by0,bx1-bx0,by1-by0);
+    // пол и весы
+    const fy=by0+0.35;
+    ctx.fillStyle=line; ctx.fillRect(bx0,by0,bx1-bx0,0.35);
+    const wx0=-0.9, wx1=1.1, wy=fy, wh=0.32;
+    ctx.fillStyle=ink3; ctx.fillRect(wx0,wy,wx1-wx0,wh);
+    // табло весов
+    const tx=2.0, ty=by0+1.2, tw=2.3, th=1.05;
+    ctx.fillStyle=v.c('--well'); ctx.strokeStyle=line; ctx.lineWidth=v.lw(1.2);
+    ctx.fillRect(tx,ty,tw,th); ctx.strokeRect(tx,ty,tw,th);
+    const кг=P/p.g, отн=P/mg;
+    const цвет=отн>1.02?dang:отн<0.98?(отн<0.02?meas:acc):ok;
+    v.label(ctx,`${кг.toFixed(1)} кг`,tx+0.15,ty+th*0.62,0,0,цвет);
+    v.label(ctx,'весы',tx+0.15,ty+th,0,9,ink3);
+    ctx.strokeStyle=line; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(wx1,wy+wh/2); ctx.lineTo(tx,ty+th/2); ctx.stroke(); ctx.setLineDash([]);
+    // человек: в невесомости чуть приподнимается над весами
+    const всплыл=s.свобода?clamp((s.t-p.tBreak)*0.5,0,0.6):0;
+    const px=0.1, py=wy+wh+всплыл, рост=4.3;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3); ctx.lineCap='round';
+    const таз=py+рост*0.47, плечи=py+рост*0.78;
+    ctx.beginPath();
+    ctx.moveTo(px-0.35,py); ctx.lineTo(px,таз); ctx.lineTo(px+0.35,py);           // ноги
+    ctx.moveTo(px,таз); ctx.lineTo(px,плечи);                                      // корпус
+    const руки=s.свобода?0.55:-0.6;                                                // в невесомости руки всплывают
+    ctx.moveTo(px-0.62,плечи+руки); ctx.lineTo(px,плечи); ctx.lineTo(px+0.62,плечи+руки);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(px,плечи+0.5,0.36,0,Math.PI*2); ctx.stroke();
+    ctx.lineCap='butt';
+    // силы на человека: mg из центра масс вниз, N от ступней вверх
+    if(p.forces){
+      const L=2.1, cm=py+рост*0.52;
+      v.arrow(ctx,px+0.18,cm,px+0.18,cm-L,dang);
+      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px+0.18,cm-L,10,8,dang);
+      if(P>1e-6){
+        const LN=L*P/mg;
+        v.arrow(ctx,px-0.18,py,px-0.18,py+LN,acc);
+        v.label(ctx,`N = P = ${P.toFixed(0)} Н`,px-0.18,py+LN,10,-4,acc);
+      } else v.label(ctx,'N = 0 — невесомость',px+0.4,py,6,-16,meas);
+    }
+    // ускорение кабины
+    if(p.accel&&Math.abs(s.a)>1e-6){
+      const La=clamp(Math.abs(s.a)*0.35,0.4,3.2)*Math.sign(s.a), ax=bx1-0.5, ay=by0+4.8;
+      v.arrow(ctx,ax,ay,ax,ay+La,meas);
+      v.label(ctx,`a = ${Math.abs(s.a).toFixed(1)} м/с² ${s.a>0?'вверх':'вниз'}`,ax,ay+La,-118,s.a>0?-10:12,meas);
+    }
+    v.label(ctx,s.фаза+(s.v?` · v = ${Math.abs(s.v).toFixed(1)} м/с ${s.v>0?'вверх':'вниз'}`:''),bx0,by1,0,-12,ink2);
+    // что значит вес здесь и сейчас
+    let смысл;
+    if(отн<0.02) смысл='невесомость: весы ничего не показывают, хотя сила тяжести та же';
+    else if(отн>1.02) смысл=`перегрузка ×${отн.toFixed(2)}: пол давит сильнее, чем тянет Земля`;
+    else if(отн<0.98) смысл=`легче на ${((1-отн)*100).toFixed(0)} %: ускорение кабины направлено вниз`;
+    else смысл='вес равен силе тяжести: кабина стоит или едет равномерно';
+    v.label(ctx,смысл,bx0,by0,0,22,цвет);
+  }
+},
+
 /* ============ МОМЕНТ ИМПУЛЬСА: ГИРОСКОП И ПРЕЦЕССИЯ ============
    Орир, т.1. Момент силы тяжести перпендикулярен моменту импульса, поэтому
    он не меняет |L|, а поворачивает его: dL/dt = M. Отсюда угловая скорость

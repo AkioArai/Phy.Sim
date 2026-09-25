@@ -1,4 +1,4 @@
-// Сводная проверка перед выпуском: загрузка без ошибок, все 76 симуляций
+// Сводная проверка перед выпуском: загрузка без ошибок, все 77 симуляций
 // (300 шагов и отрисовка настоящим кодом приложения), формулы в колонке,
 // карандаш, F11, запрет выделения, вкладки задач и мобильная раскладка.
 // Гоняется и по исходникам, и по собранному одностраничнику.
@@ -255,8 +255,8 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('76 симуляций', counts.sims === 76, counts);
-    ok('темы и задачи на месте', counts.topics >= 34 && counts.problems >= 384, counts);
+    ok('77 симуляций', counts.sims === 77, counts);
+    ok('темы и задачи на месте', counts.topics >= 34 && counts.problems >= 389, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
     // тем же кодом, что и в жизни. Ловим и исключения, и NaN в показаниях.
@@ -317,7 +317,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 42, оси.схем);
+    ok('схемы размечены', оси.схем === 43, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -519,7 +519,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 70 && разв.времени === 36 && разв.никак.length <= 3, разв);
+        разв.параметром >= 70 && разв.времени === 37 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1314,6 +1314,111 @@ async function сторож(b) {
       ok('«Очистить всё»: красная кнопка, фокус на «Отмена», после перезапуска прогресса нет и пособие работает',
         красная && чисто.решено === 0 && чисто.журнал === 0 && чисто.главная && чисто.готов && hErrs.length === 0, { красная, чисто, hErrs });
       await hp.close();
+    }
+
+    /* ============ 2.2.0 ============ */
+    /* Заметки: шесть ошибок, каждая — настоящими нажатиями */
+    {
+      await p.evaluate(() => { закрытьГлавную(); openTopic('mech.1d'); openSim('kin1d'); A().notes = []; сохранитьЗаметки(); renderNotes(); });
+      await p.waitForTimeout(150);
+      await p.keyboard.press('n'); await p.waitForTimeout(80);
+      const сц = await (await p.$('#scene')).boundingBox();
+      await p.mouse.click(сц.x + сц.width * 0.4, сц.y + сц.height * 0.4); await p.waitForTimeout(150);
+      await p.keyboard.type('Опыт'); await p.keyboard.press('Enter'); await p.keyboard.type('строка текста');
+      await p.click('.ncard .nc-ti'); await p.waitForTimeout(120);
+      const заголовок = await p.evaluate(() => ({ поле: !!document.querySelector('.ncard .nc-ti'), фокус: document.activeElement.className }));
+      await p.click('.ncard .act-del'); await p.waitForTimeout(150);
+      const удаление = await p.evaluate(() => !document.querySelector('#modal-ask').classList.contains('hidden'));
+      await p.click('#ask-cancel'); await p.waitForTimeout(100);
+      // клик по сцене вне карточки — правка закрывается, текст сохранён
+      await p.mouse.click(сц.x + 20, сц.y + сц.height - 20); await p.waitForTimeout(200);
+      const сохранено = await p.evaluate(() => { const n = A().notes[0]; const все = LS.get('notes', {}); return { правка: !!n.edit, текст: n.text, вХранилище: !!(все.kin1d && все.kin1d[0] && все.kin1d[0].text === 'строка текста' && !('edit' in все.kin1d[0])) }; });
+      await p.evaluate(() => { document.querySelector('#tool-pan') ; setTool('pan'); });
+      await p.click('.ncard .act-tuck'); await p.waitForTimeout(120);
+      await p.click('.ncard.tucked .nc-head'); await p.waitForTimeout(150);
+      const ярлычок = await p.evaluate(() => !A().notes[0].tucked);
+      await p.evaluate(() => { const n = A().notes[0]; n.x = 0.97; n.y = 0.95; renderNotes(); });
+      await p.setViewportSize({ width: 1100, height: 760 }); await p.waitForTimeout(400);
+      const вКадре = await p.evaluate(() => { const c = document.querySelector('.ncard').getBoundingClientRect(), l = document.querySelector('#notelayer').getBoundingClientRect();
+        return c.right <= l.right + 1 && c.bottom <= l.bottom + 1 && c.left >= l.left - 1; });
+      await p.setViewportSize({ width: 1500, height: 950 }); await p.waitForTimeout(300);
+      const изФайла = await p.evaluate(() => { const ч = чистаяЗаметка({ title: 5, x: 'x', links: [1, 'a'] }); return isFinite(ч.x) && ч.title === '5' && ч.links.join() === 'a' && ч.edit === false; });
+      ok('заметки: к заголовку можно вернуться, «удалить» при правке срабатывает, текст сохраняется без «правится», ярлычок — касанием, карточка в кадре после сужения, файл чистится',
+        заголовок.поле && заголовок.фокус === 'nc-ti' && удаление && !сохранено.правка && сохранено.текст === 'строка текста' && сохранено.вХранилище &&
+        ярлычок && вКадре && изФайла, { заголовок, удаление, сохранено, ярлычок, вКадре, изФайла });
+      await p.evaluate(() => { A().notes = []; сохранитьЗаметки(); renderNotes(); });
+    }
+
+    /* Шапка темы уезжает вверх при чтении и возвращается от прокрутки вверх */
+    {
+      await p.evaluate(() => { закрытьГлавную(); openTopic('mech.osc'); });
+      await p.waitForTimeout(200);
+      const пн = await (await p.$('#pane')).boundingBox();
+      await p.mouse.move(пн.x + пн.width / 2, пн.y + пн.height / 2);
+      for (let i = 0; i < 6; i++) { await p.mouse.wheel(0, 300); await p.waitForTimeout(60); }
+      await p.waitForTimeout(450);
+      /* Текст не должен прыгать, когда шапка уезжает: берём формулу на
+         экране и сверяем её место до и после того, как шапка спряталась. */
+      const вниз = await p.evaluate(async () => {
+        const f = [...document.querySelectorAll('#pane .formula')].find(x => { const r = x.getBoundingClientRect(); return r.top > 300 && r.top < 600; });
+        const до = f ? f.getBoundingClientRect().top : NaN;
+        await new Promise(r => setTimeout(r, 400));
+        const c = document.querySelector('.chead').getBoundingClientRect(), k = document.querySelector('#content').getBoundingClientRect();
+        return { спрятана: c.bottom <= k.top + 1, сдвиг: f ? Math.abs(f.getBoundingClientRect().top - до) : 'нет формулы',
+          отступ: parseFloat(document.querySelector('#pane').style.paddingTop) }; });
+      await p.mouse.wheel(0, -80); await p.waitForTimeout(450);
+      const вверх = await p.evaluate(() => { const c = document.querySelector('.chead').getBoundingClientRect(), k = document.querySelector('#content').getBoundingClientRect(); return { видна: c.top >= k.top - 1 && !document.querySelector('.chead').classList.contains('tuck') }; });
+      await p.evaluate(() => openTopic('mech.1d')); await p.waitForTimeout(150);
+      const новаяТема = await p.evaluate(() => !document.querySelector('.chead').classList.contains('tuck'));
+      ok('шапка темы уезжает при прокрутке вниз (текст не прыгает), возвращается при прокрутке вверх и при смене темы',
+        вниз.спрятана && вниз.сдвиг === 0 && вниз.отступ > 100 && вверх.видна && новаяТема, { вниз, вверх, новаяТема });
+    }
+
+    /* Навигация словами, поиск по курсу, режим чтения */
+    {
+      await p.click('#btn-home'); await p.waitForTimeout(150);
+      const наГлавной = await p.evaluate(() => document.querySelector('#btn-home').classList.contains('cur'));
+      await p.click('#tab-topics'); await p.waitForTimeout(150);
+      const вКурсе = await p.evaluate(() => ({ курс: document.querySelector('#tab-topics').classList.contains('cur'), главная: главнаяОткрыта() }));
+      await p.click('#btn-cmdk'); await p.waitForTimeout(150);
+      const палитра = await p.evaluate(() => { const c = document.getElementById('cmdk'); const r = !!c && !c.classList.contains('hidden'); return r; });
+      await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+      await p.evaluate(() => { openTopic('mech.dyn'); openSim('newton2'); });
+      await p.click('#btn-reading'); await p.waitForTimeout(250);
+      const чтение = await p.evaluate(() => ({ сцена: document.querySelector('#simpane').classList.contains('hidden'), темы: document.querySelector('#sidebar').classList.contains('hidden') }));
+      await p.click('#btn-reading'); await p.waitForTimeout(250);
+      const обратно = await p.evaluate(() => ({ сцена: !document.querySelector('#simpane').classList.contains('hidden'), темы: !document.querySelector('#sidebar').classList.contains('hidden') }));
+      ok('навигация Главная/Курс, поиск по курсу открывает палитру, режим чтения прячет и возвращает сцену и темы',
+        наГлавной && вКурсе.курс && !вКурсе.главная && палитра && чтение.сцена && чтение.темы && обратно.сцена && обратно.темы, { наГлавной, вКурсе, палитра, чтение, обратно });
+    }
+
+    /* Лифт: в «Динамике», считает вес и держит шапку и графики */
+    {
+      const лифт = await p.evaluate(() => {
+        openTopic('mech.dyn'); openSim('lift'); const a = A(); restart(a);
+        for (let k = 0; k < 1 / DT; k++) { a.def.step(a.state, DT, a.params); if (++a.tick % 6 === 0) record(a); }
+        drawAll(); drawGraphs();
+        const r = Object.fromEntries(a.def.readouts(a.state, a.params).map(x => [x[0], x[1]]));
+        const задач = S.topic.problems.filter(x => x.sim === 'lift').length;
+        const опция = [...document.querySelectorAll('#simsel option')].some(o => o.value === 'lift');
+        const фаза = [...document.querySelectorAll('#hud-body .ro')].map(x => x.textContent).find(x => /фаза/.test(x)) || '';
+        return { P: r['вес P = m(g + a)'], кг: r['показания весов'], фаза, задач, опция };
+      });
+      ok('лифт в «Динамике»: вес m(g + a), весы в килограммах, фаза словом, 5 задач',
+        Math.abs(лифт.P - 70 * (9.8 + 1.5)) < 1e-6 && Math.abs(лифт.кг - 70 * 11.3 / 9.8) < 1e-6 && /разгон/.test(лифт.фаза) && !/0\.00/.test(лифт.фаза) &&
+        лифт.задач === 5 && лифт.опция, лифт);
+    }
+
+    /* Декоративных градиентов больше нет: шапка темы, главная, кнопки */
+    {
+      const град = await p.evaluate(() => {
+        открытьГлавную();
+        const bg = (el, псевдо) => el ? getComputedStyle(el, псевдо || null).backgroundImage : 'нет элемента';
+        const r = { шапка: bg(document.querySelector('.chead'), '::before'), герой: bg(document.querySelector('.hm-hero'), '::before'),
+          раздел: bg(document.querySelector('.hm-sec'), '::before'), кнопка: bg(document.querySelector('.btn.primary')) };
+        закрытьГлавную(); return r;
+      });
+      ok('декоративных градиентов нет', Object.values(град).every(x => !/gradient/.test(x)), град);
     }
 
     await p.close();

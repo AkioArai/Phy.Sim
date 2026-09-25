@@ -869,7 +869,8 @@ function updateHud(a){
   const данные=a.def.readouts(a.state,a.params);
   const rows=данные.map(([l,v,u])=>
     `<div class="ro"><span class="ro-l">${esc(l)}</span>` +
-    `<span class="ro-v">${esc(fmt(v))}</span>` +
+    // значение может быть словом (фаза движения, режим) — выводим как есть
+    `<span class="ro-v${typeof v==='string'?' ro-txt':''}">${esc(typeof v==='string'?v:fmt(v))}</span>` +
     `<span class="ro-u">${esc(u||'')}</span></div>`);
   const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
   /* Обрезаем строки, только если размер панели чем-то ОГРАНИЧЕН: явной высотой
@@ -1507,7 +1508,7 @@ function openTopic(id){
   $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
-  if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); обновитьЧтение(); }catch(e){ console.error(e); }
+  if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); показатьШапку(); обновитьЧтение(); }catch(e){ console.error(e); }
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
@@ -1565,6 +1566,7 @@ function paneTop(){
 }
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   S.tab=b.dataset.tab;
+  if(typeof показатьШапку==='function') показатьШапку();
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
   renderPane();
   // вкладки уехали вместе с текстом — после переключения возвращаем к началу,
@@ -3821,7 +3823,7 @@ $$('#mi-notes-load').onclick=()=>{
       /* Идентификаторы перевыдаём: иначе загруженные заметки склеились бы
          связями с теми, что уже лежат в этой симуляции. */
       const карта={};
-      const свежие=список.map(n=>{ карта[n.id]=новыйИд(); return Object.assign({}, n, {id:карта[n.id]}); });
+      const свежие=список.map(n=>{ const ч=чистаяЗаметка(n); карта[n&&n.id]=ч.id=новыйИд(); return ч; });
       for(const n of свежие) n.links=(n.links||[]).map(x=>карта[x]).filter(Boolean);
       a.notes=[...заметки(a),...свежие];
       сохранитьЗаметки(); renderNotes();
@@ -3966,7 +3968,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:8,uiFont:'sans',readW:'norm',lineH:1.65,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std',
-  startScreen:'home'};
+  startScreen:'home',headerTuck:true};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -4105,6 +4107,8 @@ const PREFS=[
 
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
+  {cat:'behav',key:'headerTuck',type:'toggle',def:true,
+   name:'Прятать шапку темы при чтении',desc:'Когда листаете конспект вниз, заголовок и вкладки уезжают вверх и освобождают место тексту; лёгкая прокрутка вверх возвращает их.'},
   {cat:'behav',key:'startScreen',type:'select',def:'home',
    name:'При запуске',desc:'Главный экран — продолжить с того же места, «Мой путь» на сегодня и все разделы. Или сразу последняя тема, как было до 2.1.',
    options:[['home','Главный экран'],['last','Сразу тема']]},
@@ -5035,7 +5039,7 @@ function renderSheetReadouts(){
   if(!a||!a.def.readouts){ box.innerHTML=''; return; }
   box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>
     `<div class="sr"><span class="sr-l">${esc(l)}${u?', '+esc(u):''}</span>` +
-    `<span class="sr-v">${esc(fmt(v))}</span></div>`).join('');
+    `<span class="sr-v">${esc(typeof v==='string'?v:fmt(v))}</span></div>`).join('');
 }
 /* Ручка листа: тянут — меняется положение, короткий тап — следующее. */
 (function листРучка(){
@@ -5190,6 +5194,8 @@ function applySettings(){
     readable:'Verdana,"DejaVu Sans","Tahoma",sans-serif',serif:'Georgia,"Noto Serif","Times New Roman",serif',mono:'var(--mono)'};
   root.style.setProperty('--ui-font',ШРИФТЫ[prefGet('uiFont')]||ШРИФТЫ.sans);
   root.style.setProperty('--read-w',({narrow:'620px',norm:'760px',wide:'960px',full:'none'})[prefGet('readW')]||'760px');
+  // та же ширина числом — для расчёта полей (none в calc() не годится)
+  root.style.setProperty('--read-wc',({narrow:'620px',norm:'760px',wide:'960px',full:'100%'})[prefGet('readW')]||'760px');
   root.style.setProperty('--lh',String(prefGet('lineH')||1.65));
   root.dataset.shadows=prefGet('shadows')||'soft';
   root.dataset.btnstyle=prefGet('btnStyle')||'fill';
@@ -5609,6 +5615,7 @@ function resetPanels(){
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
   {k:'Навигация',t:'Главная: продолжить, разделы, вопрос дня',run:()=>открытьГлавную()},
+  {k:'Вид',t:'Режим чтения: только текст',run:()=>режимЧтения()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
   {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
@@ -6322,14 +6329,30 @@ function рисоватьГрафик(dr, o){
    Старые пометки типа note продолжают рисоваться на холсте как раньше. */
 const ЗАМ_КЛЮЧ='notes';
 function заметки(a){ if(a&&!a.notes) a.notes=[]; return a?a.notes:[]; }
+/* Заметка из хранилища или из файла: поля приводим к ожидаемому виду.
+   Файл мог прийти с чужого устройства или быть поправлен руками — без этого
+   карточка без x вставала в NaN, а сохранённое «правится» открывало её
+   после перезапуска сразу в режиме правки. */
+function чистаяЗаметка(n){
+  n=n&&typeof n==='object'?n:{};
+  const число=(v,d)=>typeof v==='number'&&isFinite(v)?v:d;
+  return {id:typeof n.id==='string'&&n.id?n.id:новыйИд(),
+    x:clamp(число(n.x,0.1),0,1), y:clamp(число(n.y,0.1),0,1),
+    w:clamp(число(n.w,230),150,700), h:clamp(число(n.h,175),80,700),
+    title:String(n.title||'').slice(0,200), text:String(n.text||'').slice(0,20000),
+    open:n.open!==false, tucked:!!n.tucked, links:Array.isArray(n.links)?n.links.filter(x=>typeof x==='string'):[],
+    edit:false};
+}
 function загрузитьЗаметки(a,id){
   const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
-  a.notes=Array.isArray(все[id])?все[id].map(n=>(Object.assign({}, {links:[]}, n))):[];
+  a.notes=Array.isArray(все[id])?все[id].map(чистаяЗаметка):[];
 }
 function сохранитьЗаметки(){
   const a=A(); if(!a||!S.active) return;
   const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
-  if(a.notes&&a.notes.length) все[S.active]=a.notes; else delete все[S.active];
+  // «правится» и «какая связанная открыта» — состояние экрана, не заметки
+  if(a.notes&&a.notes.length) все[S.active]=a.notes.map(n=>{ const c=Object.assign({},n); delete c.edit; delete c.показ; return c; });
+  else delete все[S.active];
   LS.set(ЗАМ_КЛЮЧ,все);
 }
 let заметкаСчёт=0;
@@ -6401,9 +6424,13 @@ function renderNotes(){
     const el=document.createElement('div');
     el.className='ncard'+(n.open===false?' closed':'')+(n.tucked?' tucked':'')+(связьОт===n.id?' sel':'');
     el.dataset.id=n.id;
-    el.style.left=Math.round(clamp(n.x,0,1)*W)+'px';
-    el.style.top=Math.round(clamp(n.y,0,1)*H)+'px';
-    if(!n.tucked){ el.style.width=(n.w||230)+'px'; if(n.open!==false) el.style.height=(n.h||150)+'px'; }
+    /* Карточка целиком в пределах сцены: доля от ширины сама по себе не
+       держит правый край — после сужения окна или поворота телефона
+       карточка у края уезжала за сцену и доставалась только прокруткой. */
+    const ширина=n.tucked?150:Math.min(n.w||230,W), высота=n.tucked||n.open===false?40:Math.min(n.h||150,H);
+    el.style.left=Math.round(clamp(clamp(n.x,0,1)*W,0,Math.max(0,W-ширина)))+'px';
+    el.style.top=Math.round(clamp(clamp(n.y,0,1)*H,0,Math.max(0,H-высота)))+'px';
+    if(!n.tucked){ el.style.width=ширина+'px'; if(n.open!==false) el.style.height=высота+'px'; }
 
     const показ=n.показ&&заметкаПоИд(a,n.показ)?n.показ:null;   // какая связанная открыта внутри
     const тек=показ?заметкаПоИд(a,показ):n;
@@ -6438,8 +6465,10 @@ function renderNotes(){
       ta.placeholder='Текст заметки.\n# строка чуть крупнее\n## строка совсем крупная';
       ta.onkeydown=e=>{ e.stopPropagation();
         if(e.key==='Escape'){ n.edit=false; сохранитьЗаметки(); renderNotes(); } };
-      ta.oninput=()=>{ n.text=ta.value; };
-      ta.onblur=()=>{ n.text=ta.value; n.edit=false; сохранитьЗаметки(); renderNotes(); };
+      /* Текст сохраняем по ходу набора (с паузой), а не только при уходе:
+         закрыли вкладку посреди фразы — фраза осталась. */
+      let пауза=0;
+      ta.oninput=()=>{ n.text=ta.value; clearTimeout(пауза); пауза=setTimeout(сохранитьЗаметки,600); };
       ta.onfocus=()=>{ n.title=ti.value; };
       тело.appendChild(ta);
       const подсказка=document.createElement('div'); подсказка.className='nc-hint';
@@ -6501,6 +6530,25 @@ function renderNotes(){
     if(!n.tucked) шапка.querySelector('.nc-t').ondblclick=e=>{ e.stopPropagation();
       askText('Заголовок заметки',n.title||'',v=>{ n.title=v; сохранитьЗаметки(); renderNotes(); }); };
 
+    /* Правка кончается, когда фокус ушёл из КАРТОЧКИ, а не из поля текста.
+       Раньше blur у текста сразу пересобирал карточку: щелчок по заголовку
+       закрывал правку, а «удалить» во время правки терял нажатие — кнопка
+       исчезала между mousedown и click. Нажатие внутри карточки помечаем,
+       и такой уход фокуса правку не закрывает. */
+    if(n.edit){
+      let внутри=0;
+      el.addEventListener('pointerdown',()=>{ внутри=Date.now(); },true);
+      el.addEventListener('focusout',e=>{
+        const куда=e.relatedTarget;
+        if(куда&&el.contains(куда)) return;
+        if(Date.now()-внутри<700) return;
+        setTimeout(()=>{ if(!n.edit) return;
+          const ф=document.activeElement; if(ф&&el.contains(ф)) return;
+          const t=el.querySelector('textarea'), h=el.querySelector('.nc-ti');
+          if(t) n.text=t.value; if(h) n.title=h.value;
+          n.edit=false; сохранитьЗаметки(); renderNotes(); },0);
+      });
+    }
     тянутьЗаметку(шапка,n,el);
     слой.appendChild(el);
   }
@@ -6510,6 +6558,22 @@ function renderNotes(){
   }
   рисоватьСвязи();
 }
+/* Нажатие мимо карточки закрывает правку, даже если фокус к этому моменту
+   уже ушёл (например, в диалог «удалить?», который потом отменили): без
+   этого карточка оставалась в режиме правки, пока не перерисуют сцену. */
+document.addEventListener('pointerdown',e=>{
+  const a=A(); if(!a||!a.notes||!a.notes.some(n=>n.edit)) return;
+  if(e.target.closest&&(e.target.closest('.modal-bg')||e.target.closest('#toast'))) return;
+  let было=false;
+  for(const n of a.notes){
+    if(!n.edit) continue;
+    const el=document.querySelector(`.ncard[data-id="${n.id}"]`);
+    if(el&&el.contains(e.target)) continue;
+    if(el){ const t=el.querySelector('textarea'), h=el.querySelector('.nc-ti'); if(t) n.text=t.value; if(h) n.title=h.value; }
+    n.edit=false; было=true;
+  }
+  if(было){ сохранитьЗаметки(); setTimeout(renderNotes,0); }
+},true);
 /* Перенос карточки за шапку. Позиция пересчитывается в долю сцены сразу:
    тогда она переживёт и поворот телефона, и изменение окна. */
 function тянутьЗаметку(ручка,n,el){
@@ -6517,18 +6581,24 @@ function тянутьЗаметку(ручка,n,el){
     if(e.target.closest('button')) return;
     e.preventDefault(); e.stopPropagation();
     const r=el.getBoundingClientRect(), сл=$('#notelayer').getBoundingClientRect();
-    const dx=e.clientX-r.left, dy=e.clientY-r.top;
+    const dx=e.clientX-r.left, dy=e.clientY-r.top, x0=e.clientX, y0=e.clientY;
+    let двигали=false;
     try{ ручка.setPointerCapture(e.pointerId); }catch(_){}
     const вести=q=>{
+      if(!двигали&&Math.hypot(q.clientX-x0,q.clientY-y0)<5) return;
+      двигали=true;
       const x=clamp(q.clientX-сл.left-dx,0,Math.max(0,сл.width-r.width));
       const y=clamp(q.clientY-сл.top-dy,0,Math.max(0,сл.height-r.height));
       el.style.left=Math.round(x)+'px'; el.style.top=Math.round(y)+'px';
       n.x=x/Math.max(1,сл.width); n.y=y/Math.max(1,сл.height);
       рисоватьСвязи();
     };
-    const кончили=()=>{ ручка.removeEventListener('pointermove',вести);
+    const кончили=ev=>{ ручка.removeEventListener('pointermove',вести);
       ручка.removeEventListener('pointerup',кончили);
       ручка.removeEventListener('pointercancel',кончили);
+      /* Ярлычок возвращается касанием: подсказка так и говорит «нажмите».
+         Раньше нужен был двойной щелчок, которого на телефоне нет. */
+      if(!двигали&&ev&&ev.type==='pointerup'&&n.tucked){ n.tucked=false; renderNotes(); }
       сохранитьЗаметки(); };
     ручка.addEventListener('pointermove',вести);
     ручка.addEventListener('pointerup',кончили);
@@ -7281,5 +7351,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '2.1.0';
+window.PHYSIM_BUILD = '2.2.0';
 window.PHYSIM_READY = true;

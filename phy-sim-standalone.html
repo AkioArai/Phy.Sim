@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="2.1.0">
+<meta name="physim-build" content="2.2.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -2265,8 +2265,8 @@ body{font-family:var(--ui-font)}
 .btn:active{transform:translateY(0) scale(var(--press));box-shadow:none;transition-duration:.06s}
 .btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft),0 0 0 1px var(--accent)}
 .btn.primary{background:var(--accent);
-  background-image:linear-gradient(180deg,#ffffff1f,#ffffff00 55%);box-shadow:0 1px 0 #ffffff26 inset,0 2px 6px -3px var(--accent)}
-.btn.primary:hover{color:#fff;border-color:var(--accent);filter:brightness(1.07);box-shadow:0 1px 0 #ffffff26 inset,0 6px 16px -8px var(--accent)}
+  box-shadow:0 1px 2px -1px var(--accent)}
+.btn.primary:hover{color:#fff;border-color:var(--accent);filter:brightness(1.07);box-shadow:0 4px 12px -6px var(--accent)}
 .btn.primary:active{filter:brightness(.95)}
 .iconbtn{position:relative;transition:background-color var(--t2) var(--ease),color var(--t2) var(--ease),border-color var(--t2) var(--ease),transform var(--t1) var(--ease)}
 .iconbtn svg{transition:transform var(--t2) var(--ease-spring)}
@@ -2460,8 +2460,7 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
 
 /* шапка темы: полоса цвета раздела, значок, сводка */
 .chead{position:relative}
-.chead.sx::before{content:'';position:absolute;top:0;left:0;right:0;height:100%;max-height:150px;pointer-events:none;
-  background:linear-gradient(180deg,var(--sec) 0,transparent 100%);opacity:.075}
+.chead.sx::before{content:none}
 .chead.sx::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sec);opacity:.85}
 .chead>*{position:relative}
 .t-ic{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:calc(var(--radius) + 2px);margin-bottom:8px;
@@ -2498,7 +2497,7 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
 .hm{max-width:1120px;margin:0 auto;padding:30px 28px 48px;animation:появиться var(--t3) var(--ease)}
 .hm-hero{padding:26px 28px 24px;border-radius:calc(var(--radius) + 10px);margin-bottom:16px;position:relative;overflow:hidden;
   background:var(--panel);border:1px solid var(--line-soft)}
-.hm-hero::before{content:'';position:absolute;top:-40%;right:-10%;width:60%;height:180%;background:radial-gradient(closest-side,var(--accent),transparent);opacity:.1;pointer-events:none}
+.hm-hero::before{content:none}
 .hm-brand{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.02em}
 .hm-brand span{color:var(--accent)}
 .hm-lead{margin:6px 0 16px;color:var(--ink-2);font-size:14px;line-height:1.55;max-width:640px}
@@ -2529,7 +2528,7 @@ button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(
 .hm-sec{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px 16px 14px;border-radius:calc(var(--radius) + 6px);
   background:var(--panel);border:1px solid var(--line-soft);position:relative;overflow:hidden;
   transition:border-color var(--t2),transform var(--t2) var(--ease),box-shadow var(--t2)}
-.hm-sec::before{content:'';position:absolute;top:0;left:0;right:0;height:70px;background:linear-gradient(180deg,var(--sec),transparent);opacity:.09;pointer-events:none}
+.hm-sec::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sec);opacity:.8;pointer-events:none}
 .hm-sec:hover{border-color:var(--sec);transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .hm-sec:active{transform:translateY(-1px) scale(.99)}
 .hm-sec-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--panel);border:1px solid var(--line-soft);
@@ -2559,6 +2558,56 @@ button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(
 [data-ui="mobile"] .hm-secs{grid-template-columns:1fr 1fr;gap:10px}
 [data-ui="mobile"] .hm-sec-ts{display:none}
 @media (max-width:360px){[data-ui="mobile"] .hm-secs{grid-template-columns:1fr}}
+
+/* ==================== 2.2.0 ==================== */
+/* шапка темы уезжает вверх при чтении (js: подключитьЧтение) */
+[data-ui="desktop"] .content{overflow:hidden}
+/* шапка поверх текста: панель начинается под ней отступом (js: мерятьШапку),
+   а прячется шапка сдвигом вверх — текст при этом не двигается */
+[data-ui="desktop"] .chead{position:absolute;top:0;left:0;right:0;z-index:3;background:var(--panel);
+  transition:transform var(--t3) var(--ease),opacity var(--t2) var(--ease),box-shadow var(--t2)}
+[data-ui="desktop"] .chead.tuck{transform:translateY(-100%);opacity:0;pointer-events:none}
+.ro-v.ro-txt{font-family:var(--sans);font-size:.92em;color:var(--accent);white-space:nowrap}
+
+/* ---------- верхняя панель: навигация словами и поиск по курсу ---------- */
+.tnav{display:flex;gap:2px;padding:2px;border-radius:calc(var(--radius) + 2px);background:var(--panel-2)}
+.tnav .tbtn{border:0;height:30px;background:transparent;color:var(--ink-2);padding:0 12px 0 10px}
+.tnav .tbtn:hover{background:var(--panel);color:var(--ink)}
+.tnav .tbtn.on{background:transparent;color:var(--ink-2)}
+.tnav .tbtn.cur{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 1px 2px #0000001a,0 0 0 1px var(--line-soft)}
+.path-on .tbtn#btn-path{background:var(--panel);border-color:transparent;color:var(--accent)}
+.tsearch{display:flex;align-items:center;gap:9px;width:360px;max-width:34vw;height:32px;padding:0 8px 0 11px;border-radius:calc(var(--radius) + 2px);
+  border:1px solid var(--line);background:var(--bg);color:var(--ink-3);font-size:12.5px;text-align:left;
+  transition:border-color var(--t2),box-shadow var(--t2),color var(--t2)}
+.tsearch:hover{border-color:var(--accent);color:var(--ink-2)}
+.tsearch:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tsearch svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;flex:0 0 auto}
+.tsearch span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tsearch kbd{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--ink-3)}
+.topbar .crumb{display:none}
+@media (max-width:1180px){ .tsearch{width:34px;padding:0;justify-content:center} .tsearch span,.tsearch kbd{display:none} }
+@media (max-width:1020px){ .tnav .tbtn span{display:none} .tnav .tbtn{padding:0 9px} }
+#btn-reading.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+
+/* ---------- режим чтения: текст по центру, спокойнее ---------- */
+.reading .content.wide .chead{padding-left:12vw;padding-right:12vw}
+
+/* ---------- конспект: плоские блоки вместо цветных рам ----------
+   Раньше у каждого блока была своя рамка: толстая черта слева у «Зачем»,
+   зелёная у «Главного», синяя обводка у «Покрутите сами». Теперь все
+   блоки — одна спокойная карточка; различает их подпись цветом. */
+.why,.keybox,.callout{border:0;border-radius:calc(var(--radius) + 4px);background:var(--panel-2)}
+.explore{border:1px solid var(--line-soft);border-radius:calc(var(--radius) + 4px);background:var(--panel)}
+.needs{border:1px solid var(--line-soft);border-radius:calc(var(--radius) + 4px)}
+.why-h,.ex-h,.key-h{display:inline-block;font-weight:700;letter-spacing:.07em}
+h2.sect{border-left:0;padding-left:0;display:flex;align-items:center;gap:10px}
+h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
+.qa,.problem,.formula,.deriv{border-color:var(--line-soft)}
+.formula{border-radius:calc(var(--radius) + 4px)}
+:root{--read-wc:760px}
+/* без сцены шапка темы стоит по той же колонке, что и текст */
+.content.wide .chead{padding-left:12vw;padding-right:12vw;
+  padding-left:max(34px,calc(50% - var(--read-wc) / 2));padding-right:max(34px,calc(50% - var(--read-wc) / 2))}
 </style>
 </head>
 <body>
@@ -2567,17 +2616,21 @@ button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(
     <button class="iconbtn" id="btn-rail" title="Скрыть/открыть панель тем (Tab)" aria-pressed="true">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
     <div class="sep"></div>
-    <button class="iconbtn" id="btn-home" data-label="Главная" title="Главная: продолжить, разделы, вопрос дня"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
-    <button class="iconbtn on" id="tab-topics" data-label="Темы" title="Разделы"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
-    <button class="iconbtn" id="tab-search" data-label="Поиск" title="Поиск (Ctrl+K)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
-    <button class="iconbtn" id="btn-cmdk" data-label="Команды" title="Командная палитра (Ctrl+P)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg></button>
-    <button class="iconbtn" id="tab-marks" data-label="Закладки" title="Закладки"><svg viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4z"/></svg></button>
-    <button class="iconbtn" id="btn-calc" data-label="Вычислитель" title="Вычислитель: единицы, погрешность, формулы (Ctrl+E)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18h.01M12 18h3.5"/></svg></button>
-    <div class="sep"></div>
-    <button class="tbtn" id="btn-path" title="Мой путь: что повторить, карта тем, диагностика, навыки (Ctrl+M)"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg><span>Мой путь</span><b class="badge hidden" id="path-badge"></b></button>
+    <!-- 2.2.0: навигация словами, а не значками — три места, где можно быть -->
+    <nav class="tnav" aria-label="Разделы приложения">
+      <button class="tbtn" id="btn-home" title="Главная: продолжить, разделы, вопрос дня"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Главная</span></button>
+      <button class="tbtn on" id="tab-topics" title="Курс: список тем и конспекты"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M13 4h5.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H13z"/></svg><span>Курс</span></button>
+      <button class="tbtn" id="btn-path" title="Мой путь: что повторить, карта тем, диагностика, навыки (Ctrl+M)"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg><span>Мой путь</span><b class="badge hidden" id="path-badge"></b></button>
+    </nav>
     <div class="spacer"></div>
+    <button class="tsearch" id="btn-cmdk" title="Поиск по курсу: темы, формулы, симуляции, команды (Ctrl+P)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Поиск по курсу…</span><kbd>Ctrl P</kbd></button>
     <div class="crumb" id="crumb">Phy.Sim</div>
     <div class="spacer"></div>
+    <button class="iconbtn" id="tab-search" title="Поиск в списке тем (Ctrl+K)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+    <button class="iconbtn" id="tab-marks" title="Закладки"><svg viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4z"/></svg></button>
+    <button class="iconbtn" id="btn-calc" title="Вычислитель: единицы, погрешность, формулы (Ctrl+E)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18h.01M12 18h3.5"/></svg></button>
+    <button class="iconbtn" id="btn-reading" title="Режим чтения: только текст, без сцены и списка тем"><svg viewBox="0 0 24 24"><path d="M3 6.5C5 5 8 5 12 7c4-2 7-2 9-.5V19c-2-1.5-5-1.5-9 .5-4-2-7-2-9-.5z"/><path d="M12 7v12.5"/></svg></button>
+    <div class="sep"></div>
     <button class="iconbtn" id="btn-simmenu" title="Меню симуляции"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="19" r="1.4" fill="currentColor"/></svg></button>
     <button class="iconbtn" id="btn-simhide" title="Скрыть симуляцию (H)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
     <button class="iconbtn" id="btn-simfull" title="Симуляция во весь экран (F)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5"/></svg></button>
@@ -6785,6 +6838,215 @@ rocket:{
   }
 }
 ,
+
+
+/* ======================= ЛИФТ: ВЕС И НЕВЕСОМОСТЬ =======================
+   Орир, т.1: вес — это сила, с которой тело давит на опору, а не сила
+   тяжести. Человек стоит на весах в кабине; по второму закону для оси,
+   направленной вверх,
+       N − mg = m·a   ⇒   P = N = m(g + a).
+   Разгон вверх и торможение при спуске (a > 0) — весы показывают больше,
+   разгон вниз и торможение при подъёме (a < 0) — меньше, свободное падение
+   (a = −g) — ноль: невесомость.
+
+   Поездка задана так же, как у настоящего лифта: разгон с ускорением a до
+   скорости v_max, равномерный ход, торможение с тем же ускорением. Если
+   этаж близко и до v_max разогнаться не успеть, ход треугольный. Профиль
+   считается аналитически (профиль()), а не интегрированием — поэтому время
+   поездки и путь разгона в задачах совпадают с моделью до последней цифры.
+
+   Сцена — схема (schema): слева вся шахта в масштабе поездки, справа
+   кабина крупно. Метров на сетке нет, есть этажи по 3 м. */
+lift:{
+  title:'Лифт: вес, перегрузка и невесомость',
+  schema:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'trip',
+     options:[{v:'trip',t:'Поездка: разгон, ход, торможение'},{v:'break',t:'Обрыв троса: свободное падение'}]},
+    {key:'m',label:'Масса человека m',unit:'кг',min:20,max:200,step:1,default:70},
+    {key:'g',label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
+
+    {type:'group',label:'Поездка',если:p=>p.mode==='trip'},
+    {key:'dir',label:'Направление',type:'select',default:'up',если:p=>p.mode==='trip',
+     options:[{v:'up',t:'Вверх'},{v:'down',t:'Вниз'}]},
+    {key:'H',label:'Путь кабины',unit:'м',min:3,max:300,step:1,default:30},
+    {key:'a',label:'Ускорение разгона и торможения',unit:'м/с²',min:0.2,max:8,step:0.1,default:1.5,если:p=>p.mode==='trip'},
+    {key:'vmax',label:'Скорость хода v_max',unit:'м/с',min:0.5,max:12,step:0.1,default:3,если:p=>p.mode==='trip'},
+
+    {type:'group',label:'Обрыв троса',если:p=>p.mode==='break'},
+    {key:'tBreak',label:'Трос обрывается в момент',unit:'с',min:0,max:10,step:0.1,default:1,если:p=>p.mode==='break'},
+
+    {type:'group',label:'Показывать'},
+    {key:'forces',label:'Силы на человека',type:'check',default:true},
+    {key:'accel', label:'Ускорение кабины',type:'check',default:true},
+    {key:'stopEnd',label:'Остановить таймер, когда кабина встала',type:'check',default:true}
+  ],
+  /* Профиль поездки: путь s ≥ 0 вдоль направления, скорость и ускорение
+     вдоль него, фаза и полное время T. */
+  профиль(p,t){
+    const d=Math.max(0,p.H), a=Math.max(1e-6,p.a), vm=Math.max(1e-6,p.vmax);
+    let vpk=vm, t1=vm/a, d1=vm*vm/(2*a), tc=(d-2*d1)/vm;
+    if(tc<0){ vpk=Math.sqrt(a*d); t1=vpk/a; d1=d/2; tc=0; }
+    const T=2*t1+tc;
+    if(t<=0) return {s:0,v:0,acc:a,фаза:'разгон',T,t1,tc,d1,vpk};
+    if(t<t1) return {s:a*t*t/2,v:a*t,acc:a,фаза:'разгон',T,t1,tc,d1,vpk};
+    if(t<t1+tc) return {s:d1+vpk*(t-t1),v:vpk,acc:0,фаза:'равномерный ход',T,t1,tc,d1,vpk};
+    if(t<T){ const τ=t-t1-tc; return {s:d1+vpk*tc+vpk*τ-a*τ*τ/2,v:vpk-a*τ,acc:-a,фаза:'торможение',T,t1,tc,d1,vpk}; }
+    return {s:d,v:0,acc:0,фаза:'приехали',T,t1,tc,d1,vpk};
+  },
+  /* Кинематика кабины по оси «вверх»: высота, скорость, ускорение, фаза. */
+  кабина(p,t){
+    if(p.mode==='break'){
+      const H=Math.max(0,p.H), tb=Math.max(0,p.tBreak);
+      if(t<tb) return {y:H,v:0,a:0,фаза:'трос держит',свобода:false};
+      const τ=t-tb, y=H-p.g*τ*τ/2;
+      if(y<=0) return {y:0,v:0,a:0,фаза:'удар о дно шахты',свобода:false,дно:true};
+      return {y,v:-p.g*τ,a:-p.g,фаза:'свободное падение',свобода:true};
+    }
+    const σ=p.dir==='down'?-1:1, y0=p.dir==='down'?p.H:0, пр=this.профиль(p,t);
+    return {y:y0+σ*пр.s,v:σ*пр.v,a:σ*пр.acc,фаза:пр.фаза,T:пр.T};
+  },
+  вес(p,к){ return Math.max(0,p.m*(p.g+к.a)); },
+  init(p){ const s={t:0,event:null,__stop:null}; Object.assign(s,this.кабина(p,0)); return s; },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=s.t+dt, к=this.кабина(p,t);
+    Object.assign(s,к); s.t=t;
+    if(p.mode==='trip'&&к.фаза==='приехали'){
+      s.event={t,type:'arrive'};
+      if(p.stopEnd) s.__stop=`Лифт приехал: ${p.H} м за ${к.T.toFixed(2)} с`;
+    }
+    if(p.mode==='break'&&к.дно){
+      const vуд=Math.sqrt(2*p.g*p.H);
+      s.event={t,type:'hit'};
+      if(p.stopEnd) s.__stop=`Кабина упала с ${p.H} м: скорость удара ${vуд.toFixed(1)} м/с (${(vуд*3.6).toFixed(0)} км/ч)`;
+    }
+  },
+  readouts(s,p){
+    const P=this.вес(p,s);
+    return [['t',s.t,'с'],
+      ['фаза',s.фаза,''],
+      ['высота кабины h',s.y,'м'],
+      ['скорость v (ось вверх)',s.v,'м/с'],
+      ['ускорение a (ось вверх)',s.a,'м/с²'],
+      ['сила тяжести mg',p.m*p.g,'Н'],
+      ['вес P = m(g + a)',P,'Н'],
+      ['показания весов',P/p.g,'кг'],
+      ['перегрузка P / mg',P/(p.m*p.g),'']];
+  },
+  graphs:[
+    {label:'h(t) — высота кабины',unit:'м',series:['h'],get:s=>[s.y,null]},
+    {label:'v(t) — скорость (наклон h(t))',unit:'м/с',наклон:0,series:['v'],get:s=>[s.v,null]},
+    {label:'a(t) — ускорение (наклон v(t))',unit:'м/с²',наклон:1,series:['a'],get:s=>[s.a,null]},
+    {label:'Вес P и сила тяжести mg',unit:'Н',series:['P','mg'],get(s,p){ return [SIMS.lift.вес(p,s),p.m*p.g]; }}
+  ],
+  presets:[
+    {name:'Скоростной лифт небоскрёба',values:{mode:'trip',dir:'up',H:240,a:1.2,vmax:10,m:70}},
+    {name:'Один этаж вниз: разогнаться не успевает',values:{mode:'trip',dir:'down',H:3,a:1,vmax:3,m:70}},
+    {name:'Резкий разгон вверх — перегрузка',values:{mode:'trip',dir:'up',H:30,a:5,vmax:6,m:70}},
+    {name:'Обрыв троса: невесомость',values:{mode:'break',H:30,tBreak:1,m:70}},
+    {name:'Лифт на Луне',values:{mode:'trip',dir:'up',H:30,a:1.5,vmax:3,g:1.6}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    /* Рисунок занимает правые две трети: левый верхний угол по умолчанию
+       отдан панели показаний, и шахта под ней была не видна. */
+    const spanX=15, spanY=10.4;
+    const scale=clamp(Math.min((W-24)/(spanX*PX_PER_M),(H-24)/(spanY*PX_PER_M)),0.002,30);
+    return {x:1.6,y:4.3,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), ok=v.c('--ok'), panel=v.c('--panel');
+    const P=this.вес(p,s), mg=p.m*p.g, Hs=Math.max(3,p.H);
+    /* ---- шахта целиком: 8 единиц схемы на весь путь ---- */
+    const sx0=6.2, sx1=7.8, sy0=0, sy1=8.2, k=(sy1-sy0)/Hs;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4);
+    ctx.strokeRect(sx0,sy0,sx1-sx0,sy1-sy0);
+    const шагЭт=Math.max(3,Math.ceil(Hs/24/3)*3);           // не больше ~24 отметок
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
+    for(let h=шагЭт;h<Hs;h+=шагЭт){ const y=sy0+h*k; ctx.beginPath(); ctx.moveTo(sx0,y); ctx.lineTo(sx0+0.3,y); ctx.moveTo(sx1-0.3,y); ctx.lineTo(sx1,y); ctx.stroke(); }
+    v.label(ctx,`${fmtKm(Hs)}`,sx0,sy1,0,-10,ink3);
+    v.label(ctx,'0 м',sx0,sy0,0,12,ink3);
+    v.label(ctx,'шахта',sx0,sy0,0,26,ink3);
+    const cy=sy0+clamp(s.y,0,Hs)*k, ch=0.55;
+    // трос (в обрыве — оборванный конец висит сверху)
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.2);
+    ctx.beginPath(); const mx=(sx0+sx1)/2;
+    if(p.mode==='break'&&s.t>=p.tBreak){ ctx.moveTo(mx,sy1); ctx.lineTo(mx,sy1-0.5); }
+    else { ctx.moveTo(mx,sy1); ctx.lineTo(mx,cy+ch); }
+    ctx.stroke();
+    ctx.fillStyle=acc; ctx.fillRect(sx0+0.18,cy,sx1-sx0-0.36,ch);
+    v.label(ctx,`h = ${s.y.toFixed(1)} м`,sx0,cy+ch/2,-70,0,acc);
+
+    /* ---- кабина крупно ---- */
+    const bx0=-1.6, bx1=4.6, by0=0.4, by1=8.2;
+    // стены шахты за кабиной: отметки этажей проплывают мимо — видно движение
+    ctx.save(); ctx.beginPath(); ctx.rect(bx0-1.1,by0-0.4,bx1-bx0+2.2,by1-by0+0.8); ctx.clip();
+    const этаж=3, пикс=(by1-by0)/6;                         // 6 м шахты на высоту кабины
+    const сдвиг=((s.y%этаж)+этаж)%этаж;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4);
+    for(let i=-2;i<5;i++){
+      const y=by0+(i*этаж-сдвиг)*пикс;
+      ctx.beginPath(); ctx.moveTo(bx0-1.1,y); ctx.lineTo(bx0-0.25,y); ctx.moveTo(bx1+0.25,y); ctx.lineTo(bx1+1.1,y); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle=panel; ctx.fillRect(bx0,by0,bx1-bx0,by1-by0);
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2.2); ctx.strokeRect(bx0,by0,bx1-bx0,by1-by0);
+    // пол и весы
+    const fy=by0+0.35;
+    ctx.fillStyle=line; ctx.fillRect(bx0,by0,bx1-bx0,0.35);
+    const wx0=-0.9, wx1=1.1, wy=fy, wh=0.32;
+    ctx.fillStyle=ink3; ctx.fillRect(wx0,wy,wx1-wx0,wh);
+    // табло весов
+    const tx=2.0, ty=by0+1.2, tw=2.3, th=1.05;
+    ctx.fillStyle=v.c('--well'); ctx.strokeStyle=line; ctx.lineWidth=v.lw(1.2);
+    ctx.fillRect(tx,ty,tw,th); ctx.strokeRect(tx,ty,tw,th);
+    const кг=P/p.g, отн=P/mg;
+    const цвет=отн>1.02?dang:отн<0.98?(отн<0.02?meas:acc):ok;
+    v.label(ctx,`${кг.toFixed(1)} кг`,tx+0.15,ty+th*0.62,0,0,цвет);
+    v.label(ctx,'весы',tx+0.15,ty+th,0,9,ink3);
+    ctx.strokeStyle=line; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(wx1,wy+wh/2); ctx.lineTo(tx,ty+th/2); ctx.stroke(); ctx.setLineDash([]);
+    // человек: в невесомости чуть приподнимается над весами
+    const всплыл=s.свобода?clamp((s.t-p.tBreak)*0.5,0,0.6):0;
+    const px=0.1, py=wy+wh+всплыл, рост=4.3;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3); ctx.lineCap='round';
+    const таз=py+рост*0.47, плечи=py+рост*0.78;
+    ctx.beginPath();
+    ctx.moveTo(px-0.35,py); ctx.lineTo(px,таз); ctx.lineTo(px+0.35,py);           // ноги
+    ctx.moveTo(px,таз); ctx.lineTo(px,плечи);                                      // корпус
+    const руки=s.свобода?0.55:-0.6;                                                // в невесомости руки всплывают
+    ctx.moveTo(px-0.62,плечи+руки); ctx.lineTo(px,плечи); ctx.lineTo(px+0.62,плечи+руки);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(px,плечи+0.5,0.36,0,Math.PI*2); ctx.stroke();
+    ctx.lineCap='butt';
+    // силы на человека: mg из центра масс вниз, N от ступней вверх
+    if(p.forces){
+      const L=2.1, cm=py+рост*0.52;
+      v.arrow(ctx,px+0.18,cm,px+0.18,cm-L,dang);
+      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px+0.18,cm-L,10,8,dang);
+      if(P>1e-6){
+        const LN=L*P/mg;
+        v.arrow(ctx,px-0.18,py,px-0.18,py+LN,acc);
+        v.label(ctx,`N = P = ${P.toFixed(0)} Н`,px-0.18,py+LN,10,-4,acc);
+      } else v.label(ctx,'N = 0 — невесомость',px+0.4,py,6,-16,meas);
+    }
+    // ускорение кабины
+    if(p.accel&&Math.abs(s.a)>1e-6){
+      const La=clamp(Math.abs(s.a)*0.35,0.4,3.2)*Math.sign(s.a), ax=bx1-0.5, ay=by0+4.8;
+      v.arrow(ctx,ax,ay,ax,ay+La,meas);
+      v.label(ctx,`a = ${Math.abs(s.a).toFixed(1)} м/с² ${s.a>0?'вверх':'вниз'}`,ax,ay+La,-118,s.a>0?-10:12,meas);
+    }
+    v.label(ctx,s.фаза+(s.v?` · v = ${Math.abs(s.v).toFixed(1)} м/с ${s.v>0?'вверх':'вниз'}`:''),bx0,by1,0,-12,ink2);
+    // что значит вес здесь и сейчас
+    let смысл;
+    if(отн<0.02) смысл='невесомость: весы ничего не показывают, хотя сила тяжести та же';
+    else if(отн>1.02) смысл=`перегрузка ×${отн.toFixed(2)}: пол давит сильнее, чем тянет Земля`;
+    else if(отн<0.98) смысл=`легче на ${((1-отн)*100).toFixed(0)} %: ускорение кабины направлено вниз`;
+    else смысл='вес равен силе тяжести: кабина стоит или едет равномерно';
+    v.label(ctx,смысл,bx0,by0,0,22,цвет);
+  }
+},
 
 /* ============ МОМЕНТ ИМПУЛЬСА: ГИРОСКОП И ПРЕЦЕССИЯ ============
    Орир, т.1. Момент силы тяжести перпендикулярен моменту импульса, поэтому
@@ -18898,6 +19160,7 @@ const T_dyn={
     {sim:'incline', do:`Медленно увеличивайте угол, пока брусок не поедет`, see:`это и есть угол, при котором $\\operatorname{tg}\\alpha=\\mu$`},
     {sim:'incline', do:`Поставьте $\\mu=0$ и меняйте массу`, see:`ускорение $g\\sin\\alpha$ не изменится: масса сокращается`},
     {sim:'atwood', do:`Сделайте грузы одинаковыми`, see:`система замрёт при любой массе — важна разность, а не вес`},
+    {sim:'lift', do:`Прокатитесь в лифте вверх и посмотрите на весы`, see:`на разгоне весы показывают больше массы, на торможении меньше, а на ходу — ровно массу: вес зависит от ускорения, а не от скорости`},
   ],
   theory:`
   <p>Кинематика описывала движение, ничего не спрашивая о его причине. Динамика отвечает на вопрос
@@ -19162,7 +19425,10 @@ const T_dyn={
      note:'Подвижный блок невесом, поэтому нить под ним несёт удвоенное натяжение, а его ось движется вдвое медленнее концов нити — отсюда выигрыш в силе вдвое.', sim:'atwood'},
     {tex:'F_A=\\rho_{\\text{ж}}gV_{\\text{погр}},\\qquad \\dfrac{V_{\\text{погр}}}{V}=\\dfrac{\\rho_{\\text{т}}}{\\rho_{\\text{ж}}}',
      kind:'следствие',
-     note:'Закон Архимеда: выталкивающая сила равна весу вытесненной жидкости. Плавающее тело погружается ровно на долю $\\rho_{\\text{т}}/\\rho_{\\text{ж}}$.', sim:'buoyancy'}
+     note:'Закон Архимеда: выталкивающая сила равна весу вытесненной жидкости. Плавающее тело погружается ровно на долю $\\rho_{\\text{т}}/\\rho_{\\text{ж}}$.', sim:'buoyancy'},
+    {tex:'N-mg=ma\\quad\\Rightarrow\\quad P=N=m(g+a)',
+     kind:'следствие',
+     note:'Вес в лифте: ось вверх, $a$ — ускорение кабины со знаком. Весы показывают $P/g$: больше массы при $a>0$, меньше при $a&lt;0$, ноль при $a=-g$ — невесомость.', sim:'lift'}
   ],
   mistakes:[
     {wrong:'Тело движется — значит, на него действует сила в сторону движения. Перестанет действовать — остановится.',
@@ -19386,7 +19652,46 @@ const T_dyn={
        покрывает тело. Какой процент объёма тела окажется теперь в <em>нижней</em> жидкости?`,
      hint:'Выталкивание создают обе жидкости; запишите условие плавания через две доли объёма.',
      answer:p=>{ const r1=LIQ_RHO(p), r2=r1/2, rt=p.rho;
-       const x=(rt-r2)/(r1-r2); if(x<0||x>1) return NaN; return 100*x; }}
+       const x=(rt-r2)/(r1-r2); if(x<0||x>1) return NaN; return 100*x; }},
+
+    /* ---------- Лифт ---------- */
+    /* Ответы считаются по поездке (режим «Поездка»): профилем той же
+       симуляции, поэтому время и путь разгона совпадают с моделью. */
+    {level:1, sim:'lift', unit:'кг',
+     statement:`Человек стоит на весах в лифте. Что покажут весы, пока лифт <strong>разгоняется</strong>
+       в выбранном направлении?`,
+     hint:'Весы показывают вес, делённый на $g$: $P=m(g+a)$, ось вверх, $a$ со знаком.',
+     answer:p=>{ const σ=p.dir==='down'?-1:1; return Math.max(0,p.m*(p.g+σ*p.a))/p.g; }},
+
+    {level:2, sim:'lift', unit:'',
+     statement:`Во сколько раз вес человека при <strong>торможении</strong> лифта отличается от силы тяжести
+       (найдите отношение $P/mg$)?`,
+     hint:'При торможении ускорение направлено против скорости.',
+     answer:p=>{ const σ=p.dir==='down'?-1:1; return Math.max(0,p.g-σ*p.a)/p.g; }},
+
+    {level:3, sim:'lift', unit:'с',
+     statement:`Сколько секунд длится поездка лифта целиком — от начала разгона до остановки?`,
+     hint:'Разгон и торможение одинаковы. Проверьте, успевает ли лифт разогнаться до $v_{max}$: если нет, ход треугольный.',
+     answer:p=>SIMS.lift.профиль(Object.assign({},p,{mode:'trip'}),0).T},
+
+    {level:4, sim:'lift', unit:'Дж',
+     statement:`Какую работу совершает сила реакции пола над человеком за участок <strong>разгона</strong>?
+       Знак важен: при спуске пол давит вверх, а человек движется вниз.`,
+     hint:'Сила постоянна на всём участке: $A=N\\cdot s\\cdot\\cos\\alpha$, а путь разгона $s=v^2/2a$.',
+     answer:p=>{ const σ=p.dir==='down'?-1:1, пр=SIMS.lift.профиль(Object.assign({},p,{mode:'trip'}),0);
+       return Math.max(0,p.m*(p.g+σ*p.a))*σ*пр.d1; }},
+
+    {level:5, sim:'lift', unit:'с',
+     statement:`В момент, когда лифт трогается, человек выпускает из руки монету с высоты 1,5 м над полом кабины.
+       Через сколько секунд она коснётся пола?`,
+     hint:'Решайте в системе кабины: монета падает с ускорением $g+a$ относительно пола — пока кабина разгоняется. Не забудьте, что разгон может кончиться раньше.',
+     answer:p=>{
+       const q=Object.assign({},p,{mode:'trip'}), σ=p.dir==='down'?-1:1;
+       // пол движется по профилю поездки, монета — свободно из покоя
+       const зазор=t=>1.5-p.g*t*t/2-σ*SIMS.lift.профиль(q,t).s;
+       let lo=0, hi=0.05; while(зазор(hi)>0&&hi<60) hi*=2;
+       for(let i=0;i<80;i++){ const m=(lo+hi)/2; if(зазор(m)>0) lo=m; else hi=m; }
+       return (lo+hi)/2; }}
   ]
 };
 
@@ -30015,11 +30320,13 @@ function открытьПуть(вкладка,опц){
   if(опц.навык) путь.навык=опц.навык;
   p.classList.remove('hidden');
   document.documentElement.classList.add('path-on');
+  if(typeof обновитьНав==='function') обновитьНав();
   вкладкаПути(вкладка||путь.вкладка);
 }
 function закрытьПуть(){
   const p=document.getElementById('path'); if(!p) return;
   p.classList.add('hidden'); document.documentElement.classList.remove('path-on');
+  if(typeof обновитьНав==='function') обновитьНав();
   обновитьЗначокПути();
   if(typeof renderTree==='function') renderTree(($('#search')||{}).value||'');
 }
@@ -30491,9 +30798,41 @@ function подключитьЧтение(){
   content.append(up);
   // прокручивается то панель (компьютер), то вся колонка (телефон)
   const прокрутчик=()=>pane.scrollHeight>pane.clientHeight+4&&getComputedStyle(pane).overflowY!=='visible'?pane:content;
-  let кадр=0;
-  const обновить=()=>{ кадр=0;
+  let кадр=0, прошлое=0;
+  /* Шапка темы уезжает вверх, когда листаешь вниз, и возвращается от
+     лёгкой прокрутки вверх — как адресная строка в мобильном браузере. На
+     планшете и узком окне она занимала до трети высоты над текстом. На
+     телефоне шапка и так прокручивается вместе с текстом — там не трогаем. */
+  /* Шапка лежит ПОВЕРХ текста (компьютерная раскладка), а у панели сверху
+     отступ ровно на её высоту. Спрятать — значит сдвинуть шапку вверх
+     трансформацией: текст под ней не двигается ни на пиксель. Первая версия
+     убирала шапку отрицательным отступом, и весь текст прыгал вверх на её
+     высоту — открытая карточка приёма оставалась на месте и закрывала метку. */
+  const шапка=document.querySelector('.chead');
+  const поверх=()=>document.documentElement.dataset.ui==='desktop';
+  let былаВысота=-1;
+  мерятьШапку=()=>{
+    if(!шапка) return;
+    if(!поверх()){ if(былаВысота!==-1){ pane.style.paddingTop=''; былаВысота=-1; } return; }
+    const h=Math.round(шапка.getBoundingClientRect().height);
+    if(h!==былаВысота){ былаВысота=h; pane.style.paddingTop=(h+18)+'px'; }
+  };
+  const спрятать=как=>{
+    if(!шапка) return;
+    шапка.classList.toggle('tuck',!!как&&поверх());
+  };
+  if(window.ResizeObserver&&шапка){ try{ new window.ResizeObserver(()=>мерятьШапку()).observe(шапка); }catch(_){} }
+  addEventListener('resize',()=>мерятьШапку());
+  показатьШапку=()=>{ прошлое=0; спрятать(false); мерятьШапку(); };
+  const обновить=()=>{ кадр=0; мерятьШапку();
     const эл=прокрутчик(), макс=эл.scrollHeight-эл.clientHeight;
+    if(эл===pane&&prefGet('headerTuck')!==false){
+      const y=эл.scrollTop, d=y-прошлое;
+      if(y<24) спрятать(false);
+      else if(d>8&&y>80&&макс>240) спрятать(true);
+      else if(d<-14) спрятать(false);
+      if(Math.abs(d)>8||y<24) прошлое=y;
+    } else спрятать(false);
     const доля=макс>40?Math.min(1,эл.scrollTop/макс):0;
     bar.firstChild.style.transform=`scaleX(${доля})`;
     bar.classList.toggle('hidden',макс<=40);
@@ -30507,7 +30846,7 @@ function подключитьЧтение(){
     try{ эл.scrollTo({top:0,behavior:document.documentElement.dataset.motion==='full'?'smooth':'auto'}); }catch(_){ эл.scrollTop=0; } };
   обновитьЧтение=позже;
 }
-let обновитьЧтение=()=>{};
+let обновитьЧтение=()=>{}, показатьШапку=()=>{}, мерятьШапку=()=>{};
 
 /* ---------------- главный экран ---------------- */
 function естьГлавная(){ return !!document.getElementById('home'); }
@@ -30524,13 +30863,13 @@ function открытьГлавную(){
   рисоватьГлавную(h);
   h.classList.remove('hidden'); h.scrollTop=0;
   document.documentElement.classList.add('home-on');
-  const b=document.getElementById('btn-home'); if(b) b.classList.add('on');
+  обновитьНав();
   if(typeof isNarrow==='function'&&isNarrow()&&typeof drawer==='function') drawer(false);
 }
 function закрытьГлавную(){
   const h=document.getElementById('home'); if(!h||h.classList.contains('hidden')) return;
   h.classList.add('hidden'); document.documentElement.classList.remove('home-on');
-  const b=document.getElementById('btn-home'); if(b) b.classList.remove('on');
+  обновитьНав();
   requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
 }
 function вопросДня(){
@@ -30635,7 +30974,46 @@ function подключитьГлавную(){
     if(!главнаяОткрыта()) return;
     if(e.target.closest&&e.target.closest('#tab-topics,#tab-search,#tab-marks,#btn-simhide,#btn-simfull,#m-opensim,#btn-rail')) закрытьГлавную();
   },true);
+  // «Курс» — это ещё и «покажи список тем», если он был спрятан
+  const курс=document.getElementById('tab-topics');
+  if(курс) курс.addEventListener('click',()=>{ if(typeof путьОткрыт==='function'&&путьОткрыт()) закрытьПуть();
+    const sb=document.getElementById('sidebar'); if(sb&&sb.classList.contains('hidden')&&!(typeof isNarrow==='function'&&isNarrow())) toggleSidebar(false);
+    обновитьНав(); });
+  const чт=document.getElementById('btn-reading'); if(чт) чт.onclick=()=>режимЧтения();
+  обновитьНав();
   подключитьЧтение();
+}
+
+/* ---------------- навигация верхней панели (2.2.0) ----------------
+   Три места, где можно быть: Главная, Курс (конспект и модель), Мой путь.
+   Подсвечено то, где вы сейчас; класс `cur`, а не `on`: `on` у «Курса»
+   исторически значит «в боковой панели — дерево тем, а не закладки». */
+function обновитьНав(){
+  const дом=главнаяОткрыта(), путь=typeof путьОткрыт==='function'&&путьОткрыт();
+  const b=(id,как)=>{ const e=document.getElementById(id); if(e){ e.classList.toggle('cur',как); e.setAttribute('aria-current',как?'page':'false'); } };
+  b('btn-home',дом&&!путь); b('tab-topics',!дом&&!путь); b('btn-path',путь);
+  const m=document.getElementById('m-home'); if(m) m.classList.toggle('on',дом);
+}
+/* ---------------- режим чтения ----------------
+   Одной кнопкой: убрать сцену и список тем, оставить текст по центру.
+   Второе нажатие возвращает ровно то, что было открыто до него. */
+let чтение=null;
+function режимЧтения(вкл){
+  if(вкл===undefined) вкл=!чтение;
+  const sim=document.getElementById('simpane'), sb=document.getElementById('sidebar');
+  if(вкл&&!чтение){
+    чтение={сцена:sim&&!sim.classList.contains('hidden'), темы:sb&&!sb.classList.contains('hidden')};
+    if(чтение.сцена) document.getElementById('btn-simhide').click();
+    if(чтение.темы) toggleSidebar(true);
+    toast('Режим чтения — та же кнопка вернёт сцену и список тем');
+  } else if(!вкл&&чтение){
+    const было=чтение; чтение=null;
+    if(было.сцена&&sim&&sim.classList.contains('hidden')) document.getElementById('btn-simhide').click();
+    if(было.темы) toggleSidebar(false);
+  }
+  document.documentElement.classList.toggle('reading',!!чтение);
+  const btn=document.getElementById('btn-reading'); if(btn) btn.classList.toggle('on',!!чтение);
+  requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
 }
 
 ;
@@ -31510,7 +31888,8 @@ function updateHud(a){
   const данные=a.def.readouts(a.state,a.params);
   const rows=данные.map(([l,v,u])=>
     `<div class="ro"><span class="ro-l">${esc(l)}</span>` +
-    `<span class="ro-v">${esc(fmt(v))}</span>` +
+    // значение может быть словом (фаза движения, режим) — выводим как есть
+    `<span class="ro-v${typeof v==='string'?' ro-txt':''}">${esc(typeof v==='string'?v:fmt(v))}</span>` +
     `<span class="ro-u">${esc(u||'')}</span></div>`);
   const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
   /* Обрезаем строки, только если размер панели чем-то ОГРАНИЧЕН: явной высотой
@@ -32148,7 +32527,7 @@ function openTopic(id){
   $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
-  if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); обновитьЧтение(); }catch(e){ console.error(e); }
+  if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); показатьШапку(); обновитьЧтение(); }catch(e){ console.error(e); }
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
@@ -32206,6 +32585,7 @@ function paneTop(){
 }
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   S.tab=b.dataset.tab;
+  if(typeof показатьШапку==='function') показатьШапку();
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
   renderPane();
   // вкладки уехали вместе с текстом — после переключения возвращаем к началу,
@@ -34462,7 +34842,7 @@ $$('#mi-notes-load').onclick=()=>{
       /* Идентификаторы перевыдаём: иначе загруженные заметки склеились бы
          связями с теми, что уже лежат в этой симуляции. */
       const карта={};
-      const свежие=список.map(n=>{ карта[n.id]=новыйИд(); return Object.assign({}, n, {id:карта[n.id]}); });
+      const свежие=список.map(n=>{ const ч=чистаяЗаметка(n); карта[n&&n.id]=ч.id=новыйИд(); return ч; });
       for(const n of свежие) n.links=(n.links||[]).map(x=>карта[x]).filter(Boolean);
       a.notes=[...заметки(a),...свежие];
       сохранитьЗаметки(); renderNotes();
@@ -34607,7 +34987,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:8,uiFont:'sans',readW:'norm',lineH:1.65,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std',
-  startScreen:'home'};
+  startScreen:'home',headerTuck:true};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -34746,6 +35126,8 @@ const PREFS=[
 
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
+  {cat:'behav',key:'headerTuck',type:'toggle',def:true,
+   name:'Прятать шапку темы при чтении',desc:'Когда листаете конспект вниз, заголовок и вкладки уезжают вверх и освобождают место тексту; лёгкая прокрутка вверх возвращает их.'},
   {cat:'behav',key:'startScreen',type:'select',def:'home',
    name:'При запуске',desc:'Главный экран — продолжить с того же места, «Мой путь» на сегодня и все разделы. Или сразу последняя тема, как было до 2.1.',
    options:[['home','Главный экран'],['last','Сразу тема']]},
@@ -35676,7 +36058,7 @@ function renderSheetReadouts(){
   if(!a||!a.def.readouts){ box.innerHTML=''; return; }
   box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>
     `<div class="sr"><span class="sr-l">${esc(l)}${u?', '+esc(u):''}</span>` +
-    `<span class="sr-v">${esc(fmt(v))}</span></div>`).join('');
+    `<span class="sr-v">${esc(typeof v==='string'?v:fmt(v))}</span></div>`).join('');
 }
 /* Ручка листа: тянут — меняется положение, короткий тап — следующее. */
 (function листРучка(){
@@ -35831,6 +36213,8 @@ function applySettings(){
     readable:'Verdana,"DejaVu Sans","Tahoma",sans-serif',serif:'Georgia,"Noto Serif","Times New Roman",serif',mono:'var(--mono)'};
   root.style.setProperty('--ui-font',ШРИФТЫ[prefGet('uiFont')]||ШРИФТЫ.sans);
   root.style.setProperty('--read-w',({narrow:'620px',norm:'760px',wide:'960px',full:'none'})[prefGet('readW')]||'760px');
+  // та же ширина числом — для расчёта полей (none в calc() не годится)
+  root.style.setProperty('--read-wc',({narrow:'620px',norm:'760px',wide:'960px',full:'100%'})[prefGet('readW')]||'760px');
   root.style.setProperty('--lh',String(prefGet('lineH')||1.65));
   root.dataset.shadows=prefGet('shadows')||'soft';
   root.dataset.btnstyle=prefGet('btnStyle')||'fill';
@@ -36250,6 +36634,7 @@ function resetPanels(){
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
   {k:'Навигация',t:'Главная: продолжить, разделы, вопрос дня',run:()=>открытьГлавную()},
+  {k:'Вид',t:'Режим чтения: только текст',run:()=>режимЧтения()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
   {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
@@ -36963,14 +37348,30 @@ function рисоватьГрафик(dr, o){
    Старые пометки типа note продолжают рисоваться на холсте как раньше. */
 const ЗАМ_КЛЮЧ='notes';
 function заметки(a){ if(a&&!a.notes) a.notes=[]; return a?a.notes:[]; }
+/* Заметка из хранилища или из файла: поля приводим к ожидаемому виду.
+   Файл мог прийти с чужого устройства или быть поправлен руками — без этого
+   карточка без x вставала в NaN, а сохранённое «правится» открывало её
+   после перезапуска сразу в режиме правки. */
+function чистаяЗаметка(n){
+  n=n&&typeof n==='object'?n:{};
+  const число=(v,d)=>typeof v==='number'&&isFinite(v)?v:d;
+  return {id:typeof n.id==='string'&&n.id?n.id:новыйИд(),
+    x:clamp(число(n.x,0.1),0,1), y:clamp(число(n.y,0.1),0,1),
+    w:clamp(число(n.w,230),150,700), h:clamp(число(n.h,175),80,700),
+    title:String(n.title||'').slice(0,200), text:String(n.text||'').slice(0,20000),
+    open:n.open!==false, tucked:!!n.tucked, links:Array.isArray(n.links)?n.links.filter(x=>typeof x==='string'):[],
+    edit:false};
+}
 function загрузитьЗаметки(a,id){
   const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
-  a.notes=Array.isArray(все[id])?все[id].map(n=>(Object.assign({}, {links:[]}, n))):[];
+  a.notes=Array.isArray(все[id])?все[id].map(чистаяЗаметка):[];
 }
 function сохранитьЗаметки(){
   const a=A(); if(!a||!S.active) return;
   const все=LS.get(ЗАМ_КЛЮЧ,{})||{};
-  if(a.notes&&a.notes.length) все[S.active]=a.notes; else delete все[S.active];
+  // «правится» и «какая связанная открыта» — состояние экрана, не заметки
+  if(a.notes&&a.notes.length) все[S.active]=a.notes.map(n=>{ const c=Object.assign({},n); delete c.edit; delete c.показ; return c; });
+  else delete все[S.active];
   LS.set(ЗАМ_КЛЮЧ,все);
 }
 let заметкаСчёт=0;
@@ -37042,9 +37443,13 @@ function renderNotes(){
     const el=document.createElement('div');
     el.className='ncard'+(n.open===false?' closed':'')+(n.tucked?' tucked':'')+(связьОт===n.id?' sel':'');
     el.dataset.id=n.id;
-    el.style.left=Math.round(clamp(n.x,0,1)*W)+'px';
-    el.style.top=Math.round(clamp(n.y,0,1)*H)+'px';
-    if(!n.tucked){ el.style.width=(n.w||230)+'px'; if(n.open!==false) el.style.height=(n.h||150)+'px'; }
+    /* Карточка целиком в пределах сцены: доля от ширины сама по себе не
+       держит правый край — после сужения окна или поворота телефона
+       карточка у края уезжала за сцену и доставалась только прокруткой. */
+    const ширина=n.tucked?150:Math.min(n.w||230,W), высота=n.tucked||n.open===false?40:Math.min(n.h||150,H);
+    el.style.left=Math.round(clamp(clamp(n.x,0,1)*W,0,Math.max(0,W-ширина)))+'px';
+    el.style.top=Math.round(clamp(clamp(n.y,0,1)*H,0,Math.max(0,H-высота)))+'px';
+    if(!n.tucked){ el.style.width=ширина+'px'; if(n.open!==false) el.style.height=высота+'px'; }
 
     const показ=n.показ&&заметкаПоИд(a,n.показ)?n.показ:null;   // какая связанная открыта внутри
     const тек=показ?заметкаПоИд(a,показ):n;
@@ -37079,8 +37484,10 @@ function renderNotes(){
       ta.placeholder='Текст заметки.\n# строка чуть крупнее\n## строка совсем крупная';
       ta.onkeydown=e=>{ e.stopPropagation();
         if(e.key==='Escape'){ n.edit=false; сохранитьЗаметки(); renderNotes(); } };
-      ta.oninput=()=>{ n.text=ta.value; };
-      ta.onblur=()=>{ n.text=ta.value; n.edit=false; сохранитьЗаметки(); renderNotes(); };
+      /* Текст сохраняем по ходу набора (с паузой), а не только при уходе:
+         закрыли вкладку посреди фразы — фраза осталась. */
+      let пауза=0;
+      ta.oninput=()=>{ n.text=ta.value; clearTimeout(пауза); пауза=setTimeout(сохранитьЗаметки,600); };
       ta.onfocus=()=>{ n.title=ti.value; };
       тело.appendChild(ta);
       const подсказка=document.createElement('div'); подсказка.className='nc-hint';
@@ -37142,6 +37549,25 @@ function renderNotes(){
     if(!n.tucked) шапка.querySelector('.nc-t').ondblclick=e=>{ e.stopPropagation();
       askText('Заголовок заметки',n.title||'',v=>{ n.title=v; сохранитьЗаметки(); renderNotes(); }); };
 
+    /* Правка кончается, когда фокус ушёл из КАРТОЧКИ, а не из поля текста.
+       Раньше blur у текста сразу пересобирал карточку: щелчок по заголовку
+       закрывал правку, а «удалить» во время правки терял нажатие — кнопка
+       исчезала между mousedown и click. Нажатие внутри карточки помечаем,
+       и такой уход фокуса правку не закрывает. */
+    if(n.edit){
+      let внутри=0;
+      el.addEventListener('pointerdown',()=>{ внутри=Date.now(); },true);
+      el.addEventListener('focusout',e=>{
+        const куда=e.relatedTarget;
+        if(куда&&el.contains(куда)) return;
+        if(Date.now()-внутри<700) return;
+        setTimeout(()=>{ if(!n.edit) return;
+          const ф=document.activeElement; if(ф&&el.contains(ф)) return;
+          const t=el.querySelector('textarea'), h=el.querySelector('.nc-ti');
+          if(t) n.text=t.value; if(h) n.title=h.value;
+          n.edit=false; сохранитьЗаметки(); renderNotes(); },0);
+      });
+    }
     тянутьЗаметку(шапка,n,el);
     слой.appendChild(el);
   }
@@ -37151,6 +37577,22 @@ function renderNotes(){
   }
   рисоватьСвязи();
 }
+/* Нажатие мимо карточки закрывает правку, даже если фокус к этому моменту
+   уже ушёл (например, в диалог «удалить?», который потом отменили): без
+   этого карточка оставалась в режиме правки, пока не перерисуют сцену. */
+document.addEventListener('pointerdown',e=>{
+  const a=A(); if(!a||!a.notes||!a.notes.some(n=>n.edit)) return;
+  if(e.target.closest&&(e.target.closest('.modal-bg')||e.target.closest('#toast'))) return;
+  let было=false;
+  for(const n of a.notes){
+    if(!n.edit) continue;
+    const el=document.querySelector(`.ncard[data-id="${n.id}"]`);
+    if(el&&el.contains(e.target)) continue;
+    if(el){ const t=el.querySelector('textarea'), h=el.querySelector('.nc-ti'); if(t) n.text=t.value; if(h) n.title=h.value; }
+    n.edit=false; было=true;
+  }
+  if(было){ сохранитьЗаметки(); setTimeout(renderNotes,0); }
+},true);
 /* Перенос карточки за шапку. Позиция пересчитывается в долю сцены сразу:
    тогда она переживёт и поворот телефона, и изменение окна. */
 function тянутьЗаметку(ручка,n,el){
@@ -37158,18 +37600,24 @@ function тянутьЗаметку(ручка,n,el){
     if(e.target.closest('button')) return;
     e.preventDefault(); e.stopPropagation();
     const r=el.getBoundingClientRect(), сл=$('#notelayer').getBoundingClientRect();
-    const dx=e.clientX-r.left, dy=e.clientY-r.top;
+    const dx=e.clientX-r.left, dy=e.clientY-r.top, x0=e.clientX, y0=e.clientY;
+    let двигали=false;
     try{ ручка.setPointerCapture(e.pointerId); }catch(_){}
     const вести=q=>{
+      if(!двигали&&Math.hypot(q.clientX-x0,q.clientY-y0)<5) return;
+      двигали=true;
       const x=clamp(q.clientX-сл.left-dx,0,Math.max(0,сл.width-r.width));
       const y=clamp(q.clientY-сл.top-dy,0,Math.max(0,сл.height-r.height));
       el.style.left=Math.round(x)+'px'; el.style.top=Math.round(y)+'px';
       n.x=x/Math.max(1,сл.width); n.y=y/Math.max(1,сл.height);
       рисоватьСвязи();
     };
-    const кончили=()=>{ ручка.removeEventListener('pointermove',вести);
+    const кончили=ev=>{ ручка.removeEventListener('pointermove',вести);
       ручка.removeEventListener('pointerup',кончили);
       ручка.removeEventListener('pointercancel',кончили);
+      /* Ярлычок возвращается касанием: подсказка так и говорит «нажмите».
+         Раньше нужен был двойной щелчок, которого на телефоне нет. */
+      if(!двигали&&ev&&ev.type==='pointerup'&&n.tucked){ n.tucked=false; renderNotes(); }
       сохранитьЗаметки(); };
     ручка.addEventListener('pointermove',вести);
     ручка.addEventListener('pointerup',кончили);
@@ -37922,7 +38370,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '2.1.0';
+window.PHYSIM_BUILD = '2.2.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

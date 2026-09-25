@@ -73,9 +73,41 @@ function подключитьЧтение(){
   content.append(up);
   // прокручивается то панель (компьютер), то вся колонка (телефон)
   const прокрутчик=()=>pane.scrollHeight>pane.clientHeight+4&&getComputedStyle(pane).overflowY!=='visible'?pane:content;
-  let кадр=0;
-  const обновить=()=>{ кадр=0;
+  let кадр=0, прошлое=0;
+  /* Шапка темы уезжает вверх, когда листаешь вниз, и возвращается от
+     лёгкой прокрутки вверх — как адресная строка в мобильном браузере. На
+     планшете и узком окне она занимала до трети высоты над текстом. На
+     телефоне шапка и так прокручивается вместе с текстом — там не трогаем. */
+  /* Шапка лежит ПОВЕРХ текста (компьютерная раскладка), а у панели сверху
+     отступ ровно на её высоту. Спрятать — значит сдвинуть шапку вверх
+     трансформацией: текст под ней не двигается ни на пиксель. Первая версия
+     убирала шапку отрицательным отступом, и весь текст прыгал вверх на её
+     высоту — открытая карточка приёма оставалась на месте и закрывала метку. */
+  const шапка=document.querySelector('.chead');
+  const поверх=()=>document.documentElement.dataset.ui==='desktop';
+  let былаВысота=-1;
+  мерятьШапку=()=>{
+    if(!шапка) return;
+    if(!поверх()){ if(былаВысота!==-1){ pane.style.paddingTop=''; былаВысота=-1; } return; }
+    const h=Math.round(шапка.getBoundingClientRect().height);
+    if(h!==былаВысота){ былаВысота=h; pane.style.paddingTop=(h+18)+'px'; }
+  };
+  const спрятать=как=>{
+    if(!шапка) return;
+    шапка.classList.toggle('tuck',!!как&&поверх());
+  };
+  if(window.ResizeObserver&&шапка){ try{ new window.ResizeObserver(()=>мерятьШапку()).observe(шапка); }catch(_){} }
+  addEventListener('resize',()=>мерятьШапку());
+  показатьШапку=()=>{ прошлое=0; спрятать(false); мерятьШапку(); };
+  const обновить=()=>{ кадр=0; мерятьШапку();
     const эл=прокрутчик(), макс=эл.scrollHeight-эл.clientHeight;
+    if(эл===pane&&prefGet('headerTuck')!==false){
+      const y=эл.scrollTop, d=y-прошлое;
+      if(y<24) спрятать(false);
+      else if(d>8&&y>80&&макс>240) спрятать(true);
+      else if(d<-14) спрятать(false);
+      if(Math.abs(d)>8||y<24) прошлое=y;
+    } else спрятать(false);
     const доля=макс>40?Math.min(1,эл.scrollTop/макс):0;
     bar.firstChild.style.transform=`scaleX(${доля})`;
     bar.classList.toggle('hidden',макс<=40);
@@ -89,7 +121,7 @@ function подключитьЧтение(){
     try{ эл.scrollTo({top:0,behavior:document.documentElement.dataset.motion==='full'?'smooth':'auto'}); }catch(_){ эл.scrollTop=0; } };
   обновитьЧтение=позже;
 }
-let обновитьЧтение=()=>{};
+let обновитьЧтение=()=>{}, показатьШапку=()=>{}, мерятьШапку=()=>{};
 
 /* ---------------- главный экран ---------------- */
 function естьГлавная(){ return !!document.getElementById('home'); }
@@ -106,13 +138,13 @@ function открытьГлавную(){
   рисоватьГлавную(h);
   h.classList.remove('hidden'); h.scrollTop=0;
   document.documentElement.classList.add('home-on');
-  const b=document.getElementById('btn-home'); if(b) b.classList.add('on');
+  обновитьНав();
   if(typeof isNarrow==='function'&&isNarrow()&&typeof drawer==='function') drawer(false);
 }
 function закрытьГлавную(){
   const h=document.getElementById('home'); if(!h||h.classList.contains('hidden')) return;
   h.classList.add('hidden'); document.documentElement.classList.remove('home-on');
-  const b=document.getElementById('btn-home'); if(b) b.classList.remove('on');
+  обновитьНав();
   requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
 }
 function вопросДня(){
@@ -217,5 +249,44 @@ function подключитьГлавную(){
     if(!главнаяОткрыта()) return;
     if(e.target.closest&&e.target.closest('#tab-topics,#tab-search,#tab-marks,#btn-simhide,#btn-simfull,#m-opensim,#btn-rail')) закрытьГлавную();
   },true);
+  // «Курс» — это ещё и «покажи список тем», если он был спрятан
+  const курс=document.getElementById('tab-topics');
+  if(курс) курс.addEventListener('click',()=>{ if(typeof путьОткрыт==='function'&&путьОткрыт()) закрытьПуть();
+    const sb=document.getElementById('sidebar'); if(sb&&sb.classList.contains('hidden')&&!(typeof isNarrow==='function'&&isNarrow())) toggleSidebar(false);
+    обновитьНав(); });
+  const чт=document.getElementById('btn-reading'); if(чт) чт.onclick=()=>режимЧтения();
+  обновитьНав();
   подключитьЧтение();
+}
+
+/* ---------------- навигация верхней панели (2.2.0) ----------------
+   Три места, где можно быть: Главная, Курс (конспект и модель), Мой путь.
+   Подсвечено то, где вы сейчас; класс `cur`, а не `on`: `on` у «Курса»
+   исторически значит «в боковой панели — дерево тем, а не закладки». */
+function обновитьНав(){
+  const дом=главнаяОткрыта(), путь=typeof путьОткрыт==='function'&&путьОткрыт();
+  const b=(id,как)=>{ const e=document.getElementById(id); if(e){ e.classList.toggle('cur',как); e.setAttribute('aria-current',как?'page':'false'); } };
+  b('btn-home',дом&&!путь); b('tab-topics',!дом&&!путь); b('btn-path',путь);
+  const m=document.getElementById('m-home'); if(m) m.classList.toggle('on',дом);
+}
+/* ---------------- режим чтения ----------------
+   Одной кнопкой: убрать сцену и список тем, оставить текст по центру.
+   Второе нажатие возвращает ровно то, что было открыто до него. */
+let чтение=null;
+function режимЧтения(вкл){
+  if(вкл===undefined) вкл=!чтение;
+  const sim=document.getElementById('simpane'), sb=document.getElementById('sidebar');
+  if(вкл&&!чтение){
+    чтение={сцена:sim&&!sim.classList.contains('hidden'), темы:sb&&!sb.classList.contains('hidden')};
+    if(чтение.сцена) document.getElementById('btn-simhide').click();
+    if(чтение.темы) toggleSidebar(true);
+    toast('Режим чтения — та же кнопка вернёт сцену и список тем');
+  } else if(!вкл&&чтение){
+    const было=чтение; чтение=null;
+    if(было.сцена&&sim&&sim.classList.contains('hidden')) document.getElementById('btn-simhide').click();
+    if(было.темы) toggleSidebar(false);
+  }
+  document.documentElement.classList.toggle('reading',!!чтение);
+  const btn=document.getElementById('btn-reading'); if(btn) btn.classList.toggle('on',!!чтение);
+  requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
 }
