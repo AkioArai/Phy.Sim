@@ -153,6 +153,7 @@
 <script defer src="js/path.js"></script>
 <script defer src="js/home.js"></script>
 <script defer src="js/scene.js"></script>
+<script defer src="js/lab.js"></script>
 <script defer src="js/app.js"></script>
 </head>
 <body>
@@ -537,6 +538,7 @@
       <button class="item" id="mi-reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Всё сбросить</button>
     </div>
     <div class="mt-page hidden" data-page="data">
+      <button class="item" id="mi-lab"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Лаборатория: точки и прямая</button>
       <button class="item" id="mi-plot"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-6 3 3 5-7"/></svg>Скомпилировать график</button>
       <button class="item" id="mi-snap"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M9 12h6M12 9v6"/></svg>Снимок для сравнения</button>
       <button class="item" id="mi-notes-save"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg>Сохранить заметки в файл</button>
@@ -664,6 +666,45 @@
   <div class="ask-row">
     <button class="btn" id="pl-cancel">Отмена</button>
     <button class="btn primary" id="pl-go">Скомпилировать</button>
+  </div>
+</div></div>
+
+<!-- Лаборатория (3.0.0): точки с разбросом, таблица и прямая по МНК -->
+<div class="modal-bg hidden" id="modal-lab" role="dialog" aria-modal="true" aria-labelledby="lab-h"><div class="modal lab">
+  <h3 id="lab-h">Лаборатория: точки и прямая</h3>
+  <p class="pl-lead">Снимайте точки, как в лабораторной работе: у каждого показания есть разброс.
+    Прямая проводится по методу наименьших квадратов — с погрешностью наклона и сдвига.
+    Если зависимость не линейная, «выпрямите» ось: например, T² от L у маятника.</p>
+  <div class="lab-grid">
+    <label for="lab-x">По оси X</label><select id="lab-x"></select>
+    <select id="lab-tx" aria-label="Преобразование X"><option value="x">x</option><option value="sq">x²</option><option value="sqrt">√x</option><option value="inv">1/x</option><option value="ln">ln x</option></select>
+    <label for="lab-y">По оси Y</label><select id="lab-y"></select>
+    <select id="lab-ty" aria-label="Преобразование Y"><option value="x">y</option><option value="sq">y²</option><option value="sqrt">√y</option><option value="inv">1/y</option><option value="ln">ln y</option></select>
+  </div>
+  <div class="pl-row"><label for="lab-noise">Разброс измерений, %</label>
+    <input id="lab-noise" type="text" inputmode="decimal" value="2"></div>
+  <div class="pl-row"><label for="lab-zero">Прямая через начало координат</label>
+    <input id="lab-zero" type="checkbox"></div>
+  <div class="lab-series">
+    <div class="pl-row"><label>Серия: от и до</label>
+      <span class="pl-pair"><input id="lab-p0" type="text" inputmode="decimal" aria-label="Начало серии"><i>…</i><input id="lab-p1" type="text" inputmode="decimal" aria-label="Конец серии"></span></div>
+    <div class="pl-row"><label for="lab-n">Точек в серии</label><input id="lab-n" type="text" inputmode="numeric" value="8"></div>
+    <div class="pl-row"><label for="lab-at">Снимать в момент t (0 — сразу)</label><input id="lab-at" type="text" inputmode="decimal" value="0"></div>
+  </div>
+  <div class="lab-acts">
+    <button class="btn primary" id="lab-take">Снять точку</button>
+    <button class="btn" id="lab-series">Серия по параметру</button>
+    <button class="btn" id="lab-clear">Очистить</button>
+  </div>
+  <canvas id="lab-cv" class="lab-cv" role="img" aria-label="График снятых точек и прямая"></canvas>
+  <div class="lab-fit" id="lab-fit"></div>
+  <div class="sr-only" id="lab-live" aria-live="polite"></div>
+  <div class="lab-tbl"><table><thead><tr><th>№</th><th>x</th><th>y</th><th id="lab-th-x">X</th><th id="lab-th-y">Y</th><th></th></tr></thead>
+    <tbody id="lab-rows"></tbody></table></div>
+  <div class="ask-row">
+    <button class="btn" id="lab-copy">Копировать таблицу</button>
+    <button class="btn" id="lab-csv">Сохранить CSV</button>
+    <button class="btn" id="lab-close">Закрыть</button>
   </div>
 </div></div>
 

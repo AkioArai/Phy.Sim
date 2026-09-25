@@ -2547,3 +2547,25 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
   border:2px solid var(--line);transition:background-color var(--t2) var(--ease),border-color var(--t2) var(--ease)}
 .pop .item.tog.on{color:var(--ink)}
 .pop .item.tog.on::after{background:var(--accent);border-color:var(--accent)}
+
+/* ==================== ЛАБОРАТОРИЯ (3.0.0) ==================== */
+.modal.lab{width:94vw;width:min(620px,94vw);max-height:92vh;max-height:92dvh;overflow:auto}
+.lab-grid{display:grid;grid-template-columns:auto 1fr 84px;gap:8px 10px;align-items:center;margin:0 0 10px}
+.lab-grid label{font-size:13px;color:var(--ink-2)}
+.lab-grid select{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:6px 8px;color:var(--ink);min-width:0;font:inherit;font-size:13px}
+.modal.lab[data-series="0"] .lab-series{display:none}
+.lab-acts{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.lab-cv{display:block;width:100%;height:200px;border:1px solid var(--line);border-radius:var(--radius-sm)}
+.lab-fit{font-size:13px;line-height:1.55;margin:8px 0;font-family:var(--mono);color:var(--ink)}
+.lab-warn{color:var(--danger);font-family:var(--sans)}
+.lab-tbl{max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:10px}
+.lab-tbl table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+.lab-tbl th,.lab-tbl td{padding:4px 8px;text-align:right;border-bottom:1px solid var(--line-soft)}
+.lab-tbl th{position:sticky;top:0;background:var(--panel-2);color:var(--ink-2);font-weight:600}
+.lab-tbl td:first-child,.lab-tbl th:first-child{text-align:left;color:var(--ink-3)}
+.lab-empty{text-align:center!important;color:var(--ink-3);font-family:var(--sans)}
+.lab-del{width:22px;height:22px;border-radius:4px;color:var(--ink-3)}
+.lab-del:hover{background:var(--panel-2);color:var(--danger)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (max-width:520px){ .lab-grid{grid-template-columns:1fr 84px} .lab-grid label{grid-column:1/-1} }
