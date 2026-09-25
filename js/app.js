@@ -1453,8 +1453,12 @@ function renderTree(q=''){
     const el=document.createElement('div');
     el.className='sec'+((S.open.includes(sec.id)||q||S.markMode)?' open':'')+(sec.hard?' hard':'');
     const hd=document.createElement('button'); hd.className='hd';
+    // значок и цвет раздела (2.1.0); без home.js — прежняя точка
+    const знак=typeof значокРаздела==='function'
+      ? (el.classList.add('sx'), el.setAttribute('style',стильРаздела(sec)), значокРаздела(sec,'sec-ic'))
+      : '<span class="dot"></span>';
     hd.innerHTML=`<svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
-      <span class="dot"></span><span>${sec.title}</span>${
+      ${знак}<span>${sec.title}</span>${
         sec.hard?'<span class="hardtag" title="Раздел повышенной сложности, не обязателен к изучению">сложный</span>':''
       }<span class="n">${kids.length}</span>`;
     hd.onclick=()=>{ el.classList.toggle('open');
@@ -1503,6 +1507,7 @@ function openTopic(id){
   $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
+  if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); обновитьЧтение(); }catch(e){ console.error(e); }
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
@@ -3960,7 +3965,8 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:8,uiFont:'sans',readW:'norm',lineH:1.65,
-  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std'};
+  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std',
+  startScreen:'home'};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -4099,6 +4105,9 @@ const PREFS=[
 
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
+  {cat:'behav',key:'startScreen',type:'select',def:'home',
+   name:'При запуске',desc:'Главный экран — продолжить с того же места, «Мой путь» на сегодня и все разделы. Или сразу последняя тема, как было до 2.1.',
+   options:[['home','Главный экран'],['last','Сразу тема']]},
   {cat:'behav',key:'restore',type:'toggle',def:true,
    name:'Открывать последнюю тему',desc:'При следующем запуске приложение вернётся туда, где вы остановились.'},
   {cat:'behav',key:'eventPause',type:'toggle',def:true,
@@ -4247,17 +4256,16 @@ function renderPrefs(){
         <div class="pset-c"><button class="btn" id="pref-import">Выбрать файл</button>
           <input type="file" id="pref-import-file" accept="application/json" style="display:none"></div></div>
 `;
-    $('#pref-reset-all').onclick=()=>askConfirm('Вернуть все настройки к исходным значениям?',()=>{
-      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Настройки сброшены');
-    });
-    $('#pref-clear-presets').onclick=()=>askConfirm('Удалить все свои наборы параметров?',()=>{
+    $('#pref-reset-all').onclick=()=>askConfirm('Внешний вид, сцена, поведение и качество вернутся к исходным значениям. Прогресс, наборы и пометки не тронутся.',()=>{
+      LS.set('prefsUndo',Object.assign({},S.settings));
+      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); renderPrefsSide();
+      toast('Настройки сброшены — «Главное → Вернуть как было» отменит');
+    },'Сбросить настройки?',{ok:'Сбросить'});
+    $('#pref-clear-presets').onclick=()=>askConfirm('Сохранённые вами состояния симуляций будут удалены. Готовые примеры останутся.',()=>{
       LS.set('presets',{}); renderPrefs(); toast('Наборы удалены');
-    });
-    $('#pref-clear-all').onclick=()=>askConfirm('Удалить все сохранённые данные? Это нельзя отменить.',()=>{
-      try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
-        if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
-      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Хранилище очищено');
-    });
+    },'Удалить свои наборы?',{ok:'Удалить',danger:true});
+    $('#pref-clear-all').onclick=()=>askConfirm('Настройки, прогресс по задачам и «Моему пути», наборы, заметки и пометки будут стёрты, а сохранённая офлайн-копия пособия — очищена. Отменить это нельзя: если прогресс нужен, сначала «Сохранить всё в файл».',
+      ()=>очиститьВсё(),'Очистить всё?',{ok:'Очистить всё',danger:true});
     /* В файл идёт ВСЁ, что пользователь нажил, а не одни настройки. Раньше
        отметки о решённых задачах (solved) в него не попадали: человек делал
        резервную копию, восстанавливал её и обнаруживал, что 380 задач снова
@@ -4590,6 +4598,24 @@ function смешать(a,b,t){
   return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('');
 }
 
+/* Полная очистка. Раньше стиралось только хранилище, а состояние в памяти
+   (прогресс, журнал, заметки) тут же записывалось обратно при следующем
+   сохранении — и «очищенное» возвращалось. Теперь: хранилище, кэш
+   офлайн-копии, служебный поток — и перезапуск страницы с чистого листа. */
+function очиститьВсё(){
+  try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
+    if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
+  try{ sessionStorage.clear(); }catch(_){}
+  // пока страница перезапускается, ничего не должно успеть записаться обратно
+  LS.set=()=>{};
+  const ждать=[];
+  try{ if(window.caches&&caches.keys) ждать.push(caches.keys().then(ks=>Promise.all(ks.filter(k=>/physim/i.test(k)).map(k=>caches.delete(k))))); }catch(_){}
+  try{ if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)
+    ждать.push(navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister())))); }catch(_){}
+  toast('Всё очищено — пособие перезапускается');
+  const дальше=()=>setTimeout(()=>location.reload(),600);
+  Promise.all(ждать).then(дальше,дальше);
+}
 function openPrefs(cat){
   if(cat) prefCat=cat;
   $('#prefs').classList.remove('hidden');
@@ -5406,8 +5432,12 @@ function askBox(o){
   inp.classList.toggle('hidden', !o.input);
   inp.value=o.input? (o.value||'') : '';
   $('#ask-ok').textContent=o.ok||'ОК';
+  // опасное действие (стереть данные) — красная кнопка, чтобы не нажать по привычке
+  $('#ask-ok').classList.toggle('danger',!!o.danger);
+  bg.classList.toggle('danger',!!o.danger);
   bg.classList.remove('hidden');
   if(o.input) setTimeout(()=>{ inp.focus(); inp.select(); },40);
+  else setTimeout(()=>{ (o.danger?$('#ask-cancel'):$('#ask-ok')).focus(); },40);
   const close=()=>{ bg.classList.add('hidden'); document.removeEventListener('keydown',key,true); };
   const done=()=>{ const v=o.input? inp.value : true; close(); if(o.onOk) o.onOk(v); };
   const key=e=>{ // диалог перехватывает клавиатуру целиком: иначе Esc и Enter
@@ -5421,7 +5451,7 @@ function askBox(o){
   bg.onclick=e=>{ if(e.target===bg) close(); };
 }
 /* Подтверждение: действие выполняется только по «ОК». */
-function askConfirm(text,onOk,title){ askBox({title:title||'Подтверждение',text,onOk}); }
+function askConfirm(text,onOk,title,опц){ askBox(Object.assign({title:title||'Подтверждение',text,onOk},опц||{})); }
 /* Ввод строки: onOk получает введённое, пустая строка не проходит. */
 function askText(title,value,onOk){
   askBox({title,input:true,value,onOk:v=>{ v=(v||'').trim(); if(v) onOk(v); }});
@@ -5578,6 +5608,7 @@ function resetPanels(){
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
+  {k:'Навигация',t:'Главная: продолжить, разделы, вопрос дня',run:()=>открытьГлавную()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
   {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
@@ -7216,6 +7247,7 @@ function запуск(){
   applySettings();
   if(typeof подключитьПуть==='function') try{ подключитьПуть(); }catch(e){ console.error('Мой путь не подключился',e); }
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
+  if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
   // дальше applySettings вызывается уже по действию пользователя
   S.__ready=true;
   setTool('pan'); renderTree(); renderParams();
@@ -7235,6 +7267,9 @@ function запуск(){
     if(тема!=='intro') openTopic('intro');
     else throw e;
   }
+  /* Главный экран (2.1.0) ложится поверх уже открытой темы: «Продолжить»
+     и выбор раздела уводят с него, а тема под ним готова сразу. */
+  if(typeof открытьГлавную==='function'&&prefGet('startScreen')!=='last') try{ открытьГлавную(); }catch(e){ console.error('главная',e); }
   resize();
   addEventListener('load',()=>{ typeset($('#pane')); resize(); });
 }
@@ -7246,5 +7281,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '2.0.0';
+window.PHYSIM_BUILD = '2.1.0';
 window.PHYSIM_READY = true;

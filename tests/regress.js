@@ -35,6 +35,8 @@ async function boot(b, url, ui) {
   await p.goto(url);
   await p.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {});
   await p.waitForTimeout(600);
+  // с 2.1.0 пособие открывается главным экраном; тесты работают с темой под ним
+  await p.evaluate(() => { if (typeof закрытьГлавную === 'function') закрытьГлавную(); });
   return { p, errs };
 }
 
@@ -1235,6 +1237,84 @@ async function сторож(b) {
       return { было: n0, стало: Object.keys(журнал().задачи).length };
     });
     ok('прогресс из файла сливается с текущим', слияние.стало === слияние.было + 1, слияние);
+
+    /* ============ 2.1.0 ============ */
+    /* Диалог подтверждения жил под настройками (z-index 80 против 140):
+       «Сбросить настройки» открывал окно, которого не видно. */
+    await p.evaluate(() => { S.settings.fs = 14; applySettings(); openPrefs('data'); });
+    await p.click('#pref-reset-all'); await p.waitForTimeout(200);
+    const диалог = await p.evaluate(() => {
+      const m = document.querySelector('#modal-ask .modal').getBoundingClientRect();
+      const el = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2);
+      return { поверх: !!el && !!el.closest('#modal-ask'), фокус: document.activeElement && document.activeElement.id };
+    });
+    await p.click('#ask-ok'); await p.waitForTimeout(150);
+    const послеСброса = await p.evaluate(() => {
+      // сообщение пропускает указатель насквозь, поэтому elementFromPoint его не видит:
+      // сверяем, что оно показано и лежит слоем выше настроек
+      const t = document.querySelector('#toast'), z = el => +getComputedStyle(el).zIndex;
+      const r = { fs: prefGet('fs'), сообщениеВидно: t.classList.contains('show') && z(t) > z(document.querySelector('#prefs')), вернуть: !!LS.get('prefsUndo', null) };
+      closePrefs(); return r;
+    });
+    ok('диалог «Сбросить настройки?» поверх настроек, сброс работает, сообщение видно над настройками',
+      диалог.поверх && диалог.фокус === 'ask-ok' && послеСброса.fs === 12 && послеСброса.сообщениеВидно && послеСброса.вернуть, { диалог, послеСброса });
+
+    /* Цвет и значок раздела: дерево, шапка темы, сводка, полоса чтения */
+    const раздел = await p.evaluate(async () => {
+      openTopic('th.kinetic'); await new Promise(r => setTimeout(r, 150));
+      const sec = [...document.querySelectorAll('#tree .sec')].find(x => /МКТ/.test(x.textContent));
+      const pane = document.querySelector('#pane');
+      pane.scrollTop = (pane.scrollHeight - pane.clientHeight) / 2; pane.dispatchEvent(new Event('scroll'));
+      await new Promise(r => setTimeout(r, 120));
+      const ch = document.querySelector('.chead');
+      return { деревоЦвет: sec && sec.classList.contains('sx') && !!sec.querySelector('.sec-ic'),
+        цвет: getComputedStyle(ch).getPropertyValue('--sec').trim(), значок: !!document.querySelector('#t-ic svg'),
+        сводка: document.querySelector('#t-meta').textContent.replace(/\s+/g, ' ').trim(),
+        чтение: document.querySelector('#readbar i').style.transform, наверх: !document.querySelector('.to-top').classList.contains('hidden') };
+    });
+    ok('раздел в цвете: значок в дереве и шапке, сводка темы, полоса чтения и «наверх»',
+      раздел.деревоЦвет && раздел.цвет === '#ea580c' && раздел.значок && /мин/.test(раздел.сводка) && /15 задач/.test(раздел.сводка) &&
+      /scaleX\(0\.[1-9]/.test(раздел.чтение) && раздел.наверх, раздел);
+
+    /* Главный экран: при запуске, разделы открывают первую неосвоенную тему */
+    {
+      const hp = await b.newPage({ viewport: { width: 1400, height: 900 } });
+      const hErrs = []; hp.on('pageerror', e => hErrs.push(e.message));
+      await hp.route('**cdnjs.cloudflare.com**', r => r.abort());
+      await hp.goto(url); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
+      const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm-sec').length,
+        цвета: [...document.querySelectorAll('#home .hm-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
+        поиск: !!document.querySelector('#hm-search'), вопрос: !!document.querySelector('#home .hm-q') }));
+      await hp.click('#home .hm-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
+      const тема = await hp.evaluate(() => ({ тема: S.topic.id, скрыта: !главнаяОткрыта() }));
+      await hp.click('#btn-home'); await hp.waitForTimeout(200);
+      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm-cont') || {}).textContent || '' }));
+      await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
+      await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
+      const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
+      ok('главный экран: 6 разделов в своих цветах, раздел ведёт в тему, «Главная» возвращает, настройка «сразу тема»',
+        главная.видна && главная.разделов === 6 && new Set(главная.цвета).size === 6 && главная.поиск && главная.вопрос &&
+        тема.тема === 'op.matter' && тема.скрыта && снова.видна && /Взаимодействие излучения/.test(снова.продолжить) &&
+        !безГлавной.видна && безГлавной.тема === 'op.matter' && hErrs.length === 0, { главная, тема, снова, безГлавной, hErrs });
+
+      /* «Очистить всё»: стирает хранилище и кэш офлайн-копии и перезапускает.
+         Раньше состояние в памяти тут же записывалось обратно. */
+      await hp.evaluate(() => { S.solved['x#1'] = 1; LS.set('solved', S.solved); отметитьПопытку(ALL[1], ALL[1].problems[0], true, [], 'тест');
+        openPrefs('data'); document.querySelector('#pref-clear-all').click(); });
+      await hp.waitForTimeout(150);
+      const красная = await hp.evaluate(() => document.querySelector('#ask-ok').classList.contains('danger') && document.activeElement.id === 'ask-cancel');
+      await Promise.all([hp.waitForNavigation({ timeout: 8000 }).catch(() => null), hp.click('#ask-ok')]);
+      await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
+      const чисто = await hp.evaluate(() => {
+        const ключи = []; for (let i = 0; i < localStorage.length; i++) ключи.push(localStorage.key(i));
+        return { решено: Object.keys(S.solved).length, журнал: Object.keys(журнал().задачи).length,
+          ключи: ключи.filter(k => /^physim\.(solved|journal|settings)$/.test(k) && localStorage.getItem(k) !== '{}' && !/"задачи":\{\}/.test(localStorage.getItem(k))),
+          главная: главнаяОткрыта(), готов: window.PHYSIM_READY === true };
+      });
+      ok('«Очистить всё»: красная кнопка, фокус на «Отмена», после перезапуска прогресса нет и пособие работает',
+        красная && чисто.решено === 0 && чисто.журнал === 0 && чисто.главная && чисто.готов && hErrs.length === 0, { красная, чисто, hErrs });
+      await hp.close();
+    }
 
     await p.close();
 

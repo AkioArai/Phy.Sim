@@ -363,8 +363,9 @@ function рисоватьКарту(body){
   for(const слой of слои) for(const t of слой){
     const p=pos[t.id], x=сост.темы[t.id]||{статус:'new',освоение:0};
     const фронт=сост.фронт.includes(t.id);
-    узлы+=`<g class="pm-n s-${x.статус}${фронт?' front':''}${путь.тема===t.id?' sel':''}" data-id="${t.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(t.title)}: ${СТАТУС[x.статус]}">
-      <title>${esc(t.title)}</title><rect width="${w}" height="${h}" rx="9"/>
+    const секц=typeof разделТемы==='function'?разделТемы(t):null;
+    узлы+=`<g class="pm-n s-${x.статус}${фронт?' front':''}${путь.тема===t.id?' sel':''}${секц?' sx':''}" style="${секц?стильРаздела(секц):''}" data-id="${t.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(t.title)}: ${СТАТУС[x.статус]}">
+      <title>${esc(t.title)}</title><rect width="${w}" height="${h}" rx="9"/>${секц?`<rect class="pm-sec" x="0" y="9" width="3" height="${h-18}" rx="1.5"/>`:''}
       <rect class="pm-fill" y="${h-4}" width="${Math.max(0,w*x.освоение)}" height="4" rx="2"/>
       <text x="9" y="19" class="pm-t">${esc(обрезать(t.title,w))}</text>
       <text x="9" y="36" class="pm-s">${esc(t.ch?t.section.split(' ')[0]+' · '+t.ch:t.section)} · ${Math.round(x.освоение*100)}%</text>

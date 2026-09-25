@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="2.0.0">
+<meta name="physim-build" content="2.1.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -2435,6 +2435,130 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
 /* конспект мягко появляется при смене темы и вкладки */
 #pane>article,#pane>.pr-lead,#pane>.pr-prog{animation:появиться var(--t3) var(--ease)}
 .pr-grp span b{color:var(--accent);font-weight:600}
+
+/* ==================== СЛОИ (2.1.0) ====================
+   Диалоги подтверждения жили на z-index 80 — ниже настроек (140), «Моего
+   пути» (140) и палитры (300): окно «Сбросить?» открывалось под настройками,
+   и казалось, что кнопка не работает. Порядок снизу вверх:
+     панели 135–140 · карточка приёма 250 · палитра 300 · диалоги 320 ·
+     сообщения 360 · подсказки 400 · заставка 600 */
+.modal-bg{z-index:320;animation:фон var(--t2) var(--ease)}
+.toast{z-index:360}
+@keyframes фон{from{opacity:0}to{opacity:1}}
+.btn.danger,.btn.primary.danger{background:var(--danger);background-image:none;border-color:var(--danger);color:#fff}
+.btn.danger:hover{filter:brightness(1.08);color:#fff;border-color:var(--danger)}
+.modal-bg.danger .modal{border-top:3px solid var(--danger)}
+.modal.ask .ask-text{line-height:1.55}
+
+/* ==================== РАЗДЕЛЫ: ЦВЕТ И ЗНАЧОК (2.1.0) ==================== */
+.sx{--sec:var(--sec-l,var(--accent))}
+[data-theme="dark"] .sx{--sec:var(--sec-d,var(--accent))}
+.sec>.hd .sec-ic{width:15px;height:15px;flex:0 0 auto;stroke:var(--sec);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sec.open>.hd>span:not(.n):not(.hardtag){color:var(--ink)}
+.sec.sx .topic-item.active{box-shadow:inset 2px 0 0 var(--sec)}
+.pm-sec{fill:var(--sec)}
+
+/* шапка темы: полоса цвета раздела, значок, сводка */
+.chead{position:relative}
+.chead.sx::before{content:'';position:absolute;top:0;left:0;right:0;height:100%;max-height:150px;pointer-events:none;
+  background:linear-gradient(180deg,var(--sec) 0,transparent 100%);opacity:.075}
+.chead.sx::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sec);opacity:.85}
+.chead>*{position:relative}
+.t-ic{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:calc(var(--radius) + 2px);margin-bottom:8px;
+  color:var(--sec);background:var(--panel);border:1px solid var(--line-soft);box-shadow:0 2px 8px -4px var(--sec)}
+.t-ic svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.t-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.t-meta:empty{display:none}
+.tm-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2);padding:3px 9px 3px 7px;border-radius:20px;
+  background:var(--panel);border:1px solid var(--line-soft)}
+.tm-chip svg{width:13px;height:13px;stroke:var(--sec,var(--ink-3));fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-ui="mobile"] .t-ic{width:28px;height:28px;margin-bottom:4px}
+[data-ui="mobile"] .t-ic svg{width:16px;height:16px}
+[data-ui="mobile"] .t-meta{margin-top:4px}
+
+/* полоса чтения и «наверх» */
+.content{position:relative}
+.readbar{position:absolute;top:0;left:0;right:0;height:2.5px;z-index:5;pointer-events:none}
+.readbar.hidden{display:none}
+.readbar i{display:block;height:100%;background:var(--accent);transform-origin:0 50%;transform:scaleX(0);transition:transform .12s linear}
+.to-top{position:absolute;right:18px;bottom:18px;z-index:6;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-md);color:var(--ink-2);
+  transition:opacity var(--t2),transform var(--t2) var(--ease-spring),color var(--t2)}
+.to-top svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.to-top:hover{color:var(--accent);transform:translateY(-2px)}
+.to-top.hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
+[data-ui="mobile"] .to-top{position:fixed;bottom:calc(var(--sheet,0px) + 16px)}
+[data-ui="mobile"][data-sim="on"] .to-top{display:none}
+
+/* ==================== ГЛАВНЫЙ ЭКРАН (2.1.0) ==================== */
+.home{position:absolute;top:0;left:0;right:0;bottom:0;z-index:55;overflow-y:auto;overscroll-behavior:contain;background:var(--bg)}
+.home.hidden{display:none}
+.home-on .statusbar{visibility:hidden}
+[data-ui="mobile"].home-on .msheet,[data-ui="mobile"].home-on .mbar,[data-ui="mobile"].home-on .mbar2{visibility:hidden}
+.hm{max-width:1120px;margin:0 auto;padding:30px 28px 48px;animation:появиться var(--t3) var(--ease)}
+.hm-hero{padding:26px 28px 24px;border-radius:calc(var(--radius) + 10px);margin-bottom:16px;position:relative;overflow:hidden;
+  background:var(--panel);border:1px solid var(--line-soft)}
+.hm-hero::before{content:'';position:absolute;top:-40%;right:-10%;width:60%;height:180%;background:radial-gradient(closest-side,var(--accent),transparent);opacity:.1;pointer-events:none}
+.hm-brand{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.02em}
+.hm-brand span{color:var(--accent)}
+.hm-lead{margin:6px 0 16px;color:var(--ink-2);font-size:14px;line-height:1.55;max-width:640px}
+.hm-search{display:flex;align-items:center;gap:10px;width:100%;max-width:560px;padding:11px 14px;border-radius:calc(var(--radius) + 4px);
+  border:1px solid var(--line);background:var(--bg);color:var(--ink-3);font-size:14px;text-align:left;
+  transition:border-color var(--t2),box-shadow var(--t2)}
+.hm-search:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.hm-search svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex:0 0 auto}
+.hm-search span{flex:1}
+.hm-search kbd{font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--panel)}
+.hm-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}
+.hm-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px 18px;border-radius:calc(var(--radius) + 6px);
+  background:var(--panel);border:1px solid var(--line-soft);position:relative;overflow:hidden;
+  transition:border-color var(--t2),transform var(--t2) var(--ease),box-shadow var(--t2)}
+button.hm-card:hover{border-color:var(--sec,var(--accent));transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.hm-k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+.hm-s{font-size:12.5px;color:var(--ink-3);line-height:1.5}
+.hm-cont.sx::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sec)}
+.hm-cont-t{display:flex;align-items:center;gap:9px;font-size:18px}
+.hm-ic{width:22px;height:22px;stroke:var(--sec,var(--accent));fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.hm-bar{display:block;width:100%;height:5px;border-radius:3px;background:var(--panel-2);overflow:hidden;margin-top:4px}
+.hm-bar i{display:block;height:100%;background:var(--sec,var(--accent));border-radius:3px;transition:width .6s var(--ease)}
+.hm-list{list-style:none;display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--ink-2)}
+.hm-list b{color:var(--ink)}
+.hm-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.hm-h{font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin:22px 2px 10px}
+.hm-secs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:18px}
+.hm-sec{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px 16px 14px;border-radius:calc(var(--radius) + 6px);
+  background:var(--panel);border:1px solid var(--line-soft);position:relative;overflow:hidden;
+  transition:border-color var(--t2),transform var(--t2) var(--ease),box-shadow var(--t2)}
+.hm-sec::before{content:'';position:absolute;top:0;left:0;right:0;height:70px;background:linear-gradient(180deg,var(--sec),transparent);opacity:.09;pointer-events:none}
+.hm-sec:hover{border-color:var(--sec);transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.hm-sec:active{transform:translateY(-1px) scale(.99)}
+.hm-sec-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--panel);border:1px solid var(--line-soft);
+  box-shadow:0 3px 10px -5px var(--sec);position:relative}
+.hm-sec-ic .hm-ic{width:22px;height:22px}
+.hm-sec-t{font-weight:650;font-size:15px;color:var(--ink);position:relative}
+.hm-sec-t small{display:block;font-weight:500;font-size:11px;color:var(--danger);margin-top:1px}
+.hm-sec-ts{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.hm-sec-ts i{font-style:normal;font-size:11px;color:var(--ink-2);padding:2px 7px;border-radius:10px;background:var(--panel-2)}
+.hm-sec-p{display:flex;flex-direction:column;gap:3px;width:100%;margin-top:4px;font-size:11px;color:var(--ink-3)}
+.hm-q b{font-size:16px;line-height:1.4;color:var(--ink)}
+.hm-tgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:100%;margin-top:4px}
+.hm-tgrid button{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--line-soft);
+  background:var(--bg);font-size:13px;color:var(--ink-2);transition:border-color var(--t2),color var(--t2),background-color var(--t2)}
+.hm-tgrid button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.hm-tgrid svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.hm-foot{text-align:center;font-size:12px;color:var(--ink-3);margin-top:22px}
+.hm-secs>*,.hm-row>*{animation:появиться var(--t3) var(--ease) both}
+.hm-secs>*:nth-child(2){animation-delay:.03s}.hm-secs>*:nth-child(3){animation-delay:.06s}
+.hm-secs>*:nth-child(4){animation-delay:.09s}.hm-secs>*:nth-child(5){animation-delay:.12s}.hm-secs>*:nth-child(6){animation-delay:.15s}
+#btn-home.on,#m-home.on{background:var(--accent-soft);color:var(--accent)}
+[data-ui="mobile"] .hm{padding:14px 14px 40px}
+[data-ui="mobile"] .hm-hero{padding:18px 16px}
+[data-ui="mobile"] .hm-brand{font-size:24px}
+[data-ui="mobile"] .hm-search kbd{display:none}
+[data-ui="mobile"] .hm-row{grid-template-columns:1fr}
+[data-ui="mobile"] .hm-secs{grid-template-columns:1fr 1fr;gap:10px}
+[data-ui="mobile"] .hm-sec-ts{display:none}
+@media (max-width:360px){[data-ui="mobile"] .hm-secs{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -2443,6 +2567,7 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
     <button class="iconbtn" id="btn-rail" title="Скрыть/открыть панель тем (Tab)" aria-pressed="true">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
     <div class="sep"></div>
+    <button class="iconbtn" id="btn-home" data-label="Главная" title="Главная: продолжить, разделы, вопрос дня"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
     <button class="iconbtn on" id="tab-topics" data-label="Темы" title="Разделы"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
     <button class="iconbtn" id="tab-search" data-label="Поиск" title="Поиск (Ctrl+K)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
     <button class="iconbtn" id="btn-cmdk" data-label="Команды" title="Командная палитра (Ctrl+P)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg></button>
@@ -2465,6 +2590,7 @@ input[type="color"]{width:38px;height:28px;border:1px solid var(--line);border-r
   <div class="mtop" id="mtop">
     <button class="iconbtn" id="m-drawer" title="Темы, поиск и настройки">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+    <button class="iconbtn" id="m-home" title="Главная"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
     <div class="spacer"></div>
     <button class="iconbtn m-path" id="m-path" title="Мой путь"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg><b class="badge hidden" id="m-path-badge"></b></button>
     <button class="iconbtn" id="m-calc" title="Вычислитель"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18h.01M12 18h3.5"/></svg></button>
@@ -30032,8 +30158,9 @@ function рисоватьКарту(body){
   for(const слой of слои) for(const t of слой){
     const p=pos[t.id], x=сост.темы[t.id]||{статус:'new',освоение:0};
     const фронт=сост.фронт.includes(t.id);
-    узлы+=`<g class="pm-n s-${x.статус}${фронт?' front':''}${путь.тема===t.id?' sel':''}" data-id="${t.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(t.title)}: ${СТАТУС[x.статус]}">
-      <title>${esc(t.title)}</title><rect width="${w}" height="${h}" rx="9"/>
+    const секц=typeof разделТемы==='function'?разделТемы(t):null;
+    узлы+=`<g class="pm-n s-${x.статус}${фронт?' front':''}${путь.тема===t.id?' sel':''}${секц?' sx':''}" style="${секц?стильРаздела(секц):''}" data-id="${t.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(t.title)}: ${СТАТУС[x.статус]}">
+      <title>${esc(t.title)}</title><rect width="${w}" height="${h}" rx="9"/>${секц?`<rect class="pm-sec" x="0" y="9" width="3" height="${h-18}" rx="1.5"/>`:''}
       <rect class="pm-fill" y="${h-4}" width="${Math.max(0,w*x.освоение)}" height="4" rx="2"/>
       <text x="9" y="19" class="pm-t">${esc(обрезать(t.title,w))}</text>
       <text x="9" y="36" class="pm-s">${esc(t.ch?t.section.split(' ')[0]+' · '+t.ch:t.section)} · ${Math.round(x.освоение*100)}%</text>
@@ -30286,6 +30413,229 @@ function подключитьПуть(){
   const mi=document.getElementById('mi-path'); if(mi) mi.onclick=()=>{ const pm=document.getElementById('pop-simmenu'); if(pm) pm.classList.add('hidden'); открытьПуть(); };
   обновитьЗначокПути();
   addEventListener('resize',()=>{ if(путьОткрыт()&&путь.вкладка==='map') вкладкаПути('map'); });
+}
+
+;
+/* =============================================================================
+   ВИД РАЗДЕЛОВ, ШАПКА ТЕМЫ, ГЛАВНЫЙ ЭКРАН (2.1.0)
+
+   У каждого раздела курса — свой цвет и значок. Они не украшение: по ним
+   видно, где вы находитесь, в дереве, на карте, в шапке темы и на главном
+   экране, не читая подписей. Цвет раздела живёт рядом с акцентом, а не
+   вместо него: акцент по-прежнему отмечает то, что активно.
+
+   Как и path.js, файл грузится до app.js: на верхнем уровне — только
+   объявления; всё, что трогает помощники app.js, вызывается позже.
+   ============================================================================= */
+
+/* Два оттенка на раздел: для светлой основы и для тёмной — один и тот же
+   синий на белом и на почти чёрном читается по-разному. */
+const ВИД_РАЗДЕЛОВ={
+  intro:  {с:'#5d5294',т:'#9184d9',значок:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>'},
+  mech:   {с:'#2563eb',т:'#60a5fa',значок:'<path d="M3 20c2.5-9 8-13.5 16-10"/><circle cx="19.5" cy="10" r="1.8"/><path d="M3 20h18"/>'},
+  thermo: {с:'#ea580c',т:'#fb923c',значок:'<path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0z"/><path d="M12 9v7"/>'},
+  electro:{с:'#b45309',т:'#fbbf24',значок:'<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z"/>'},
+  em:     {с:'#7c3aed',т:'#a78bfa',значок:'<path d="M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3z"/><path d="M6 7h4M14 7h4"/>'},
+  optics: {с:'#0e7490',т:'#22d3ee',значок:'<path d="M12 3c2.2 3 2.2 15 0 18-2.2-3-2.2-15 0-18z"/><path d="M2 8l10 4 10-4M2 16l10-4 10 4"/>'},
+  quantum:{с:'#be185d',т:'#f472b6',значок:'<circle cx="12" cy="12" r="1.7" fill="currentColor"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/>'}
+};
+function разделТемы(t){
+  if(!t) return null;
+  for(const s of SECTIONS) if(s.topics.some(x=>x.id===t.id)) return s;
+  return null;
+}
+function видРаздела(sec){ return ВИД_РАЗДЕЛОВ[sec&&sec.id]||ВИД_РАЗДЕЛОВ.intro; }
+/* стиль для элемента с цветом раздела: оба оттенка, CSS выберет по теме */
+function стильРаздела(sec){ const в=видРаздела(sec); return `--sec-l:${в.с};--sec-d:${в.т}`; }
+function значокРаздела(sec,кл){ return `<svg class="${кл||'sec-ic'}" viewBox="0 0 24 24" aria-hidden="true">${видРаздела(sec).значок}</svg>`; }
+
+/* ---------------- шапка темы ----------------
+   Полоса цвета раздела, значок и короткая сводка: сколько читать, сколько
+   формул, выводов, задач и симуляций. По ней видно, большая тема или
+   маленькая, до того как начнёшь листать. */
+function словВТеме(t){
+  const текст=[t.why,t.theory,(t.key||[]).join(' '),(t.explore||[]).map(e=>e.do+' '+e.see).join(' '),
+    (t.mistakes||[]).map(m=>m.wrong+' '+m.right+' '+(m.why||'')).join(' ')].join(' ');
+  return текст.replace(/<[^>]+>/g,' ').replace(/\$[^$]*\$/g,' x ').split(/\s+/).filter(Boolean).length;
+}
+function шапкаТемы(t){
+  const ch=document.querySelector('.chead'); if(!ch) return;
+  const sec=разделТемы(t);
+  ch.classList.add('sx'); ch.setAttribute('style',стильРаздела(sec));
+  let ic=document.getElementById('t-ic');
+  if(!ic){ ic=document.createElement('span'); ic.id='t-ic'; ic.className='t-ic'; const h=document.getElementById('t-title'); if(h) h.before(ic); }
+  ic.innerHTML=значокРаздела(sec);
+  let meta=document.getElementById('t-meta');
+  if(!meta){ meta=document.createElement('div'); meta.id='t-meta'; meta.className='t-meta'; const sub=document.getElementById('t-sub'); if(sub) sub.after(meta); }
+  if(t.kind==='recap'||!(t.theory||(t.formulas||[]).length)){ meta.innerHTML=''; return; }
+  const мин=Math.max(1,Math.round(словВТеме(t)/170));
+  const симуляций=new Set([...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)).size;
+  const выводов=(t.derivations||[]).length;
+  const чип=(ic2,текст,подсказка)=>`<span class="tm-chip" title="${подсказка}"><svg viewBox="0 0 24 24">${ic2}</svg>${текст}</span>`;
+  meta.innerHTML=
+    чип('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',`~${мин} мин`,'Примерно столько читать тему целиком')+
+    ((t.formulas||[]).length?чип('<path d="M5 5h8M5 5l6 7-6 7h9"/>',plural(t.formulas.length,'формула','формулы','формул'),'Ключевые формулы темы'):'')+
+    (выводов?чип('<path d="M4 6h10M4 12h7M4 18h12"/><path d="m17 9 3 3-3 3"/>',plural(выводов,'вывод','вывода','выводов'),'Пошаговые выводы'):'')+
+    ((t.problems||[]).length?чип('<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',plural(t.problems.length,'задача','задачи','задач'),'Задачи с пересчётом под параметры'):'')+
+    (симуляций?чип('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="m10 8.5 4.5 2.5-4.5 2.5z"/>',plural(симуляций,'симуляция','симуляции','симуляций'),'Живые модели этой темы'):'');
+}
+
+/* ---------------- полоса чтения и «наверх» ---------------- */
+function подключитьЧтение(){
+  const content=document.getElementById('content'), pane=document.getElementById('pane');
+  if(!content||!pane||document.getElementById('readbar')) return;
+  const bar=document.createElement('div'); bar.id='readbar'; bar.className='readbar'; bar.innerHTML='<i></i>';
+  content.prepend(bar);
+  const up=document.createElement('button'); up.className='to-top hidden'; up.title='К началу темы';
+  up.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  content.append(up);
+  // прокручивается то панель (компьютер), то вся колонка (телефон)
+  const прокрутчик=()=>pane.scrollHeight>pane.clientHeight+4&&getComputedStyle(pane).overflowY!=='visible'?pane:content;
+  let кадр=0;
+  const обновить=()=>{ кадр=0;
+    const эл=прокрутчик(), макс=эл.scrollHeight-эл.clientHeight;
+    const доля=макс>40?Math.min(1,эл.scrollTop/макс):0;
+    bar.firstChild.style.transform=`scaleX(${доля})`;
+    bar.classList.toggle('hidden',макс<=40);
+    up.classList.toggle('hidden',эл.scrollTop<эл.clientHeight*1.2);
+  };
+  const позже=()=>{ if(!кадр) кадр=requestAnimationFrame(обновить); };
+  pane.addEventListener('scroll',позже,{passive:true});
+  content.addEventListener('scroll',позже,{passive:true});
+  addEventListener('resize',позже);
+  up.onclick=()=>{ const эл=прокрутчик();
+    try{ эл.scrollTo({top:0,behavior:document.documentElement.dataset.motion==='full'?'smooth':'auto'}); }catch(_){ эл.scrollTop=0; } };
+  обновитьЧтение=позже;
+}
+let обновитьЧтение=()=>{};
+
+/* ---------------- главный экран ---------------- */
+function естьГлавная(){ return !!document.getElementById('home'); }
+function главнаяОткрыта(){ const h=document.getElementById('home'); return !!h&&!h.classList.contains('hidden'); }
+function собратьГлавную(){
+  let h=document.getElementById('home'); if(h) return h;
+  h=document.createElement('section'); h.id='home'; h.className='home hidden'; h.setAttribute('aria-label','Главная');
+  const body=document.querySelector('#app>.body')||document.body;
+  body.append(h);
+  return h;
+}
+function открытьГлавную(){
+  const h=собратьГлавную();
+  рисоватьГлавную(h);
+  h.classList.remove('hidden'); h.scrollTop=0;
+  document.documentElement.classList.add('home-on');
+  const b=document.getElementById('btn-home'); if(b) b.classList.add('on');
+  if(typeof isNarrow==='function'&&isNarrow()&&typeof drawer==='function') drawer(false);
+}
+function закрытьГлавную(){
+  const h=document.getElementById('home'); if(!h||h.classList.contains('hidden')) return;
+  h.classList.add('hidden'); document.documentElement.classList.remove('home-on');
+  const b=document.getElementById('btn-home'); if(b) b.classList.remove('on');
+  requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
+}
+function вопросДня(){
+  if(typeof УЧ==='undefined') return null;
+  const д=Math.floor(Date.now()/864e5);
+  return УЧ.ВОПРОСЫ[(д*7)%УЧ.ВОПРОСЫ.length];
+}
+function рисоватьГлавную(h){
+  const сост=(typeof естьПуть==='function'&&естьПуть())?состояниеПути():null;
+  const посл=LS.get('lastTopic',null), тП=посл&&посл!=='intro'?ALL.find(t=>t.id===посл):null;
+  const темыРаздела=sec=>sec.topics.filter(t=>t.kind!=='recap'&&t.id!=='intro');
+  const освоено=sec=>сост?темыРаздела(sec).filter(t=>сост.темы[t.id]&&(сост.темы[t.id].статус==='done'||сост.темы[t.id].статус==='due')).length:0;
+  const симРаздела=sec=>new Set([].concat(...sec.topics.map(t=>[...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)))).size;
+  const полоса=(доля)=>`<span class="hm-bar"><i style="width:${Math.round(доля*100)}%"></i></span>`;
+  /* продолжить */
+  let продолжить;
+  if(тП){
+    const x=сост&&сост.темы[тП.id], sec=разделТемы(тП);
+    продолжить=`<button class="hm-card hm-cont sx" style="${стильРаздела(sec)}" data-topic="${тП.id}">
+      <span class="hm-k">Продолжить</span>
+      <span class="hm-cont-t">${значокРаздела(sec,'hm-ic')}<b>${esc(тП.title)}</b></span>
+      <span class="hm-s">${esc(sec?sec.title:'')}${x?` · освоение ${Math.round(x.освоение*100)} %`:''}</span>
+      ${x?полоса(x.освоение):''}</button>`;
+  } else {
+    продолжить=`<button class="hm-card hm-cont" data-topic="intro">
+      <span class="hm-k">С чего начать</span><span class="hm-cont-t"><b>Как устроено пособие</b></span>
+      <span class="hm-s">Пять минут о том, где что лежит: конспект, модель, задачи, «Мой путь».</span></button>`;
+  }
+  /* мой путь сегодня */
+  let сегодня='';
+  if(сост){
+    const ж=журнал(), рем=УЧ.навыкиКРемонту(ж), пусто=!Object.keys(ж.задачи).length&&!ж.диагн;
+    const фронт=сост.фронт[0]&&ALL.find(t=>t.id===сост.фронт[0]);
+    сегодня=`<div class="hm-card hm-today"><span class="hm-k">Мой путь сегодня</span>
+      ${пусто?`<p class="hm-s">Пройдите диагностику — 12 задач по всему курсу, и приложение подскажет, с какой темы начать.</p>
+        <div class="hm-act"><button class="btn primary" data-path="diag">Пройти диагностику</button><button class="btn" data-path="map">Карта тем</button></div>`
+      :`<ul class="hm-list">
+          <li><b>${сост.повторить.length}</b> ${plural(сост.повторить.length,'тема','темы','тем').replace(/^\d+\s/,'')} повторить</li>
+          <li><b>${рем.length}</b> ${plural(рем.length,'навык','навыка','навыков').replace(/^\d+\s/,'')} починить</li>
+          ${фронт?`<li>дальше: <b>${esc(фронт.title)}</b></li>`:''}
+        </ul><div class="hm-act"><button class="btn primary" data-path="today">Открыть «Мой путь»</button></div>`}</div>`;
+  }
+  const q=вопросДня();
+  h.innerHTML=`<div class="hm">
+    <header class="hm-hero">
+      <div class="hm-brand">Phy<span>.</span>Sim</div>
+      <p class="hm-lead">Курс физики, который можно покрутить руками: ${Object.keys(SIMS).length} живых моделей, ${ALL.filter(t=>t.kind!=='recap'&&t.id!=='intro').length} тем, задачи с пересчётом под ваши параметры.</p>
+      <button class="hm-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span>Найти тему, формулу, симуляцию или команду…</span><kbd>Ctrl+P</kbd></button>
+    </header>
+    <div class="hm-row">${продолжить}${сегодня}</div>
+    <h2 class="hm-h">Разделы</h2>
+    <div class="hm-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
+      const темы=темыРаздела(sec), n=освоено(sec);
+      return `<button class="hm-sec sx${sec.hard?' hard':''}" style="${стильРаздела(sec)}" data-sec="${sec.id}">
+        <span class="hm-sec-ic">${значокРаздела(sec,'hm-ic')}</span>
+        <span class="hm-sec-t">${esc(sec.title)}${sec.hard?'<small>повышенной сложности</small>':''}</span>
+        <span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'симуляция','симуляции','симуляций')}</span>
+        <span class="hm-sec-ts">${темы.slice(0,4).map(t=>`<i>${esc(t.title)}</i>`).join('')}${темы.length>4?`<i>+${темы.length-4}</i>`:''}</span>
+        ${сост?`<span class="hm-sec-p">${полоса(темы.length?n/темы.length:0)}<span>освоено ${n} из ${темы.length}</span></span>`:''}
+      </button>`; }).join('')}</div>
+    <div class="hm-row">
+      ${q?`<div class="hm-card hm-q"><span class="hm-k">Вопрос дня</span><b>${esc(q.вопрос)}</b>
+        <span class="hm-s">${esc(ALL.find(t=>t.id===q.тема).title)} · ${esc(SIMS[q.sim].title)}</span>
+        <div class="hm-act"><button class="btn primary" id="hm-q-go">Посмотреть в симуляции</button><button class="btn" data-path="ask">Все 40 вопросов</button></div></div>`:''}
+      <div class="hm-card hm-tools"><span class="hm-k">Инструменты</span><div class="hm-tgrid">
+        <button data-tool="calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01"/></svg>Вычислитель</button>
+        <button data-path="map"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8 7.2 15.6 8M7 8.3l2.2 7.4M16.6 10l-4.7 6.3"/></svg>Карта тем</button>
+        <button data-tool="ref"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z"/><path d="M8 8h7M8 12h7"/></svg>Справочник</button>
+        <button data-tool="prefs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Настройки</button>
+      </div></div>
+    </div>
+    <p class="hm-foot">Всё, что вы решаете и настраиваете, остаётся на этом устройстве.</p>
+  </div>`;
+  h.querySelectorAll('[data-topic]').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.topic); закрытьГлавную(); });
+  h.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{
+    const sec=SECTIONS.find(s=>s.id===b.dataset.sec);
+    // с первой неосвоенной темы раздела — туда и имеет смысл идти
+    const темы=темыРаздела(sec);
+    const t=(сост&&темы.find(x=>сост.темы[x.id]&&сост.темы[x.id].статус!=='done'&&сост.темы[x.id].статус!=='due'))||темы[0];
+    if(S.open&&!S.open.includes(sec.id)){ S.open.push(sec.id); LS.set('open',S.open); }
+    openTopic(t.id); закрытьГлавную();
+  });
+  h.querySelectorAll('[data-path]').forEach(b=>b.onclick=()=>открытьПуть(b.dataset.path));
+  const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
+  const qg=h.querySelector('#hm-q-go');
+  if(qg) qg.onclick=()=>{ openTopic(q.тема); openSim(q.sim); закрытьГлавную(); if(isNarrow()) openSimMobile(); };
+  h.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{
+    const т=b.dataset.tool;
+    if(т==='calc') открытьВычислитель();
+    else if(т==='ref') openPrefs('ref');
+    else openPrefs('quick');
+  });
+}
+function подключитьГлавную(){
+  собратьГлавную();
+  const b=document.getElementById('btn-home'); if(b) b.onclick=()=>главнаяОткрыта()?закрытьГлавную():открытьГлавную();
+  const m=document.getElementById('m-home'); if(m) m.onclick=()=>открытьГлавную();
+  const d=document.querySelector('.drawer-foot .brand'); if(d){ d.style.cursor='pointer'; d.onclick=()=>открытьГлавную(); }
+  // кнопки, открывающие список тем или сцену, уводят с главной
+  document.addEventListener('click',e=>{
+    if(!главнаяОткрыта()) return;
+    if(e.target.closest&&e.target.closest('#tab-topics,#tab-search,#tab-marks,#btn-simhide,#btn-simfull,#m-opensim,#btn-rail')) закрытьГлавную();
+  },true);
+  подключитьЧтение();
 }
 
 ;
@@ -31744,8 +32094,12 @@ function renderTree(q=''){
     const el=document.createElement('div');
     el.className='sec'+((S.open.includes(sec.id)||q||S.markMode)?' open':'')+(sec.hard?' hard':'');
     const hd=document.createElement('button'); hd.className='hd';
+    // значок и цвет раздела (2.1.0); без home.js — прежняя точка
+    const знак=typeof значокРаздела==='function'
+      ? (el.classList.add('sx'), el.setAttribute('style',стильРаздела(sec)), значокРаздела(sec,'sec-ic'))
+      : '<span class="dot"></span>';
     hd.innerHTML=`<svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
-      <span class="dot"></span><span>${sec.title}</span>${
+      ${знак}<span>${sec.title}</span>${
         sec.hard?'<span class="hardtag" title="Раздел повышенной сложности, не обязателен к изучению">сложный</span>':''
       }<span class="n">${kids.length}</span>`;
     hd.onclick=()=>{ el.classList.toggle('open');
@@ -31794,6 +32148,7 @@ function openTopic(id){
   $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
+  if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); обновитьЧтение(); }catch(e){ console.error(e); }
   const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
@@ -34251,7 +34606,8 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:8,uiFont:'sans',readW:'norm',lineH:1.65,
-  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std'};
+  shadows:'soft',btnStyle:'fill',motion:'auto',ripple:true,tips:'fast',labels:'auto',graphPal:'std',
+  startScreen:'home'};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -34390,6 +34746,9 @@ const PREFS=[
 
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
+  {cat:'behav',key:'startScreen',type:'select',def:'home',
+   name:'При запуске',desc:'Главный экран — продолжить с того же места, «Мой путь» на сегодня и все разделы. Или сразу последняя тема, как было до 2.1.',
+   options:[['home','Главный экран'],['last','Сразу тема']]},
   {cat:'behav',key:'restore',type:'toggle',def:true,
    name:'Открывать последнюю тему',desc:'При следующем запуске приложение вернётся туда, где вы остановились.'},
   {cat:'behav',key:'eventPause',type:'toggle',def:true,
@@ -34538,17 +34897,16 @@ function renderPrefs(){
         <div class="pset-c"><button class="btn" id="pref-import">Выбрать файл</button>
           <input type="file" id="pref-import-file" accept="application/json" style="display:none"></div></div>
 `;
-    $('#pref-reset-all').onclick=()=>askConfirm('Вернуть все настройки к исходным значениям?',()=>{
-      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Настройки сброшены');
-    });
-    $('#pref-clear-presets').onclick=()=>askConfirm('Удалить все свои наборы параметров?',()=>{
+    $('#pref-reset-all').onclick=()=>askConfirm('Внешний вид, сцена, поведение и качество вернутся к исходным значениям. Прогресс, наборы и пометки не тронутся.',()=>{
+      LS.set('prefsUndo',Object.assign({},S.settings));
+      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); renderPrefsSide();
+      toast('Настройки сброшены — «Главное → Вернуть как было» отменит');
+    },'Сбросить настройки?',{ok:'Сбросить'});
+    $('#pref-clear-presets').onclick=()=>askConfirm('Сохранённые вами состояния симуляций будут удалены. Готовые примеры останутся.',()=>{
       LS.set('presets',{}); renderPrefs(); toast('Наборы удалены');
-    });
-    $('#pref-clear-all').onclick=()=>askConfirm('Удалить все сохранённые данные? Это нельзя отменить.',()=>{
-      try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
-        if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
-      S.settings=Object.assign({}, PREF_DEFAULTS); applySettings(); renderPrefs(); toast('Хранилище очищено');
-    });
+    },'Удалить свои наборы?',{ok:'Удалить',danger:true});
+    $('#pref-clear-all').onclick=()=>askConfirm('Настройки, прогресс по задачам и «Моему пути», наборы, заметки и пометки будут стёрты, а сохранённая офлайн-копия пособия — очищена. Отменить это нельзя: если прогресс нужен, сначала «Сохранить всё в файл».',
+      ()=>очиститьВсё(),'Очистить всё?',{ok:'Очистить всё',danger:true});
     /* В файл идёт ВСЁ, что пользователь нажил, а не одни настройки. Раньше
        отметки о решённых задачах (solved) в него не попадали: человек делал
        резервную копию, восстанавливал её и обнаруживал, что 380 задач снова
@@ -34881,6 +35239,24 @@ function смешать(a,b,t){
   return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('');
 }
 
+/* Полная очистка. Раньше стиралось только хранилище, а состояние в памяти
+   (прогресс, журнал, заметки) тут же записывалось обратно при следующем
+   сохранении — и «очищенное» возвращалось. Теперь: хранилище, кэш
+   офлайн-копии, служебный поток — и перезапуск страницы с чистого листа. */
+function очиститьВсё(){
+  try{ const del=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
+    if(k&&k.startsWith('physim.')) del.push(k); } del.forEach(k=>localStorage.removeItem(k)); }catch(_){}
+  try{ sessionStorage.clear(); }catch(_){}
+  // пока страница перезапускается, ничего не должно успеть записаться обратно
+  LS.set=()=>{};
+  const ждать=[];
+  try{ if(window.caches&&caches.keys) ждать.push(caches.keys().then(ks=>Promise.all(ks.filter(k=>/physim/i.test(k)).map(k=>caches.delete(k))))); }catch(_){}
+  try{ if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)
+    ждать.push(navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister())))); }catch(_){}
+  toast('Всё очищено — пособие перезапускается');
+  const дальше=()=>setTimeout(()=>location.reload(),600);
+  Promise.all(ждать).then(дальше,дальше);
+}
 function openPrefs(cat){
   if(cat) prefCat=cat;
   $('#prefs').classList.remove('hidden');
@@ -35697,8 +36073,12 @@ function askBox(o){
   inp.classList.toggle('hidden', !o.input);
   inp.value=o.input? (o.value||'') : '';
   $('#ask-ok').textContent=o.ok||'ОК';
+  // опасное действие (стереть данные) — красная кнопка, чтобы не нажать по привычке
+  $('#ask-ok').classList.toggle('danger',!!o.danger);
+  bg.classList.toggle('danger',!!o.danger);
   bg.classList.remove('hidden');
   if(o.input) setTimeout(()=>{ inp.focus(); inp.select(); },40);
+  else setTimeout(()=>{ (o.danger?$('#ask-cancel'):$('#ask-ok')).focus(); },40);
   const close=()=>{ bg.classList.add('hidden'); document.removeEventListener('keydown',key,true); };
   const done=()=>{ const v=o.input? inp.value : true; close(); if(o.onOk) o.onOk(v); };
   const key=e=>{ // диалог перехватывает клавиатуру целиком: иначе Esc и Enter
@@ -35712,7 +36092,7 @@ function askBox(o){
   bg.onclick=e=>{ if(e.target===bg) close(); };
 }
 /* Подтверждение: действие выполняется только по «ОК». */
-function askConfirm(text,onOk,title){ askBox({title:title||'Подтверждение',text,onOk}); }
+function askConfirm(text,onOk,title,опц){ askBox(Object.assign({title:title||'Подтверждение',text,onOk},опц||{})); }
 /* Ввод строки: onOk получает введённое, пустая строка не проходит. */
 function askText(title,value,onOk){
   askBox({title,input:true,value,onOk:v=>{ v=(v||'').trim(); if(v) onOk(v); }});
@@ -35869,6 +36249,7 @@ function resetPanels(){
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
+  {k:'Навигация',t:'Главная: продолжить, разделы, вопрос дня',run:()=>открытьГлавную()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
   {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
@@ -37507,6 +37888,7 @@ function запуск(){
   applySettings();
   if(typeof подключитьПуть==='function') try{ подключитьПуть(); }catch(e){ console.error('Мой путь не подключился',e); }
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
+  if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
   // дальше applySettings вызывается уже по действию пользователя
   S.__ready=true;
   setTool('pan'); renderTree(); renderParams();
@@ -37526,6 +37908,9 @@ function запуск(){
     if(тема!=='intro') openTopic('intro');
     else throw e;
   }
+  /* Главный экран (2.1.0) ложится поверх уже открытой темы: «Продолжить»
+     и выбор раздела уводят с него, а тема под ним готова сразу. */
+  if(typeof открытьГлавную==='function'&&prefGet('startScreen')!=='last') try{ открытьГлавную(); }catch(e){ console.error('главная',e); }
   resize();
   addEventListener('load',()=>{ typeset($('#pane')); resize(); });
 }
@@ -37537,7 +37922,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '2.0.0';
+window.PHYSIM_BUILD = '2.1.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-2.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-2.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-2.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-2.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-2.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-2.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-2.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-2.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 2.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -147,6 +147,20 @@ does those three things, with nothing leaving the device.
 
 There are no points, streaks or badges. Someone who opened a physics textbook on
 their own already has the motivation; the job is not to waste it.
+
+### A home screen, and colour that tells you where you are
+
+The handbook opens on a home screen: continue where you stopped (with your mastery of
+that topic), what My path has for today, the six sections as cards — each with its own
+colour and icon, number of topics and simulations, and how many you have mastered — a
+question of the day, and a search box for topics, formulas and commands. A section card
+leads to its first topic you have not mastered yet. If you would rather go straight to
+the last topic, Settings → Behaviour → *On start*.
+
+Each section keeps its colour everywhere: in the topic list, on the map, and in the
+topic header, which now shows the section icon and a summary — reading time, formulas,
+derivations, problems, simulations. A thin bar along the top shows how far you have
+read, and a button takes you back to the start.
 
 ### Make it yours
 
@@ -501,6 +515,7 @@ js/ops.js             the 40 math techniques the derivation steps are tagged wit
 js/calc.js            the calculator: units, uncertainty, formula parser and solver
 js/learn.js           the learner model: journal, mastery, review, slips, skills
 js/path.js            the My path panel: today, map, diagnostic, skills, questions
+js/home.js            section colours and icons, the topic header, the home screen
 js/app.js             the core: state, canvases, render loop, the entire UI
 vendor/katex/         KaTeX + fonts, so formulas render without a network
 build-standalone.mjs  bundles everything into one HTML file

@@ -148,50 +148,29 @@ jobs:
           34 topics, 78 step-by-step derivations, 252 formulas and 384 problems. Runs
           offline, asks for nothing, sends nothing.
 
-          ## 2.0.0 — a course that knows where you are
+          ## 2.1.0 — a home screen and a face for every section
 
-          **My path** (top bar, Ctrl+M) does the three things a teacher does for someone
-          learning alone, and nothing leaves the device:
+          **Home screen.** The handbook now opens on it: continue where you stopped, what
+          My path has for today, the six sections as cards with their progress, a question of
+          the day and a search box. A section card leads to its first topic you have not
+          mastered yet. Prefer the old way? Settings → Behaviour → *On start → Topic*.
 
-          - **Map** — all 27 topics laid out by what stands on what, each coloured by its
-            state. Topics you are ready for right now are outlined; pick any topic and the map
-            names which prerequisites are missing.
-          - **Diagnostic** — twelve problems across the whole course with fresh numbers. At the
-            end: where to start — the earliest failed topic with no failed prerequisites.
-          - **Today** — spaced review (2, 5, 12, 28, 60, 120 days, one problem with new numbers
-            per topic), skills to repair, topics you are stuck on and what blocks them, what to
-            learn next.
-          - **Why the answer is wrong** — a wrong answer is compared with what typical slips
-            produce: sin for cos, degrees in radian mode, unconverted centimetres, a forgotten
-            ×10²⁴, friction left out, swapped quantities, a lost sign, prefix, ½ or 2π,
-            g = 10. The slip is named under the problem, with a button to its skill. Works for
-            all 384 problems without per-problem markup; the new `npm run learn` reproduces 490
-            slips and requires each to be named.
-          - **Skills** — ten of them, each with an explanation, a rule, the technique in the
-            reference and a trainer with random numbers: five right in a row and it is repaired.
-          - **From a question** — forty questions ("why doesn't a satellite fall?"), each opening
-            its topic and simulation.
+          **Every section has its colour and icon** — mechanics, thermodynamics, electricity,
+          magnetism, optics, quantum — in the topic list, on the map and in the topic header.
+          The header also shows reading time, formulas, derivations, problems and simulations.
+          A thin bar shows how far you have read; a button takes you back to the top.
 
-          Topics in the list carry a mastery mark, and each topic shows its mastery and what
-          it is waiting for under the title. Your progress so far is carried over.
+          **Fix: confirmation dialogs opened under Settings.** "Reset settings", "Delete my
+          presets" and "Clear everything" showed their dialog beneath the settings screen, so
+          the buttons seemed to do nothing. Dialogs and messages now sit above everything;
+          destructive actions have a red button with focus on *Cancel*.
 
-          **Design.** Buttons lift, press in and ripple from the touch point; menus, dialogs and
-          panels slide in; tabs have a moving underline; right and wrong answers flash and shake.
-          Hover hints appear at once and show the shortcut. Top-bar buttons can carry labels.
-          Everything follows the system's "reduce motion" and can be calmed or turned off.
+          **Fix: "Clear everything" did not really clear.** The progress still held in memory
+          was written straight back, and the offline copy stayed cached. It now wipes the
+          storage and the offline cache and restarts the handbook from scratch.
 
-          **Settings.** A new Main page: 8 themes as preview cards (paper, mint, nord, midnight
-          for OLED, high contrast among them), 10 accents or any colour, text size, density,
-          animation, button style, corners. New: UI font, column width, line spacing, shadows,
-          colour-blind graph colours. Profiles — Projector, Reading, Evening, Economy, or your
-          own — with "undo", and a `PHYSIM1:` code to pass your setup to someone else. Short
-          option lists are buttons now, not drop-downs.
-
-          **Fixes.** Dynamics with three bodies showed no parameters for the second body (the
-          panel only knew the two-body switch of kinematics); groups now appear by the number of
-          bodies, and damped oscillations show only the group of the chosen experiment. Closing
-          a simulation on a phone by any path other than the back button could leave a blank
-          white screen.
+          Everything from 2.0 — My path, the diagnostic, named slips, skills and the new
+          settings — is here as well.
 
           ### Must read
 
