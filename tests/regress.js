@@ -255,8 +255,8 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('77 симуляций', counts.sims === 77, counts);
-    ok('темы и задачи на месте', counts.topics >= 34 && counts.problems >= 389, counts);
+    ok('81 симуляция', counts.sims === 81, counts);
+    ok('темы и задачи на месте', counts.topics >= 37 && counts.problems >= 409, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
     // тем же кодом, что и в жизни. Ловим и исключения, и NaN в показаниях.
@@ -317,7 +317,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 43, оси.схем);
+    ok('схемы размечены', оси.схем === 47, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -519,7 +519,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 70 && разв.времени === 37 && разв.никак.length <= 3, разв);
+        разв.параметром >= 74 && разв.времени === 40 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -803,7 +803,7 @@ async function сторож(b) {
     });
     ok('меню сцены разложено по вкладкам',
         menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
-        && menu.обычная.сцена.length === 5 && menu.обычная.ещё.length === 6 && menu.обычная.ещё.includes('Мой путь')
+        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 6 && menu.обычная.ещё.includes('Мой путь')
         && menu.всего > menu.обычная.сцена.length, menu.обычная);
     ok('конструктор получает свою вкладку и открывает её сразу',
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
@@ -1131,7 +1131,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 27 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 29 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1292,8 +1292,8 @@ async function сторож(b) {
       await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
       await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
-      ok('главный экран: 6 разделов в своих цветах, раздел ведёт в тему, «Главная» возвращает, настройка «сразу тема»',
-        главная.видна && главная.разделов === 6 && new Set(главная.цвета).size === 6 && главная.поиск && главная.вопрос &&
+      ok('главный экран: 7 разделов в своих цветах, раздел ведёт в тему, «Главная» возвращает, настройка «сразу тема»',
+        главная.видна && главная.разделов === 7 && new Set(главная.цвета).size === 7 && главная.поиск && главная.вопрос &&
         тема.тема === 'op.matter' && тема.скрыта && снова.видна && /Взаимодействие излучения/.test(снова.продолжить) &&
         !безГлавной.видна && безГлавной.тема === 'op.matter' && hErrs.length === 0, { главная, тема, снова, безГлавной, hErrs });
 
@@ -1407,6 +1407,76 @@ async function сторож(b) {
       ok('лифт в «Динамике»: вес m(g + a), весы в килограммах, фаза словом, 5 задач',
         Math.abs(лифт.P - 70 * (9.8 + 1.5)) < 1e-6 && Math.abs(лифт.кг - 70 * 11.3 / 9.8) < 1e-6 && /разгон/.test(лифт.фаза) && !/0\.00/.test(лифт.фаза) &&
         лифт.задач === 5 && лифт.опция, лифт);
+    }
+
+    /* ============ 3.0.0 ============ */
+    /* Теория относительности и переменный ток: темы на месте, у световых
+       часов время в наносекундах — и в шапке, и на шкале времени. */
+    {
+      const сто = await p.evaluate(() => {
+        const раздел = SECTIONS.find(x => x.id === 'rel');
+        openTopic('rel.sr'); openSim('lightclock'); const a = A(); restart(a);
+        for (let k = 0; k < 2 / DT; k++) { a.def.step(a.state, DT, a.params); if (++a.tick % 6 === 0) record(a); }
+        drawAll(); updateHud(a); updateTimeline();
+        const часы = document.querySelector('#clock').textContent, шкала = document.querySelector('#tl-time').textContent;
+        const тема = S.topic;
+        openTopic('em.ac'); openSim('rlc');
+        return { раздел: раздел && раздел.title, темы: раздел && раздел.topics.length, задач: тема.problems.length,
+          выводов: тема.derivations.length, часы, шкала, ac: S.topic && S.topic.id, rlc: S.active,
+          главная: typeof видРаздела === 'function' && видРаздела(раздел).с };
+      });
+      ok('раздел «Теория относительности»: тема, 15 задач, 5 выводов, часы в нс; переменный ток открывается',
+        сто.раздел === 'Теория относительности' && сто.задач === 15 && сто.выводов === 5 &&
+        /нс/.test(сто.часы) && /нс/.test(сто.шкала) && сто.ac === 'em.ac' && сто.rlc === 'rlc' && сто.главная === '#4d7c0f', сто);
+    }
+    /* Слои сцены: стробоскоп ставит метки, призрак остаётся после перезапуска,
+       у наклонной плоскости — легенда сил с масштабом. */
+    {
+      const слои = await p.evaluate(() => {
+        S.settings.strobe = true; S.settings.ghost = true;
+        openTopic('mech.2d'); openSim('proj2d'); const a = A(); restart(a);
+        for (let k = 0; k < 2 / DT; k++) { a.def.step(a.state, DT, a.params); if (++a.tick % 6 === 0) record(a); }
+        const меток = a.строб.length;
+        restart(a);
+        const призрак = !!(a.призрак && путьТела(a.призрак));
+        drawAll();
+        openTopic('mech.dyn'); openSim('incline'); const b = A(); restart(b); drawAll();
+        const легенда = VIEW._fbd && VIEW._fbd.сил.map(f => f.label + ':' + f.color);
+        S.settings.strobe = false; S.settings.ghost = false; applySettings();
+        const пункты = ['#mi-strobe', '#mi-ghost', '#mi-follow', '#mi-legend'].every(x => document.querySelector(x));
+        return { меток, призрак, легенда, пункты };
+      });
+      ok('слои сцены: стробоскоп раз в 0,25 с, призрак прошлого прогона, легенда сил в общих цветах',
+        слои.меток >= 8 && слои.меток <= 10 && слои.призрак && слои.пункты &&
+        Array.isArray(слои.легенда) && слои.легенда.length >= 2 && слои.легенда.some(x => /^N:/.test(x)), слои);
+    }
+    /* Лаборатория: серия по длине маятника, T² через ноль — наклон 4π²/g */
+    {
+      const лаб = await p.evaluate(() => {
+        openTopic('mech.osc'); openSim('pendulum'); открытьЛабу();
+        const выбрать = (sel, re) => { const o = [...document.querySelectorAll(sel + ' option')].find(x => re.test(x.textContent)); if (o) document.querySelector(sel).value = o.value; };
+        выбрать('#lab-x', /Длина нити/); лабГраницы(); выбрать('#lab-y', /^период T/);
+        document.querySelector('#lab-ty').value = 'sq'; document.querySelector('#lab-zero').checked = true;
+        document.querySelector('#lab-noise').value = '0';
+        лаб.точки = []; лабСерия();
+        const R = лабРяды(), м = лабМНК(R.X, R.Y, true), g = A().params.g;
+        const строк = document.querySelectorAll('#lab-rows tr').length, csv = лабCSV();
+        закрытьЛабу();
+        return { наклон: м && м.a, ждём: 4 * Math.PI * Math.PI / g, строк, csv: csv.split('\r\n').length };
+      });
+      ok('лаборатория: серия по параметру, T² от L — наклон 4π²/g, таблица и CSV',
+        Math.abs(лаб.наклон - лаб.ждём) / лаб.ждём < 0.02 && лаб.строк === 8 && лаб.csv >= 9, лаб);
+    }
+    /* Доступность: описание сцены, живая область у сообщений, имена у кнопок */
+    {
+      const дост = await p.evaluate(() => {
+        const a = A(); описаниеT = 0; описаниеСцены(a);
+        const без = [...document.querySelectorAll('.topbar button')].filter(b => b.offsetParent && !b.textContent.trim() && !b.getAttribute('aria-label'));
+        return { описание: document.querySelector('#scene-desc').textContent.slice(0, 80),
+          тост: document.querySelector('#toast').getAttribute('aria-live'), безИмени: без.map(b => b.id) };
+      });
+      ok('доступность: сцена описана словами, сообщения объявляются, у кнопок-значков есть имена',
+        /^Симуляция «/.test(дост.описание) && дост.тост === 'polite' && дост.безИмени.length === 0, дост);
     }
 
     /* Декоративных градиентов больше нет: шапка темы, главная, кнопки */

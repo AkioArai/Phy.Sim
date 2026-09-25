@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="2.2.1">
+<meta name="physim-build" content="3.0.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -150,12 +150,17 @@
    лишней рамки. Сцена — ground, конспект — well, плавающие панели — chrome. */
 :root{
   --bg:#f6f7f8; --panel:#fff; --panel-2:#eef0f2; --line:#d7dbe0; --line-soft:#e7eaee;
-  --ink:#171a1f; --ink-2:#5c6570; --ink-3:#8b939d;
+  --ink:#171a1f; --ink-2:#5c6570; --ink-3:#6b737d;   /* 4,7:1 на холсте — не ниже AA */
   --accent:#5d5294; --accent-soft:#5d52941a;
   --accent-300:#4b4180; --accent-700:#7a6fc0; --accent-800:#d9d5f0;
   --second:#7a4fa3; --measure:#c07615; --danger:#b3452f;
   --grid:#dfe3e8; --grid-major:#c9cfd6; --canvas:#fbfcfd;
   --ok:#2e7d4f;                       /* «верно», прирост величины */
+  /* Силы в механике (3.0.0): одна сила — один цвет во всех сценах.
+     Тяжесть красная, реакция опоры синяя, трение оранжевое, натяжение
+     малиновое, упругость бирюзовая, Архимед зелёный, приложенная — акцент. */
+  --f-grav:#b3452f; --f-norm:#2563eb; --f-fric:#c07615; --f-tens:#be185d;
+  --f-elas:#0e7490; --f-arch:#15803d; --f-app:#5d5294;
   --ground:#eceef2; --well:#f2f3f6; --chrome:#ffffff; --rail:#f7f8fa;
   --divider:#171a1f29;
   --shadow-md:0 6px 18px -8px #171a1f40;
@@ -166,12 +171,14 @@
 }
 [data-theme="dark"]{
   --bg:#161826; --panel:#232532; --panel-2:#2b2d3c; --line:#3f424d; --line-soft:#292b31;
-  --ink:#e9e9ed; --ink-2:#b2b6ca; --ink-3:#75798c;
+  --ink:#e9e9ed; --ink-2:#b2b6ca; --ink-3:#8f93a6;
   --accent:#9184d9; --accent-soft:#9184d92e;
   --accent-300:#d2cefd; --accent-700:#5d5294; --accent-800:#423a6a;
   --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62;
   --grid:#242739; --grid-major:#2f3346; --canvas:#12141f;
   --ok:#6fcf97;
+  --f-grav:#e07a62; --f-norm:#60a5fa; --f-fric:#f0a24b; --f-tens:#f472b6;
+  --f-elas:#22d3ee; --f-arch:#4ade80; --f-app:#a79bea;
   --ground:#12141f; --well:#13151f; --chrome:#1d1f2c; --rail:#191b28;
   --divider:#e9e9ed29;
   --shadow-md:0 8px 22px -10px #05060acc;
@@ -2344,15 +2351,15 @@ input[type="checkbox"],input[type="radio"]{accent-color:var(--accent)}
    правил. Палитра (data-palette) лишь перекрашивает основу поверх тона. */
 [data-palette="sepia"]{
   --bg:#f3eee3;--panel:#fbf8f0;--panel-2:#efe7d7;--line:#dccfb8;--line-soft:#e9dfcc;
-  --ink:#2a2318;--ink-2:#5d5140;--ink-3:#8a7c65;--canvas:#fcf9f2;
+  --ink:#2a2318;--ink-2:#5d5140;--ink-3:#716550;--canvas:#fcf9f2;
   --ground:#eee6d6;--well:#f5efe2;--chrome:#fdfaf3;--rail:#f6f0e3;--grid:#e6dcc8;--grid-major:#d6c8ad;--divider:#2a231829}
 [data-palette="oled"]{
   --bg:#000;--panel:#0a0a0d;--panel-2:#16161c;--line:#2a2a33;--line-soft:#17171d;
-  --ink:#f0f0f4;--ink-2:#b8b8c6;--ink-3:#7c7c8c;--canvas:#000;
+  --ink:#f0f0f4;--ink-2:#b8b8c6;--ink-3:#8e8e9e;--canvas:#000;
   --ground:#000;--well:#030304;--chrome:#0e0e12;--rail:#060608;--grid:#121218;--grid-major:#1c1c24;--divider:#f0f0f429}
 [data-palette="nord"]{
   --bg:#1f2530;--panel:#262e3b;--panel-2:#2e3746;--line:#3d4758;--line-soft:#2b3341;
-  --ink:#e6ebf2;--ink-2:#b4bfcf;--ink-3:#7f8a9c;--canvas:#1b212b;
+  --ink:#e6ebf2;--ink-2:#b4bfcf;--ink-3:#909bad;--canvas:#1b212b;
   --ground:#1b212b;--well:#1d232d;--chrome:#242b37;--rail:#20262f;--grid:#262e3a;--grid-major:#303a49;--divider:#e6ebf229}
 [data-palette="contrast"]{
   --ink:#000;--ink-2:#1a1a1a;--ink-3:#3a3a3a;--line:#5c5c5c;--line-soft:#8f8f8f;
@@ -2362,7 +2369,7 @@ input[type="checkbox"],input[type="radio"]{accent-color:var(--accent)}
   --bg:#000;--panel:#000;--panel-2:#1c1c1c;--canvas:#000;--grid:#2f2f2f;--grid-major:#555;--divider:#ffffff59}
 [data-palette="mint"]{
   --bg:#eef4f1;--panel:#fbfdfc;--panel-2:#e3ede8;--line:#c9d9d1;--line-soft:#dde8e2;
-  --ink:#14211b;--ink-2:#4b5f55;--ink-3:#7d9187;--canvas:#f7fbf9;
+  --ink:#14211b;--ink-2:#4b5f55;--ink-3:#63766c;--canvas:#f7fbf9;
   --ground:#e6efea;--well:#edf4f0;--chrome:#fbfdfc;--rail:#f1f7f4;--grid:#d9e6df;--grid-major:#c1d4ca}
 
 /* колонка текста, межстрочие и шрифт интерфейса — настраиваются */
@@ -2670,6 +2677,35 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 .path-box{border-radius:var(--radius-lg)}
 .tsearch,.tnav,.seg{border-radius:var(--radius)}
 .tnav .tbtn,.seg button{border-radius:var(--radius-sm)}
+
+/* ==================== СЛОИ СЦЕНЫ (3.0.0) ====================
+   Переключатели в меню сцены: справа кружок состояния — пустой или залитый. */
+.pop .item.tog::after{content:"";margin-left:auto;width:9px;height:9px;border-radius:50%;flex:0 0 auto;
+  border:2px solid var(--line);transition:background-color var(--t2) var(--ease),border-color var(--t2) var(--ease)}
+.pop .item.tog.on{color:var(--ink)}
+.pop .item.tog.on::after{background:var(--accent);border-color:var(--accent)}
+
+/* ==================== ЛАБОРАТОРИЯ (3.0.0) ==================== */
+.modal.lab{width:94vw;width:min(620px,94vw);max-height:92vh;max-height:92dvh;overflow:auto}
+.lab-grid{display:grid;grid-template-columns:auto 1fr 84px;gap:8px 10px;align-items:center;margin:0 0 10px}
+.lab-grid label{font-size:13px;color:var(--ink-2)}
+.lab-grid select{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:6px 8px;color:var(--ink);min-width:0;font:inherit;font-size:13px}
+.modal.lab[data-series="0"] .lab-series{display:none}
+.lab-acts{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.lab-cv{display:block;width:100%;height:200px;border:1px solid var(--line);border-radius:var(--radius-sm)}
+.lab-fit{font-size:13px;line-height:1.55;margin:8px 0;font-family:var(--mono);color:var(--ink)}
+.lab-warn{color:var(--danger);font-family:var(--sans)}
+.lab-tbl{max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:10px}
+.lab-tbl table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+.lab-tbl th,.lab-tbl td{padding:4px 8px;text-align:right;border-bottom:1px solid var(--line-soft)}
+.lab-tbl th{position:sticky;top:0;background:var(--panel-2);color:var(--ink-2);font-weight:600}
+.lab-tbl td:first-child,.lab-tbl th:first-child{text-align:left;color:var(--ink-3)}
+.lab-empty{text-align:center!important;color:var(--ink-3);font-family:var(--sans)}
+.lab-del{width:22px;height:22px;border-radius:4px;color:var(--ink-3)}
+.lab-del:hover{background:var(--panel-2);color:var(--danger)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (max-width:520px){ .lab-grid{grid-template-columns:1fr 84px} .lab-grid label{grid-column:1/-1} }
 </style>
 </head>
 <body>
@@ -2823,7 +2859,8 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
         <button class="sc-chip" id="sc-open">развернуть ↑</button>
       </div>
       <div class="canvas-wrap" id="cwrap">
-        <canvas id="scene"></canvas><canvas id="overlay"></canvas>
+        <canvas id="scene" role="img" aria-label="Сцена симуляции" aria-describedby="scene-desc"></canvas><canvas id="overlay" aria-hidden="true"></canvas>
+        <div class="sr-only" id="scene-desc"></div>
         <!-- Пусто там, где должна быть сцена, ничего не объясняет: раньше
              на месте закрытой симуляции оставалось белое поле. -->
         <!-- ЗАМЕТКИ-КАРТОЧКИ. Живут в экранных координатах, а не в мировых:
@@ -3043,11 +3080,18 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
     <div class="mt-page" data-page="scene">
       <button class="item" id="mi-png"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-2 4 3"/></svg>Снимок кадра (PNG)</button>
       <button class="item" id="mi-rec"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span id="rec-label">Записать симуляцию (WebM)</span></button>
+      <div class="ttl">Слои сцены</div>
+      <button class="item tog" id="mi-strobe"><svg viewBox="0 0 24 24"><circle cx="4" cy="16" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="14" cy="9.5" r="1.6"/><circle cx="19.5" cy="8" r="1.6"/></svg>Стробоскоп</button>
+      <button class="item tog" id="mi-ghost"><svg viewBox="0 0 24 24"><path d="M3 18c4-9 10-12 18-10" stroke-dasharray="3 3"/><circle cx="17" cy="8" r="2.4"/></svg>Призрак прошлого прогона</button>
+      <button class="item tog" id="mi-follow"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="2.2"/><path d="M12 5v3M12 16v3M3 12h3M18 12h3"/></svg>Камера за телом</button>
+      <button class="item tog" id="mi-legend"><svg viewBox="0 0 24 24"><path d="M4 7h4M4 12h4M4 17h4"/><path d="M11 7h9M11 12h9M11 17h6"/></svg>Легенда сил и масштаб</button>
+      <div class="ttl">Кадр</div>
       <button class="item" id="mi-fitv"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg>Вписать вид в кадр</button>
       <button class="item" id="mi-clear"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9z"/><path d="M4 21h16"/></svg>Убрать все пометки</button>
       <button class="item" id="mi-reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Всё сбросить</button>
     </div>
     <div class="mt-page hidden" data-page="data">
+      <button class="item" id="mi-lab"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Лаборатория: точки и прямая</button>
       <button class="item" id="mi-plot"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-6 3 3 5-7"/></svg>Скомпилировать график</button>
       <button class="item" id="mi-snap"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M9 12h6M12 9v6"/></svg>Снимок для сравнения</button>
       <button class="item" id="mi-notes-save"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg>Сохранить заметки в файл</button>
@@ -3178,6 +3222,45 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
   </div>
 </div></div>
 
+<!-- Лаборатория (3.0.0): точки с разбросом, таблица и прямая по МНК -->
+<div class="modal-bg hidden" id="modal-lab" role="dialog" aria-modal="true" aria-labelledby="lab-h"><div class="modal lab">
+  <h3 id="lab-h">Лаборатория: точки и прямая</h3>
+  <p class="pl-lead">Снимайте точки, как в лабораторной работе: у каждого показания есть разброс.
+    Прямая проводится по методу наименьших квадратов — с погрешностью наклона и сдвига.
+    Если зависимость не линейная, «выпрямите» ось: например, T² от L у маятника.</p>
+  <div class="lab-grid">
+    <label for="lab-x">По оси X</label><select id="lab-x"></select>
+    <select id="lab-tx" aria-label="Преобразование X"><option value="x">x</option><option value="sq">x²</option><option value="sqrt">√x</option><option value="inv">1/x</option><option value="ln">ln x</option></select>
+    <label for="lab-y">По оси Y</label><select id="lab-y"></select>
+    <select id="lab-ty" aria-label="Преобразование Y"><option value="x">y</option><option value="sq">y²</option><option value="sqrt">√y</option><option value="inv">1/y</option><option value="ln">ln y</option></select>
+  </div>
+  <div class="pl-row"><label for="lab-noise">Разброс измерений, %</label>
+    <input id="lab-noise" type="text" inputmode="decimal" value="2"></div>
+  <div class="pl-row"><label for="lab-zero">Прямая через начало координат</label>
+    <input id="lab-zero" type="checkbox"></div>
+  <div class="lab-series">
+    <div class="pl-row"><label>Серия: от и до</label>
+      <span class="pl-pair"><input id="lab-p0" type="text" inputmode="decimal" aria-label="Начало серии"><i>…</i><input id="lab-p1" type="text" inputmode="decimal" aria-label="Конец серии"></span></div>
+    <div class="pl-row"><label for="lab-n">Точек в серии</label><input id="lab-n" type="text" inputmode="numeric" value="8"></div>
+    <div class="pl-row"><label for="lab-at">Снимать в момент t (0 — сразу)</label><input id="lab-at" type="text" inputmode="decimal" value="0"></div>
+  </div>
+  <div class="lab-acts">
+    <button class="btn primary" id="lab-take">Снять точку</button>
+    <button class="btn" id="lab-series">Серия по параметру</button>
+    <button class="btn" id="lab-clear">Очистить</button>
+  </div>
+  <canvas id="lab-cv" class="lab-cv" role="img" aria-label="График снятых точек и прямая"></canvas>
+  <div class="lab-fit" id="lab-fit"></div>
+  <div class="sr-only" id="lab-live" aria-live="polite"></div>
+  <div class="lab-tbl"><table><thead><tr><th>№</th><th>x</th><th>y</th><th id="lab-th-x">X</th><th id="lab-th-y">Y</th><th></th></tr></thead>
+    <tbody id="lab-rows"></tbody></table></div>
+  <div class="ask-row">
+    <button class="btn" id="lab-copy">Копировать таблицу</button>
+    <button class="btn" id="lab-csv">Сохранить CSV</button>
+    <button class="btn" id="lab-close">Закрыть</button>
+  </div>
+</div></div>
+
 <!-- Режим учителя: сборка контрольной в нескольких вариантах. У каждого
      варианта свои параметры симуляций, поэтому и ответы разные. -->
 <div class="modal-bg hidden" id="modal-teacher"><div class="modal teacher">
@@ -3233,7 +3316,7 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
   <div class="ws-body" id="ws-body"></div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Командная палитра (Ctrl+P / Ctrl+Shift+P): быстрый переход к теме,
      симуляции, настройке или действию — как в Obsidian и VS Code. -->
@@ -4705,6 +4788,13 @@ orbit:{
     {key:'circleV',label:'Подсказать круговую скорость',type:'check',default:true},
     {key:'trail',  label:'След орбиты',type:'check',default:true},
     {key:'vecs',   label:'Векторы силы и скорости',type:'check',default:true},
+    {key:'kepler', label:'Площади за равные времена (II закон Кеплера)',type:'check',default:false},
+    {type:'group',label:'Импульс двигателя'},
+    {key:'burn',label:'Когда включить',type:'select',default:'none',
+     options:[{v:'none',t:'Не включать'},{v:'apo',t:'В апогее (дальней точке)'},
+              {v:'peri',t:'В перигее (ближней точке)'},{v:'time',t:'В момент t'}]},
+    {key:'dv',label:'Прибавка скорости Δv (минус — торможение)',unit:'км/с',min:-3,max:3,step:0.05,default:0.5,если:p=>p.burn!=='none'},
+    {key:'tBurn',label:'Момент включения',unit:'ч',min:0,max:1000,step:0.5,default:6,если:p=>p.burn==='time'},
     {type:'group',label:'Остановка таймера'},
     {key:'turns',label:'Через N витков (0 — выкл)',min:0,max:50,step:0.25,default:0},
     {key:'tStop',label:'В момент t (0 — выкл)',unit:'ч',min:0,max:10000,step:1,default:0}
@@ -4721,7 +4811,15 @@ orbit:{
     return {t:0, x:S.r0, y:0,
       vx:S.v0*Math.cos(a), vy:S.v0*Math.sin(a),
       trail:[[S.r0,0]], turns:0, prevAng:0, rmin:S.r0, rmax:S.r0,
+      vr:0, burned:null, ksecs:[], ksec:[[S.r0,0]], kT:this.kStep(S,S.r0,0,S.v0*Math.cos(a),S.v0*Math.sin(a)), kNext:0,
       crashed:false, escaped:false, event:null, __stop:null};
+  },
+  /* Шаг меток Кеплера — двенадцатая часть периода (в часах). У незамкнутой
+     орбиты периода нет, и площади не размечаем. */
+  kStep(S,x,y,vx,vy){
+    const r=Math.hypot(x,y), E=(vx*vx+vy*vy)/2-S.mu/r;
+    if(E>=0) return 0;
+    const a=-S.mu/(2*E); return 2*Math.PI*Math.sqrt(a*a*a/S.mu)/3600/12;
   },
   accel(S,x,y){ const r=Math.hypot(x,y), k=-S.mu/(r*r*r); return [k*x,k*y,r]; },
   step(s,dt0,p){
@@ -4740,6 +4838,30 @@ orbit:{
     }
     s.t+=dt0;
     const r=Math.hypot(s.x,s.y);
+    /* Импульс двигателя: скорость меняется мгновенно вдоль направления
+       движения. Апогей и перигей узнаём по смене знака радиальной скорости. */
+    const vr=(s.x*s.vx+s.y*s.vy)/r;
+    if(p.burn!=='none' && !s.burned && p.dv){
+      /* Старт под 90° к радиусу — это уже апсида: перигей, если скорость
+         больше круговой, апогей — если меньше. Круговая орбита годится для обоих. */
+      const vc=this.vCirc(p), старт=s.t<=dt0*1.5 && p.ang===90 &&
+        (Math.abs(S.v0-vc)<vc*0.01 || (p.burn==='peri') === (S.v0>vc));
+      const пора = старт ? true : p.burn==='time' ? s.t>=p.tBurn
+        : p.burn==='apo' ? (s.vr>=0 && vr<0) : (s.vr<=0 && vr>0);   // в самой точке старта — тоже
+      if(пора){
+        const v=Math.hypot(s.vx,s.vy), k=Math.max(0,v+p.dv*1e3)/Math.max(v,1e-9);
+        s.vx*=k; s.vy*=k; s.burned={x:s.x,y:s.y,t:s.t};
+        s.rmin=s.rmax=r;
+        s.kT=this.kStep(S,s.x,s.y,s.vx,s.vy); s.ksecs=[]; s.ksec=[[s.x,s.y]]; s.kNext=s.t;
+      }
+    }
+    s.vr=vr;
+    // секторы для второго закона Кеплера
+    if(s.kT>0){
+      s.ksec.push([s.x,s.y]);
+      if(s.t>=s.kNext+s.kT){ s.kNext+=s.kT; s.ksecs.push(s.ksec); s.ksec=[[s.x,s.y]];
+        if(s.ksecs.length>12) s.ksecs.shift(); }
+    }
     s.rmin=Math.min(s.rmin,r); s.rmax=Math.max(s.rmax,r);
     if(p.trail){ s.trail.push([s.x,s.y]); if(s.trail.length>6000) s.trail.shift(); }
     // счётчик витков по накоплению угла
@@ -4779,7 +4901,8 @@ orbit:{
             ['период T',isFinite(o.T)?o.T/3600:NaN,
               isFinite(o.T)?'ч':'орбита незамкнута — тело уходит от планеты'],
             ['перигей',s.rmin/1e6,'×10³ км'],['апогей',isFinite(o.a)?s.rmax/1e6:NaN,'×10³ км'],
-            ['витки',s.turns,'']];
+            ['витки',s.turns,''],
+            ['секторная скорость ΔS/Δt = L/2',o.L/2/1e10,'×10¹⁰ м²/с — постоянна']];
   },
   graphs:[
     {label:'r(t) — расстояние до центра',unit:'×10³ км',series:['r'],
@@ -4801,13 +4924,24 @@ orbit:{
      values:{M:5.97,Rc:6.37,r0:42,v0:4.4,ang:90,turns:0,tStop:0}},
     {name:'Падение: слишком малая скорость',
      values:{M:5.97,Rc:6.37,r0:42,v0:1.2,ang:90,turns:0,tStop:0}},
+    {name:'Переход на высокую орбиту: импульс в перигее',
+     values:{M:5.97,Rc:6.37,r0:10,v0:6.31,ang:90,burn:'peri',dv:1.2,kepler:false,turns:0,tStop:0}},
+    {name:'II закон Кеплера на вытянутом эллипсе',
+     values:{M:5.97,Rc:6.37,r0:42,v0:1.9,ang:90,burn:'none',kepler:true,turns:0,tStop:0}},
     {name:'Луна вокруг Земли',
      values:{M:5.97,Rc:6.37,r0:384,v0:1.02,ang:90,turns:0,tStop:0}}
   ],
   fit(p,vp){
     const S=this.si(p);
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const span=S.r0*2.6/1e6;                        // в единицах сцены (×10³ км → делим)
+    /* в кадр должна влезть и орбита после импульса: её апогей считаем по
+       энергии и моменту, как будто импульс дан в точке старта */
+    const апо=v0=>{ const a0=p.ang*Math.PI/180, E=v0*v0/2-S.mu/S.r0, L=S.r0*v0*Math.sin(a0);
+      if(E>=0) return S.r0*3; const a=-S.mu/(2*E), e=Math.sqrt(Math.max(0,1+2*E*L*L/(S.mu*S.mu)));
+      return Math.min(a*(1+e),S.r0*6); };
+    let R=Math.max(S.r0,апо(S.v0));
+    if(p.burn&&p.burn!=='none'&&p.dv) R=Math.max(R,апо(Math.max(0,S.v0+p.dv*1e3)));
+    const span=R*2.3/1e6;                           // в единицах сцены (×10³ км → делим)
     const scaleW=(W-60)/(span*PX_PER_M), scaleH=(H-60)/(span*PX_PER_M);
     return {x:0,y:0,scale:clamp(Math.min(scaleW,scaleH),0.002,30)};
   },
@@ -4826,6 +4960,23 @@ orbit:{
     if(p.circleV){
       ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(4),v.lw(5)]);
       ctx.beginPath(); ctx.arc(0,0,p.r0,0,7); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // II закон Кеплера: секторы, заметённые радиусом за равные времена
+    if(p.kepler && s.ksecs.length){
+      s.ksecs.forEach((P,i)=>{
+        ctx.fillStyle=v.c(i%2?'--accent':'--measure'); ctx.globalAlpha=.16;
+        ctx.beginPath(); ctx.moveTo(0,0); P.forEach(q=>ctx.lineTo(q[0]/U,q[1]/U)); ctx.closePath(); ctx.fill();
+      });
+      ctx.globalAlpha=1;
+      const P=s.ksecs[s.ksecs.length-1], q=P[P.length>>1];
+      v.label(ctx,`за каждые ${s.kT.toFixed(1)} ч — одна и та же площадь`,q[0]/U,q[1]/U,8,-12,v.c('--ink-2'));
+    }
+    // точка включения двигателя
+    if(s.burned){
+      const bx=s.burned.x/U, by=s.burned.y/U;
+      ctx.strokeStyle=v.c('--danger'); ctx.lineWidth=v.lw(2);
+      ctx.beginPath(); ctx.arc(bx,by,v.lw(7),0,7); ctx.stroke();
+      v.label(ctx,`импульс Δv = ${p.dv>0?'+':''}${p.dv} км/с`,bx,by,10,14,v.c('--danger'));
     }
     // след орбиты
     if(p.trail&&s.trail.length>1&&v.quality!=='low'){
@@ -7084,12 +7235,13 @@ lift:{
     if(p.forces){
       // длина mg — от центра масс до пола: стрелки не протыкают кабину
       const L=Math.max(0.6,cm-(by0+0.05));
-      v.arrow(ctx,px,cm,px,cm-L,dang);
-      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px,cm-L,10,6,dang);
+      const cg=v.c('--f-grav')||dang, cn=v.c('--f-norm')||acc;     // общие цвета сил (3.0.0)
+      v.arrow(ctx,px,cm,px,cm-L,cg);
+      v.label(ctx,`mg = ${mg.toFixed(0)} Н`,px,cm-L,10,6,cg);
       if(P>1e-6){
         const LN=L*P/mg;
-        v.arrow(ctx,px,cm,px,cm+LN,acc);
-        v.label(ctx,`N = ${P.toFixed(0)} Н`,px,cm+LN,10,-4,acc);
+        v.arrow(ctx,px,cm,px,cm+LN,cn);
+        v.label(ctx,`N = ${P.toFixed(0)} Н`,px,cm+LN,10,-4,cn);
       } else v.label(ctx,'N = 0 — невесомость',px,cm,12,-14,meas);
     }
     // ускорение кабины
@@ -11805,6 +11957,194 @@ generator:{
 
 ;
 'use strict';
+/* =============================================================================
+   ПЕРЕМЕННЫЙ ТОК (3.0.0): последовательный RLC-контур и резонанс.
+
+   Считаем установившийся режим по точным формулам: ток синусоидален и
+   сдвинут по фазе на φ, tg φ = (X_L − X_C)/R. Переходный процесс в первые
+   периоды здесь сознательно опущен — тема о том, что происходит, когда всё
+   установилось: сопротивления, фазы, резонанс, мощность.
+
+   Сети 50 Гц — это 50 колебаний в секунду; показывать их в настоящем темпе
+   бессмысленно. Секунда сцены изображает 10 мс, часы и графики идут в мс.
+   ============================================================================= */
+Object.assign(SIMS,{
+rlc:{
+  title:'Переменный ток: RLC-контур и резонанс',
+  timeUnit:'мс',
+  schema:true,
+  SLOW:10,                                            // мс физического времени на секунду сцены
+  params:[
+    {key:'U0',label:'Амплитуда напряжения U₀',unit:'В',min:1,max:50,step:1,default:10},
+    {key:'f', label:'Частота генератора f',unit:'Гц',min:5,max:200,step:1,default:40},
+    {key:'R', label:'Сопротивление R',unit:'Ом',min:1,max:200,step:1,default:10},
+    {key:'L', label:'Индуктивность L',unit:'мГн',min:10,max:1000,step:10,default:100},
+    {key:'C', label:'Ёмкость C',unit:'мкФ',min:10,max:1000,step:10,default:100},
+
+    {type:'group',label:'Показывать'},
+    {key:'phasor',label:'Векторная диаграмма',type:'check',default:true},
+    {key:'curve', label:'Резонансная кривая I₀(f)',type:'check',default:true},
+    {key:'flow',  label:'Движение тока в схеме',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'мс',min:0,max:500,step:1,default:0}
+  ],
+  /* всё в СИ */
+  calc(p,f){
+    f=f===undefined?p.f:f;
+    const w=2*Math.PI*f, L=p.L*1e-3, C=p.C*1e-6;
+    const XL=w*L, XC=1/(w*C), X=XL-XC, Z=Math.hypot(p.R,X), I0=p.U0/Z;
+    return {w,L,C,XL,XC,X,Z,I0,phi:Math.atan2(X,p.R)};
+  },
+  f0(p){ return 1/(2*Math.PI*Math.sqrt(p.L*1e-3*p.C*1e-6)); },
+  /* мгновенные значения в момент t (в секундах) */
+  inst(p,t){
+    const k=this.calc(p), ph=k.w*t;
+    const i=k.I0*Math.sin(ph-k.phi);
+    return {u:p.U0*Math.sin(ph), i, uR:p.R*i,
+      uL:k.XL*k.I0*Math.cos(ph-k.phi), uC:-k.XC*k.I0*Math.cos(ph-k.phi), k};
+  },
+  init(p){ return {t:0,q:0,__stop:null}; },
+  step(s,dt,p){
+    const t=s.t+dt*this.SLOW;
+    if(p.tStop>0 && t>=p.tStop){ s.t=p.tStop; s.__stop=`Остановка по времени: t = ${p.tStop} мс`; return; }
+    /* заряд, прошедший по цепи, — для бегущих точек в схеме */
+    s.q+=this.inst(p,s.t*1e-3).i*dt;
+    s.t=t;
+  },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  readouts(s,p){
+    const m=this.inst(p,s.t*1e-3), k=m.k;
+    return [['t',s.t,'мс'],
+      ['круговая частота ω = 2πf',k.w,'рад/с'],
+      ['X_L = ωL',k.XL,'Ом'],
+      ['X_C = 1/(ωC)',k.XC,'Ом'],
+      ['полное сопротивление Z',k.Z,'Ом'],
+      ['амплитуда тока I₀ = U₀/Z',k.I0,'А'],
+      ['действующий ток I = I₀/√2',k.I0/Math.SQRT2,'А'],
+      ['сдвиг фаз φ',k.phi*180/Math.PI, k.phi>0.01?'° — ток отстаёт':(k.phi<-0.01?'° — ток опережает':'° — в фазе')],
+      ['cos φ',Math.cos(k.phi),''],
+      ['амплитуда U_L',k.XL*k.I0,'В'],
+      ['амплитуда U_C',k.XC*k.I0,'В'],
+      ['средняя мощность P = ½U₀I₀cos φ',0.5*p.U0*k.I0*Math.cos(k.phi),'Вт'],
+      ['мгновенные: u',m.u,'В'],
+      ['мгновенные: i',m.i,'А']];
+  },
+  graphs:[
+    {label:'Напряжения',unit:'В',series:['u генератора','u на R'],
+     get(s,p){ const m=SIMS.rlc.inst(p,s.t*1e-3); return [m.u,m.uR]; }},
+    {label:'Ток',unit:'А',series:['i'],
+     get(s,p){ const m=SIMS.rlc.inst(p,s.t*1e-3); return [m.i,null]; }},
+    {label:'Мгновенная мощность генератора',unit:'Вт',series:['p = ui'],
+     get(s,p){ const m=SIMS.rlc.inst(p,s.t*1e-3); return [m.u*m.i,null]; }}
+  ],
+  presets:[
+    {name:'Ниже резонанса: ток опережает',values:{U0:10,f:25,R:10,L:100,C:100}},
+    {name:'Резонанс: f = 50 Гц',values:{U0:10,f:50,R:10,L:100,C:100}},
+    {name:'Выше резонанса: ток отстаёт',values:{U0:10,f:100,R:10,L:100,C:100}},
+    {name:'Резонанс напряжений: U_C больше U₀',values:{U0:10,f:50,R:5,L:500,C:20}},
+    {name:'Большое R — пологая кривая',values:{U0:10,f:50,R:150,L:100,C:100}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(12.4*PX_PER_M),(H-30)/(8.6*PX_PER_M)),0.002,30);
+    return {x:0,y:0,scale};
+  },
+  /* зигзаг резистора, витки катушки, пластины конденсатора — вдоль горизонтали */
+  part(ctx,v,kind,x1,x2,y,col){
+    const L=x2-x1, a=x1+L*0.2, b=x2-L*0.2;
+    ctx.strokeStyle=col; ctx.lineWidth=v.lw(1.8); ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(a,y);
+    if(kind==='R'){ const n=6; for(let i=1;i<=n;i++) ctx.lineTo(a+(b-a)*i/n - (b-a)/(2*n), y+(i%2?0.18:-0.18)); ctx.lineTo(b,y); }
+    else if(kind==='L'){ const n=4, r=(b-a)/(2*n);
+      for(let i=0;i<n;i++){ const cx=a+r+2*r*i; for(let k=0;k<=12;k++){ const th=Math.PI-Math.PI*k/12; ctx.lineTo(cx+r*Math.cos(th),y+r*1.4*Math.sin(th)); } } ctx.lineTo(b,y); }
+    else { const m=(a+b)/2; ctx.lineTo(m-0.08,y); ctx.moveTo(m+0.08,y); ctx.lineTo(b,y);
+      ctx.moveTo(m-0.08,y-0.3); ctx.lineTo(m-0.08,y+0.3); ctx.moveTo(m+0.08,y-0.3); ctx.lineTo(m+0.08,y+0.3); ctx.moveTo(b,y); }
+    ctx.lineTo(x2,y); ctx.stroke();
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ok=v.c('--ok'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const m=this.inst(p,s.t*1e-3), k=m.k, f0=this.f0(p);
+
+    /* ---- схема: генератор слева, R, L, C сверху ---- */
+    const X0=-5.8, X1=-0.6, Yb=0.6, Yt=3.4;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.8);
+    ctx.beginPath(); ctx.moveTo(X0,Yt); ctx.lineTo(X0,Yb); ctx.lineTo(X1,Yb); ctx.lineTo(X1,Yt); ctx.stroke();
+    const seg=(X1-X0)/3;
+    this.part(ctx,v,'R',X0,X0+seg,Yt,ink);
+    this.part(ctx,v,'L',X0+seg,X0+2*seg,Yt,ink);
+    this.part(ctx,v,'C',X0+2*seg,X1,Yt,ink);
+    // генератор ~
+    const gy=(Yb+Yt)/2;
+    ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=ink; ctx.beginPath(); ctx.arc(X0,gy,0.42,0,7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); for(let q=0;q<=20;q++){ const xx=X0-0.26+0.52*q/20, yy=gy+0.16*Math.sin(q/20*2*Math.PI); q?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); } ctx.stroke();
+    v.label(ctx,'R',X0+seg/2,Yt,-4,-20,ink); v.label(ctx,'L',X0+1.5*seg,Yt,-4,-22,ink); v.label(ctx,'C',X0+2.5*seg,Yt,-4,-24,ink);
+    v.label(ctx,`U₀ = ${p.U0} В, f = ${p.f} Гц`,X0,Yb,-10,16,ink3);
+    // бегущие точки: смещение пропорционально прошедшему заряду
+    if(p.flow){
+      const per=2*((X1-X0)+(Yt-Yb)), n=16, sh=((s.q/Math.max(1e-9,k.I0/k.w))*0.35)%1;
+      const at=d=>{ d=((d%per)+per)%per;
+        if(d<(Yt-Yb)) return [X0,Yb+d]; d-=(Yt-Yb);
+        if(d<(X1-X0)) return [X0+d,Yt]; d-=(X1-X0);
+        if(d<(Yt-Yb)) return [X1,Yt-d]; d-=(Yt-Yb); return [X1-d,Yb]; };
+      ctx.fillStyle=meas; ctx.globalAlpha=.35+0.65*Math.min(1,Math.abs(m.i)/Math.max(1e-9,k.I0));
+      for(let j=0;j<n;j++){ const q=at((j/n+sh)*per); ctx.beginPath(); ctx.arc(q[0],q[1],v.lw(3),0,7); ctx.fill(); }
+      ctx.globalAlpha=1;
+    }
+
+    /* ---- векторная диаграмма ---- */
+    if(p.phasor){
+      const cx=3.3, cy=1.9, Um=Math.max(p.U0,k.XL*k.I0,k.XC*k.I0,1e-9), sc=2.1/Um;
+      const ph=k.w*s.t*1e-3, a=ph-k.phi;                       // фаза тока
+      ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.arc(cx,cy,p.U0*sc,0,7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx-2.3,cy); ctx.lineTo(cx+2.3,cy); ctx.moveTo(cx,cy-2.3); ctx.lineTo(cx,cy+2.3); ctx.stroke();
+      const ur=p.R*k.I0*sc, ul=k.XL*k.I0*sc, uc=k.XC*k.I0*sc;
+      const P=(r,th)=>[r*Math.cos(th),r*Math.sin(th)];
+      const vR=P(ur,a), vL=P(ul,a+Math.PI/2), vC=P(uc,a-Math.PI/2);
+      // цепочка U_R → U_L → U_C, в сумме — U генератора
+      let x=cx, y=cy;
+      v.arrow(ctx,x,y,x+vR[0],y+vR[1],ink); x+=vR[0]; y+=vR[1];
+      v.arrow(ctx,x,y,x+vL[0],y+vL[1],sec); const xL=x+vL[0], yL=y+vL[1]; x=xL; y=yL;
+      v.arrow(ctx,x,y,x+vC[0],y+vC[1],ok); x+=vC[0]; y+=vC[1];
+      v.arrow(ctx,cx,cy,x,y,acc);
+      // направление тока: вдоль U на R
+      const vi=P(1.1,a);
+      ctx.save(); ctx.setLineDash([v.lw(4),v.lw(3)]); v.arrow(ctx,cx,cy,cx+vi[0],cy+vi[1],meas); ctx.restore();
+      v.label(ctx,'I',cx+vi[0],cy+vi[1],4,-6,meas);
+      // проекции на вертикаль — это и есть мгновенные значения
+      ctx.strokeStyle=acc; ctx.globalAlpha=.4; ctx.setLineDash([v.lw(2),v.lw(3)]);
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(cx+2.4,y); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      v.label(ctx,'U₀',x,y,6,-8,acc); v.label(ctx,'на R',cx+vR[0]/2,cy+vR[1]/2,4,12,ink);
+      v.label(ctx,'на L',xL,yL,6,0,sec); v.label(ctx,'на C',x-vC[0]/2,y-vC[1]/2,6,0,ok);
+      v.label(ctx,`φ = ${(k.phi*180/Math.PI).toFixed(1)}°`,cx+2.3,cy+2.3,-70,0,ink3);
+      v.label(ctx,'проекция на вертикаль — мгновенное значение',cx-2.3,cy-2.3,0,10,ink3);
+    }
+
+    /* ---- резонансная кривая ---- */
+    if(p.curve){
+      const gx=-5.8, gy=-3.6, gw=11.2, gh=2.4, fmax=200;
+      const Imax=p.U0/p.R, F=f=>gx+gw*f/fmax, Y=I=>gy+gh*Math.min(1,I/Imax);
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy+gh+0.2); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+      for(let q=1;q<=240;q++){ const f=fmax*q/240, I=this.calc(p,f).I0; q>1?ctx.lineTo(F(f),Y(I)):ctx.moveTo(F(f),Y(I)); }
+      ctx.stroke();
+      if(f0<=fmax){
+        ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]);
+        ctx.beginPath(); ctx.moveTo(F(f0),gy); ctx.lineTo(F(f0),gy+gh); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+        v.label(ctx,'f₀',F(f0),gy,-4,12,dang);
+      }
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(F(p.f),Y(k.I0),v.lw(4),0,7); ctx.fill();
+      v.label(ctx,'I₀',gx,gy+gh,-18,0,ink3); v.label(ctx,'f, Гц',gx+gw,gy,-34,12,ink3);
+      v.label(ctx,`${fmax}`,gx+gw,gy,-14,24,ink3);
+      v.label(ctx,'резонанс: ток максимален, когда X_L = X_C',gx,gy,0,28,ink3);
+    }
+  }
+}
+});
+
+;
+'use strict';
 Object.assign(SIMS,{
 /* ================== ГЛ.20: БЕГУЩАЯ ВОЛНА ================= */
 wave:{
@@ -11822,7 +12162,8 @@ wave:{
     {type:'group',label:'Показывать'},
     {key:'run',    label:'Волна бежит',type:'check',default:true},
     {key:'lamMark',label:'Отметка длины волны',type:'check',default:true},
-    {key:'trail',  label:'След частицы (колебание)',type:'check',default:true}
+    {key:'trail',  label:'След частицы (колебание)',type:'check',default:true},
+    {key:'phasor', label:'Вектор фазы частицы',type:'check',default:true}
   ],
   k(p){ return 2*Math.PI/p.lam; },
   omega(p){ return 2*Math.PI*p.f; },
@@ -11835,6 +12176,9 @@ wave:{
     const sgn=p.dir==='right'?1:-1;
     return -sgn*this.omega(p)*p.A*Math.cos(this.k(p)*x - sgn*this.omega(p)*t);
   },
+  /* фаза пробной частицы, приведённая к [0, 2π) */
+  phase(p,t){ const sgn=p.dir==='right'?1:-1, f=this.k(p)*p.px-sgn*this.omega(p)*t, T=2*Math.PI;
+    return ((f%T)+T)%T; },
   init(p){ return {t:0,trail:[],event:null,__stop:null}; },
   step(s,dt,p){
     if(p.run) s.t+=dt;
@@ -11850,6 +12194,7 @@ wave:{
       ['волновое число k = 2π/λ',this.k(p),'1/м'],
       ['круговая частота ω = 2πf',this.omega(p),'рад/с'],
       ['проверка ω/k = v',this.omega(p)/this.k(p),'м/с'],
+      ['фаза частицы φ = kx − ωt',this.phase(p,s.t)*180/Math.PI,'° (по модулю 360°)'],
       ['смещение частицы y',this.yAt(p,p.px,s.t),'м'],
       ['скорость частицы',this.vyAt(p,p.px,s.t),'м/с']];
   },
@@ -11865,8 +12210,9 @@ wave:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-60)/(20*PX_PER_M),(H-60)/(8*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const w=p.phasor?23.5:20;
+    const scale=clamp(Math.min((W-60)/(w*PX_PER_M),(H-60)/(8*PX_PER_M)),0.002,30);
+    return {x:p.phasor?-1.75:0,y:0,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink3=v.c('--ink-3');
@@ -11911,6 +12257,24 @@ wave:{
       ctx.strokeStyle=meas; ctx.globalAlpha=.7; ctx.lineWidth=v.lw(1.4); ctx.beginPath();
       s.trail.forEach((y,i)=>{ const x=9.6+ (i-s.trail.length)*0.012; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
       ctx.stroke(); ctx.globalAlpha=1;
+    }
+    /* Вектор фазы: смещение частицы — проекция вращающегося вектора длины A
+       на вертикаль. Угол вектора и есть фаза kx − ωt. Пунктир связывает конец
+       вектора с частицей: высота у них одна. */
+    if(p.phasor){
+      const cx=-11.6, ph=this.phase(p,s.t), ex=cx+p.A*Math.cos(ph), ey=p.A*Math.sin(ph);
+      ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.arc(cx,0,p.A,0,7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx-p.A-0.2,0); ctx.lineTo(cx+p.A+0.2,0); ctx.stroke();
+      v.arrow(ctx,cx,0,ex,ey,dang);
+      ctx.strokeStyle=dang; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(p.px,yp); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      // дуга угла фазы
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.2); ctx.beginPath();
+      for(let k=0;k<=24;k++){ const a=ph*k/24, r=p.A*0.3; k?ctx.lineTo(cx+r*Math.cos(a),r*Math.sin(a)):ctx.moveTo(cx+r,0); }
+      ctx.stroke();
+      v.label(ctx,`φ = ${(ph*180/Math.PI).toFixed(0)}°`,cx,-p.A,-24,16,dang);
+      v.label(ctx,'y — проекция вектора',cx,-p.A,-44,32,ink3);
     }
     v.label(ctx,'частицы колеблются поперёк, а волна переносит энергию вдоль',0,-p.A-1.6,-108,0,ink3);
     v.label(ctx,'пробную частицу можно перетаскивать',0,-p.A-1.6,-64,16,ink3);
@@ -18369,6 +18733,441 @@ atwood:{
     v.label(ctx,'ПКМ — инструменты · ЛКМ по сетке — новый блок · ЛКМ по креплению — груз, опора или ещё один блок',-6.2,-4,0,0,ink3);
     if(d.blocks.length && !val.ok)
       v.label(ctx,'блок, поставленный на свободное крепление, подвешивается к нему и закрывает его',-6.2,-4,0,16,ink3);
+  }
+}
+});
+
+;
+'use strict';
+/* =============================================================================
+   СПЕЦИАЛЬНАЯ ТЕОРИЯ ОТНОСИТЕЛЬНОСТИ (3.0.0)
+
+   Три сцены на одну идею: скорость света одинакова для всех, и из этого
+   одного факта следуют замедление времени, сокращение длины, новое правило
+   сложения скоростей и связь энергии с массой.
+
+   Все три считаются по точным формулам, без шагов интегрирования: у
+   равномерного движения и у разгона постоянной силой решение известно в
+   замкнутом виде, и ошибке накопиться негде.
+   ============================================================================= */
+const C_LIGHT=299792458;                          // м/с, точно по определению метра
+const REL={
+  gamma(b){ b=Math.min(Math.abs(b),0.999999); return 1/Math.sqrt(1-b*b); },
+  /* сложение скоростей вдоль одной прямой, скорости в долях c */
+  add(b,u){ return (b+u)/(1+b*u); }
+};
+
+Object.assign(SIMS,{
+/* ================== СВЕТОВЫЕ ЧАСЫ ================= */
+lightclock:{
+  title:'Световые часы: замедление времени и сокращение длины',
+  /* Свет проходит 0,3 м за наносекунду. Покажи мы его в настоящем темпе —
+     вспышка пролетала бы кадр за миллиардную долю секунды. Поэтому секунда
+     сцены изображает одну наносекунду: всё остальное — расстояния, скорости,
+     отношения — настоящее. */
+  timeUnit:'нс',
+  schema:true,
+  params:[
+    {key:'beta',label:'Скорость часов v/c',min:0,max:0.99,step:0.01,default:0.6},
+    {key:'L0',label:'Расстояние между зеркалами L₀',unit:'м',min:0.15,max:1.5,step:0.05,default:0.3},
+
+    {type:'group',label:'Показывать'},
+    {key:'path',label:'Путь света в лаборатории',type:'check',default:true},
+    {key:'tri', label:'Треугольник: L₀, vΔt/2, cΔt/2',type:'check',default:true},
+    {key:'rod', label:'Стержень: сокращение длины',type:'check',default:true},
+    {key:'l0',label:'Длина стержня в покое ℓ₀',unit:'м',min:0.3,max:3,step:0.1,default:1.2,если:p=>!!p.rod},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'нс',min:0,max:200,step:1,default:0}
+  ],
+  c:C_LIGHT*1e-9,                                   // м/нс
+  g(p){ return REL.gamma(p.beta); },
+  /* период тика часов в покое: свет туда и обратно */
+  T0(p){ return 2*p.L0/this.c; },
+  track(p){ const W=Math.max(7*p.L0, p.rod? 1.5*p.l0+2.6*p.L0 : 0); return {xL:-W/2, xR:W/2, W}; },
+  init(p){ return {t:0,__stop:null}; },
+  step(s,dt,p){
+    const t=s.t+dt;
+    if(p.tStop>0 && t>=p.tStop){ s.t=p.tStop;
+      s.__stop=`Остановка: по часам лаборатории прошло ${p.tStop} нс, по движущимся — ${(p.tStop/this.g(p)).toFixed(2)} нс`; return; }
+    s.t=t;
+  },
+  /* высота вспышки над нижним зеркалом при периоде тика T (по часам лаборатории) */
+  photonY(t,T,L){ const ph=t/(T/2), k=Math.floor(ph), f=ph-k; return (k%2? 1-f : f)*L; },
+  movX(s,p){
+    const tr=this.track(p), v=p.beta*this.c;
+    if(v<1e-9) return {x:0, t0:0};
+    const run=v*s.t, off=run%tr.W;
+    return {x:tr.xL+off, t0:s.t-off/v};
+  },
+  anchors(s,p){ return [{x:this.movX(s,p).x,y:p.L0/2}]; },
+  readouts(s,p){
+    const g=this.g(p), T0=this.T0(p);
+    const out=[['t (часы лаборатории)',s.t,'нс'],
+      ['γ = 1/√(1 − v²/c²)',g,''],
+      ['скорость часов v',p.beta*C_LIGHT/1e8,'·10⁸ м/с'],
+      ['τ движущихся часов = t/γ',s.t/g,'нс'],
+      ['отставание t − τ',s.t-s.t/g,'нс'],
+      ['тик часов в покое T₀ = 2L₀/c',T0,'нс'],
+      ['тик движущихся по часам лаборатории γT₀',g*T0,'нс'],
+      ['тиков у часов в покое',Math.floor(s.t/T0),''],
+      ['тиков у движущихся часов',Math.floor(s.t/(g*T0)),'']];
+    if(p.rod) out.push(['длина стержня в покое ℓ₀',p.l0,'м'],
+      ['длина движущегося ℓ = ℓ₀/γ',p.l0/g,'м']);
+    return out;
+  },
+  graphs:[
+    {label:'Показания часов',unit:'нс',series:['лаборатория t','движущиеся τ'],
+     get(s,p){ return [s.t, s.t/SIMS.lightclock.g(p)]; }},
+    {label:'Число тиков',unit:'',series:['в покое','в движении'],
+     get(s,p){ const d=SIMS.lightclock, T0=d.T0(p); return [Math.floor(s.t/T0), Math.floor(s.t/(d.g(p)*T0))]; }}
+  ],
+  presets:[
+    {name:'Часы стоят: ход одинаков',values:{beta:0,L0:0.3,tStop:0}},
+    {name:'v = 0,6c: γ = 1,25',values:{beta:0.6,L0:0.3,tStop:0}},
+    {name:'v = 0,8c: γ = 5/3',values:{beta:0.8,L0:0.3,tStop:0}},
+    {name:'v ≈ 0,87c: время вдвое медленнее',values:{beta:0.87,L0:0.3,tStop:0}},
+    {name:'v = 0,99c: γ ≈ 7',values:{beta:0.99,L0:0.3,tStop:0}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, tr=this.track(p), L=p.L0;
+    const spanX=tr.W+0.6*L, spanY=4.6*L;
+    const scale=clamp(Math.min((W-40)/(spanX*PX_PER_M),(H-50)/(spanY*PX_PER_M)),0.002,300);
+    return {x:0,y:1.35*L,scale};
+  },
+  /* одни часы: два зеркала, пунктир «трубки», вспышка */
+  clock(ctx,v,x,y0,L,py,col,ph){
+    const w=0.32*L;
+    ctx.strokeStyle=col; ctx.lineWidth=v.lw(3);
+    ctx.beginPath(); ctx.moveTo(x-w,y0); ctx.lineTo(x+w,y0); ctx.moveTo(x-w,y0+L); ctx.lineTo(x+w,y0+L); ctx.stroke();
+    ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]);
+    ctx.beginPath(); ctx.moveTo(x-w,y0); ctx.lineTo(x-w,y0+L); ctx.moveTo(x+w,y0); ctx.lineTo(x+w,y0+L); ctx.stroke();
+    ctx.setLineDash(EMPTY_DASH);
+    ctx.fillStyle=ph; ctx.beginPath(); ctx.arc(x,y0+py,v.lw(4.5),0,7); ctx.fill();
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const L=p.L0, g=this.g(p), T0=this.T0(p), tr=this.track(p), c=this.c, vv=p.beta*c;
+    const yR=2.5*L;                                 // полоса часов в покое
+    // полосы-«рельсы»
+    ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(tr.xL,-0.12*L); ctx.lineTo(tr.xR,-0.12*L);
+    ctx.moveTo(tr.xL,yR-0.12*L); ctx.lineTo(tr.xR,yR-0.12*L); ctx.stroke();
+
+    // часы в покое
+    const xr=tr.xL+0.7*L;
+    this.clock(ctx,v,xr,yR,L,this.photonY(s.t,T0,L),ink,meas);
+    v.label(ctx,`в покое: τ = t = ${s.t.toFixed(2)} нс · тиков ${Math.floor(s.t/T0)}`,xr,yR+L,-20,-14,ink);
+
+    // движущиеся часы и путь вспышки в лаборатории
+    const m=this.movX(s,p), Tm=g*T0;
+    let tri=null;
+    ctx.save(); ctx.beginPath(); ctx.rect(tr.xL,-2*L,tr.W,10*L); ctx.clip();
+    if(p.path && vv>1e-9){
+      const pts=[], k0=Math.ceil(m.t0/(Tm/2)), k1=Math.floor(s.t/(Tm/2));
+      const X=t=>m.x-vv*(s.t-t);
+      pts.push([X(m.t0),this.photonY(m.t0,Tm,L)]);
+      for(let k=k0;k<=k1;k++){ const t=k*Tm/2; pts.push([X(t),this.photonY(t,Tm,L)]); }
+      pts.push([m.x,this.photonY(s.t,Tm,L)]);
+      ctx.strokeStyle=meas; ctx.globalAlpha=.7; ctx.lineWidth=v.lw(1.6);
+      ctx.beginPath(); pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke();
+      ctx.globalAlpha=1;
+      // треугольник на первом целом подъёме снизу вверх
+      if(p.tri && p.beta>0.05){
+        // последний целый подъём снизу вверх — он рядом с часами и виден целиком
+        let kk=Math.floor(s.t/(Tm/2))-1; if(kk%2) kk--;
+        if(kk>=k0 && (kk+1)*Tm/2<=s.t){
+          const ta=kk*Tm/2, tb=(kk+1)*Tm/2, xa=X(ta), xb=X(tb);
+          ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(4),v.lw(3)]);
+          ctx.beginPath(); ctx.moveTo(xa,0); ctx.lineTo(xb,0); ctx.lineTo(xb,L); ctx.stroke();
+          ctx.setLineDash(EMPTY_DASH);
+          tri=[xa,xb];
+        }
+      }
+    }
+    this.clock(ctx,v,m.x,0,L,this.photonY(s.t,Tm,L),acc,meas);
+    if(vv>1e-9) v.arrow(ctx,m.x+0.45*L,L/2,m.x+0.45*L+Math.max(0.3*L,1.4*L*p.beta),L/2,acc);
+
+    // стержни: в покое и движущийся, сокращённый в γ раз
+    if(p.rod){
+      const h=0.12*L, xs=xr-0.3*L;
+      ctx.fillStyle=sec; ctx.globalAlpha=.85;
+      ctx.fillRect(xs,yR-0.42*L-h/2,p.l0,h);
+      ctx.fillRect(m.x-p.l0/(2*g),-0.42*L-h/2,p.l0/g,h);
+      ctx.globalAlpha=1;
+      v.label(ctx,`стержень в покое ℓ₀ = ${p.l0.toFixed(2)} м`,xs,yR-0.42*L,0,-12,sec);
+      v.label(ctx,`движется: ℓ = ℓ₀/γ = ${(p.l0/g).toFixed(2)} м`,m.x-p.l0/(2*g),-0.42*L,0,14,sec);
+    }
+    ctx.restore();
+    if(tri){
+      v.label(ctx,'vΔt/2',(tri[0]+tri[1])/2,0,-16,12,sec);
+      v.label(ctx,'L₀',tri[1],L/2,6,0,sec);
+      v.label(ctx,'cΔt/2',(tri[0]+tri[1])/2,L/2,-44,-8,meas);
+    }
+    v.label(ctx,`движутся: τ = t/γ = ${(s.t/g).toFixed(2)} нс · тиков ${Math.floor(s.t/Tm)}`,m.x,L,-40,-14,acc);
+    v.label(ctx,`γ = ${g.toFixed(3)}: движущиеся часы тикают в ${g.toFixed(2)} раза реже`,tr.xL,-L,0,6,ink3);
+    v.label(ctx,'1 с сцены = 1 нс: за это время свет проходит 0,30 м',tr.xL,-L,0,22,ink3);
+  }
+},
+
+/* ================== ДИАГРАММА МИНКОВСКОГО ================= */
+minkowski:{
+  title:'Диаграмма Минковского: одновременность и сложение скоростей',
+  schema:true,
+  timeless:true,
+  params:[
+    {key:'beta',label:'Скорость ракеты v/c',min:-0.9,max:0.9,step:0.05,default:0.6},
+    {key:'u',label:'Скорость снаряда в ракете u′/c',min:-0.95,max:0.95,step:0.05,default:0.6},
+    {key:'dx',label:'Расстояние между событиями в ракете Δx′',unit:'св. год',min:0,max:3,step:0.25,default:2},
+
+    {type:'group',label:'Показывать'},
+    {key:'grid',label:'Сетка ракеты (x′, ct′)',type:'check',default:true},
+    {key:'cone',label:'Световой конус',type:'check',default:true},
+    {key:'simul',label:'Одновременные в ракете события',type:'check',default:true},
+    {key:'galileo',label:'Ответ Галилея v + u′',type:'check',default:true}
+  ],
+  g(p){ return REL.gamma(p.beta); },
+  uLab(p){ return REL.add(p.beta,p.u); },
+  /* перевод событий ракеты (x′, ct′) в координаты Земли (x, ct) */
+  toLab(p,x1,t1){ const g=this.g(p), b=p.beta; return [g*(x1+b*t1), g*(t1+b*x1)]; },
+  T1:1.5,                                            // «сейчас» ракеты для пары событий
+  init(p){ return {t:0}; },
+  step(s,dt,p){ s.t+=dt; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  readouts(s,p){
+    const g=this.g(p), b=p.beta, u=this.uLab(p);
+    const A=this.toLab(p,0,this.T1), B=this.toLab(p,p.dx,this.T1);
+    const dt=B[1]-A[1], dX=B[0]-A[0];
+    return [['γ ракеты',g,''],
+      ['u = (v + u′)/(1 + vu′/c²)',u,'c'],
+      ['по Галилею v + u′',b+p.u, Math.abs(b+p.u)>=1?'c — быстрее света!':'c'],
+      ['события A, B: Δt′ в ракете',0,'год — одновременны'],
+      ['Δt на Земле = γvΔx′/c²',dt,'год'],
+      ['интервал (cΔt)² − Δx² в ракете',-p.dx*p.dx,'св. год²'],
+      ['интервал (cΔt)² − Δx² на Земле',dt*dt-dX*dX,'св. год² — тот же'],
+      ['наклон осей ракеты',Math.atan(Math.abs(b))*180/Math.PI,'°']];
+  },
+  graphs:[],
+  presets:[
+    {name:'0,6c + 0,6c = 0,88c',values:{beta:0.6,u:0.6,dx:2}},
+    {name:'0,9c + 0,9c = 0,994c',values:{beta:0.9,u:0.9,dx:2}},
+    {name:'Медленно: почти как у Галилея',values:{beta:0.1,u:0.1,dx:2}},
+    {name:'Встречный снаряд',values:{beta:0.6,u:-0.8,dx:2}},
+    {name:'Ракета стоит: сетки совпадают',values:{beta:0,u:0.5,dx:2}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(8.6*PX_PER_M),(H-30)/(7.2*PX_PER_M)),0.002,30);
+    return {x:0,y:2.8,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const X0=-4, X1=4, Tm=6, b=p.beta, g=this.g(p);
+    ctx.save(); ctx.beginPath(); ctx.rect(X0-0.3,-0.6,X1-X0+0.6,Tm+0.8); ctx.clip();
+    // сетка Земли — бледная
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.5;
+    for(let k=-4;k<=4;k++){ ctx.beginPath(); ctx.moveTo(k,-0.5); ctx.lineTo(k,Tm); ctx.stroke(); }
+    for(let k=0;k<=6;k++){ ctx.beginPath(); ctx.moveTo(X0,k); ctx.lineTo(X1,k); ctx.stroke(); }
+    ctx.globalAlpha=1;
+    // световой конус
+    if(p.cone){
+      ctx.fillStyle=meas; ctx.globalAlpha=.08;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Tm,Tm); ctx.lineTo(-Tm,Tm); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(5),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(-Tm,Tm); ctx.lineTo(0,0); ctx.lineTo(Tm,Tm); ctx.stroke();
+      ctx.setLineDash(EMPTY_DASH);
+    }
+    // сетка ракеты: линии x′ = const и ct′ = const
+    if(p.grid && Math.abs(b)>1e-6){
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.28;
+      for(let k=-8;k<=8;k++){
+        const a=this.toLab(p,k,-8), c2=this.toLab(p,k,8);
+        ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.stroke();
+        const d=this.toLab(p,-8,k), e=this.toLab(p,8,k);
+        ctx.beginPath(); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
+    // оси Земли
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X1,0); ctx.moveTo(0,-0.5); ctx.lineTo(0,Tm); ctx.stroke();
+    // оси ракеты
+    {
+      const a=this.toLab(p,0,-2), c2=this.toLab(p,0,8), d=this.toLab(p,-8,0), e=this.toLab(p,8,0);
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
+      // деления: единица ракеты на её осях длиннее — масштаб тоже меняется
+      ctx.fillStyle=acc;
+      for(let k=1;k<=6;k++){
+        const q=this.toLab(p,0,k); if(q[1]<Tm){ ctx.beginPath(); ctx.arc(q[0],q[1],v.lw(2.6),0,7); ctx.fill(); }
+        const r=this.toLab(p,k,0); if(r[0]<X1){ ctx.beginPath(); ctx.arc(r[0],r[1],v.lw(2.6),0,7); ctx.fill(); }
+      }
+    }
+    // мировая линия снаряда и ответ Галилея
+    const u=this.uLab(p), uG=b+p.u;
+    const wl=(uu,col,dash)=>{
+      ctx.strokeStyle=col; ctx.lineWidth=v.lw(2.2); if(dash) ctx.setLineDash([v.lw(6),v.lw(4)]);
+      const tEnd=Math.min(Tm, Math.abs(uu)>1e-6? 3.9/Math.abs(uu):Tm);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(uu*tEnd,tEnd); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
+      return [uu*tEnd,tEnd];
+    };
+    let pg=null;
+    if(p.galileo && Math.abs(uG-u)>0.005) pg=wl(uG,dang,true);
+    const pu=wl(u,ok,false);
+    // одновременные в ракете события A и B
+    let A=null,B=null;
+    if(p.simul){
+      A=this.toLab(p,0,this.T1); B=this.toLab(p,p.dx,this.T1);
+      const l1=this.toLab(p,-8,this.T1), l2=this.toLab(p,8,this.T1);
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(3),v.lw(3)]);
+      ctx.beginPath(); ctx.moveTo(l1[0],l1[1]); ctx.lineTo(l2[0],l2[1]); ctx.stroke();
+      ctx.strokeStyle=ink3;
+      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(X0,A[1]); ctx.moveTo(B[0],B[1]); ctx.lineTo(X0,B[1]); ctx.stroke();
+      ctx.setLineDash(EMPTY_DASH);
+      for(const q of [A,B]){ ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(q[0],q[1],v.lw(5),0,7); ctx.fill(); }
+    }
+    ctx.restore();
+    // подписи — вне обрезки, чтобы раскладчик мог их прижать к краю
+    v.label(ctx,'x, св. год',X1,0,-64,12,ink);
+    v.label(ctx,'ct, год',0,Tm,6,8,ink);
+    { const e=this.toLab(p,0,Math.min(4.5,Tm/g*0.9)); v.label(ctx,'ct′ (ракета)',e[0],e[1],6,0,acc); }
+    { const e=this.toLab(p,Math.min(3.6,3.9/g),0); v.label(ctx,'x′',e[0],e[1],4,-10,acc); }
+    v.label(ctx,`снаряд: u = ${u.toFixed(3)}c`,pu[0],pu[1],6,10,ok);
+    if(pg) v.label(ctx,`Галилей: v + u′ = ${uG.toFixed(2)}c${Math.abs(uG)>=1?' — быстрее света':''}`,pg[0],pg[1],-40,-12,dang);
+    if(p.cone) v.label(ctx,'свет: x = ±ct',-Tm*0.8,Tm*0.8,6,0,meas);
+    if(A){
+      v.label(ctx,'A',A[0],A[1],-14,-8,acc); v.label(ctx,'B',B[0],B[1],8,-8,acc);
+      v.label(ctx,`в ракете A и B одновременны; на Земле B позже на ${(B[1]-A[1]).toFixed(2)} года`,X0,-0.35,0,0,ink3);
+    }
+  }
+},
+
+/* ================== РАЗГОН ПОСТОЯННОЙ СИЛОЙ ================= */
+relmotion:{
+  title:'Разгон до скорости света: постоянная сила',
+  schema:true,
+  params:[
+    {key:'part',label:'Частица',type:'select',default:'e',
+     options:[{v:'e',t:'Электрон — mc² = 511 кэВ'},{v:'mu',t:'Мюон — mc² = 105,7 МэВ'}]},
+    {key:'E',label:'Напряжённость поля E',unit:'мВ/м',min:0.1,max:20,step:0.1,default:1},
+
+    {type:'group',label:'Показывать'},
+    {key:'newton',label:'Расчёт по Ньютону для сравнения',type:'check',default:true},
+    {key:'energy',label:'Полоса энергии mc² + K',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'bStop',label:'Когда v/c достигнет (0 — выкл)',min:0,max:0.99,step:0.01,default:0},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:60,step:0.1,default:0}
+  ],
+  e:1.602176634e-19, c:C_LIGHT,
+  M:{e:9.1093837e-31, mu:1.883531627e-28},
+  m(p){ return this.M[p.part]||this.M.e; },
+  F(p){ return this.e*p.E*1e-3; },
+  /* Точное решение: dp/dt = F ⇒ p = Ft, E² = (pc)² + (mc²)², v = pc²/E,
+     путь x = (mc²/F)(γ − 1) — работа силы Fx как раз и равна K. */
+  st(t,p){
+    const m=this.m(p), F=this.F(p), c=C_LIGHT, mc=m*c, P=F*t;
+    const g=Math.sqrt(1+(P/mc)*(P/mc)), v=P/(g*m);
+    const K=(g-1)*m*c*c, x=K/F;
+    return {P,g,v,x,K,E:g*m*c*c, vN:P/m, xN:F*t*t/(2*m), KN:P*P/(2*m)};
+  },
+  keV:1.602176634e-16,
+  init(p){ return {t:0,__stop:null}; },
+  step(s,dt,p){
+    let t=s.t+dt;
+    if(p.bStop>0){
+      const b=p.bStop, tb=this.m(p)*C_LIGHT/this.F(p)*b/Math.sqrt(1-b*b);
+      if(t>=tb){ s.t=tb; s.__stop=`v = ${b}c через t = ${tb.toFixed(3)} с. По Ньютону тело было бы уже на ${(this.st(tb,p).vN/C_LIGHT).toFixed(2)}c`; return; }
+    }
+    if(p.tStop>0 && t>=p.tStop){ s.t=p.tStop; s.__stop=`Остановка по времени: t = ${p.tStop} с`; return; }
+    s.t=t;
+  },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  readouts(s,p){
+    const r=this.st(s.t,p), k=this.keV, mc2=this.m(p)*C_LIGHT*C_LIGHT/k;
+    const out=[['t',s.t,'с'],
+      ['сила F = eE',this.F(p)*1e22,'·10⁻²² Н'],
+      ['импульс p = Ft',r.P*C_LIGHT/k,'кэВ/c'],
+      ['γ = E/mc²',r.g,''],
+      ['скорость v/c',r.v/C_LIGHT,''],
+      ['скорость v',r.v/1e6,'Мм/с'],
+      ['путь x',r.x/1e6,'Мм'],
+      ['K = (γ − 1)mc²',r.K/k,'кэВ'],
+      ['работа поля eEx',this.F(p)*r.x/k,'кэВ — равна K'],
+      ['полная энергия E = γmc²',r.E/k,'кэВ'],
+      ['√(E² − (pc)²) = mc²',Math.sqrt(Math.max(0,r.E*r.E-(r.P*C_LIGHT)*(r.P*C_LIGHT)))/k,'кэВ — не меняется']];
+    if(p.newton) out.push(['по Ньютону v = Ft/m',r.vN/1e6, r.vN>C_LIGHT?'Мм/с — больше c!':'Мм/с'],
+      ['по Ньютону K = p²/2m',r.KN/k,'кэВ']);
+    out.push(['энергия покоя mc²',mc2,'кэВ']);
+    return out;
+  },
+  graphs:[
+    {label:'Путь',unit:'Мм',series:['СТО','Ньютон'],
+     get(s,p){ const r=SIMS.relmotion.st(s.t,p); return [r.x/1e6, p.newton? r.xN/1e6 : null]; }},
+    {label:'Скорость (предел — c = 299,8 Мм/с)',unit:'Мм/с',наклон:0,series:['СТО','Ньютон'],
+     get(s,p){ const r=SIMS.relmotion.st(s.t,p); return [r.v/1e6, p.newton? r.vN/1e6 : null]; }},
+    {label:'Импульс растёт равномерно',unit:'кэВ/c',series:['p = Ft'],
+     get(s,p){ const d=SIMS.relmotion, r=d.st(s.t,p); return [r.P*C_LIGHT/d.keV, null]; }},
+    {label:'Кинетическая энергия',unit:'кэВ',series:['СТО','Ньютон'],
+     get(s,p){ const d=SIMS.relmotion, r=d.st(s.t,p); return [r.K/d.keV, p.newton? r.KN/d.keV : null]; }}
+  ],
+  presets:[
+    {name:'Электрон в поле 1 мВ/м',values:{part:'e',E:1,bStop:0,tStop:0}},
+    {name:'Разгон до 0,9c',values:{part:'e',E:1,bStop:0.9,tStop:0}},
+    {name:'Разгон до 0,99c: Ньютон ушёл за 7c',values:{part:'e',E:1,bStop:0.99,tStop:0}},
+    {name:'Сильнее поле — быстрее упор в c',values:{part:'e',E:5,bStop:0,tStop:0}},
+    {name:'Мюон: в 207 раз инертнее',values:{part:'mu',E:20,bStop:0,tStop:0}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-40)/(12.6*PX_PER_M),(H-40)/(7.4*PX_PER_M)),0.002,30);
+    return {x:0.6,y:0.3,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const r=this.st(s.t,p), b=r.v/C_LIGHT, bN=r.vN/C_LIGHT;
+    // шкала скорости: 0 → x=−5, c → x=3, дальше — только для Ньютона
+    const x0=-5, xc=3, sx=b0=>x0+(xc-x0)*b0, y=2.9;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4);
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(xc,y); ctx.stroke();
+    for(let k=0;k<=10;k++){ const xx=sx(k/10);
+      ctx.beginPath(); ctx.moveTo(xx,y-0.1); ctx.lineTo(xx,y+(k%5?0.1:0.2)); ctx.stroke(); }
+    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2.4);
+    ctx.beginPath(); ctx.moveTo(xc,y-0.5); ctx.lineTo(xc,y+0.6); ctx.stroke();
+    v.label(ctx,'c — предел',xc,y-0.5,-20,12,dang);
+    v.label(ctx,'0',x0,y-0.5,-4,12,ink3); v.label(ctx,'0,5c',sx(0.5),y-0.5,-12,12,ink3);
+    if(p.newton){
+      const xn=Math.min(sx(bN),6.2);
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(5),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(x0,y-0.35); ctx.lineTo(xn,y-0.35); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
+      if(sx(bN)>6.2) v.arrow(ctx,5.8,y-0.35,6.4,y-0.35,dang);
+      v.label(ctx,`Ньютон: ${bN.toFixed(2)}c`,xn,y-0.35,xn>4.6?-96:8,xn>4.6?14:0,dang);
+    }
+    ctx.fillStyle=acc; ctx.globalAlpha=.9; ctx.fillRect(x0,y+0.22,sx(b)-x0,0.26); ctx.globalAlpha=1;
+    v.label(ctx,`СТО: v = ${b.toFixed(4)}c`,sx(b),y+0.48,-60,-12,acc);
+
+    // частица на дорожке между пластинами поля
+    const yT=0.1, W=10.4, xl=-5, ph=((r.x/2e8)%1+1)%1;       // дорожка «прокручивается» на каждые 200 Мм
+    ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1);
+    for(let k=0;k<=8;k++){ const xx=xl+k*W/8;
+      v.arrow(ctx,xx,yT+0.8,xx+0.5,yT+0.8,ink3); }
+    ctx.beginPath(); ctx.moveTo(xl,yT-0.5); ctx.lineTo(xl+W,yT-0.5); ctx.stroke();
+    const xp=xl+ph*W;
+    ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(xp,yT,v.lw(7),0,7); ctx.fill();
+    v.label(ctx,`поле E = ${p.E} мВ/м: сила F = eE всё время одна и та же`,xl,yT+0.8,0,-14,ink3);
+    v.label(ctx,`пройдено ${(r.x/1e6).toFixed(0)} Мм; один проход дорожки — 200 Мм`,xl,yT-0.5,0,14,ink3);
+
+    // энергия: mc² + K
+    if(p.energy){
+      const yE=-2.2, unit=1.3, cap=10.2, Ls=r.g*unit, full=Math.min(Ls,cap);
+      ctx.fillStyle=ink3; ctx.globalAlpha=.55; ctx.fillRect(xl,yE,Math.min(unit,cap),0.4); ctx.globalAlpha=1;
+      ctx.fillStyle=meas; ctx.fillRect(xl+unit,yE,Math.max(0,full-unit),0.4);
+      if(Ls>cap) v.arrow(ctx,xl+cap-0.3,yE+0.2,xl+cap+0.3,yE+0.2,meas);
+      v.label(ctx,'mc²',xl,yE+0.2,6,0,v.c('--panel'));
+      v.label(ctx,`E = γmc² = ${r.g.toFixed(3)} mc²; K = ${(r.K/this.keV).toFixed(1)} кэВ`,xl,yE,0,18,meas);
+      v.label(ctx,'энергия растёт без предела, а скорость упирается в c',xl,yE,0,34,ink3);
+    }
   }
 }
 });
@@ -27718,6 +28517,645 @@ const T_particles={
   ]
 };
 
+/* ============================ ПЕРЕМЕННЫЙ ТОК ============================
+   Тема добавлена в 3.0.0: между индукцией (откуда берётся переменная ЭДС) и
+   излучением (куда уходит энергия быстрых колебаний). */
+const T_ac={
+  id:'em.ac', ch:'16а', title:'Переменный ток и резонанс',
+  key:[
+    `В розетке напряжение меняется по синусу: $u=U_0\\sin\\omega t$. «220 В» — действующее значение $U=U_0/\\sqrt2$, амплитуда около 311 В.`,
+    `Катушка и конденсатор сопротивляются переменному току по-разному: $X_L=\\omega L$ растёт с частотой, $X_C=1/(\\omega C)$ падает.`,
+    `На катушке напряжение опережает ток на $90^\\circ$, на конденсаторе отстаёт на $90^\\circ$. Поэтому напряжения складываются как векторы: $Z=\\sqrt{R^2+(X_L-X_C)^2}$.`,
+    `При $\\omega_0=1/\\sqrt{LC}$ реактивные сопротивления гасят друг друга — резонанс: ток максимален, а напряжения на $L$ и $C$ могут во много раз превышать напряжение генератора.`,
+    `Средняя мощность $P=UI\\cos\\varphi$: тепло выделяет только резистор, катушка и конденсатор энергию лишь запасают и возвращают.`,
+  ],
+  explore:[
+    {sim:'rlc', do:`Медленно ведите частоту через резонанс`, see:`ток растёт до $U_0/R$ и снова падает, а сдвиг фаз меняет знак: ток то опережает напряжение, то отстаёт`},
+    {sim:'rlc', do:`Выберите «Резонанс напряжений»`, see:`при $U_0=10$ В на конденсаторе амплитуда больше 30 В — векторы $U_L$ и $U_C$ длинные, но смотрят навстречу друг другу`},
+    {sim:'rlc', do:`Увеличьте $R$`, see:`резонансная кривая становится ниже и шире: сопротивление гасит резонанс, как трение — раскачку качелей`},
+  ],
+  theory:`
+  <p>Генератор электростанции — вращающаяся рамка в магнитном поле — даёт ЭДС, меняющуюся по синусу. Такой
+  ток удобно получать, а главное — его легко повышать и понижать трансформаторами. Поэтому в розетках всего
+  мира ток переменный: в России 50 колебаний в секунду.</p>
+
+  <h3 class="sub">Действующее значение</h3>
+  <p>Напряжение в сети $u=U_0\\sin\\omega t$ проходит через ноль сто раз в секунду. Что же значит «220 вольт»?
+  Это <strong>действующее</strong> значение: постоянное напряжение, которое выделило бы в резисторе столько же
+  тепла. Среднее от $\\sin^2$ равно $\\tfrac12$, поэтому</p>
+  <div class="callout">$U=\\dfrac{U_0}{\\sqrt2},\\qquad I=\\dfrac{I_0}{\\sqrt2}$. В сети 220 В амплитуда
+  $U_0=311$ В. Вольтметры и амперметры переменного тока показывают именно действующие значения.</div>
+
+  <h3 class="sub">Катушка и конденсатор в цепи переменного тока</h3>
+  <p>Постоянный ток катушка пропускает свободно, а конденсатор не пропускает вовсе. С переменным всё
+  интереснее. Катушка мешает току меняться: ЭДС самоиндукции $L\\,di/dt$ тем больше, чем быстрее меняется
+  ток. Её сопротивление растёт с частотой: $X_L=\\omega L$. Конденсатор, наоборот, успевает лишь частично
+  зарядиться за полпериода и тем меньше мешает току, чем чаще тот меняет направление: $X_C=1/(\\omega C)$.</p>
+  <p>Главное отличие от резистора — <strong>сдвиг фаз</strong>. На резисторе напряжение и ток меняются
+  синхронно. На катушке напряжение опережает ток на четверть периода, на конденсаторе — отстаёт на четверть.
+  Эти сопротивления называют реактивными: тепла на них не выделяется.</p>
+
+  <h3 class="sub">Векторная диаграмма</h3>
+  <p>Складывать синусоиды с разными фазами неудобно — удобнее изобразить каждую вращающимся вектором, длина
+  которого — амплитуда, а проекция на вертикаль — мгновенное значение. Ток в последовательной цепи общий.
+  Напряжение на $R$ смотрит вдоль тока, на $L$ — на $90^\\circ$ вперёд, на $C$ — на $90^\\circ$ назад. Сумма
+  трёх векторов — напряжение генератора. Из прямоугольного треугольника:</p>
+  <div class="callout">$Z=\\sqrt{R^2+(X_L-X_C)^2},\\qquad I_0=\\dfrac{U_0}{Z},\\qquad
+  \\operatorname{tg}\\varphi=\\dfrac{X_L-X_C}{R}$. Это закон Ома для переменного тока: вместо $R$ стоит полное
+  сопротивление $Z$.</div>
+
+  <h3 class="sub">Резонанс</h3>
+  <p>Векторы $U_L$ и $U_C$ направлены противоположно и частично гасят друг друга. На частоте, где
+  $X_L=X_C$, они гасят друг друга полностью: $Z=R$, ток максимален, а напряжение генератора и ток идут
+  в фазе. Это <strong>резонанс</strong>:</p>
+  <div class="callout">$\\omega_0=\\dfrac{1}{\\sqrt{LC}}$ — та же собственная частота, что у свободных
+  колебаний в контуре. Контур раскачивается генератором так же, как качели — толчками в такт. При малом $R$
+  напряжения на катушке и конденсаторе в $Q=\\dfrac1R\\sqrt{\\dfrac LC}$ раз больше напряжения генератора
+  (резонанс напряжений). На этом стоит настройка радиоприёмника: меняя ёмкость, подгоняют $\\omega_0$ к частоте
+  нужной станции, и лишь её сигнал раскачивает контур.</div>
+
+  <h3 class="sub">Мощность и cos φ</h3>
+  <p>Мгновенная мощность $p=ui$ то положительна, то отрицательна: часть энергии генератор отдаёт, а катушка
+  и конденсатор возвращают её обратно. В среднем остаётся</p>
+  <div class="callout">$P=UI\\cos\\varphi$. Множитель $\\cos\\varphi$ называют коэффициентом мощности. При
+  $\\varphi=90^\\circ$ ток по проводам течёт, а работы нет — провода только греются. Поэтому энергосистемы
+  следят, чтобы у крупных потребителей $\\cos\\varphi$ был близок к единице.</div>`,
+  time:45,
+  needs:['em.induction','el.statics','mech.osc'],
+  why:`Весь электрический мир работает на переменном токе. Катушка и конденсатор в такой цепи не просто
+    «сопротивляются» — они сдвигают фазу, и от этого напряжения складываются как векторы. Отсюда резонанс,
+    на котором стоят радио, фильтры и беспроводная зарядка.`,
+  derivations:[
+    {
+      goal:'X_L=\\omega L',
+      from:['\\mathcal{E}=-L\\dfrac{dI}{dt}','i=I_0\\sin\\omega t'],
+      steps:[
+        {tex:'u_L=L\\dfrac{di}{dt}',
+         why:'напряжение на катушке уравновешивает ЭДС самоиндукции',
+         op:['физика']},
+        {tex:'u_L=\\omega LI_0\\cos\\omega t=\\omega LI_0\\sin\\left(\\omega t+\\dfrac{\\pi}{2}\\right)',
+         why:'продифференцировали синус; косинус — тот же синус, сдвинутый на четверть периода вперёд',
+         op:['производная','фаза']},
+        {tex:'U_0=\\omega L\\,I_0\\ \\Rightarrow\\ X_L=\\omega L',
+         why:'отношение амплитуд играет роль сопротивления. Оно растёт с частотой: чем быстрее меняется ток, тем сильнее сопротивляется катушка',
+         op:['отношение','обозначение']}
+      ],
+      sim:'rlc'
+    },
+    {
+      goal:'X_C=\\dfrac{1}{\\omega C}',
+      from:['q=CU','u=U_0\\sin\\omega t'],
+      steps:[
+        {tex:'q=CU_0\\sin\\omega t',
+         why:'заряд конденсатора следует за напряжением',
+         op:['физика','подстановка']},
+        {tex:'i=\\dfrac{dq}{dt}=\\omega CU_0\\cos\\omega t=\\omega CU_0\\sin\\left(\\omega t+\\dfrac{\\pi}{2}\\right)',
+         why:'ток — скорость изменения заряда. Он опережает напряжение на четверть периода',
+         op:['производная','фаза']},
+        {tex:'I_0=\\omega CU_0\\ \\Rightarrow\\ X_C=\\dfrac{U_0}{I_0}=\\dfrac{1}{\\omega C}',
+         why:'чем выше частота, тем меньше сопротивление: конденсатор не успевает зарядиться и почти не мешает току',
+         op:['выразить','обозначение']}
+      ],
+      sim:'rlc'
+    },
+    {
+      goal:'Z=\\sqrt{R^2+(X_L-X_C)^2}',
+      from:['X_L=\\omega L','X_C=\\dfrac{1}{\\omega C}'],
+      steps:[
+        {tex:'\\vec U_0=\\vec U_R+\\vec U_L+\\vec U_C',
+         why:'ток общий для всех элементов; напряжения — вращающиеся векторы, их мгновенные значения складываются как проекции',
+         op:['физика']},
+        {tex:'U_R=I_0R,\\quad U_L-U_C=I_0(X_L-X_C)',
+         why:'$\\vec U_R$ направлен вдоль тока, $\\vec U_L$ и $\\vec U_C$ перпендикулярны ему и противоположны друг другу',
+         op:['проекция']},
+        {tex:'U_0^2=I_0^2R^2+I_0^2(X_L-X_C)^2',
+         why:'катеты прямоугольного треугольника на векторной диаграмме',
+         op:['геометрия']},
+        {tex:'Z=\\dfrac{U_0}{I_0}=\\sqrt{R^2+(X_L-X_C)^2}',
+         why:'вынесли $I_0$ из-под корня и поделили',
+         op:['выразить','степени']}
+      ],
+      sim:'rlc'
+    },
+    {
+      goal:'\\omega_0=\\dfrac{1}{\\sqrt{LC}}',
+      from:['Z=\\sqrt{R^2+(X_L-X_C)^2}'],
+      steps:[
+        {tex:'I_0=\\dfrac{U_0}{Z}\\ \\text{максимален при}\\ Z_{\\min}',
+         why:'амплитуда генератора задана, ток решает знаменатель',
+         op:['экстремум']},
+        {tex:'Z_{\\min}=R\\ \\text{при}\\ X_L=X_C',
+         why:'$R$ от частоты не зависит, а квадрат разности не меньше нуля и обращается в ноль, когда реактивные сопротивления равны',
+         op:['неравенство']},
+        {tex:'\\omega_0L=\\dfrac{1}{\\omega_0C}\\ \\Rightarrow\\ \\omega_0=\\dfrac{1}{\\sqrt{LC}}',
+         why:'та же частота, что у свободных колебаний контура: генератор раскачивает его в такт',
+         op:['выразить','степени']}
+      ],
+      sim:'rlc'
+    },
+    {
+      goal:'P=UI\\cos\\varphi',
+      from:['u=U_0\\sin\\omega t','i=I_0\\sin(\\omega t-\\varphi)'],
+      steps:[
+        {tex:'p=ui=U_0I_0\\sin\\omega t\\,\\sin(\\omega t-\\varphi)',
+         why:'мгновенная мощность — произведение мгновенных значений',
+         op:['физика']},
+        {tex:'p=\\tfrac12U_0I_0\\left[\\cos\\varphi-\\cos(2\\omega t-\\varphi)\\right]',
+         why:'произведение синусов переписали через косинусы разности и суммы',
+         op:['тождества']},
+        {tex:'\\langle p\\rangle=\\tfrac12U_0I_0\\cos\\varphi',
+         why:'за период среднее от $\\cos(2\\omega t-\\varphi)$ равно нулю — эта часть энергии ходит туда-обратно',
+         op:['среднее']},
+        {tex:'P=\\dfrac{U_0}{\\sqrt2}\\cdot\\dfrac{I_0}{\\sqrt2}\\cos\\varphi=UI\\cos\\varphi',
+         why:'разложили $\\tfrac12$ на два множителя $1/\\sqrt2$ — получились действующие значения',
+         op:['обозначение']}
+      ],
+      sim:'rlc'
+    }
+  ],
+  formulas:[
+    {tex:'U=\\dfrac{U_0}{\\sqrt2},\\quad I=\\dfrac{I_0}{\\sqrt2}', kind:'определение',
+     note:'Действующие значения: постоянный ток с тем же тепловым действием. 220 В в сети — это $U$; амплитуда 311 В.', sim:'rlc'},
+    {tex:'X_L=\\omega L', kind:'следствие',
+     note:'Индуктивное сопротивление: растёт с частотой. Напряжение на катушке опережает ток на $90^\\circ$.', sim:'rlc'},
+    {tex:'X_C=\\dfrac{1}{\\omega C}', kind:'следствие',
+     note:'Ёмкостное сопротивление: падает с частотой. Напряжение на конденсаторе отстаёт от тока на $90^\\circ$.', sim:'rlc'},
+    {tex:'Z=\\sqrt{R^2+(X_L-X_C)^2}', kind:'следствие',
+     note:'Полное сопротивление последовательной RLC-цепи — из векторной диаграммы.', sim:'rlc'},
+    {tex:'I_0=\\dfrac{U_0}{Z},\\quad \\operatorname{tg}\\varphi=\\dfrac{X_L-X_C}{R}', kind:'закон',
+     note:'Закон Ома для переменного тока и сдвиг фаз между током и напряжением генератора.', sim:'rlc'},
+    {tex:'\\omega_0=\\dfrac{1}{\\sqrt{LC}}', kind:'следствие',
+     note:'Резонансная частота: $X_L=X_C$, ток максимален и совпадает по фазе с напряжением.', sim:'rlc'},
+    {tex:'Q=\\dfrac{1}{R}\\sqrt{\\dfrac{L}{C}}', kind:'определение',
+     note:'Добротность контура: во сколько раз при резонансе напряжение на $L$ или $C$ больше напряжения генератора.', sim:'rlc'},
+    {tex:'P=UI\\cos\\varphi', kind:'следствие',
+     note:'Средняя мощность. Тепло выделяется только на $R$; катушка и конденсатор энергию возвращают.', sim:'rlc'}
+  ],
+  examples:[
+    {
+      task:`В сеть $220$ В, $50$ Гц последовательно включены резистор $R=40$ Ом, катушка $L=0{,}3$ Гн и
+        конденсатор $C=40$ мкФ. Найдите действующий ток, сдвиг фаз и потребляемую мощность. На какой частоте
+        в этой цепи был бы резонанс?`,
+      method:'реактивные сопротивления, затем полное сопротивление и закон Ома',
+      steps:[
+        {text:'Круговая частота и реактивные сопротивления:',
+         tex:'\\omega=2\\pi\\cdot50=314\\ \\text{с}^{-1},\\quad X_L=314\\cdot0{,}3=94{,}2\\ \\text{Ом},\\quad X_C=\\dfrac{1}{314\\cdot4\\cdot10^{-5}}=79{,}6\\ \\text{Ом}'},
+        {text:'Полное сопротивление — по векторной диаграмме:',
+         tex:'Z=\\sqrt{40^2+(94{,}2-79{,}6)^2}=\\sqrt{1600+213}=42{,}6\\ \\text{Ом}'},
+        {text:'Закон Ома работает и для действующих значений:',
+         tex:'I=\\dfrac{U}{Z}=\\dfrac{220}{42{,}6}=5{,}16\\ \\text{А}'},
+        {text:'Сдвиг фаз: $X_L>X_C$, цепь ведёт себя как катушка, ток отстаёт.',
+         tex:'\\operatorname{tg}\\varphi=\\dfrac{14{,}6}{40}=0{,}366\\ \\Rightarrow\\ \\varphi=20{,}1^\\circ,\\ \\cos\\varphi=0{,}939'},
+        {text:'Мощность — либо по общей формуле, либо как тепло на резисторе (должно совпасть):',
+         tex:'P=UI\\cos\\varphi=220\\cdot5{,}16\\cdot0{,}939=1066\\ \\text{Вт}=I^2R'},
+        {text:'Резонансная частота:',
+         tex:'f_0=\\dfrac{1}{2\\pi\\sqrt{0{,}3\\cdot4\\cdot10^{-5}}}=45{,}9\\ \\text{Гц}'},
+        {text:'Проверка на разумность: 50 Гц чуть выше резонанса — поэтому $X_L$ немного больше $X_C$ и сдвиг фаз невелик.'}
+      ],
+      answer:'$I=5{,}16$ А, $\\varphi=20^\\circ$ (ток отстаёт), $P\\approx1{,}07$ кВт, $f_0=45{,}9$ Гц',
+      check:'поставьте в симуляции $R=40$, $L=300$ мГн, $C=40$ мкФ, $f=50$ Гц: полное сопротивление и сдвиг фаз совпадут с расчётом. Напряжение там не больше 50 В, поэтому ток будет меньше — во столько же раз.',
+      sim:'rlc'
+    }
+  ],
+  mistakes:[
+    {wrong:'В розетке 220 В — значит, напряжение в ней не превышает 220 В.',
+     right:'220 В — действующее значение. Амплитуда $220\\sqrt2\\approx311$ В, и изоляцию рассчитывают на неё.',
+     why:'Действующее значение описывает тепловое действие, а не пик. Сто раз в секунду напряжение проходит через ноль и сто раз поднимается до 311 В.'},
+    {wrong:'Сопротивления в цепи переменного тока складываются: $Z=R+X_L+X_C$.',
+     right:'Складываются векторы: $Z=\\sqrt{R^2+(X_L-X_C)^2}$. $X_L$ и $X_C$ вычитаются, а с $R$ складываются «по Пифагору».',
+     why:'Напряжения на элементах достигают максимума в разные моменты. Сумма амплитуд имела бы смысл, только если бы все пики совпадали по времени.'},
+    {wrong:'Напряжение на отдельном элементе не может быть больше напряжения генератора.',
+     right:'При резонансе напряжения на $L$ и $C$ бывают в десятки раз больше $U_0$ — резонанс напряжений.',
+     why:'Они направлены противоположно и почти полностью гасят друг друга в сумме. Генератор лишь восполняет потери на $R$, а энергия качается между катушкой и конденсатором.'},
+    {wrong:'Конденсатор тока не пропускает — через разрыв между пластинами заряды не текут.',
+     right:'Постоянный — не пропускает. Переменный — пропускает, и тем лучше, чем выше частота: $X_C=1/(\\omega C)$.',
+     why:'Заряды к пластинам то приходят, то уходят, и в проводах цепи течёт настоящий ток. Между пластинами его продолжает ток смещения — та самая добавка Максвелла.'},
+    {wrong:'Раз ток в цепи есть, генератор отдаёт мощность $UI$.',
+     right:'Средняя мощность $UI\\cos\\varphi$. При сдвиге фаз $90^\\circ$ ток течёт, а энергия не расходуется.',
+     why:'Катушка и конденсатор весь период то берут энергию, то возвращают. Тепло уходит только на активном сопротивлении: $P=I^2R$.'}
+  ],
+  checks:[
+    {q:'Почему сопротивление катушки растёт с частотой, а конденсатора — падает?',
+     a:'ЭДС самоиндукции пропорциональна скорости изменения тока — чем выше частота, тем сильнее катушка сопротивляется. Конденсатор же за короткий полупериод не успевает зарядиться и почти не мешает току.'},
+    {q:'Что происходит при резонансе с током и сдвигом фаз?',
+     a:'$X_L=X_C$, полное сопротивление равно $R$, ток максимален и идёт в фазе с напряжением генератора.'},
+    {q:'Почему резонансная кривая при большом $R$ пологая?',
+     a:'При резонансе $I_0=U_0/R$ — с ростом $R$ максимум ниже. А вдали от резонанса ток задают реактивные сопротивления, от $R$ почти не зависящие. Пик сглаживается.'}
+  ],
+  links:[
+    {to:'em.induction', text:'Переменная ЭДС генератора и сопротивление катушки — оба следствия закона Фарадея.'},
+    {to:'mech.osc', text:'Резонанс в контуре — точная копия вынужденных колебаний груза: $L$ играет роль массы, $1/C$ — жёсткости, $R$ — трения.'},
+    {to:'el.statics', text:'Конденсатор из электростатики здесь работает «в движении»: заряжается и разряжается сто раз в секунду.'},
+    {to:'em.radiation', text:'Ток смещения, продолжающий ток между пластинами конденсатора, — тот самый шаг, что привёл Максвелла к электромагнитным волнам.'}
+  ],
+  problems:[
+    {level:1, sim:'rlc', unit:'Ом',
+     statement:`Чему равно индуктивное сопротивление катушки $X_L$ на частоте генератора?`,
+     hint:'$X_L=\\omega L=2\\pi fL$; индуктивность дана в миллигенри.',
+     answer:p=>2*Math.PI*p.f*p.L*1e-3},
+
+    {level:2, sim:'rlc', unit:'Гц',
+     statement:`На какой частоте генератора в этой цепи наступит резонанс?`,
+     hint:'$f_0=\\dfrac{1}{2\\pi\\sqrt{LC}}$.',
+     answer:p=>1/(2*Math.PI*Math.sqrt(p.L*1e-3*p.C*1e-6))},
+
+    {level:2, sim:'rlc', unit:'А',
+     statement:`Какой будет амплитуда тока, если настроить генератор точно в резонанс?`,
+     hint:'При резонансе $Z=R$.',
+     answer:p=>p.U0/p.R},
+
+    {level:3, sim:'rlc', unit:'В',
+     statement:`Какова амплитуда напряжения на конденсаторе при резонансе? Сравните её с $U_0$.`,
+     hint:'$U_C=I_0X_C$, где при резонансе $I_0=U_0/R$ и $X_C=\\sqrt{L/C}$.',
+     answer:p=>p.U0/p.R*Math.sqrt(p.L*1e-3/(p.C*1e-6))},
+
+    {level:4, sim:'rlc', unit:'Гц',
+     statement:`Ниже резонансной частоты найдите частоту, на которой амплитуда тока вдвое меньше, чем при резонансе.`,
+     hint:'Нужно $Z=2R$, то есть $X_C-X_L=\\sqrt3R$. Получится квадратное уравнение для $\\omega$.',
+     answer:p=>{ const R=p.R, L=p.L*1e-3, C=p.C*1e-6;
+       const w=(-Math.sqrt(3)*R+Math.sqrt(3*R*R+4*L/C))/(2*L); return w/(2*Math.PI); }}
+  ]
+};
+
+/* ======================= СПЕЦИАЛЬНАЯ ТЕОРИЯ ОТНОСИТЕЛЬНОСТИ =======================
+   Тема добавлена в 3.0.0. У Орира её нет отдельной главой — формулы СТО
+   встречаются в квантовой части мимоходом (E = γmc², порог рождения
+   пар). Здесь они получают свой фундамент: два постулата и световые часы. */
+const T_rel={
+  id:'rel.sr', ch:'20а', title:'Специальная теория относительности',
+  key:[
+    `Два постулата: законы физики одинаковы во всех инерциальных системах, и скорость света в вакууме $c$ для всех одна и та же.`,
+    `Движущиеся часы идут медленнее: $\\Delta t=\\gamma\\Delta t_0$, где $\\gamma=1/\\sqrt{1-v^2/c^2}\\ge1$.`,
+    `Движущийся стержень короче вдоль направления движения: $L=L_0/\\gamma$. Поперёк — без изменений.`,
+    `События, одновременные для одного наблюдателя, не одновременны для другого. Скорости складываются по правилу $u=\\dfrac{v+u'}{1+vu'/c^2}$ — и никогда не превышают $c$.`,
+    `Энергия $E=\\gamma mc^2$ растёт без предела, а скорость упирается в $c$. Для всех наблюдателей одинаково $E^2-(pc)^2=(mc^2)^2$.`,
+  ],
+  explore:[
+    {sim:'lightclock', do:`Поставьте $v=0{,}87c$ и дождитесь нескольких тиков`, see:`движущиеся часы тикают вдвое реже, а стержень стал вдвое короче: $\\gamma=2$`},
+    {sim:'minkowski', do:`Сложите $0{,}9c$ и $0{,}9c$`, see:`по Галилею $1{,}8c$, на самом деле $0{,}994c$ — мировая линия снаряда не выходит из светового конуса`},
+    {sim:'relmotion', do:`Включите остановку на $v/c=0{,}99$`, see:`импульс рос равномерно всё время, а скорость давно почти не меняется; по Ньютону частица летела бы уже в семь раз быстрее света`},
+  ],
+  theory:`
+  <p>К концу XIX века физика стояла на двух столпах: механике Ньютона и электродинамике Максвелла. И между
+  ними была трещина. В механике скорости складываются: мяч, брошенный вперёд из поезда, летит относительно
+  земли быстрее, чем относительно вагона. А уравнения Максвелла дают скорость света
+  $c=1/\\sqrt{\\varepsilon_0\\mu_0}$ — одно число, без указания, относительно чего. Опыт Майкельсона — Морли
+  (1887) искал разницу в скорости света «по ходу» движения Земли и «поперёк» и не нашёл никакой.</p>
+
+  <h3 class="sub">Два постулата</h3>
+  <p>Эйнштейн в 1905 году предложил не чинить трещину, а принять оба факта всерьёз:</p>
+  <ol>
+    <li><strong>Принцип относительности.</strong> Законы физики одинаковы во всех инерциальных системах отсчёта.
+    Никаким опытом внутри равномерно движущегося корабля нельзя узнать, что он движется.</li>
+    <li><strong>Постоянство скорости света.</strong> Скорость света в вакууме одна и та же для всех наблюдателей,
+    как бы ни двигались источник и приёмник.</li>
+  </ol>
+  <p>Каждый постулат по отдельности выглядит безобидно. Вместе они заставляют отказаться от одного абсолютного
+  времени на всю Вселенную. Всё остальное в теме — аккуратные следствия.</p>
+
+  <h3 class="sub">Световые часы: замедление времени</h3>
+  <p>Самые простые часы — вспышка света между двумя зеркалами на расстоянии $L_0$. Один тик — путь туда и
+  обратно: $\\Delta t_0=2L_0/c$. Пусть такие часы летят мимо нас со скоростью $v$. Мы видим, что свет идёт
+  не вертикально, а по диагонали: пока он летит вверх, верхнее зеркало успевает сместиться. Путь длиннее,
+  а скорость света — по второму постулату — та же. Значит, тик у движущихся часов для нас длиннее:</p>
+  <div class="callout">$\\Delta t=\\gamma\\,\\Delta t_0,\\qquad \\gamma=\\dfrac{1}{\\sqrt{1-v^2/c^2}}$. При $v=0{,}6c$
+  множитель $\\gamma=1{,}25$, при $0{,}87c$ — уже 2, при $0{,}99c$ — около 7. Это касается не только световых
+  часов: если бы механические часы в той же кабине шли иначе, пассажир узнал бы о своём движении, а первый
+  постулат это запрещает. Замедляется само время — пульс, распад частиц, старение.</div>
+  <p>Время $\\Delta t_0$, которое показывают часы, покоящиеся относительно события, называется
+  <strong>собственным</strong>. Оно всегда самое короткое.</p>
+
+  <h3 class="sub">Мюоны и GPS: это не мысленный опыт</h3>
+  <p>Мюоны рождаются в верхних слоях атмосферы, на высоте около 15 км, и живут в среднем 2,2 мкс. Даже летя
+  почти со скоростью света, за это время можно пролететь лишь 660 м — до земли не долетел бы почти никто.
+  Но детекторы на уровне моря ловят их в изобилии: для нас их часы замедлены примерно в 10 раз. Спутники
+  GPS летят со скоростью около 3,9 км/с, и их часы из-за движения отстают на 7 микросекунд в сутки
+  (а из-за более слабого тяготения на высоте, по общей теории относительности, спешат на 45 мкс). Без этих
+  поправок навигатор ошибался бы на километры за день.</p>
+
+  <h3 class="sub">Сокращение длины</h3>
+  <p>С точки зрения самого мюона его часы идут нормально. Как же он успевает? Для него навстречу летит
+  атмосфера — и она сжата в $\\gamma$ раз: 15 км превращаются в полтора. Два описания разные, ответ один:
+  мюон долетает. Движущийся стержень короче своей <strong>собственной длины</strong> $L_0$:</p>
+  <div class="callout">$L=\\dfrac{L_0}{\\gamma}$. Сокращается только размер вдоль движения. Поперечные
+  размеры не меняются — иначе два встречных поезда спорили бы, кто из них въедет в тоннель другого.</div>
+
+  <h3 class="sub">Одновременность относительна</h3>
+  <p>В середине вагона вспыхивает лампа. Для пассажира свет доходит до переднего и заднего концов
+  одновременно. Для наблюдателя на платформе задняя стенка едет навстречу свету, а передняя убегает, —
+  и свет достигает задней стенки раньше. Одни и те же два события одновременны для одного и не одновременны
+  для другого. Если в движущейся системе события разнесены на $\\Delta x'$ и одновременны, то для нас между
+  ними проходит $\\Delta t=\\gamma v\\Delta x'/c^2$.</p>
+  <p>Нагляднее всего это на <strong>диаграмме Минковского</strong>: по горизонтали — положение $x$, по
+  вертикали — время, умноженное на $c$. Свет идёт по диагоналям под $45^\\circ$. Оси движущейся системы
+  наклоняются к диагонали, как ножницы, и линии «одновременно для ракеты» оказываются косыми. При этом
+  одна величина одинакова для всех: <strong>интервал</strong> $s^2=(c\\Delta t)^2-\\Delta x^2$.</p>
+
+  <h3 class="sub">Сложение скоростей</h3>
+  <p>Ракета летит со скоростью $v$, из неё вперёд выпускают снаряд со скоростью $u'$ относительно ракеты.
+  По Галилею снаряд летит со скоростью $v+u'$, и при $0{,}6c+0{,}6c$ получилось бы $1{,}2c$. Верный ответ даёт
+  преобразование Лоренца:</p>
+  <div class="callout">$u=\\dfrac{v+u'}{1+vu'/c^2}$. Проверьте крайний случай: при $u'=c$ получается ровно $c$ —
+  свет, пущенный из ракеты, летит для всех со скоростью света. А при малых скоростях знаменатель почти равен
+  единице, и возвращается привычное правило Галилея.</div>
+
+  <h3 class="sub">Импульс и энергия</h3>
+  <p>Если сохранять старое определение $p=mv$, закон сохранения импульса перестаёт выполняться в одних
+  системах, если выполнялся в других. Спасает множитель $\\gamma$:
+  $p=\\gamma mv$, $E=\\gamma mc^2$. Масса $m$ здесь — одна и та же, неизменная характеристика частицы
+  (раньше говорили о «растущей релятивистской массе», сейчас так не говорят). Растут энергия и импульс.</p>
+  <p>Отсюда самая известная формула физики: даже покоящаяся частица обладает энергией
+  $E_0=mc^2$ — <strong>энергией покоя</strong>. Кинетическая энергия — это надбавка к ней:
+  $K=(\\gamma-1)mc^2$, и при малых скоростях она совпадает с $\\tfrac12mv^2$.</p>
+  <div class="callout">Постоянная сила увеличивает импульс равномерно: $p=Ft$. Но так как $\\gamma\\to\\infty$ при
+  $v\\to c$, скорость лишь приближается к $c$ и никогда её не достигает. На разгон до самой скорости света
+  нужна бесконечная энергия. Поэтому ускорители наращивают энергию частиц, а их скорость меняется в
+  девятом знаке: протон на Большом адронном коллайдере отстаёт от света на 3 м/с.</div>
+
+  <h3 class="sub">Когда нужна теория относительности</h3>
+  <p>Поправка определяется отношением $v^2/c^2$. Для самолёта это $10^{-12}$, для спутника — $10^{-10}$:
+  механика Ньютона верна с огромной точностью, и ею продолжают пользоваться. СТО не отменяет её, а
+  указывает границу применимости: частицы в ускорителях, космические лучи, точные часы. И она же даёт
+  ключ к ядерной энергии: $E=mc^2$ говорит, что масса — это форма энергии.</p>`,
+  time:50,
+  needs:['em.radiation','mech.energy'],
+  why:`Уравнения Максвелла дают скорость света без указания, относительно чего она измерена, и опыт
+    подтверждает: она одна для всех. Приняв это всерьёз, приходится отказаться от общего для всех
+    времени. Отсюда — замедление часов, сокращение длины, предел скорости и формула $E=mc^2$.`,
+  derivations:[
+    {
+      goal:'\\Delta t=\\gamma\\,\\Delta t_0',
+      from:['c=\\text{const}','a^2+b^2=c^2'],
+      steps:[
+        {tex:'\\Delta t_0=\\dfrac{2L_0}{c}',
+         why:'в системе самих часов свет идёт вверх-вниз, путь туда и обратно — $2L_0$',
+         op:['физика']},
+        {tex:'\\left(\\dfrac{c\\,\\Delta t}{2}\\right)^2=L_0^2+\\left(\\dfrac{v\\,\\Delta t}{2}\\right)^2',
+         why:'для нас свет идёт по диагонали: пока он летит вверх, часы смещаются на $v\\Delta t/2$. Скорость света по второму постулату та же — $c$. Треугольник прямоугольный',
+         op:['геометрия','физика']},
+        {tex:'\\Delta t^2\\,(c^2-v^2)=4L_0^2',
+         why:'умножили обе части на 4 и собрали слагаемые с $\\Delta t$',
+         op:['обе-части','скобки']},
+        {tex:'\\Delta t=\\dfrac{2L_0/c}{\\sqrt{1-v^2/c^2}}',
+         why:'выразили $\\Delta t$ и вынесли $c^2$ из-под корня',
+         op:['выразить','степени']},
+        {tex:'\\Delta t=\\gamma\\,\\Delta t_0',
+         why:'в числителе — тик часов в покое, а $1/\\sqrt{1-v^2/c^2}$ обозначили $\\gamma$. Так как $\\gamma\\ge1$, движущиеся часы тикают реже',
+         op:['подстановка','обозначение']}
+      ],
+      sim:'lightclock'
+    },
+    {
+      goal:'L=\\dfrac{L_0}{\\gamma}',
+      from:['\\Delta t=\\gamma\\,\\Delta t_0'],
+      steps:[
+        {tex:'\\Delta t=\\dfrac{L_0}{v}',
+         why:'в системе стержня ракета пролетает вдоль него путь $L_0$ со скоростью $v$',
+         op:['физика']},
+        {tex:'\\Delta t_0=\\dfrac{\\Delta t}{\\gamma}',
+         why:'для ракеты оба события — «нос у начала стержня» и «нос у конца» — происходят в одной точке. Часы ракеты показывают собственное время',
+         op:['подстановка']},
+        {tex:'L=v\\,\\Delta t_0=\\dfrac{v}{\\gamma}\\cdot\\dfrac{L_0}{v}',
+         why:'для ракеты стержень пролетает мимо с той же скоростью $v$ за время $\\Delta t_0$',
+         op:['физика','подстановка']},
+        {tex:'L=\\dfrac{L_0}{\\gamma}',
+         why:'скорость сократилась. Стержень короче в $\\gamma$ раз — ровно во столько, во сколько часы медленнее, и два описания согласуются',
+         op:['сократить']}
+      ],
+      sim:'lightclock'
+    },
+    {
+      goal:'u=\\dfrac{v+u\'}{1+vu\'/c^2}',
+      from:['x=\\gamma(x\'+vt\')','t=\\gamma\\left(t\'+\\dfrac{vx\'}{c^2}\\right)'],
+      steps:[
+        {tex:'x=\\gamma(x\'+vt\'),\\quad t=\\gamma\\left(t\'+\\dfrac{vx\'}{c^2}\\right)',
+         why:'преобразования Лоренца — единственные линейные преобразования, при которых скорость света одна для обеих систем',
+         op:['физика']},
+        {tex:'x=\\gamma t\'(u\'+v),\\quad t=\\gamma t\'\\left(1+\\dfrac{vu\'}{c^2}\\right)',
+         why:'снаряд в ракете движется равномерно: $x\'=u\'t\'$. Подставили и вынесли $t\'$',
+         op:['подстановка','скобки']},
+        {tex:'u=\\dfrac{x}{t}=\\dfrac{v+u\'}{1+vu\'/c^2}',
+         why:'поделили путь на время; $\\gamma t\'$ сократилось',
+         op:['отношение','сократить']},
+        {tex:'u\'=c:\\quad u=\\dfrac{v+c}{1+v/c}=c',
+         why:'свет, пущенный из ракеты, для нас тоже летит со скоростью $c$ — второй постулат не нарушен',
+         op:['крайний-случай']},
+        {tex:'vu\'\\ll c^2:\\quad u\\approx v+u\'',
+         why:'при обычных скоростях поправка в знаменателе ничтожна — возвращается правило Галилея',
+         op:['пренебречь']}
+      ],
+      sim:'minkowski'
+    },
+    {
+      goal:'E^2=(pc)^2+(mc^2)^2',
+      from:['E=\\gamma mc^2','p=\\gamma mv'],
+      steps:[
+        {tex:'E^2-(pc)^2=\\gamma^2m^2c^4-\\gamma^2m^2v^2c^2',
+         why:'подставили энергию и импульс и возвели в квадрат',
+         op:['подстановка','степени']},
+        {tex:'E^2-(pc)^2=\\gamma^2m^2c^4\\left(1-\\dfrac{v^2}{c^2}\\right)',
+         why:'вынесли общий множитель',
+         op:['скобки']},
+        {tex:'E^2-(pc)^2=m^2c^4',
+         why:'по определению $\\gamma^2(1-v^2/c^2)=1$. Скорость пропала: разность одна и та же для всех наблюдателей',
+         op:['сократить','обозначение']},
+        {tex:'E^2=(pc)^2+(mc^2)^2',
+         why:'перенесли слагаемое. При $m=0$ отсюда $E=pc$ — энергия и импульс фотона',
+         op:['обе-части','крайний-случай']}
+      ],
+      sim:'relmotion'
+    },
+    {
+      goal:'K=(\\gamma-1)mc^2',
+      from:['E^2=(pc)^2+(mc^2)^2','F=\\dfrac{dp}{dt}'],
+      steps:[
+        {tex:'2E\\,dE=2pc^2\\,dp',
+         why:'продифференцировали связь энергии и импульса; масса постоянна',
+         op:['дифференциал']},
+        {tex:'dE=\\dfrac{pc^2}{E}\\,dp=v\\,dp',
+         why:'$\\dfrac{pc^2}{E}=\\dfrac{\\gamma mvc^2}{\\gamma mc^2}=v$',
+         op:['подстановка','сократить']},
+        {tex:'dK=F\\,dx=\\dfrac{dp}{dt}\\,dx=v\\,dp',
+         why:'кинетическая энергия растёт на работу силы, а сила — это скорость изменения импульса',
+         op:['физика','дифференциал']},
+        {tex:'dK=dE\\ \\Rightarrow\\ K=E-mc^2=(\\gamma-1)mc^2',
+         why:'проинтегрировали от покоя: при $v=0$ кинетической энергии нет, а $E=mc^2$',
+         op:['интеграл','граничное']},
+        {tex:'v\\ll c:\\quad K\\approx\\tfrac12mv^2',
+         why:'$\\gamma=(1-v^2/c^2)^{-1/2}\\approx1+\\tfrac12v^2/c^2$ — и получается знакомая формула Ньютона',
+         op:['разложение']}
+      ],
+      sim:'relmotion'
+    }
+  ],
+  formulas:[
+    {tex:'c\'=c', kind:'закон',
+     note:'Второй постулат: скорость света в вакууме одинакова во всех инерциальных системах отсчёта.', sim:'minkowski'},
+    {tex:'\\gamma=\\dfrac{1}{\\sqrt{1-v^2/c^2}}', kind:'определение',
+     note:'Лоренц-фактор. Равен 1 в покое, 1,25 при $0{,}6c$, 2 при $0{,}87c$ и неограниченно растёт при $v\\to c$.', sim:'lightclock'},
+    {tex:'\\Delta t=\\gamma\\,\\Delta t_0', kind:'следствие',
+     note:'Замедление времени. $\\Delta t_0$ — собственное время по часам, покоящимся относительно событий.', sim:'lightclock'},
+    {tex:'L=\\dfrac{L_0}{\\gamma}', kind:'следствие',
+     note:'Сокращение длины вдоль движения. $L_0$ — собственная длина, измеренная в системе, где тело покоится.', sim:'lightclock'},
+    {tex:'\\Delta t=\\gamma\\dfrac{v\\,\\Delta x\'}{c^2}', kind:'следствие',
+     note:'Относительность одновременности: события, одновременные в движущейся системе на расстоянии $\\Delta x\'$, для нас разнесены во времени.', sim:'minkowski'},
+    {tex:'u=\\dfrac{v+u\'}{1+vu\'/c^2}', kind:'следствие',
+     note:'Релятивистское сложение скоростей вдоль одной прямой. Никогда не даёт больше $c$.', sim:'minkowski'},
+    {tex:'s^2=(c\\Delta t)^2-\\Delta x^2', kind:'определение',
+     note:'Интервал между событиями — одинаков для всех инерциальных наблюдателей.', sim:'minkowski'},
+    {tex:'p=\\gamma mv', kind:'определение',
+     note:'Релятивистский импульс. Постоянная сила увеличивает его равномерно: $p=Ft$.', sim:'relmotion'},
+    {tex:'E=\\gamma mc^2,\\quad K=(\\gamma-1)mc^2', kind:'следствие',
+     note:'Полная и кинетическая энергия. В покое остаётся энергия покоя $mc^2$.', sim:'relmotion'},
+    {tex:'E^2=(pc)^2+(mc^2)^2', kind:'следствие',
+     note:'Связь энергии и импульса. При $m=0$ даёт $E=pc$ — для фотона.', sim:'relmotion'}
+  ],
+  examples:[
+    {
+      task:`Мюоны рождаются на высоте $15$ км и летят вниз со скоростью $v=0{,}995c$. Среднее время жизни мюона
+        в покое $\\tau_0=2{,}2$ мкс. Какая доля мюонов долетит до земли? Сравните с ответом без теории
+        относительности и объясните результат с точки зрения самого мюона.`,
+      method:'сначала множитель γ, затем закон распада в двух системах отсчёта',
+      steps:[
+        {text:'Множитель Лоренца:',
+         tex:'\\gamma=\\dfrac{1}{\\sqrt{1-0{,}995^2}}=\\dfrac{1}{\\sqrt{0{,}009975}}=10{,}0'},
+        {text:'Время полёта до земли по нашим часам:',
+         tex:'t=\\dfrac{15\\,000}{0{,}995\\cdot3\\cdot10^8}=50{,}3\\ \\text{мкс}'},
+        {text:'Для нас часы мюона замедлены: его время жизни $\\gamma\\tau_0=22{,}0$ мкс. Доля не распавшихся:',
+         tex:'e^{-t/\\gamma\\tau_0}=e^{-50{,}3/22{,}0}=e^{-2{,}28}=0{,}102'},
+        {text:'Без замедления времени получилось бы ничтожное число:',
+         tex:'e^{-50{,}3/2{,}2}=e^{-22{,}8}\\approx1\\cdot10^{-10}'},
+        {text:'Для самого мюона время идёт как обычно, но атмосфера сжата в $\\gamma$ раз: $15/10{,}0=1{,}50$ км. Он пролетает её за собственное время',
+         tex:'\\tau=\\dfrac{1500}{0{,}995\\cdot3\\cdot10^8}=5{,}02\\ \\text{мкс}=2{,}28\\,\\tau_0'},
+        {text:'Проверка: в обеих системах мюон живёт одно и то же число средних времён жизни — 2,28. Описания разные, наблюдаемый результат один.'}
+      ],
+      answer:'долетает около $10\\,\\%$ мюонов вместо $10^{-10}$; для мюона атмосфера толщиной $1{,}5$ км',
+      check:'в «Световых часах» поставьте $v=0{,}99c$: $\\gamma\\approx7$. При $0{,}995c$ (между делениями ползунка) было бы 10 — движущиеся часы тикают в 10 раз реже.',
+      sim:'lightclock'
+    }
+  ],
+  mistakes:[
+    {wrong:'Движущиеся часы отстают, потому что движение сбивает их механизм.',
+     right:'Замедляется само время: одинаково для световых, механических и биологических часов. Механизм тут ни при чём.',
+     why:'Если бы разные часы замедлялись по-разному, пассажир сравнил бы их и узнал, что движется, — а первый постулат это запрещает. К тому же эффект симметричен: для пассажира отстают как раз наши часы.'},
+    {wrong:'Сокращение длины — оптическая иллюзия, на самом деле стержень прежний.',
+     right:'Это результат измерения: концы движущегося стержня, отмеченные одновременно по нашим часам, отстоят на $L_0/\\gamma$.',
+     why:'«На самом деле» в теории относительности означает «в какой-то системе отсчёта». Длина зависит от системы так же, как скорость. Мюоны, долетающие до земли, — прямое следствие того, что для них атмосфера короче.'},
+    {wrong:'Если ракета летит со скоростью $0{,}6c$ и выпускает вперёд снаряд со скоростью $0{,}6c$, снаряд летит со скоростью $1{,}2c$.',
+     right:'$u=\\dfrac{0{,}6+0{,}6}{1+0{,}36}c=0{,}88c$. Сложение скоростей Галилея — приближение для медленных движений.',
+     why:'Простое сложение опирается на общее для всех время. Когда время у ракеты и у Земли течёт по-разному, складывать скорости «в лоб» нельзя.'},
+    {wrong:'При разгоне масса тела растёт, поэтому его всё труднее разгонять.',
+     right:'Масса неизменна. Растут энергия $\\gamma mc^2$ и импульс $\\gamma mv$; скорость приближается к $c$ из-за $\\gamma$.',
+     why:'«Релятивистскую массу» $\\gamma m$ когда-то вводили, но от неё отказались: она зависит от направления силы и путает. Масса — одна характеристика частицы, одинаковая для всех наблюдателей: $(mc^2)^2=E^2-(pc)^2$.'},
+    {wrong:'Парадокс близнецов — противоречие: каждый видит часы другого замедленными, значит, моложе должны оказаться оба.',
+     right:'Братья не равноправны: путешественник разворачивается и переходит из одной инерциальной системы в другую. Моложе оказывается он.',
+     why:'Симметрия сохраняется, пока оба движутся равномерно и не встречаются. Чтобы сравнить часы в одной точке, кто-то должен развернуться, — и в момент разворота у него меняется «линия одновременности» на диаграмме Минковского.'}
+  ],
+  checks:[
+    {q:'Почему у движущихся световых часов тик длиннее, если свет в них летит с той же скоростью?',
+     a:'Для нас свет в них идёт по диагонали — путь длиннее. Скорость та же $c$, значит, времени нужно больше: $\\Delta t=\\gamma\\Delta t_0$.'},
+    {q:'Что одинаково для всех наблюдателей: промежуток времени, длина или интервал между событиями?',
+     a:'Интервал $(c\\Delta t)^2-\\Delta x^2$. Промежуток времени и длина зависят от системы отсчёта.'},
+    {q:'Почему постоянная сила не может разогнать электрон до скорости света?',
+     a:'Сила равномерно увеличивает импульс $p=\\gamma mv$. Когда $v\\to c$, $\\gamma\\to\\infty$, и каждый новый прирост импульса почти не добавляет скорости. На достижение $c$ нужна бесконечная энергия.'},
+    {q:'При каких скоростях можно спокойно пользоваться механикой Ньютона?',
+     a:'Пока $v^2/c^2$ пренебрежимо мало. Для $v=0{,}1c$ поправка $\\gamma-1$ — всего 0,5 %, для самолёта — $10^{-12}$.'}
+  ],
+  links:[
+    {to:'em.radiation', text:'Скорость $c=1/\\sqrt{\\varepsilon_0\\mu_0}$ из уравнений Максвелла не зависит от системы отсчёта — с этого и начинается теория относительности.'},
+    {to:'mech.energy', text:'При малых скоростях $(\\gamma-1)mc^2\\approx\\tfrac12mv^2$: механика Ньютона — предельный случай СТО, а не ошибка.'},
+    {to:'q.nuclear', text:'$E=mc^2$ работает в каждом ядре: дефект массы и есть энергия связи, выделяемая при делении и синтезе.'},
+    {to:'q.particles', text:'Энергия покоя объясняет порог рождения пары: фотон должен принести не меньше $2mc^2$.'}
+  ],
+  problems:[
+    /* ---------- Световые часы ---------- */
+    {level:1, sim:'lightclock', unit:'',
+     statement:`Чему равен множитель Лоренца $\\gamma$ для часов, летящих с выбранной скоростью?`,
+     hint:'$\\gamma=1/\\sqrt{1-v^2/c^2}$, скорость дана в долях $c$.',
+     answer:p=>1/Math.sqrt(1-p.beta*p.beta)},
+
+    {level:2, sim:'lightclock', unit:'нс',
+     statement:`Сколько времени покажут движущиеся часы, пока часы лаборатории отсчитают $100$ нс?`,
+     hint:'Движущиеся часы отстают в $\\gamma$ раз.',
+     answer:p=>100*Math.sqrt(1-p.beta*p.beta)},
+
+    {level:3, sim:'lightclock', unit:'м',
+     statement:`Какой путь проходит вспышка в движущихся часах за один тик, если мерить его
+       <strong>в лаборатории</strong>? Зеркала разнесены на $L_0$.`,
+     hint:'Тик по часам лаборатории длится $\\gamma\\cdot2L_0/c$, а свет всё это время летит со скоростью $c$.',
+     answer:p=>2*p.L0/Math.sqrt(1-p.beta*p.beta)},
+
+    {level:3, sim:'lightclock', unit:'см',
+     statement:`Стержень собственной длины $\\ell_0$ летит вместе с часами. На сколько сантиметров он
+       окажется короче при измерении в лаборатории?`,
+     hint:'Сокращается только размер вдоль движения: $\\ell=\\ell_0/\\gamma$.',
+     answer:p=>p.l0*(1-Math.sqrt(1-p.beta*p.beta))*100},
+
+    {level:4, sim:'lightclock', unit:'%',
+     statement:`На сколько процентов отстают движущиеся часы: какую долю времени лаборатории составляет
+       отставание $t-\\tau$?`,
+     hint:'$\\dfrac{t-\\tau}{t}=1-\\dfrac1\\gamma$.',
+     answer:p=>(1-Math.sqrt(1-p.beta*p.beta))*100},
+
+    /* ---------- Диаграмма Минковского ---------- */
+    {level:1, sim:'minkowski', unit:'',
+     statement:`С какой скоростью снаряд движется относительно Земли? Ответ дайте в долях $c$.`,
+     hint:'$u=\\dfrac{v+u\'}{1+vu\'/c^2}$.',
+     answer:p=>(p.beta+p.u)/(1+p.beta*p.u)},
+
+    {level:2, sim:'minkowski', unit:'',
+     statement:`На сколько ответ Галилея $v+u'$ отличается от верного? Ответ — разность в долях $c$.`,
+     hint:'Вычтите из $v+u\'$ релятивистскую сумму скоростей.',
+     answer:p=>p.beta+p.u-(p.beta+p.u)/(1+p.beta*p.u)},
+
+    {level:3, sim:'minkowski', unit:'год',
+     statement:`События A и B одновременны в ракете и разнесены в ней на $\\Delta x'$. Сколько лет
+       проходит между ними по земным часам? Ответ — по модулю.`,
+     hint:'$\\Delta t=\\gamma v\\Delta x\'/c^2$; в единицах «годы — световые годы» $c=1$.',
+     answer:p=>Math.abs(p.beta*p.dx/Math.sqrt(1-p.beta*p.beta))},
+
+    {level:3, sim:'minkowski', unit:'св. год',
+     statement:`Какое расстояние между событиями A и B измерят на Земле?`,
+     hint:'Подставьте $\\Delta t\'=0$ в преобразование Лоренца: $\\Delta x=\\gamma\\Delta x\'$.',
+     answer:p=>p.dx/Math.sqrt(1-p.beta*p.beta)},
+
+    {level:4, sim:'minkowski', unit:'',
+     statement:`Вторая ракета летит относительно первой со скоростью $u'$, третья — относительно второй с той
+       же скоростью $u'$. Первая летит относительно Земли со скоростью $v$. С какой скоростью относительно
+       Земли летит третья? Ответ в долях $c$.`,
+     hint:'Сложите скорости дважды по релятивистскому правилу.',
+     answer:p=>{ const add=(a,b)=>(a+b)/(1+a*b); return add(add(p.beta,p.u),p.u); }},
+
+    /* ---------- Разгон постоянной силой ---------- */
+    {level:1, sim:'relmotion', unit:'кэВ',
+     statement:`Чему равна энергия покоя $mc^2$ выбранной частицы?`,
+     hint:'Масса электрона $9{,}11\\cdot10^{-31}$ кг, мюона — в 207 раз больше; $1$ кэВ $=1{,}602\\cdot10^{-16}$ Дж.',
+     answer:p=>{ const d=SIMS.relmotion; return d.m(p)*d.c*d.c/d.keV; }},
+
+    {level:2, sim:'relmotion', unit:'с',
+     statement:`Через сколько секунд после старта скорость частицы достигнет $0{,}8c$?`,
+     hint:'$p=Ft=\\gamma mv$; при $v=0{,}8c$ множитель $\\gamma=5/3$.',
+     answer:p=>{ const d=SIMS.relmotion; return d.m(p)*d.c*(0.8/0.6)/d.F(p); }},
+
+    {level:2, sim:'relmotion', unit:'',
+     statement:`В тот момент, когда на самом деле $v=0{,}9c$, какую скорость приписал бы частице расчёт
+       по Ньютону? Ответ в долях $c$.`,
+     hint:'По Ньютону $v_N=p/m=\\gamma v$.',
+     answer:p=>0.9/Math.sqrt(1-0.81)},
+
+    {level:3, sim:'relmotion', unit:'Мм',
+     statement:`Какой путь пройдёт частица, пока её скорость не достигнет $0{,}9c$?`,
+     hint:'Работа силы равна кинетической энергии: $Fx=(\\gamma-1)mc^2$.',
+     answer:p=>{ const d=SIMS.relmotion, g=1/Math.sqrt(1-0.81);
+       return (g-1)*d.m(p)*d.c*d.c/d.F(p)/1e6; }},
+
+    {level:4, sim:'relmotion', unit:'кэВ',
+     statement:`Какую кинетическую энергию наберёт частица за первые $10$ с разгона?`,
+     hint:'$p=Ft$, затем $E=\\sqrt{(pc)^2+(mc^2)^2}$ и $K=E-mc^2$.',
+     answer:p=>{ const d=SIMS.relmotion; return d.st(10,p).K/d.keV; }}
+  ]
+};
+
 /* Разделы и темы — строго по оглавлению Дж. Орира «Физика» (т. 1–2, 1981) */
 const SECTIONS=[
  {id:'intro', title:'Phy.Sim', topics:[ T_intro ]},
@@ -27744,12 +29182,16 @@ const SECTIONS=[
  {id:'em', title:'Электромагнетизм', topics:[
    T_magfields,
    T_induction,
+   T_ac,
    T_radiation
  ]},
  {id:'optics', title:'Оптика', topics:[
    T_matter,
    T_interf,
    T_optics
+ ]},
+ {id:'rel', title:'Теория относительности', topics:[
+   T_rel
  ]},
  {id:'quantum', title:'Квантовая физика', topics:[
    T_qwave,
@@ -28220,6 +29662,46 @@ RECAPS.quantum={
   ]
 };
 
+RECAPS.rel={
+  theory:`
+  <p>Весь раздел вырастает из одного опытного факта: скорость света одинакова для всех наблюдателей.
+  Добавьте к нему принцип относительности — и общее для всех время перестаёт существовать.</p>
+  <p>Дальше идут следствия, и каждое можно увидеть на световых часах или на диагонали диаграммы Минковского:
+  движущиеся часы идут медленнее, движущиеся тела короче, одновременность зависит от наблюдателя, а скорости
+  складываются так, что сумма никогда не превышает $c$.</p>
+  <p>Механика Ньютона при этом никуда не исчезает. Все формулы раздела при $v\\ll c$ переходят в привычные:
+  $\\gamma\\to1$, правило сложения скоростей — в простую сумму, $(\\gamma-1)mc^2$ — в $\\tfrac12mv^2$. Новая теория
+  указывает границу старой, а не отменяет её.</p>`,
+  threads:[
+   {title:'Инварианты вместо абсолютов',
+    text:`Время и длина стали относительными, зато появились величины, одинаковые для всех: скорость света,
+    интервал $(c\\Delta t)^2-\\Delta x^2$ и масса $(mc^2)^2=E^2-(pc)^2$. Физика ищет то, что не зависит от
+    точки зрения.`},
+   {title:'Предельный случай',
+    text:`Каждая формула СТО при малых скоростях даёт формулу Ньютона. Это общий способ проверять новые теории:
+    там, где старая работала, новая обязана с ней совпасть.`},
+   {title:'Масса — это энергия',
+    text:`$E=mc^2$ связывает раздел с ядерной физикой и физикой частиц: дефект массы ядра, аннигиляция,
+    порог рождения пар — одна и та же бухгалтерия энергии покоя.`}
+  ],
+  quiz:[
+   {q:`Космонавт летит со скоростью $0{,}8c$. Замечает ли он, что его часы идут медленнее, а сам он
+    стал короче?`,
+    a:`Нет. В своей системе он покоится: часы идут нормально, размеры прежние. Замедленными и сжатыми он видит
+    как раз нас. Эффекты симметричны, пока никто не разворачивается.`},
+   {q:`Можно ли, догоняя луч света на ракете со скоростью $0{,}99c$, увидеть, что он удаляется медленно?`,
+    a:`Нет: в любой системе свет удаляется со скоростью $c$. Это и есть второй постулат, а сложение
+    скоростей устроено так, чтобы он выполнялся.`},
+   {q:`Почему ускорители наращивают энергию частиц, а про скорость почти не говорят?`,
+    a:`Потому что скорость у быстрых частиц почти не меняется — она уже близка к $c$. Энергия же растёт как
+    $\\gamma$ без предела, и именно она решает, какие частицы можно родить в столкновении.`}
+  ],
+  links:[
+   {to:'q.nuclear', text:'Дефект массы ядра и энергия деления — прямое применение $E=mc^2$.'},
+   {to:'em.radiation', text:'Постоянство скорости света следует уже из уравнений Максвелла — СТО сделала из этого вывод про пространство и время.'}
+  ]
+};
+
 for(const sec of SECTIONS){
   const r=RECAPS[sec.id]; if(!r) continue;
   sec.topics.push({
@@ -28566,6 +30048,7 @@ const ВЫЧ = (function () {
     'эВ': [1.602176634e-19, Р(2, 1, -2), 1], 'л': [1e-3, Р(3), 1],
     'атм': [101325, Р(-1, 1, -2), 0], 'бар': [1e5, Р(-1, 1, -2), 0],
     'а.е.м.': [1.66053906660e-27, Р(0, 1), 0], 'а.е.': [1.495978707e11, Р(1), 0],
+    'св.год': [9.4607304725808e15, Р(1), 0],        // световой год: путь света за юлианский год
     'Å': [1e-10, Р(1), 0], 'рад': [1, ноль(), 1], '°': [ПИ / 180, ноль(), 0],
     'об': [2 * ПИ, ноль(), 0], '%': [0.01, ноль(), 0], 'раз': [1, ноль(), 0],
   };
@@ -28647,6 +30130,8 @@ const ВЫЧ = (function () {
         if (!/^[+-]?\d+$/.test(t)) throw Ошибка('непонятная степень «' + s.slice(i, j) + '»', i);
         out.push({ t: 'sup', v: parseInt(t, 10), поз: i }); i = j; continue;
       }
+      { const м = /^св\.\s?год/.exec(s.slice(i, i + 7));
+        if (м) { out.push({ t: 'word', w: 'св.год', поз: i }); i += м[0].length; continue; } }
       if (s.slice(i, i + 6) === 'а.е.м.') { out.push({ t: 'word', w: 'а.е.м.', поз: i }); i += 6; continue; }
       if (s.slice(i, i + 4) === 'а.е.') { out.push({ t: 'word', w: 'а.е.', поз: i }); i += 4; continue; }
       if (ch === '°' || ch === '%' || ch === 'Å') { out.push({ t: 'word', w: ch, поз: i }); i++; continue; }
@@ -30136,6 +31621,8 @@ const УЧ=(function(){
     ['Электричество','Почему лампочки в гирлянде гаснут все разом?','el.current','resistors'],
     ['Магнетизм','Как работает электростанция?','em.induction','generator'],
     ['Магнетизм','Почему магнит, падающий в медной трубе, тормозит?','em.induction','lenz'],
+    ['Магнетизм','Как радиоприёмник из сотни станций выбирает одну?','em.ac','rlc'],
+    ['Магнетизм','Почему в розетке «220 вольт», если напряжение там доходит до 311?','em.ac','rlc'],
     ['Магнетизм','Почему компас показывает на север, а электромотор крутится?','em.fields','magnetism'],
     ['Свет и волны','Почему сирена «скорой» меняет тон, проезжая мимо?','em.radiation','doppler'],
     ['Свет и волны','Почему небо голубое, а закат красный?','op.matter','refraction'],
@@ -30144,6 +31631,10 @@ const УЧ=(function(){
     ['Свет и волны','Откуда радужные разводы на мыльном пузыре и на диске?','op.interf','grating'],
     ['Свет и волны','Как увеличивает лупа и почему в телескопе картинка перевёрнута?','op.optics','bench'],
     ['Свет и волны','Почему струна гитары звучит нотой, а не шумом?','op.interf','standing'],
+    ['Относительность','Почему близнец-космонавт вернётся моложе брата?','rel.sr','lightclock'],
+    ['Относительность','Как мюоны из верхних слоёв атмосферы успевают долететь до земли?','rel.sr','lightclock'],
+    ['Относительность','Почему 0,6c + 0,6c — это не 1,2c?','rel.sr','minkowski'],
+    ['Относительность','Почему ни один ускоритель не разгонит частицу до скорости света?','rel.sr','relmotion'],
     ['Квант','Почему свет может выбить электрон, только если он нужного цвета?','q.wave','photoeffect'],
     ['Квант','Как частица проходит сквозь стену?','q.qm','tunnel'],
     ['Квант','Почему атом не схлопывается, раз электрон крутится вокруг ядра?','q.hydrogen','bohr'],
@@ -30807,6 +32298,7 @@ const ВИД_РАЗДЕЛОВ={
   electro:{с:'#b45309',т:'#fbbf24',значок:'<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z"/>'},
   em:     {с:'#7c3aed',т:'#a78bfa',значок:'<path d="M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3z"/><path d="M6 7h4M14 7h4"/>'},
   optics: {с:'#0e7490',т:'#22d3ee',значок:'<path d="M12 3c2.2 3 2.2 15 0 18-2.2-3-2.2-15 0-18z"/><path d="M2 8l10 4 10-4M2 16l10-4 10 4"/>'},
+  rel:    {с:'#4d7c0f',т:'#a3e635',значок:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M3 12h3M18 12h3"/>'},
   quantum:{с:'#be185d',т:'#f472b6',значок:'<circle cx="12" cy="12" r="1.7" fill="currentColor"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/>'}
 };
 function разделТемы(t){
@@ -31081,6 +32573,558 @@ function режимЧтения(вкл){
 
 ;
 'use strict';
+/* =============================================================================
+   СЛОИ СЦЕНЫ (3.0.0)
+
+   Общие для всех симуляций надстройки над рисунком. Ни одна симуляция о них
+   не знает: всё берётся из контракта — anchors() даёт положение тела,
+   VIEW.fbd() сообщает, какие силы нарисованы и в каком масштабе.
+
+     • стробоскоп — метки положения тела через равные промежутки времени.
+       Так на фотографиях с многократной вспышкой видно ускорение: метки
+       сгущаются там, где тело медленнее;
+     • призрак — путь прошлого прогона. Поменяли параметр, перезапустили —
+       и видно, что именно изменилось;
+     • камера за телом — вид сам едет за телом, если оно улетает из кадра;
+     • легенда сил и масштаб стрелок — один цвет на одну силу во всех сценах
+       и честная «линейка»: сколько ньютонов в такой длине стрелки.
+
+   Здесь только объявления функций: вызываются они из app.js, когда всё уже
+   загружено.
+   ============================================================================= */
+
+/* Все опорные точки сцены (anchors). Какая из них — тело, заранее не
+   известно: у одних сцен первой идёт опора, у других — тело. Поэтому храним
+   все и при рисовании выбираем ту, что сместилась дальше всех. */
+function точкиСцены(a){
+  if(!a || !a.def || !a.def.anchors || a.def.timeless) return null;
+  let q=null;
+  try{ q=a.def.anchors(a.state,a.params)||[]; }catch(_){ return null; }
+  const P=q.slice(0,6).map(r=>[+r.x,+r.y]);
+  return P.length && P.every(r=>isFinite(r[0])&&isFinite(r[1])) ? P : null;
+}
+/* индекс «тела»: та опорная точка, что сместилась дальше всех */
+function индексТела(rec){
+  const n=rec[0].P.length; let best=-1, bi=0;
+  for(let k=0;k<n;k++){
+    let d=0; const x0=rec[0].P[k][0], y0=rec[0].P[k][1];
+    for(let i=1;i<rec.length;i+=Math.max(1,rec.length>>6)){
+      const q=rec[i].P[k]; if(!q) continue;
+      d=Math.max(d,Math.hypot(q[0]-x0,q[1]-y0));
+    }
+    const q=rec[rec.length-1].P[k]; if(q) d=Math.max(d,Math.hypot(q[0]-x0,q[1]-y0));
+    if(d>best){ best=d; bi=k; }
+  }
+  return bi;
+}
+function путьТочки(rec,bi){ return rec.filter(r=>r.P[bi]).map(r=>({t:r.t,x:r.P[bi][0],y:r.P[bi][1]})); }
+function путьТела(rec){
+  if(!rec || rec.length<2) return null;
+  const pts=путьТочки(rec,индексТела(rec));
+  return путьДвижется(pts) ? pts : null;
+}
+
+/* Путь «живой», если тело сдвинулось хотя бы на несколько пикселей: у сцен,
+   где все точки — неподвижные опоры, рисовать нечего. */
+function путьДвижется(pts){
+  if(!pts || pts.length<2) return false;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  for(const q of pts){ if(q.x<x0)x0=q.x; if(q.x>x1)x1=q.x; if(q.y<y0)y0=q.y; if(q.y>y1)y1=q.y; }
+  return Math.max(x1-x0,y1-y0)*ppm() > 6;
+}
+
+/* Перезапуск: текущий путь становится призраком, новый начинается с нуля. */
+function слоиСброс(a){
+  if(a.след && путьТела(a.след)) a.призрак=a.след;
+  a.след=[]; a.строб=[]; a.стробT=-1;
+  слоиЗапись(a);
+}
+
+function слоиЗапись(a){
+  const P=точкиСцены(a); if(!P) return;
+  const t=a.state.t||0;
+  if(!a.след) a.след=[];
+  a.след.push({t,P});
+  if(a.след.length>3000){                              // прореживаем старшую половину, как историю графиков
+    const half=a.след.length>>1, kept=[];
+    for(let i=0;i<half;i+=2) kept.push(a.след[i]);
+    a.след=kept.concat(a.след.slice(half));
+  }
+  const шаг=+prefGet('strobeDt')||0.25;
+  if(!a.строб) a.строб=[];
+  if(a.стробT===undefined || a.стробT<0 || t-a.стробT>=шаг-1e-9){
+    a.строб.push({t,P}); a.стробT=t;
+    if(a.строб.length>300) a.строб.shift();
+  }
+}
+
+/* Камера за телом: плавно подтягиваем центр вида к телу. Плавно — чтобы
+   на скачке (перезапуск, перемотка) картинка не дёргалась. */
+function слоиКамера(a){
+  if(!prefGet('follow') || !a.след) return;
+  const путь=путьТела(a.след); if(!путь) return;
+  const q=путь[путь.length-1], v=a.view, k=0.2;
+  v.x+=(q.x-v.x)*k; v.y+=(q.y-v.y)*k;
+}
+
+/* положение призрака в момент t — линейная интерполяция по пути */
+function точкаПути(pts,t){
+  if(!pts.length) return null;
+  if(t<=pts[0].t) return pts[0];
+  if(t>=pts[pts.length-1].t) return pts[pts.length-1];
+  let lo=0, hi=pts.length-1;
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(pts[m].t<=t) lo=m; else hi=m; }
+  const A=pts[lo], B=pts[hi], u=(t-A.t)/Math.max(1e-12,B.t-A.t);
+  return {x:A.x+(B.x-A.x)*u, y:A.y+(B.y-A.y)*u};
+}
+
+/* Рисуем в мировых координатах, поверх симуляции. */
+function слоиРисовать(ctx,a){
+  const v=VIEW;
+  const призрак=prefGet('ghost') ? путьТела(a.призрак) : null;
+  if(призрак){
+    const P=призрак, c=v.c('--ink-3');
+    ctx.save();
+    ctx.strokeStyle=c; ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(5),v.lw(4)]);
+    ctx.beginPath(); P.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y)); ctx.stroke();
+    ctx.setLineDash(EMPTY_DASH);
+    const g=точкаПути(P,a.state.t||0);
+    if(g){ ctx.globalAlpha=.8; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.arc(g.x,g.y,v.lw(6),0,7); ctx.stroke(); }
+    ctx.restore();
+    if(g) v.label(ctx,'прошлый прогон',g.x,g.y,10,-12,c);
+  }
+  /* метки стробоскопа — той же точки, что выбрана телом по всему пути */
+  if(prefGet('strobe') && a.след && путьТела(a.след) && a.строб && a.строб.length>1){
+    const P=путьТочки(a.строб,индексТела(a.след)), c=v.c('--accent'), шаг=+prefGet('strobeDt')||0.25;
+    ctx.save(); ctx.fillStyle=c; ctx.strokeStyle=c;
+    P.forEach((q,i)=>{
+      ctx.globalAlpha=.25+.5*(i+1)/P.length;
+      ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(4),0,7); ctx.fill();
+    });
+    ctx.restore();
+    const q=P[0];
+    v.label(ctx,`стробоскоп: метки через ${String(шаг).replace('.',',')} с`,q.x,q.y,10,-16,c);
+  }
+}
+
+/* ---- силы: единые цвета, легенда и масштаб ---- */
+const ВИДЫ_СИЛ=[
+  [/^(mg|fg|m·g|вес m·g|сила тяжести)$/i,'--f-grav','сила тяжести'],
+  [/^n$/i,'--f-norm','реакция опоры'],
+  [/^(fтр|f тр|трение)$/i,'--f-fric','трение'],
+  [/^t$/i,'--f-tens','натяжение нити'],
+  [/^(упругая|fупр|f упр)$/i,'--f-elas','сила упругости'],
+  [/^(f_a|fa|f_арх)$/i,'--f-arch','сила Архимеда'],
+  [/^(f|внешняя|тяга.*)$/i,'--f-app','приложенная сила']
+];
+function видСилы(label){
+  const s=String(label||'').trim();
+  for(const [re,цвет,имя] of ВИДЫ_СИЛ) if(re.test(s)) return {цвет,имя};
+  return null;
+}
+
+/* «Круглое» число для масштабной линейки: 1, 2, 5 × 10ⁿ */
+function круглое(x){
+  if(!(x>0)) return 1;
+  const e=Math.pow(10,Math.floor(Math.log10(x))), m=x/e;
+  return (m<1.5?1:m<3.5?2:m<7.5?5:10)*e;
+}
+
+/* Легенда — в экранных координатах, в левом нижнем углу сцены. */
+function легендаСил(ctx){
+  const F=VIEW._fbd;
+  if(!F || !F.сил.length || prefGet('forceLegend')===false || сценаПолоска()) return;
+  const k=F.k*ppm();                                  // пикселей на единицу силы
+  if(!(k>0) || !isFinite(k)) return;
+  const знач=круглое(60/k), px=знач*k;
+  ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.font=sceneFont(Math.max(9,(+prefGet('labelSize')||11)-1)); ctx.textBaseline='middle';
+  const строки=F.сил.map(f=>({цвет:f.color, текст:f.имя?`${f.label} — ${f.имя}`:f.label}));
+  const w=Math.max(px+70, ...строки.map(r=>ctx.measureText(r.текст).width+22))+14;
+  const h=строки.length*15+28, x=10, y=CH-h-10;
+  ctx.globalAlpha=.92; ctx.fillStyle=css('--chrome')||'#fff';
+  ctx.fillRect(x,y,w,h); ctx.globalAlpha=1;
+  ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+  строки.forEach((r,i)=>{
+    const yy=y+11+i*15;
+    ctx.fillStyle=r.цвет; ctx.fillRect(x+8,yy-2,12,4);
+    ctx.fillStyle=css('--ink-2'); ctx.fillText(r.текст,x+26,yy);
+  });
+  const yb=y+h-10;
+  ctx.strokeStyle=css('--ink-2'); ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(x+8,yb); ctx.lineTo(x+8+px,yb);
+  ctx.moveTo(x+8,yb-4); ctx.lineTo(x+8,yb+4); ctx.moveTo(x+8+px,yb-4); ctx.lineTo(x+8+px,yb+4); ctx.stroke();
+  ctx.fillStyle=css('--ink-2');
+  ctx.fillText(`= ${fmtNice(знач)} ${F.u}`,x+14+px,yb);
+  ctx.restore();
+}
+
+/* ---- переключатели в меню сцены и в палитре команд ---- */
+const СЛОИ_МЕНЮ=[['#mi-strobe','strobe','Стробоскоп'],['#mi-ghost','ghost','Призрак прошлого прогона'],
+                 ['#mi-follow','follow','Камера за телом'],['#mi-legend','forceLegend','Легенда сил']];
+function переключитьСлой(k){
+  const вкл=!prefGet(k);
+  prefSet(k,вкл);
+  const м=СЛОИ_МЕНЮ.find(x=>x[1]===k);
+  if(м && typeof toast==='function') toast(`${м[2]}: ${вкл?'включено':'выключено'}`);
+  обновитьМенюСлоёв();
+  if(A()) drawAll();
+}
+function обновитьМенюСлоёв(){
+  for(const [sel,k] of СЛОИ_МЕНЮ){
+    const b=document.querySelector(sel); if(!b) continue;
+    const on=!!prefGet(k);
+    b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false');
+  }
+}
+function подключитьСлои(){
+  for(const [sel,k] of СЛОИ_МЕНЮ){
+    const b=document.querySelector(sel); if(!b) continue;
+    b.setAttribute('role','menuitemcheckbox');
+    b.onclick=()=>переключитьСлой(k);
+  }
+  обновитьМенюСлоёв();
+}
+
+/* ---- доступность (3.0.0) ----
+   Холст для программы чтения с экрана — пустое место. Поэтому у сцены есть
+   текстовое описание: что это за симуляция и главные показания. Обновляем
+   раз в секунду: чаще — программа не успеет дочитать, реже — устареет. */
+let описаниеT=0;
+function описаниеСцены(a){
+  const now=Date.now(); if(now-описаниеT<1000) return; описаниеT=now;
+  const cv=document.querySelector('#scene'), box=document.querySelector('#scene-desc');
+  if(!cv||!box||!a) return;
+  let строки=[];
+  try{
+    строки=(a.def.readouts(a.state,a.params)||[]).slice(0,6).map(r=>{
+      const v=r[1];
+      const ч=typeof v==='number' ? (isFinite(v)? String(+v.toPrecision(4)).replace('.',',') : 'не определено') : String(v);
+      return `${r[0]}: ${ч}${r[2]?' '+r[2]:''}`;
+    });
+  }catch(_){}
+  const текст=`Симуляция «${a.def.title}». `+(строки.length?строки.join('; ')+'.':'');
+  if(box.textContent!==текст) box.textContent=текст;
+}
+/* У кнопок-значков имя берём из подсказки: программа чтения произносит
+   aria-label, а title читает не всегда. */
+function подписатьКнопки(корень){
+  (корень||document).querySelectorAll('button[title]:not([aria-label])').forEach(b=>{
+    if(!b.textContent.trim()) b.setAttribute('aria-label',b.getAttribute('title'));
+  });
+}
+
+/* ---- экономный режим на слабых устройствах ----
+   Если сцена три замера подряд (около 2,5 с) идёт медленнее 24 кадров в
+   секунду, а человек ещё не настраивал быстродействие сам, — включаем
+   экономные настройки один раз и говорим, где их вернуть. */
+let экономияПодряд=0;
+function экономияЗамер(fps){
+  if(prefGet('autoEco')===false || !S.playing) { экономияПодряд=0; return; }
+  if(LS.get('ecoDone',false)) return;
+  экономияПодряд = fps<24 ? экономияПодряд+1 : 0;
+  if(экономияПодряд>=3) включитьЭкономию('кадров мало');
+}
+function включитьЭкономию(почему){
+  LS.set('ecoDone',true);
+  Object.assign(S.settings,{quality:'low',dprCap:1,graphEvery:12,motion:'off'});
+  applySettings();                                   // заодно сохраняет настройки
+  if(typeof toast==='function')
+    toast('Устройство не успевает — включён экономный режим. Вернуть: Настройки → Быстродействие');
+}
+/* Совсем слабое железо видно сразу: не больше двух ядер или не больше 1 ГБ памяти. */
+function экономияПриЗапуске(){
+  if(prefGet('autoEco')===false || LS.get('ecoDone',false)) return;
+  const ядер=navigator.hardwareConcurrency||4, память=navigator.deviceMemory||4;
+  if(ядер<=2 || память<=1) включитьЭкономию('слабое устройство');
+}
+
+;
+'use strict';
+/* =============================================================================
+   ЛАБОРАТОРИЯ (3.0.0): точки, таблица и прямая по методу наименьших квадратов
+
+   Живой график показывает, как величина меняется во времени. Лабораторная
+   работа устроена иначе: снимаешь несколько точек «x — y», каждая с
+   разбросом, наносишь на бумагу и проводишь прямую, которая ляжет ближе всего
+   ко всем. Наклон прямой и есть ответ — g из периода маятника, k пружины,
+   h из фотоэффекта. Здесь то же самое:
+
+     • X — параметр симуляции, её показатель или время; Y — показатель;
+     • у каждого снятого значения — случайный разброс, как у прибора;
+     • оси можно «выпрямить»: T² от L, 1/x, ln y — нелинейная зависимость
+       превращается в прямую, и её наклон имеет смысл;
+     • прямая по МНК, погрешности наклона и сдвига, R²;
+     • таблица и выгрузка в CSV — для отчёта.
+
+   Чистые расчёты (МНК, преобразования) не трогают страницу — их проверяет
+   tests/lab.mjs без браузера. Остальное — объявления функций, которые app.js
+   вызывает, когда всё загружено.
+   ============================================================================= */
+
+const ЛАБ_ПРЕОБР={
+  x:   {имя:'x',     f:v=>v},
+  sq:  {имя:'x²',    f:v=>v*v},
+  sqrt:{имя:'√x',    f:v=>v>=0?Math.sqrt(v):NaN},
+  inv: {имя:'1/x',   f:v=>v!==0?1/v:NaN},
+  ln:  {имя:'ln x',  f:v=>v>0?Math.log(v):NaN}
+};
+
+/* Прямая y = a·x + b (или y = a·x через ноль) по методу наименьших
+   квадратов. Погрешности — стандартные ошибки коэффициентов. */
+function лабМНК(xs,ys,черезНоль){
+  const P=[];
+  for(let i=0;i<xs.length;i++) if(isFinite(xs[i])&&isFinite(ys[i])) P.push([xs[i],ys[i]]);
+  const n=P.length;
+  if(n<2) return null;
+  let Sx=0,Sy=0,Sxx=0,Sxy=0,Syy=0;
+  for(const [x,y] of P){ Sx+=x; Sy+=y; Sxx+=x*x; Sxy+=x*y; Syy+=y*y; }
+  let a,b,σa,σb,ост=0;
+  if(черезНоль){
+    if(Sxx===0) return null;
+    a=Sxy/Sxx; b=0;
+    for(const [x,y] of P) ост+=(y-a*x)*(y-a*x);
+    const s2=n>1?ост/(n-1):0;
+    σa=Math.sqrt(s2/Sxx); σb=0;
+  } else {
+    const D=n*Sxx-Sx*Sx;
+    if(Math.abs(D)<1e-300) return null;
+    a=(n*Sxy-Sx*Sy)/D; b=(Sy-a*Sx)/n;
+    for(const [x,y] of P) ост+=(y-a*x-b)*(y-a*x-b);
+    const s2=n>2?ост/(n-2):0;
+    σa=Math.sqrt(n*s2/D); σb=Math.sqrt(s2*Sxx/D);
+  }
+  const ср=Sy/n; let полн=0;
+  for(const [,y] of P) полн+=(y-ср)*(y-ср);
+  const R2=полн>0?1-ост/полн:1;
+  return {a,b,σa,σb,R2,n};
+}
+
+/* Нормальный разброс (Бокс — Мюллер). Генератор можно подменить в тестах. */
+function лабШум(rnd){
+  rnd=rnd||Math.random;
+  let u=0; while(u===0) u=rnd();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*rnd());
+}
+
+/* Число с погрешностью: погрешность — две значащие цифры, значение —
+   до того же разряда. «9,81 ± 0,12», а не «9,8123456 ± 0,1234». */
+function лабСПогр(v,σ){
+  if(!isFinite(v)) return '—';
+  if(!(σ>0)||!isFinite(σ)) return лабЧисло(v);
+  const р=Math.floor(Math.log10(σ))-1;
+  const k=Math.pow(10,-р);
+  const округл=x=>Math.round(x*k)/k;
+  const знаков=Math.max(0,-р);
+  if(знаков>8||Math.abs(v)>=1e6) return `${лабЧисло(v)} ± ${лабЧисло(σ)}`;
+  return `${округл(v).toFixed(знаков)} ± ${округл(σ).toFixed(знаков)}`.replace(/\./g,',');
+}
+function лабЧисло(v){
+  if(!isFinite(v)) return '—';
+  const a=Math.abs(v);
+  const t=(a!==0&&(a>=1e5||a<1e-3))?v.toExponential(3):(+v.toPrecision(5)).toString();
+  return t.replace('.',',');
+}
+
+/* Короткое имя для формулы прямой: «период T = 2π√(L/g)» → «период T». */
+function лабКоротко(label){
+  return String(label).split(' = ')[0].split(' (')[0].trim();
+}
+
+/* ---------------- страница ---------------- */
+let лаб={sim:null, точки:[], rnd:Math.random};
+
+function лабИсточники(a){
+  const пар=числовыеПараметры(a.def).map(p=>({v:'p:'+p.key, t:`параметр: ${p.label}`, unit:p.unit||'', к:лабКоротко(p.label)}));
+  // показание «t» дублирует время — его в списке нет
+  const пок=показателиСимуляции(a.def,a.params).filter(r=>r.label!=='t')
+    .map(r=>({v:'r:'+r.i, t:r.label, unit:r.unit, к:лабКоротко(r.label)}));
+  const время=a.def.timeless?[]:[{v:'t', t:'время t', unit:a.def.timeUnit||'с', к:'t'}];
+  return {x:время.concat(пар,пок), y:пок};
+}
+function лабЗначение(a,ист,st,params){
+  st=st||a.state; params=params||a.params;
+  if(ист==='t') return st.t||0;
+  if(ист.startsWith('p:')) return +params[ист.slice(2)];
+  const i=+ист.slice(2), r=(a.def.readouts(st,params)||[])[i];
+  return r && typeof r[1]==='number' ? r[1] : NaN;
+}
+
+function открытьЛабу(){
+  const a=A();
+  if(!a){ toast('Сначала откройте симуляцию'); return; }
+  const ист=лабИсточники(a);
+  if(!ист.y.length){ toast('У этой симуляции нет числовых показаний — измерять нечего'); return; }
+  if(лаб.sim!==S.active) лаб={sim:S.active, точки:[], rnd:Math.random};
+  const опц=(sel,list,знач)=>{
+    const el=$(sel); el.innerHTML=list.map(o=>`<option value="${o.v}" data-k="${esc(o.к)}">${esc(o.t)}${o.unit?', '+esc(o.unit):''}</option>`).join('');
+    if(знач && list.some(o=>o.v===знач)) el.value=знач;
+  };
+  const x0=ист.x.find(o=>o.v.startsWith('p:'))||ист.x[0];
+  опц('#lab-x',ист.x,лаб.x||x0.v);
+  опц('#lab-y',ист.y,лаб.y||ист.y[0].v);
+  лабГраницы();
+  $('#modal-lab').classList.remove('hidden');
+  лабОбновить();
+}
+function закрытьЛабу(){ $('#modal-lab').classList.add('hidden'); }
+
+/* Для серии по параметру подставляем весь его диапазон. */
+function лабГраницы(){
+  const a=A(); if(!a) return;
+  const x=$('#lab-x').value, серия=x.startsWith('p:');
+  $('#modal-lab').dataset.series=серия?'1':'0';
+  if(серия){
+    const p=числовыеПараметры(a.def).find(q=>q.key===x.slice(2));
+    if(p){ $('#lab-p0').value=String(p.min); $('#lab-p1').value=String(p.max); }
+  }
+}
+
+function лабРазброс(){ return Math.max(0,parseFloat(String($('#lab-noise').value).replace(',','.'))||0)/100; }
+function лабШумнуть(v,σ){ return v*(1+σ*лабШум(лаб.rnd)); }
+
+function лабСнять(){
+  const a=A(); if(!a) return;
+  const xs=$('#lab-x').value, ys=$('#lab-y').value, σ=лабРазброс();
+  let x=лабЗначение(a,xs), y=лабЗначение(a,ys);
+  if(!isFinite(x)||!isFinite(y)){ toast('Сейчас это значение не определено'); return; }
+  /* параметр выставлен точно — это ручка прибора; показания — с разбросом */
+  if(!xs.startsWith('p:')) x=лабШумнуть(x,σ);
+  y=лабШумнуть(y,σ);
+  лаб.точки.push({x,y});
+  лабОбновить();
+}
+
+function лабСерия(){
+  const a=A(); if(!a) return;
+  const xs=$('#lab-x').value, ys=$('#lab-y').value, σ=лабРазброс();
+  if(!xs.startsWith('p:')){ toast('Серия снимается по параметру: выберите параметр по оси X'); return; }
+  const ключ=xs.slice(2);
+  const чис=s=>parseFloat(String(s).replace(',','.'));
+  const от=чис($('#lab-p0').value), до=чис($('#lab-p1').value), n=Math.max(2,Math.min(60,чис($('#lab-n').value)|0));
+  const тДо=Math.max(0,чис($('#lab-at').value)||0);
+  if(!isFinite(от)||!isFinite(до)){ toast('Задайте границы серии'); return; }
+  let снято=0;
+  for(let k=0;k<n;k++){
+    const v=от+(до-от)*k/(n-1);
+    const p=Object.assign({},a.params,{[ключ]:v});
+    const st=a.def.init(p);
+    if(!a.def.timeless && тДо>0){
+      let охрана=0;
+      while((st.t||0)<тДо-1e-12 && охрана++<2e6){ a.def.step(st,DT,p); if(st.__stop) break; }
+    }
+    const y=лабЗначение(a,ys,st,p);
+    if(isFinite(y)){ лаб.точки.push({x:v,y:лабШумнуть(y,σ)}); снято++; }
+  }
+  toast(снято?`Снято точек: ${снято}`:'Ни одной точки: значение не определено');
+  лабОбновить();
+}
+
+/* преобразованные ряды и подписи осей */
+function лабРяды(){
+  const tx=ЛАБ_ПРЕОБР[$('#lab-tx').value]||ЛАБ_ПРЕОБР.x, ty=ЛАБ_ПРЕОБР[$('#lab-ty').value]||ЛАБ_ПРЕОБР.x;
+  const X=лаб.точки.map(q=>tx.f(q.x)), Y=лаб.точки.map(q=>ty.f(q.y));
+  const имя=(sel,зап)=>{ const o=$(sel).selectedOptions&&$(sel).selectedOptions[0]; return o?(o.dataset.k||o.textContent):зап; };
+  const имяX=имя('#lab-x','x'), имяY=имя('#lab-y','y');
+  const обёрт=(t,имя)=>t==='x'?имя:t.replace('x','('+имя+')');
+  return {X,Y,tx,ty,подписьX:обёрт(tx.имя,имяX),подписьY:обёрт(ty.имя,имяY)};
+}
+
+function лабОбновить(){
+  лаб.x=$('#lab-x').value; лаб.y=$('#lab-y').value;
+  const R=лабРяды(), м=лабМНК(R.X,R.Y,$('#lab-zero').checked);
+  // таблица
+  $('#lab-rows').innerHTML=лаб.точки.map((q,i)=>`<tr><td>${i+1}</td><td>${лабЧисло(q.x)}</td><td>${лабЧисло(q.y)}</td>
+    <td>${лабЧисло(R.X[i])}</td><td>${лабЧисло(R.Y[i])}</td>
+    <td><button class="lab-del" data-i="${i}" aria-label="Удалить точку ${i+1}">×</button></td></tr>`).join('')
+    || '<tr><td colspan="6" class="lab-empty">Точек пока нет. Нажмите «Снять точку» или «Серия».</td></tr>';
+  $('#lab-rows').querySelectorAll('.lab-del').forEach(b=>b.onclick=()=>{ лаб.точки.splice(+b.dataset.i,1); лабОбновить(); });
+  $('#lab-th-x').textContent=R.tx.имя==='x'?'X':R.tx.имя.replace('x','X');
+  $('#lab-th-y').textContent=R.ty.имя==='x'?'Y':R.ty.имя.replace('x','Y');
+  // итог
+  const out=$('#lab-fit');
+  if(!м){ out.textContent=лаб.точки.length<2?'Нужно хотя бы две точки.':'По этим точкам прямую не провести.'; }
+  else {
+    out.innerHTML=`<b>прямая:</b> ${esc(R.подписьY)} = (${лабСПогр(м.a,м.σa)})·${esc(R.подписьX)}`+
+      ($('#lab-zero').checked?'':` + (${лабСПогр(м.b,м.σb)})`)+
+      `<br><b>наклон</b> ${лабСПогр(м.a,м.σa)} · <b>R²</b> = ${м.R2.toFixed(4).replace('.',',')} · точек: ${м.n}`+
+      (м.R2<0.9&&м.n>2?'<br><span class="lab-warn">Точки плохо ложатся на прямую — попробуйте выпрямить ось: x², √x, 1/x или ln.</span>':'');
+  }
+  лабРисовать(R,м);
+  const живо=document.querySelector('#lab-live'); if(живо) живо.textContent=м?`Наклон ${лабСПогр(м.a,м.σa)}, точек ${м.n}`:'';
+}
+
+function лабРисовать(R,м){
+  const cv=$('#lab-cv'); if(!cv||!cv.getContext) return;
+  const dpr=window.devicePixelRatio||1, W=cv.clientWidth||460, H=cv.clientHeight||200;
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0);
+  c.fillStyle=css('--panel-2'); c.fillRect(0,0,W,H);
+  const P=[]; for(let i=0;i<R.X.length;i++) if(isFinite(R.X[i])&&isFinite(R.Y[i])) P.push([R.X[i],R.Y[i]]);
+  c.font='11px '+(css('--mono')||'monospace'); c.textBaseline='middle';
+  if(!P.length){ c.fillStyle=css('--ink-3'); c.fillText('здесь появятся точки',W/2-70,H/2); return; }
+  let x0=Math.min(...P.map(q=>q[0])), x1=Math.max(...P.map(q=>q[0]));
+  let y0=Math.min(...P.map(q=>q[1])), y1=Math.max(...P.map(q=>q[1]));
+  if($('#lab-zero').checked){ x0=Math.min(x0,0); y0=Math.min(y0,0); x1=Math.max(x1,0); y1=Math.max(y1,0); }
+  if(x1-x0<1e-12){ x0-=1; x1+=1; } if(y1-y0<1e-12){ y0-=1; y1+=1; }
+  const px=(x1-x0)*0.06, py=(y1-y0)*0.1; x0-=px; x1+=px; y0-=py; y1+=py;
+  const L=46, B=22, X=v=>L+(v-x0)/(x1-x0)*(W-L-10), Y=v=>H-B-(v-y0)/(y1-y0)*(H-B-10);
+  c.strokeStyle=css('--line'); c.lineWidth=1;
+  c.beginPath(); c.moveTo(L,6); c.lineTo(L,H-B); c.lineTo(W-6,H-B); c.stroke();
+  c.fillStyle=css('--ink-3');
+  c.fillText(лабЧисло(y1),2,12); c.fillText(лабЧисло(y0),2,H-B-4);
+  c.fillText(лабЧисло(x0),L,H-8); const t1=лабЧисло(x1); c.fillText(t1,W-8-c.measureText(t1).width,H-8);
+  if(м){
+    c.strokeStyle=css('--accent'); c.lineWidth=2;
+    c.beginPath(); c.moveTo(X(x0),Y(м.a*x0+м.b)); c.lineTo(X(x1),Y(м.a*x1+м.b)); c.stroke();
+  }
+  c.fillStyle=css('--measure');
+  for(const [x,y] of P){ c.beginPath(); c.arc(X(x),Y(y),3.5,0,7); c.fill(); }
+}
+
+function лабCSV(){
+  const R=лабРяды();
+  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+  const полн=sel=>{ const o=$(sel).selectedOptions&&$(sel).selectedOptions[0]; return o?o.textContent.replace(/^параметр: /,''):''; };
+  const строки=[['№',полн('#lab-x'),полн('#lab-y'),R.подписьX,R.подписьY].map(q).join(';')];
+  лаб.точки.forEach((p,i)=>строки.push([i+1,p.x,p.y,R.X[i],R.Y[i]].map(v=>typeof v==='number'?String(v).replace('.',','):v).join(';')));
+  const м=лабМНК(R.X,R.Y,$('#lab-zero').checked);
+  if(м) строки.push('', `${q('наклон a')};${String(м.a).replace('.',',')};${q('±')};${String(м.σa).replace('.',',')}`,
+                         `${q('сдвиг b')};${String(м.b).replace('.',',')};${q('±')};${String(м.σb).replace('.',',')}`,
+                         `${q('R²')};${String(м.R2).replace('.',',')}`);
+  return '﻿'+строки.join('\r\n');
+}
+
+function подключитьЛабу(){
+  const box=document.querySelector('#modal-lab'); if(!box) return;
+  const на=(sel,ev,f)=>{ const el=document.querySelector(sel); if(el) el[ev]=f; };
+  на('#lab-close','onclick',закрытьЛабу);
+  box.addEventListener('click',e=>{ if(e.target===box) закрытьЛабу(); });
+  box.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); закрытьЛабу(); } });
+  на('#lab-x','onchange',()=>{ лабГраницы(); лабОбновить(); });
+  на('#lab-y','onchange',лабОбновить);
+  на('#lab-tx','onchange',лабОбновить);
+  на('#lab-ty','onchange',лабОбновить);
+  на('#lab-zero','onchange',лабОбновить);
+  на('#lab-take','onclick',лабСнять);
+  на('#lab-series','onclick',лабСерия);
+  на('#lab-clear','onclick',()=>{ лаб.точки=[]; лабОбновить(); });
+  на('#lab-csv','onclick',()=>{
+    if(!лаб.точки.length){ toast('Таблица пуста'); return; }
+    const a=A(), имя=`лаборатория-${(a&&S.active)||'сцена'}.csv`;
+    сохранитьФайл(имя,new Blob([лабCSV()],{type:'text/csv;charset=utf-8'}));
+  });
+  на('#lab-copy','onclick',()=>{
+    if(!лаб.точки.length){ toast('Таблица пуста'); return; }
+    const t=лабCSV().replace(/^﻿/,'').replace(/;/g,'\t');
+    try{ navigator.clipboard.writeText(t).then(()=>toast('Таблица скопирована — вставьте в таблицу или отчёт'),()=>toast('Не удалось скопировать')); }
+    catch(_){ toast('Не удалось скопировать'); }
+  });
+  на('#mi-lab','onclick',()=>{ const p=document.querySelector('#pop-simmenu'); if(p) p.classList.add('hidden'); открытьЛабу(); });
+}
+
+;
+'use strict';
 /* =============================== СОСТОЯНИЕ ============================== */
 const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSON.parse(v):d}catch(_){return d}},
           set:(k,v)=>{try{localStorage.setItem('physim.'+k,JSON.stringify(v))}catch(_){}}};
@@ -31178,7 +33222,14 @@ const VIEW={
      подписи запоминается её вертикальная поправка, она переиспользуется, пока
      не мешает, а меняется — плавно, по несколько пикселей за кадр. */
   _lblMem:new Map(), _lblSeq:0, _lblFrame:0,
+  /* Ореол под подписью (3.0.0): тонкая обводка цветом фона. Подпись,
+     легшая на линию, стрелку или сетку, остаётся читаемой — так делают
+     на картах. Цвет берём раз в кадр: getComputedStyle не бесплатен. */
+  _halo:null,
   labelFrame(){
+    this._halo = prefGet('labelHalo')===false ? null
+      : (prefGet('bgStyle')==='dark' ? '#161821' : (css('--canvas')||'#fff'));
+    this._fbd=null;
     this._lbl.length=0; this._lblSeq=0; this._lblFrame++;
     if(this._lblFrame%600===0){                      // изредка чистим память
       for(const [k,m] of this._lblMem) if(this._lblFrame-m.f>600) this._lblMem.delete(k);
@@ -31246,6 +33297,11 @@ const VIEW={
       this._lbl.push({x,y:y-h/2,w,h});
       if(this._lbl.length>400) this._lbl.shift();      // страховка от разрастания
     }
+    if(this._halo){
+      ctx.lineJoin='round'; ctx.lineWidth=3; ctx.strokeStyle=this._halo;
+      ctx.globalAlpha=Math.min(1,ctx.globalAlpha*0.9); ctx.strokeText(text,x,y);
+      ctx.globalAlpha=1;
+    }
     ctx.fillText(text,x,y); ctx.restore();
   },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
@@ -31262,6 +33318,13 @@ const VIEW={
     const k=(o.len||2)/maxF;                       // метров сцены на ньютон
     const u=o.units||'Н';
     const rx=F.reduce((a,f)=>a+f.fx,0), ry=F.reduce((a,f)=>a+f.fy,0);
+    /* Одна сила — один цвет во всех сценах (3.0.0): вид силы узнаём по
+       подписи. Первая диаграмма кадра задаёт масштаб для легенды. */
+    for(const f of F){ const в=typeof видСилы==='function'?видСилы(f.label):null;
+      if(в){ f.color=this.c(в.цвет); f.имя=в.имя; } }
+    if(!this._fbd) this._fbd={k, u, сил:[]};
+    for(const f of F) if(!this._fbd.сил.some(x=>x.label===f.label))
+      this._fbd.сил.push({label:f.label, color:f.color||this.c('--ink-2'), имя:f.имя});
     for(const f of F){
       const c=f.color||this.c('--ink-2');
       this.arrow(ctx,o.x,o.y,o.x+f.fx*k,o.y+f.fy*k,c);
@@ -31568,6 +33631,7 @@ const fmt=v=>{
 function drawAll(){
   const a=A(); if(!a) return;
   VIEW.labelFrame();                       // новый кадр — раскладка подписей с чистого листа
+  if(typeof слоиКамера==='function') слоиКамера(a);
   applyWorld(sctx);
   if(S.settings.grid!==false) drawGrid(sctx);
   /* Сцену рисуем в собственном состоянии холста. Внутри draw бывают ранние
@@ -31576,8 +33640,10 @@ function drawAll(){
      и в следующий кадр. save/restore закрывает это раз и навсегда. */
   sctx.save();
   sctx.globalAlpha=1; sctx.setLineDash(EMPTY_DASH); sctx.lineWidth=1;
-  try{ a.def.draw(sctx,a.state,VIEW,a.params); }
+  try{ a.def.draw(sctx,a.state,VIEW,a.params);
+       if(typeof слоиРисовать==='function') слоиРисовать(sctx,a); }
   finally{ sctx.restore(); }
+  if(typeof легендаСил==='function') легендаСил(sctx);
   applyWorld(octx);
   const list=a.draft?a.annos.concat([a.draft]):a.annos;
   for(const an of list){
@@ -31827,7 +33893,9 @@ function drawAll(){
      зависит, бегущий счётчик только создаёт впечатление идущего процесса. */
   const часы=$('#clock');
   часы.classList.toggle('hidden', a.def.timeless || prefGet('clockShow')===false);
-  if(!a.def.timeless) часы.textContent=`t = ${a.state.t.toFixed(2)} c`;
+  /* У части сцен секунда сцены изображает другую единицу (у световых часов —
+     наносекунду): её и пишем, иначе часы в шапке спорили бы с показаниями. */
+  if(!a.def.timeless) часы.textContent=`t = ${a.state.t.toFixed(2)} ${a.def.timeUnit||'c'}`;
 }
 
 /* ================= ОБВЯЗКА СЦЕНЫ =================
@@ -31942,6 +34010,7 @@ function fmtShort(v){
    выглядит чужеродно. Теперь полосы нет: сколько строк влезло, столько и
    показано, а про остальные честно сказано в последней строке. */
 function updateHud(a){
+  if(typeof описаниеСцены==='function') описаниеСцены(a);
   const body=$('#hud-body'), panel=$('#hud'); if(!body||!panel) return;
   /* Показания — две колонки, а не выровненный пробелами текст. Раньше строка
      собиралась как `padEnd(14) + padStart(9) + единица`: при длинном названии
@@ -32049,7 +34118,8 @@ function drawGraphs(){
     ctx.fillStyle=css('--ink-3'); ctx.font='9px ui-monospace,monospace';
     ctx.fillText(fmt(hi),3,9); ctx.fillText(fmt(lo),3,Hh-3);
     // если начало истории уже не в нуле, честно показываем видимый интервал
-    const tlab = t0>0.05 ? `${t0.toFixed(1)}…${tMax.toFixed(1)} c` : `t=${tMax.toFixed(1)} c`;
+    const tu=a.def.timeUnit||'c';
+    const tlab = t0>0.05 ? `${t0.toFixed(1)}…${tMax.toFixed(1)} ${tu}` : `t=${tMax.toFixed(1)} ${tu}`;
     ctx.fillText(tlab,W-6-ctx.measureText(tlab).width,Hh-3);
   });
   обновитьРазбор(a);
@@ -32308,7 +34378,8 @@ function loop(now){
   }
   if(a&&!idle){ drawAll(); drawGraphs(); updateCompare(); updateTimeline(); }
   frames++;
-  if(now-fpsT>800){ const s=Math.round(frames/((now-fpsT)/1000))+' fps';
+  if(now-fpsT>800){ const кадров=Math.round(frames/((now-fpsT)/1000)), s=кадров+' fps';
+    if(a&&!idle&&typeof экономияЗамер==='function') экономияЗамер(кадров);
     $('#fps').textContent=s;
     const m2=$('#mb-fps'); if(m2) m2.textContent=s;   // тот же счётчик на телефоне
     frames=0; fpsT=now; }
@@ -32463,6 +34534,7 @@ function record(a){
   /* Записывать нечего: у таких симуляций ни одно показание не меняется со
      временем, и лента снимков только ела бы память. */
   if(a.def.timeless) return;
+  if(typeof слоиЗапись==='function') слоиЗапись(a);
   if(a.def.graphs){
     a.hist.push({t:a.state.t, v:a.def.graphs.map(g=>g.get(a.state,a.params))});
     /* Переполнение истории раньше выбрасывало САМЫЕ СТАРЫЕ точки: на длинном
@@ -33329,7 +35401,7 @@ function renderPane(){
             <button class="btn primary check">Проверить</button>
             ${pr.hint?'<button class="btn hint">Подсказка</button>':''}
             <button class="btn reveal">Показать ответ</button>
-            <span class="verdict"></span>
+            <span class="verdict" role="status" aria-live="polite"></span>
           </div>
         </div>`).join('');
       }).join('')}`;
@@ -33699,6 +35771,7 @@ function restart(a){
      сброса от последней точки к новой протягивалась прямая через весь
      экран — та самая «телепортация траектории». */
   $('#eventflag').classList.add('hidden');
+  if(typeof слоиСброс==='function') слоиСброс(a);
 }
 
 /* ======================= ШКАЛА ВРЕМЕНИ (перемотка) =======================
@@ -33722,7 +35795,7 @@ function updateTimeline(){
   if(!scrubbing) r.value=String(Math.max(0,tape.length-1));
   tl.classList.toggle('scrub',scrubbing);
   const t=scrubbing? (tape[S.scrub]?tape[S.scrub].t:0) : (a.state.t||0);
-  $('#tl-time').textContent=(scrubbing?'◀ ':'')+`t = ${t.toFixed(2)} c`;
+  $('#tl-time').textContent=(scrubbing?'◀ ':'')+`t = ${t.toFixed(2)} ${a.def.timeUnit||'c'}`;
 }
 function scrubTo(i){
   const a=A(); if(!a||!a.tape||!a.tape.length) return;
@@ -35031,7 +37104,7 @@ const PREF_CATS=[
   {id:'about',name:'О программе',   icon:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>'}
 ];
 const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
-  quality:'high',bgPause:true,fps:0,videoQ:'med',
+  quality:'high',bgPause:true,fps:0,videoQ:'med',autoEco:true,
   nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,timeline:true,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
@@ -35045,7 +37118,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,
   handles:'hover',
   // кастомизация окружения
-  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,arrowScale:1,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
@@ -35112,6 +37185,16 @@ const PREFS=[
    name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
    options:[['norm','Обычный'],['big','Крупный']]},
 
+  {cat:'scene',key:'strobe',type:'toggle',def:false,
+   name:'Стробоскоп',desc:'Метки положения тела через равные промежутки времени — как на снимке с многократной вспышкой. Где метки гуще, тело медленнее.'},
+  {cat:'scene',key:'strobeDt',type:'range',def:0.25,min:0.05,max:1,step:0.05,unit:' с',
+   name:'Шаг стробоскопа',desc:'Через сколько секунд ставится следующая метка.'},
+  {cat:'scene',key:'ghost',type:'toggle',def:false,
+   name:'Призрак прошлого прогона',desc:'После перезапуска пунктиром остаётся прежний путь тела и кружок там, где оно было в тот же момент. Удобно сравнивать, что изменил параметр.'},
+  {cat:'scene',key:'follow',type:'toggle',def:false,
+   name:'Камера за телом',desc:'Вид сам едет за телом, если оно улетает из кадра.'},
+  {cat:'scene',key:'forceLegend',type:'toggle',def:true,
+   name:'Легенда сил и масштаб',desc:'У диаграммы сил — список цветов и линейка: сколько ньютонов в такой длине стрелки.'},
   {cat:'scene',key:'nums',type:'toggle',def:true,
    name:'Числа на сцене',desc:'Подписи величин прямо у тел и векторов. Выключите, если хотите, чтобы ученики считали сами.'},
   {cat:'scene',key:'hud',type:'toggle',def:true,
@@ -35176,6 +37259,8 @@ const PREFS=[
    options:[['mono','Моноширинный'],['sans','Без засечек'],['serif','С засечками']]},
   {cat:'look',key:'labelSize',type:'range',def:11,min:9,max:16,step:0.5,unit:' px',
    name:'Кегль подписей на сцене',desc:'Размер надписей у тел и векторов. Крупнее — видно с задней парты.'},
+  {cat:'look',key:'labelHalo',type:'toggle',def:true,
+   name:'Ореол под подписями',desc:'Тонкая обводка цветом фона: подпись, легшая на линию или стрелку, остаётся читаемой.'},
   {cat:'look',key:'arrowScale',type:'range',def:1,min:0.6,max:2,step:0.1,unit:'×',
    name:'Размер наконечников стрелок',desc:'Величина «оперения» у векторов сил, скоростей и полей.'},
   {cat:'look',key:'panelAlpha',type:'range',def:93,min:40,max:100,step:1,unit:' %',
@@ -35228,6 +37313,8 @@ const PREFS=[
   {cat:'perf',key:'graphEvery',type:'select',def:6,
    name:'Плотность точек графиков',desc:'Как часто запоминать точку для графиков под сценой. Реже — легче для памяти на длинных прогонах.',
    options:[[3,'Часто — плавные кривые'],[6,'Обычно'],[12,'Редко — экономно']]},
+  {cat:'perf',key:'autoEco',type:'toggle',def:true,
+   name:'Экономный режим сам, если устройство не успевает',desc:'Если сцена несколько секунд идёт медленнее 24 кадров в секунду, пособие один раз само включит экономное качество и скажет об этом.'},
   {cat:'perf',key:'fpsShow',type:'toggle',def:true,
    name:'Счётчик кадров',desc:'Показатель fps в правом нижнем углу (на компьютере).'},
 
@@ -36445,6 +38532,7 @@ function setMenuTab(id){
    потому что остальные страницы лежат в разметке скрытыми. */
 function собратьМенюСцены(){
   const pop=$('#pop-simmenu');
+  if(typeof обновитьМенюСлоёв==='function') обновитьМенюСлоёв();
   // инструменты конструктора (если симуляция их объявляет)
   const tl=$('#simmenu-tools');
   tl.innerHTML='';
@@ -36720,6 +38808,11 @@ const CMDS=[
   {k:'Вид',t:'Режим окна: следующий', hint:'F11', run:()=>cycleWindowMode()},
   {k:'Вид',t:'Во весь экран (браузер)', run:()=>toggleFullscreen()},
   {k:'Вид',t:'Симуляция во весь экран', hint:'F', run:()=>$('#btn-simfull').click()},
+  {k:'Данные',t:'Лаборатория: точки, таблица и прямая', run:()=>открытьЛабу()},
+  {k:'Сцена',t:'Стробоскоп: вкл/выкл', run:()=>переключитьСлой('strobe')},
+  {k:'Сцена',t:'Призрак прошлого прогона: вкл/выкл', run:()=>переключитьСлой('ghost')},
+  {k:'Сцена',t:'Камера за телом: вкл/выкл', run:()=>переключитьСлой('follow')},
+  {k:'Сцена',t:'Легенда сил: вкл/выкл', run:()=>переключитьСлой('forceLegend')},
   {k:'Вид',t:'Скрыть/показать симуляцию', hint:'H', run:()=>$('#btn-simhide').click()},
   {k:'Вид',t:'Скрыть/показать панель тем', hint:'Tab', run:()=>$('#btn-rail').click()},
   {k:'Вид',t:'Светлая тема',  run:()=>prefSet('theme','light')},
@@ -38400,6 +40493,9 @@ function запуск(){
   if(typeof подключитьПуть==='function') try{ подключитьПуть(); }catch(e){ console.error('Мой путь не подключился',e); }
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
+  if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
+  if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
+  if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
   // дальше applySettings вызывается уже по действию пользователя
   S.__ready=true;
   setTool('pan'); renderTree(); renderParams();
@@ -38433,7 +40529,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '2.2.1';
+window.PHYSIM_BUILD = '3.0.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

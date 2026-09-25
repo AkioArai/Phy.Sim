@@ -1,0 +1,7 @@
+3.0.0 — the final major release.
+• New section: special relativity — light clock, Minkowski diagram, accelerating towards c.
+• Alternating current: RLC circuit, phasors, resonance.
+• Lab: noisy readings, least-squares line, CSV export.
+• Stroboscope, ghost of the previous run, follow camera, force legend.
+• Orbit: engine burns and Kepler's equal areas.
+• Better contrast, a spoken scene description, automatic economy mode.

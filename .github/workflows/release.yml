@@ -144,9 +144,37 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 77 live simulations,
-          34 topics, 78 step-by-step derivations, 253 formulas and 389 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 81 live simulations,
+          37 topics, 88 step-by-step derivations, 271 formulas and 409 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 3.0.0 — relativity, alternating current and a lab
+
+          The release that rounds the course off.
+
+          **Special relativity** — a new section between optics and quantum physics. A light
+          clock whose moving copy ticks γ times slower, with the Pythagorean triangle of its
+          light path drawn and a rod carried along shortened by γ. A Minkowski diagram where the
+          rocket's axes close towards the light cone, simultaneity comes apart and 0.6c + 0.6c
+          is 0.88c. An electron pushed by a constant force in real seconds: momentum grows
+          evenly, speed creeps up to c, Newton's answer overtakes light. Five derivations, the
+          muon example worked in both frames, fifteen problems.
+
+          **Alternating current** — a series RLC circuit with current running round the
+          schematic, rotating phasors and the resonance curve; five derivations, five problems.
+
+          **Scene layers** for every simulation (scene menu): stroboscope marks at equal time
+          steps, the previous run as a ghost, a camera that follows the body, one colour per
+          force across mechanics with a legend and a scale bar, and a halo under labels. The
+          orbit gets engine burns and Kepler's equal areas; the wave shows its phase vector.
+
+          **The lab** (scene menu → Data): readings with adjustable scatter or a whole series,
+          straightened axes, a least-squares line with the uncertainties of slope and intercept,
+          a table you can copy or save as CSV.
+
+          **Accessibility and speed.** Higher-contrast secondary text in every palette, a
+          spoken description of the scene, announced verdicts, named icon buttons; a device
+          that keeps falling under 24 fps is switched to economy settings once.
 
           ## 2.2.1 — a stricter look
 
