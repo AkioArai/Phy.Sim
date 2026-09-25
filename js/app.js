@@ -745,7 +745,9 @@ function drawAll(){
      зависит, бегущий счётчик только создаёт впечатление идущего процесса. */
   const часы=$('#clock');
   часы.classList.toggle('hidden', a.def.timeless || prefGet('clockShow')===false);
-  if(!a.def.timeless) часы.textContent=`t = ${a.state.t.toFixed(2)} c`;
+  /* У части сцен секунда сцены изображает другую единицу (у световых часов —
+     наносекунду): её и пишем, иначе часы в шапке спорили бы с показаниями. */
+  if(!a.def.timeless) часы.textContent=`t = ${a.state.t.toFixed(2)} ${a.def.timeUnit||'c'}`;
 }
 
 /* ================= ОБВЯЗКА СЦЕНЫ =================
@@ -967,7 +969,8 @@ function drawGraphs(){
     ctx.fillStyle=css('--ink-3'); ctx.font='9px ui-monospace,monospace';
     ctx.fillText(fmt(hi),3,9); ctx.fillText(fmt(lo),3,Hh-3);
     // если начало истории уже не в нуле, честно показываем видимый интервал
-    const tlab = t0>0.05 ? `${t0.toFixed(1)}…${tMax.toFixed(1)} c` : `t=${tMax.toFixed(1)} c`;
+    const tu=a.def.timeUnit||'c';
+    const tlab = t0>0.05 ? `${t0.toFixed(1)}…${tMax.toFixed(1)} ${tu}` : `t=${tMax.toFixed(1)} ${tu}`;
     ctx.fillText(tlab,W-6-ctx.measureText(tlab).width,Hh-3);
   });
   обновитьРазбор(a);
@@ -2640,7 +2643,7 @@ function updateTimeline(){
   if(!scrubbing) r.value=String(Math.max(0,tape.length-1));
   tl.classList.toggle('scrub',scrubbing);
   const t=scrubbing? (tape[S.scrub]?tape[S.scrub].t:0) : (a.state.t||0);
-  $('#tl-time').textContent=(scrubbing?'◀ ':'')+`t = ${t.toFixed(2)} c`;
+  $('#tl-time').textContent=(scrubbing?'◀ ':'')+`t = ${t.toFixed(2)} ${a.def.timeUnit||'c'}`;
 }
 function scrubTo(i){
   const a=A(); if(!a||!a.tape||!a.tape.length) return;
