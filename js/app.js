@@ -884,6 +884,7 @@ function fmtShort(v){
    выглядит чужеродно. Теперь полосы нет: сколько строк влезло, столько и
    показано, а про остальные честно сказано в последней строке. */
 function updateHud(a){
+  if(typeof описаниеСцены==='function') описаниеСцены(a);
   const body=$('#hud-body'), panel=$('#hud'); if(!body||!panel) return;
   /* Показания — две колонки, а не выровненный пробелами текст. Раньше строка
      собиралась как `padEnd(14) + padStart(9) + единица`: при длинном названии
@@ -1251,7 +1252,8 @@ function loop(now){
   }
   if(a&&!idle){ drawAll(); drawGraphs(); updateCompare(); updateTimeline(); }
   frames++;
-  if(now-fpsT>800){ const s=Math.round(frames/((now-fpsT)/1000))+' fps';
+  if(now-fpsT>800){ const кадров=Math.round(frames/((now-fpsT)/1000)), s=кадров+' fps';
+    if(a&&!idle&&typeof экономияЗамер==='function') экономияЗамер(кадров);
     $('#fps').textContent=s;
     const m2=$('#mb-fps'); if(m2) m2.textContent=s;   // тот же счётчик на телефоне
     frames=0; fpsT=now; }
@@ -2273,7 +2275,7 @@ function renderPane(){
             <button class="btn primary check">Проверить</button>
             ${pr.hint?'<button class="btn hint">Подсказка</button>':''}
             <button class="btn reveal">Показать ответ</button>
-            <span class="verdict"></span>
+            <span class="verdict" role="status" aria-live="polite"></span>
           </div>
         </div>`).join('');
       }).join('')}`;
@@ -3976,7 +3978,7 @@ const PREF_CATS=[
   {id:'about',name:'О программе',   icon:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>'}
 ];
 const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
-  quality:'high',bgPause:true,fps:0,videoQ:'med',
+  quality:'high',bgPause:true,fps:0,videoQ:'med',autoEco:true,
   nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,timeline:true,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
@@ -4185,6 +4187,8 @@ const PREFS=[
   {cat:'perf',key:'graphEvery',type:'select',def:6,
    name:'Плотность точек графиков',desc:'Как часто запоминать точку для графиков под сценой. Реже — легче для памяти на длинных прогонах.',
    options:[[3,'Часто — плавные кривые'],[6,'Обычно'],[12,'Редко — экономно']]},
+  {cat:'perf',key:'autoEco',type:'toggle',def:true,
+   name:'Экономный режим сам, если устройство не успевает',desc:'Если сцена несколько секунд идёт медленнее 24 кадров в секунду, пособие один раз само включит экономное качество и скажет об этом.'},
   {cat:'perf',key:'fpsShow',type:'toggle',def:true,
    name:'Счётчик кадров',desc:'Показатель fps в правом нижнем углу (на компьютере).'},
 
@@ -7365,6 +7369,7 @@ function запуск(){
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
   if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
+  if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
   // дальше applySettings вызывается уже по действию пользователя
   S.__ready=true;
   setTool('pan'); renderTree(); renderParams();

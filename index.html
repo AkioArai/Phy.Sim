@@ -307,7 +307,8 @@
         <button class="sc-chip" id="sc-open">развернуть ↑</button>
       </div>
       <div class="canvas-wrap" id="cwrap">
-        <canvas id="scene"></canvas><canvas id="overlay"></canvas>
+        <canvas id="scene" role="img" aria-label="Сцена симуляции" aria-describedby="scene-desc"></canvas><canvas id="overlay" aria-hidden="true"></canvas>
+        <div class="sr-only" id="scene-desc"></div>
         <!-- Пусто там, где должна быть сцена, ничего не объясняет: раньше
              на месте закрытой симуляции оставалось белое поле. -->
         <!-- ЗАМЕТКИ-КАРТОЧКИ. Живут в экранных координатах, а не в мировых:
@@ -763,7 +764,7 @@
   <div class="ws-body" id="ws-body"></div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Командная палитра (Ctrl+P / Ctrl+Shift+P): быстрый переход к теме,
      симуляции, настройке или действию — как в Obsidian и VS Code. -->

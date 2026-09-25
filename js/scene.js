@@ -211,3 +211,56 @@ function подключитьСлои(){
   }
   обновитьМенюСлоёв();
 }
+
+/* ---- доступность (3.0.0) ----
+   Холст для программы чтения с экрана — пустое место. Поэтому у сцены есть
+   текстовое описание: что это за симуляция и главные показания. Обновляем
+   раз в секунду: чаще — программа не успеет дочитать, реже — устареет. */
+let описаниеT=0;
+function описаниеСцены(a){
+  const now=Date.now(); if(now-описаниеT<1000) return; описаниеT=now;
+  const cv=document.querySelector('#scene'), box=document.querySelector('#scene-desc');
+  if(!cv||!box||!a) return;
+  let строки=[];
+  try{
+    строки=(a.def.readouts(a.state,a.params)||[]).slice(0,6).map(r=>{
+      const v=r[1];
+      const ч=typeof v==='number' ? (isFinite(v)? String(+v.toPrecision(4)).replace('.',',') : 'не определено') : String(v);
+      return `${r[0]}: ${ч}${r[2]?' '+r[2]:''}`;
+    });
+  }catch(_){}
+  const текст=`Симуляция «${a.def.title}». `+(строки.length?строки.join('; ')+'.':'');
+  if(box.textContent!==текст) box.textContent=текст;
+}
+/* У кнопок-значков имя берём из подсказки: программа чтения произносит
+   aria-label, а title читает не всегда. */
+function подписатьКнопки(корень){
+  (корень||document).querySelectorAll('button[title]:not([aria-label])').forEach(b=>{
+    if(!b.textContent.trim()) b.setAttribute('aria-label',b.getAttribute('title'));
+  });
+}
+
+/* ---- экономный режим на слабых устройствах ----
+   Если сцена три замера подряд (около 2,5 с) идёт медленнее 24 кадров в
+   секунду, а человек ещё не настраивал быстродействие сам, — включаем
+   экономные настройки один раз и говорим, где их вернуть. */
+let экономияПодряд=0;
+function экономияЗамер(fps){
+  if(prefGet('autoEco')===false || !S.playing) { экономияПодряд=0; return; }
+  if(LS.get('ecoDone',false)) return;
+  экономияПодряд = fps<24 ? экономияПодряд+1 : 0;
+  if(экономияПодряд>=3) включитьЭкономию('кадров мало');
+}
+function включитьЭкономию(почему){
+  LS.set('ecoDone',true);
+  Object.assign(S.settings,{quality:'low',dprCap:1,graphEvery:12,motion:'off'});
+  applySettings();                                   // заодно сохраняет настройки
+  if(typeof toast==='function')
+    toast('Устройство не успевает — включён экономный режим. Вернуть: Настройки → Быстродействие');
+}
+/* Совсем слабое железо видно сразу: не больше двух ядер или не больше 1 ГБ памяти. */
+function экономияПриЗапуске(){
+  if(prefGet('autoEco')===false || LS.get('ecoDone',false)) return;
+  const ядер=navigator.hardwareConcurrency||4, память=navigator.deviceMemory||4;
+  if(ядер<=2 || память<=1) включитьЭкономию('слабое устройство');
+}
