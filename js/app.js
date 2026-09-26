@@ -80,6 +80,18 @@ function сценаПолоска(){ return CH>0 && CH<ПОЛОСКА; }
 
 const VIEW={
   get quality(){return S.settings.quality}, c:css,
+  /* 3D (3.1.0). Сцены с rotate3d:true рисуют объёмные фигуры: ориентация
+     хранится в виде (a.view.rot) и меняется протягиванием по сцене — мышью
+     или пальцем. Проекция ортогональная: z — вверх, поворот вокруг
+     вертикали (yaw) и наклон к зрителю (pitch). Возвращает функцию
+     (x,y,z) → [X, Y, глубина]; глубина растёт к зрителю. */
+  get rot3d(){ const a=A(); return (a&&a.view.rot)||(a&&a.def.rot0)||{yaw:-0.6,pitch:0.35}; },
+  p3(rot,доп){
+    const y0=(rot||this.rot3d).yaw+(доп||0), p0=(rot||this.rot3d).pitch;
+    const cy=Math.cos(y0), sy=Math.sin(y0), cp=Math.cos(p0), sp=Math.sin(p0);
+    return (x,y,z)=>{ const x1=x*cy-y*sy, y1=x*sy+y*cy;          // поворот вокруг z
+      return [x1, z*cp-y1*sp, y1*cp+z*sp]; };                        // наклон вокруг x
+  },
   lw:px=>px*(S.settings.lineW||1)/ppm(),
   /* Подписи на сцене. Позиции в симуляциях заданы вручную пиксельными
      сдвигами, поэтому на разных зумах и наборах параметров они наезжали друг
@@ -202,7 +214,9 @@ const VIEW={
     for(const f of F){
       const c=f.color||this.c('--ink-2');
       this.arrow(ctx,o.x,o.y,o.x+f.fx*k,o.y+f.fy*k,c);
-      const m=Math.hypot(f.fx,f.fy);
+      /* mag — настоящая величина силы. Нужна там, где вектор нарисован в
+         проекции (объёмные сцены): длина на экране короче настоящей. */
+      const m=isFinite(f.mag)?f.mag:Math.hypot(f.fx,f.fy);
       this.label(ctx,`${f.label} = ${m.toFixed(1)} ${u}`,o.x+f.fx*k,o.y+f.fy*k,
         f.fx>=0?8:-8-String(f.label).length*7, f.fy>=0?-10:12, c);
     }
@@ -210,7 +224,7 @@ const VIEW={
       ctx.save(); ctx.setLineDash([this.lw(5),this.lw(4)]);
       this.arrow(ctx,o.x,o.y,o.x+rx*k,o.y+ry*k,this.c('--danger'));
       ctx.restore();
-      this.label(ctx,`F рез = ${Math.hypot(rx,ry).toFixed(1)} ${u}`,
+      this.label(ctx,`F рез = ${(isFinite(o.resMag)?o.resMag:Math.hypot(rx,ry)).toFixed(1)} ${u}`,
         o.x+rx*k,o.y+ry*k,8,12,this.c('--danger'));
     }
     if(o.sum){                                     // правило многоугольника: хвост к концу
@@ -2838,6 +2852,12 @@ $$('#cwrap').addEventListener('pointerdown',e=>{
       return;
     }
   }
+  /* Объёмные сцены: протягивание левой кнопкой или пальцем поворачивает
+     фигуру, а не двигает вид. Двигать вид — Shift, средняя кнопка, два пальца. */
+  if(a.def.rotate3d && e.button===0 && (S.tool==='cursor'||S.tool==='pan')){
+    const r=a.view.rot||(a.view.rot=Object.assign({yaw:-0.6,pitch:0.35},a.def.rot0||{}));
+    drag={mode:'rot3d',px,py,yaw:r.yaw,pitch:r.pitch}; return;
+  }
   if(S.tool==='pan'){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
   const [sx,sy]=snapPt(wx,wy);
   /* Alt+клик — быстрый ластик: убрать одну лишнюю пометку, не уходя за
@@ -2888,6 +2908,12 @@ addEventListener('pointermove',e=>{
   if(drag.mode==='pan'){
     if(Math.hypot(px-drag.px,py-drag.py)>3) drag.moved=true;
     a.view.x=drag.vx-(px-drag.px)/ppm(); a.view.y=drag.vy+(py-drag.py)/ppm();
+  }
+  else if(drag.mode==='rot3d'){
+    const r=a.view.rot||(a.view.rot=Object.assign({yaw:-0.6,pitch:0.35},a.def.rot0||{}));
+    r.yaw=drag.yaw+(px-drag.px)*0.01;
+    r.pitch=clamp(drag.pitch+(py-drag.py)*0.01,-1.5,1.5);
+    if(!S.playing) drawAll();
   }
   else if(drag.mode==='simdraw'){ a.def.wireMove(a.params,drag.handle,wx,wy); }
   else if(drag.mode==='click'){

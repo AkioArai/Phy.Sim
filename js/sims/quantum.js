@@ -1220,144 +1220,224 @@ hspectrum:{
   }
 },
 
-/* ================= ГЛ.26: ОБЛАКО ВЕРОЯТНОСТИ (СТРОГАЯ ТЕОРИЯ) ================= */
+/* ================= ГЛ.26: ОРБИТАЛИ ВОДОРОДА В ОБЪЁМЕ (3.1.0) =================
+   Облако вероятности |ψ_nlm|² строится по точной волновой функции атома
+   водорода, а не по картинке из учебника:
+
+       ψ = R_nl(r)·Y_lm(θ, φ),
+       R_nl ∝ ρ^l·e^(−ρ/2)·L_(n−l−1)^(2l+1)(ρ),   ρ = 2r/(n·a₀),
+
+   L — обобщённые многочлены Лагерра, Y — сферические функции (действительные
+   для «химических» орбиталей px, dxy… или комплексные с определённым m).
+   Плотность распадается на произведение радиальной и угловой частей, поэтому
+   точки облака разыгрываются точно: радиус — по r²R², направление — по |Y|².
+   Никакой подгонки: где у функции узел, там точек нет вовсе.
+
+   Сцену вращают протягиванием (rotate3d). Разрез плоскостью показывает, что
+   внутри: у 3s — три слоя, у 3p — узловая сфера и узловая плоскость.
+
+   До 3.1.0 здесь было плоское пятно для трёх состояний — 1s, 2s и 2p. */
 orbital:{
-  title:'Атом водорода: облако вероятности',
-  /* Сцена — облако вероятности в масштабе боровского радиуса. Поэтому ни
-     осей с числами, ни надписи «сетка N м». */
+  title:'Орбитали водорода: s, p, d, f, g в объёме',
   schema:true,
-  /* Время здесь ни на что не влияет: показания и графики от него не
-     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
-     времени, поэтому часы, шкала времени и графики по времени скрыты. */
   timeless:true,
+  rotate3d:true,
+  hudAware:true,
   params:[
-    {key:'state',label:'Состояние',type:'select',default:'1s',
-     options:[{v:'1s',t:'1s (n=1, l=0)'},{v:'2s',t:'2s (n=2, l=0)'},{v:'2p',t:'2p (n=2, l=1)'}]},
+    {key:'n',label:'Главное квантовое число n',min:1,max:6,step:1,default:3},
+    {key:'l',label:'Орбитальное l (0 … n − 1): s, p, d, f, g, h',min:0,max:5,step:1,default:2},
+    {key:'m',label:'Магнитное m (−l … l)',min:-5,max:5,step:1,default:0},
+    {key:'kind',label:'Вид орбиталей',type:'select',default:'real',
+     options:[{v:'real',t:'Химические (px, dxy …): действительные'},
+              {v:'complex',t:'С определённым m: |ψ|² симметрична вокруг z'}]},
 
     {type:'group',label:'Показывать'},
-    {key:'cloud',label:'Облако вероятности',type:'check',default:true},
-    {key:'plot', label:'Радиальное распределение',type:'check',default:true},
-    {key:'marks',label:'Наиболее вероятный радиус',type:'check',default:true}
+    {key:'pts',label:'Точек в облаке',min:1000,max:30000,step:1000,default:9000},
+    {key:'phase',label:'Знак ψ цветом (+ и −)',type:'check',default:true},
+    {key:'slice',label:'Разрез: только тонкий слой',type:'check',default:false},
+    {key:'axes',label:'Оси x, y, z',type:'check',default:true},
+    {key:'radial',label:'Радиальное распределение P(r)',type:'check',default:true},
+    {key:'spin',label:'Медленно вращать',type:'check',default:true}
   ],
-  a0:0.052917721, hbar:1.054571817e-34,
-  nOf(p){ return p.state==='1s'?1:2; },
-  lOf(p){ return p.state==='2p'?1:0; },
-  /* радиальные плотности вероятности P(r) = r²|R(r)|², нормированы на единицу */
-  P(p,r){
-    const a=this.a0, x=r/a;
-    if(p.state==='1s') return 4*x*x*Math.exp(-2*x)/a;
-    if(p.state==='2s') return (x*x/8)*Math.pow(2-x,2)*Math.exp(-x)/a;
-    return (Math.pow(x,4)/24)*Math.exp(-x)/a;               // 2p
+  a0:0.052917721,                                     // нм
+  SPD:'spdfgh',
+  /* допустимые числа: l ≤ n − 1, |m| ≤ l — ползунки независимы, поэтому
+     лишнее обрезаем здесь и честно пишем об этом на панели */
+  q(p){ const n=Math.max(1,Math.round(p.n)), l=Math.max(0,Math.min(Math.round(p.l),n-1));
+    const m=Math.max(-l,Math.min(Math.round(p.m),l)); return {n,l,m}; },
+  имя(p){
+    const {n,l,m}=this.q(p), L=this.SPD[l];
+    if(p.kind==='complex') return `${n}${L}, m = ${m>0?'+':''}${m}`;
+    const T={1:{0:'z',1:'x','-1':'y'},
+             2:{0:'z²',1:'xz','-1':'yz',2:'x²−y²','-2':'xy'},
+             3:{0:'z³',1:'xz²','-1':'yz²',2:'z(x²−y²)','-2':'xyz',3:'x(x²−3y²)','-3':'y(3x²−y²)'}};
+    return `${n}${L}`+(l===0?'':(T[l]?T[l][m]:`, m = ${m>0?'+':''}${m}`));
   },
-  /* наиболее вероятный радиус (максимум P) */
-  rMax(p){
-    let best=0,bv=-1;
-    for(let i=1;i<=4000;i++){ const r=i*0.0005; const v=this.P(p,r); if(v>bv){bv=v;best=r;} }
-    return best;
+  /* обобщённый многочлен Лагерра L_k^α(x) — по рекуррентной формуле */
+  laguerre(k,a,x){
+    if(k===0) return 1;
+    let L0=1, L1=1+a-x;
+    for(let j=1;j<k;j++){ const L2=((2*j+1+a-x)*L1-(j+a)*L0)/(j+1); L0=L1; L1=L2; }
+    return L1;
   },
-  /* среднее расстояние ⟨r⟩ */
-  rMean(p){
-    let s=0,n=0; const dr=0.0005;
-    for(let i=1;i<=6000;i++){ const r=i*dr; s+=r*this.P(p,r)*dr; }
-    return s;
+  /* присоединённая функция Лежандра P_l^m(x), m ≥ 0 */
+  legendre(l,m,x){
+    let pmm=1; const s=Math.sqrt(Math.max(0,1-x*x));
+    for(let i=1;i<=m;i++) pmm*=-(2*i-1)*s;
+    if(l===m) return pmm;
+    let pm1=x*(2*m+1)*pmm; if(l===m+1) return pm1;
+    let pl=0;
+    for(let k=m+2;k<=l;k++){ pl=((2*k-1)*x*pm1-(k+m-1)*pmm)/(k-m); pmm=pm1; pm1=pl; }
+    return pl;
   },
-  /* орбитальный момент: L = √(l(l+1))·ħ */
-  L(p){ const l=this.lOf(p); return Math.sqrt(l*(l+1))*this.hbar; },
-  E(p){ const n=this.nOf(p); return -13.605693/(n*n); },
-  init(p){ return {t:0,ph:0,event:null,__stop:null}; },
+  R(n,l,r){ const ρ=2*r/n; return Math.pow(ρ,l)*Math.exp(-ρ/2)*this.laguerre(n-l-1,2*l+1,ρ); },
+  Y(l,m,kind,ct,φ){
+    const P=this.legendre(l,Math.abs(m),ct);
+    if(kind==='complex' || m===0) return P;
+    return m>0 ? P*Math.cos(m*φ) : P*Math.sin(-m*φ);
+  },
+  /* Радиальная таблица: P(r) = r²R² на сетке (в единицах a₀), нормированная,
+     её накопленная сумма — для розыгрыша радиуса, и сводка: максимум, среднее,
+     граница 99 %, радиальные узлы. Кэшируется по (n, l). */
+  _rad:{},
+  rad(n,l){
+    const key=n+','+l; if(this._rad[key]) return this._rad[key];
+    const Rmax=n*(2*n+12), N=6000, dr=Rmax/N, r=new Float64Array(N+1), P=new Float64Array(N+1), C=new Float64Array(N+1);
+    let s=0;
+    for(let i=0;i<=N;i++){ const x=i*dr, R=this.R(n,l,x); r[i]=x; P[i]=x*x*R*R; }
+    for(let i=1;i<=N;i++){ s+=(P[i]+P[i-1])/2*dr; C[i]=s; }
+    for(let i=0;i<=N;i++){ P[i]/=s; C[i]/=s; }
+    let im=0; for(let i=1;i<=N;i++) if(P[i]>P[im]) im=i;
+    let mean=0; for(let i=1;i<=N;i++) mean+=(r[i]*P[i]+r[i-1]*P[i-1])/2*dr;
+    let i99=0; while(i99<N && C[i99]<0.99) i99++;
+    const узлы=[]; for(let i=2;i<N;i++){ const a=this.R(n,l,r[i-1]), b=this.R(n,l,r[i]); if((a>0&&b<=0)||(a<0&&b>=0)) узлы.push(r[i]); }
+    return (this._rad[key]={r,P,C,dr,N,rMax:r[im],mean,r99:r[i99],узлы,norm:s});
+  },
+  /* облако точек: радиус по таблице, направление — отбором по |Y|² */
+  _cloud:{},
+  cloud(p){
+    const {n,l,m}=this.q(p);
+    // в разрезе остаётся примерно пятая часть точек — их и разыгрываем впятеро больше
+    const N=Math.min(60000,(Math.round(p.pts)||9000)*(p.slice?5:1)), key=[n,l,m,p.kind,N].join(',');
+    if(this._cloud[key]) return this._cloud[key];
+    let z=0x9e3779b9^(n*131+l*17+(m+7)*3+(p.kind==='real'?1:2));
+    const rnd=()=>{ z|=0; z=z+0x6D2B79F5|0; let t=Math.imul(z^z>>>15,1|z); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+    const T=this.rad(n,l);
+    let ymax=0;
+    for(let i=0;i<=120;i++) for(let j=0;j<=60;j++){ const y=this.Y(l,m,p.kind,-1+2*i/120,j*Math.PI/30); if(y*y>ymax) ymax=y*y; }
+    const xs=new Float32Array(N), ys=new Float32Array(N), zs=new Float32Array(N), sg=new Int8Array(N);
+    for(let k=0;k<N;k++){
+      // радиус: обратная функция распределения, двоичный поиск
+      const u=rnd(); let lo=0, hi=T.N; while(hi-lo>1){ const md=(lo+hi)>>1; if(T.C[md]<u) lo=md; else hi=md; }
+      const r=T.r[lo]+(T.r[hi]-T.r[lo])*((u-T.C[lo])/Math.max(1e-12,T.C[hi]-T.C[lo]));
+      let ct, φ, y, охрана=0;
+      do{ ct=-1+2*rnd(); φ=2*Math.PI*rnd(); y=this.Y(l,m,p.kind,ct,φ); } while(y*y<rnd()*ymax && ++охрана<5000);
+      const st=Math.sqrt(1-ct*ct);
+      xs[k]=r*st*Math.cos(φ); ys[k]=r*st*Math.sin(φ); zs[k]=r*ct;
+      sg[k]=(this.R(n,l,r)*y)>=0?1:-1;
+    }
+    // держим в кэше немного облаков: переключаться туда-обратно — мгновенно
+    const ks=Object.keys(this._cloud); if(ks.length>12) delete this._cloud[ks[0]];
+    return (this._cloud[key]={xs,ys,zs,sg,N});
+  },
+  init(p){ return {t:0,__stop:null}; },
   step(s,dt,p){ s.t+=dt; },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
-    let norm=0; const dr=0.0002;
-    for(let i=1;i<=15000;i++){ norm+=this.P(p,i*dr)*dr; }
-    return [['состояние',0,p.state],
-      ['главное квантовое число n',this.nOf(p),''],
-      ['орбитальное квантовое число l',this.lOf(p),''],
-      ['энергия E = −13,6/n²',this.E(p),'эВ'],
-      ['боровский радиус a₀',this.a0,'нм'],
-      ['наиболее вероятный радиус',this.rMax(p),'нм'],
-      ['в единицах a₀',this.rMax(p)/this.a0,'a₀'],
-      ['среднее расстояние ⟨r⟩',this.rMean(p),'нм'],
-      ['⟨r⟩ в единицах a₀',this.rMean(p)/this.a0,'a₀'],
-      ['орбитальный момент √(l(l+1))ħ',this.L(p)/this.hbar,'ħ'],
-      ['нормировка ∫P(r)dr',norm,'']];
+    const {n,l,m}=this.q(p), T=this.rad(n,l);
+    const обрезано=(n!==p.n||l!==p.l||m!==p.m);
+    const out=[['орбиталь',this.имя(p),''],
+      ['квантовые числа n, l, m',`${n}, ${l}, ${m}`, обрезано?'— подправлено: l ≤ n − 1, |m| ≤ l':''],
+      ['энергия E = −13,6 эВ/n²',-13.605693/(n*n),'эВ'],
+      ['радиальных узлов n − l − 1',n-l-1,''],
+      ['угловых узлов l',l,''],
+      ['момент |L| = √(l(l+1))·ħ',Math.sqrt(l*(l+1)),'ħ'],
+      ['проекция Lz',p.kind==='complex'||m===0 ? m : NaN,
+        p.kind==='complex'||m===0 ? 'ħ' : 'ħ — не определена: орбиталь — смесь +m и −m'],
+      ['наиболее вероятный r',T.rMax,'a₀'],
+      ['среднее ⟨r⟩',T.mean,'a₀'],
+      ['⟨r⟩ в нанометрах',T.mean*this.a0,'нм'],
+      ['99 % вероятности внутри r',T.r99,'a₀'],
+      ['нормировка ∫P(r)dr',T.C[T.N],'']];
+    return out;
   },
   graphs:[],
   presets:[
-    {name:'1s — основное состояние',values:{state:'1s'}},
-    {name:'2s — есть узел внутри',values:{state:'2s'}},
-    {name:'2p — момент импульса не ноль',values:{state:'2p'}}
+    {name:'1s — основное состояние',values:{n:1,l:0,m:0,kind:'real',slice:false}},
+    {name:'2p_z — «гантель»',values:{n:2,l:1,m:0,kind:'real',slice:false}},
+    {name:'3s в разрезе: три слоя',values:{n:3,l:0,m:0,kind:'real',slice:true}},
+    {name:'3d_z² — гантель с кольцом',values:{n:3,l:2,m:0,kind:'real',slice:false}},
+    {name:'3d_xy — четыре лепестка',values:{n:3,l:2,m:-2,kind:'real',slice:false}},
+    {name:'4f_xyz — восемь лепестков',values:{n:4,l:3,m:-2,kind:'real',slice:false}},
+    {name:'5g, m = 0',values:{n:5,l:4,m:0,kind:'real',slice:false}},
+    {name:'2p, m = +1 — бублик вокруг z',values:{n:2,l:1,m:1,kind:'complex',slice:false}}
   ],
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, {n,l}=this.q(p), R=this.rad(n,l).r99;
+    const w=p.radial?3.6*R:2.3*R, h=2.35*R;
+    const scale=clamp(Math.min((W-20)/(w*PX_PER_M),(H-20)/(h*PX_PER_M)),0.0005,40);
+    return {x:p.radial?0.65*R:0,y:0,scale};
   },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const CX=-2.6, a=this.a0;
-    const RMAX=(p.state==='1s')? 5*a : 14*a;
-    const SC=2.4/RMAX;
-    // облако вероятности
-    if(p.cloud){
-      const N=44;
-      let pmax=0;
-      for(let i=1;i<=200;i++) pmax=Math.max(pmax,this.P(p,i*RMAX/200));
-      for(let i=N;i>=1;i--){
-        const r=i*RMAX/N, pr=this.P(p,r)/pmax;
-        // плотность в точке ~ P(r)/r² (переводим радиальное распределение в объёмную плотность)
-        const dens=pr/Math.max(r*r,1e-6);
-        ctx.fillStyle=acc; ctx.globalAlpha=clamp(dens*Math.pow(RMAX,2)*0.03,0,0.5);
-        if(p.state==='2p'){
-          // 2p вытянуто вдоль оси — рисуем две доли
-          ctx.beginPath();
-          if(ctx.ellipse) ctx.ellipse(CX,0,r*SC*0.55,r*SC,0,0,7); else ctx.arc(CX,0,r*SC,0,7);
-          ctx.fill();
-        } else {
-          ctx.beginPath(); ctx.arc(CX,0,r*SC,0,7); ctx.fill();
-        }
-        ctx.globalAlpha=1;
+    const acc=v.c('--accent'), dang=v.c('--danger'), meas=v.c('--measure'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const {n,l,m}=this.q(p), T=this.rad(n,l), R=T.r99, C=this.cloud(p);
+    const пр=v.p3(null, p.spin ? s.t*0.25 : 0);
+    // оси
+    if(p.axes){
+      const L=R*1.08;
+      for(const [ax,ay,az,им] of [[1,0,0,'x'],[0,1,0,'y'],[0,0,1,'z']]){
+        const a=пр(-L*ax,-L*ay,-L*az), b=пр(L*ax,L*ay,L*az);
+        ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+        v.label(ctx,им,b[0],b[1],4,-4,ink3);
       }
     }
+    // облако: дальние точки бледнее и мельче — объём читается без освещения
+    const cp=p.phase && p.kind==='real' ? [acc,dang] : [acc,acc];
+    const w=v.lw(1.9), толщина=R*0.09;
+    const ц=[[],[]];
+    for(let k=0;k<C.N;k++){
+      const q=пр(C.xs[k],C.ys[k],C.zs[k]);
+      if(p.slice && Math.abs(q[2])>толщина) continue;
+      ц[C.sg[k]>0?0:1].push(q);
+    }
+    for(let c=0;c<2;c++){
+      ctx.fillStyle=cp[c];
+      for(const q of ц[c]){
+        const d=q[2]/R;                                  // −1 … 1, к зрителю — больше
+        ctx.globalAlpha=p.slice?0.7:clamp(0.32+0.28*d,0.1,0.65);
+        const r=w*(p.slice?1:(0.9+0.35*d));
+        ctx.fillRect(q[0]-r/2,q[1]-r/2,r,r);
+      }
+    }
+    ctx.globalAlpha=1;
     // ядро
-    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0,0.1,0,7); ctx.fill();
-    // наиболее вероятный радиус
-    if(p.marks){
-      const rm=this.rMax(p);
-      ctx.strokeStyle=meas; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.6);
-      ctx.beginPath(); ctx.arc(CX,0,rm*SC,0,7); ctx.stroke(); ctx.setLineDash([]);
-      v.label(ctx,`наиболее вероятно: ${(rm/a).toFixed(2)} a₀`,CX,rm*SC,-52,-8,meas);
-    }
-    v.label(ctx,`состояние ${p.state}`,CX,-2.7,-24,0,acc);
-    v.label(ctx,'у электрона нет орбиты — есть облако вероятности',CX,-2.7,-118,16,ink3);
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,v.lw(2.5),0,7); ctx.fill();
+    v.label(ctx,this.имя(p),-R,R,0,4,acc);
+    if(p.phase && p.kind==='real' && l>0) v.label(ctx,'цвет — знак ψ: соседние лепестки противоположны',-R,R,0,22,ink3);
+    else if(p.kind==='complex' && m!==0) v.label(ctx,'|ψ|² не зависит от угла φ: облако — тело вращения вокруг z',-R,R,0,22,ink3);
+    v.label(ctx,'протяните по сцене, чтобы повернуть',-R,-R,0,-2,ink3);
 
-    // радиальное распределение
-    if(p.plot){
-      const gx=1.0, gy=-2.0, gw=4.2, gh=3.4;
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      ctx.globalAlpha=1;
-      v.label(ctx,'P(r)',gx,gy+gh,-6,-10,ink3);
-      v.label(ctx,'r',gx+gw,gy,4,12,ink3);
-      let pmax=0;
-      for(let i=1;i<=400;i++) pmax=Math.max(pmax,this.P(p,i*RMAX/400));
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.beginPath();
-      for(let i=0;i<=400;i++){ const r=i*RMAX/400;
-        const x=gx+gw*(r/RMAX), y=gy+gh*(this.P(p,r)/pmax)*0.92;
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    // радиальное распределение P(r) со всеми узлами
+    if(p.radial){
+      const gx=R*1.25, gy=-R*0.55, gw=R*1.05, gh=R*1.0;
+      let Pm=0; for(let i=0;i<=T.N;i++) if(T.P[i]>Pm) Pm=T.P[i];
+      const X=r=>gx+gw*Math.min(1,r/R), Y=P=>gy+gh*P/Pm;
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy+gh*1.05); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
+      ctx.fillStyle=acc; ctx.globalAlpha=.14; ctx.beginPath(); ctx.moveTo(gx,gy);
+      for(let i=0;i<=T.N;i+=4){ if(T.r[i]>R) break; ctx.lineTo(X(T.r[i]),Y(T.P[i])); }
+      ctx.lineTo(X(R),gy); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+      for(let i=0;i<=T.N;i+=4){ if(T.r[i]>R) break; i?ctx.lineTo(X(T.r[i]),Y(T.P[i])):ctx.moveTo(X(T.r[i]),Y(T.P[i])); }
       ctx.stroke();
-      // отметка a₀
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx+gw*(a/RMAX),gy); ctx.lineTo(gx+gw*(a/RMAX),gy+gh*0.9); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,'a₀',gx+gw*(a/RMAX),gy,-4,14,ink3);
-      // максимум
-      const rm=this.rMax(p);
-      ctx.fillStyle=meas; ctx.beginPath();
-      ctx.arc(gx+gw*(rm/RMAX), gy+gh*(this.P(p,rm)/pmax)*0.92, v.lw(3.4),0,7); ctx.fill();
-      if(p.state==='2s') v.label(ctx,'узел: сюда электрон не попадает',gx+gw*0.16,gy+gh*0.2,0,0,ink3);
+      for(const r0 of T.узлы){ if(r0>R) continue;
+        ctx.strokeStyle=dang; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(X(r0),gy); ctx.lineTo(X(r0),gy+gh*0.6); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); }
+      ctx.strokeStyle=meas; ctx.beginPath(); ctx.moveTo(X(T.mean),gy); ctx.lineTo(X(T.mean),gy+gh*0.95); ctx.stroke();
+      v.label(ctx,'P(r) = r²R²',gx,gy+gh,4,-10,ink3);
+      v.label(ctx,`r, a₀ → ${R.toFixed(0)}`,gx+gw,gy,-50,12,ink3);
+      v.label(ctx,`⟨r⟩ = ${T.mean.toFixed(1)} a₀`,X(T.mean),gy+gh*0.95,4,-6,meas);
+      if(T.узлы.length) v.label(ctx,`узлов: ${T.узлы.length} (пунктир)`,gx,gy,0,26,dang);
     }
-    v.label(ctx,`E = ${this.E(p).toFixed(2)} эВ,  момент = ${(this.L(p)/this.hbar).toFixed(3)}·ħ`,1.0,-2.8,-40,0,ink3);
   }
 }
 ,

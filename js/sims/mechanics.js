@@ -1263,7 +1263,13 @@ conical:{
   /* Проекция 3D → 2D: экранный вектор = (X, Y + kZ). Через неё нужно пропускать
      и координаты, и СИЛЫ — иначе сумма сил на экране получается неверной.        */
   PZ:0.38,
-  prj(x,y,z){ return [x, y + this.PZ*z]; },
+  /* С 3.1.0 конус можно повернуть протягиванием (rotate3d): проекция берётся
+     у сцены. Без сцены (проверки в node) — прежняя косоугольная. */
+  rotate3d:true, rot0:{yaw:0,pitch:-0.4},
+  prj(x,y,z){
+    if(typeof VIEW!=='undefined' && VIEW.p3){ const q=VIEW.p3()(x,z,y); return [q[0],q[1]]; }
+    return [x, y + this.PZ*z];
+  },
   pos(s,p){
     const K=this.kin(p);
     const X=K.R*Math.cos(s.phi), Y=-K.h, Z=K.R*Math.sin(s.phi);
@@ -1336,18 +1342,16 @@ conical:{
       const G3=[0,-p.m*p.g,0];                                   // вес
       const [Tx,Ty]=this.prj(T3[0],T3[1],T3[2]);
       const [Gx,Gy]=this.prj(G3[0],G3[1],G3[2]);
-      v.fbd(ctx,{x:r.x,y:r.y,len:K.h*0.55,resultant:true,
+      /* Векторы нарисованы в проекции и на экране короче настоящих, поэтому
+         подписи берут настоящие величины (mag, resMag). Сумма сил — это
+         центростремительная сила m·aц, она направлена к оси вращения. */
+      const Fc=p.m*K.ac;
+      v.fbd(ctx,{x:r.x,y:r.y,len:K.h*0.55,resultant:true,resMag:Fc,
         sum:p.poly?{x:ax-K.R*1.35,y:ay-K.h*0.5}:null,
         forces:[
-          {fx:Gx,fy:Gy,label:'mg',color:v.c('--ink-2')},
-          {fx:Tx,fy:Ty,label:'T',color:v.c('--measure')}
+          {fx:Gx,fy:Gy,label:'mg',mag:p.m*p.g,color:v.c('--ink-2')},
+          {fx:Tx,fy:Ty,label:'T',mag:K.T,color:v.c('--measure')}
         ]});
-      // результирующая = центростремительная сила, направлена к оси вращения
-      const Fc=p.m*K.ac;
-      const C3=[-Fc*Math.cos(s.phi),0,-Fc*Math.sin(s.phi)];
-      const [Cx,Cy]=this.prj(C3[0],C3[1],C3[2]);
-      const k=(K.h*0.55)/Math.max(K.T,Fc,1e-9);
-      v.label(ctx,`F рез = m·aц = ${Fc.toFixed(1)} Н  → к оси`,r.x+Cx*k,r.y+Cy*k,8,14,v.c('--danger'));
     }
     // груз
     ctx.fillStyle=v.c('--accent'); ctx.beginPath(); ctx.arc(r.x,r.y,v.lw(8),0,7); ctx.fill();
