@@ -1,0 +1,6 @@
+3.1.0 — quantum physics you can see.
+• Hydrogen orbitals in 3D: s, p, d, f, g, h up to n = 6, turn them with a finger.
+• Photoeffect as Stoletov's experiment: tube, anode, ammeter, I–V curve.
+• New topics: the single-electron double slit and spin (Stern–Gerlach).
+• Fixed Bohr atom, periodic table, Hund's rule, tunnelling.
+• The Minkowski diagram plays out in time; the AC current swings instead of racing.

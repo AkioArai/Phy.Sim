@@ -144,9 +144,28 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 81 live simulations,
-          37 topics, 88 step-by-step derivations, 271 formulas and 409 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 83 live simulations,
+          39 topics, 94 step-by-step derivations, 284 formulas and 419 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 3.1.0 — quantum physics you can see
+
+          **Hydrogen orbitals in 3D.** Every state up to n = 6 — s, p, d, f, g, h — as a cloud
+          sampled from the exact wavefunction. Drag to turn it; colour shows the sign of ψ; a
+          thin slice shows the nodes; the radial distribution marks every node and ⟨r⟩.
+
+          **Photoeffect as Stoletov's experiment.** A vacuum tube, an anode voltage, an ammeter,
+          electrons turned back by a retarding field, the current–voltage curve and its stopping
+          voltage.
+
+          **New topics.** The double slit one electron at a time — fringes build up dot by dot
+          and vanish with a which-path detector. Spin and the Stern–Gerlach experiment — two
+          spots, cos²(θ/2) at a tilted magnet, and z–x–z.
+
+          **Fixes.** Bohr atom drawn at the scale of its orbit with correct level labels; a real
+          18-column periodic table; Hund's rule in subshells; a taller tunnelling picture; the
+          Minkowski diagram now plays out in time and is no longer hidden under the readouts;
+          the AC current swings back and forth instead of racing round.
 
           ## 3.0.0 — relativity, alternating current and a lab
 

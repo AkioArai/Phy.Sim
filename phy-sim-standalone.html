@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="3.0.0">
+<meta name="physim-build" content="3.1.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -4676,7 +4676,13 @@ conical:{
   /* Проекция 3D → 2D: экранный вектор = (X, Y + kZ). Через неё нужно пропускать
      и координаты, и СИЛЫ — иначе сумма сил на экране получается неверной.        */
   PZ:0.38,
-  prj(x,y,z){ return [x, y + this.PZ*z]; },
+  /* С 3.1.0 конус можно повернуть протягиванием (rotate3d): проекция берётся
+     у сцены. Без сцены (проверки в node) — прежняя косоугольная. */
+  rotate3d:true, rot0:{yaw:0,pitch:-0.4},
+  prj(x,y,z){
+    if(typeof VIEW!=='undefined' && VIEW.p3){ const q=VIEW.p3()(x,z,y); return [q[0],q[1]]; }
+    return [x, y + this.PZ*z];
+  },
   pos(s,p){
     const K=this.kin(p);
     const X=K.R*Math.cos(s.phi), Y=-K.h, Z=K.R*Math.sin(s.phi);
@@ -4749,18 +4755,16 @@ conical:{
       const G3=[0,-p.m*p.g,0];                                   // вес
       const [Tx,Ty]=this.prj(T3[0],T3[1],T3[2]);
       const [Gx,Gy]=this.prj(G3[0],G3[1],G3[2]);
-      v.fbd(ctx,{x:r.x,y:r.y,len:K.h*0.55,resultant:true,
+      /* Векторы нарисованы в проекции и на экране короче настоящих, поэтому
+         подписи берут настоящие величины (mag, resMag). Сумма сил — это
+         центростремительная сила m·aц, она направлена к оси вращения. */
+      const Fc=p.m*K.ac;
+      v.fbd(ctx,{x:r.x,y:r.y,len:K.h*0.55,resultant:true,resMag:Fc,
         sum:p.poly?{x:ax-K.R*1.35,y:ay-K.h*0.5}:null,
         forces:[
-          {fx:Gx,fy:Gy,label:'mg',color:v.c('--ink-2')},
-          {fx:Tx,fy:Ty,label:'T',color:v.c('--measure')}
+          {fx:Gx,fy:Gy,label:'mg',mag:p.m*p.g,color:v.c('--ink-2')},
+          {fx:Tx,fy:Ty,label:'T',mag:K.T,color:v.c('--measure')}
         ]});
-      // результирующая = центростремительная сила, направлена к оси вращения
-      const Fc=p.m*K.ac;
-      const C3=[-Fc*Math.cos(s.phi),0,-Fc*Math.sin(s.phi)];
-      const [Cx,Cy]=this.prj(C3[0],C3[1],C3[2]);
-      const k=(K.h*0.55)/Math.max(K.T,Fc,1e-9);
-      v.label(ctx,`F рез = m·aц = ${Fc.toFixed(1)} Н  → к оси`,r.x+Cx*k,r.y+Cy*k,8,14,v.c('--danger'));
     }
     // груз
     ctx.fillStyle=v.c('--accent'); ctx.beginPath(); ctx.arc(r.x,r.y,v.lw(8),0,7); ctx.fill();
@@ -12004,7 +12008,11 @@ rlc:{
     return {u:p.U0*Math.sin(ph), i, uR:p.R*i,
       uL:k.XL*k.I0*Math.cos(ph-k.phi), uC:-k.XC*k.I0*Math.cos(ph-k.phi), k};
   },
-  init(p){ return {t:0,q:0,__stop:null}; },
+  /* Заряд, прошедший по контуру, — интеграл тока. Начальное значение берём
+     так, чтобы качание было симметричным около нуля: q = −(I₀/ω)·cos(ωt − φ),
+     в единицах секунд сцены. */
+  init(p){ const k=this.calc(p), w=k.w*this.SLOW*1e-3;
+    return {t:0,q:-k.I0/w*Math.cos(-k.phi),__stop:null}; },
   step(s,dt,p){
     const t=s.t+dt*this.SLOW;
     if(p.tStop>0 && t>=p.tStop){ s.t=p.tStop; s.__stop=`Остановка по времени: t = ${p.tStop} мс`; return; }
@@ -12081,7 +12089,13 @@ rlc:{
     v.label(ctx,`U₀ = ${p.U0} В, f = ${p.f} Гц`,X0,Yb,-10,16,ink3);
     // бегущие точки: смещение пропорционально прошедшему заряду
     if(p.flow){
-      const per=2*((X1-X0)+(Yt-Yb)), n=16, sh=((s.q/Math.max(1e-9,k.I0/k.w))*0.35)%1;
+      /* Переменный ток качает заряды туда-обратно, а не гонит по кругу.
+         Сдвиг точек — прошедший заряд, отнесённый к его размаху за
+         полпериода: точки качаются на восьмую часть контура. В 3.0.0 здесь
+         стоял множитель, при котором точки пробегали десятки кругов за
+         полпериода, и казалось, что ток просто несётся. */
+      const Tсц=1/(p.f*this.SLOW*1e-3), qa=Math.max(1e-12,k.I0*Tсц/Math.PI);
+      const per=2*((X1-X0)+(Yt-Yb)), n=16, sh=0.25*s.q/qa;        // q/qa в пределах ±½
       const at=d=>{ d=((d%per)+per)%per;
         if(d<(Yt-Yb)) return [X0,Yb+d]; d-=(Yt-Yb);
         if(d<(X1-X0)) return [X0+d,Yt]; d-=(X1-X0);
@@ -14737,26 +14751,33 @@ doppler:{
 ;
 'use strict';
 Object.assign(SIMS,{
-/* ================== ГЛ.24: ФОТОЭФФЕКТ ================= */
+/* ================== ГЛ.24: ФОТОЭФФЕКТ (3.1.0) =================
+   Опыт Столетова так, как его ставят: вакуумная трубка, свет на катод,
+   анод под напряжением U от батареи, амперметр в цепи. Электроны вылетают
+   с энергиями от нуля до Eмакс = hf − W₀ и летят к аноду в однородном поле.
+   При U < 0 поле их тормозит: долетают только те, у кого E > e|U|, и при
+   U = −Eмакс/e ток обрывается — это задерживающее напряжение. Рядом —
+   вольт-амперная характеристика с точкой, где стоит ползунок, и «лестница
+   энергий»: энергия фотона складывается из работы выхода и энергии электрона.
+
+   До 3.1.0 сцена была россыпью фотонов, подписей и графика без связи между
+   ними, и понять из неё ход опыта было трудно. */
 photoeffect:{
-  title:'Фотоэффект: свет выбивает электроны',
-  /* Сцена — схема опыта и график запирающего напряжения. Поэтому ни осей с
-     числами, ни надписи «сетка N м». */
+  title:'Фотоэффект: опыт Столетова',
   schema:true,
-  /* Время здесь ни на что не влияет: показания и графики от него не
-     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
-     времени, поэтому часы, шкала времени и графики по времени скрыты. */
   timeless:true,
+  hudAware:true,
   params:[
-    {key:'metal',label:'Металл (работа выхода)',type:'select',default:'cs',
+    {key:'metal',label:'Металл катода (работа выхода)',type:'select',default:'na',
      options:[{v:'cs',t:'Цезий — 2,14 эВ'},{v:'na',t:'Натрий — 2,28 эВ'},
               {v:'zn',t:'Цинк — 4,3 эВ'},{v:'pt',t:'Платина — 5,65 эВ'}]},
     {key:'lam', label:'Длина волны света λ',unit:'нм',min:150,max:900,step:5,default:400},
-    {key:'inten',label:'Интенсивность света',unit:'%',min:10,max:100,step:5,default:60},
+    {key:'inten',label:'Интенсивность света',unit:'%',min:0,max:100,step:5,default:60},
+    {key:'U',label:'Напряжение на аноде U (минус — тормозит)',unit:'В',min:-5,max:5,step:0.05,default:1},
 
     {type:'group',label:'Показывать'},
-    {key:'graph',label:'График Eмакс(f)',type:'check',default:true},
-    {key:'flow', label:'Вылетающие электроны',type:'check',default:true}
+    {key:'graph',label:'Вольт-амперная характеристика I(U)',type:'check',default:true},
+    {key:'ladder',label:'Лестница энергий hf = W₀ + Eмакс',type:'check',default:true}
   ],
   h:6.62607015e-34, e:1.602176634e-19, c:2.99792458e8,
   W:{cs:2.14,na:2.28,zn:4.3,pt:5.65},                    // работа выхода, эВ
@@ -14766,16 +14787,45 @@ photoeffect:{
   Ephot(p){ return this.h*this.freq(p)/this.e; },
   /* уравнение Эйнштейна: Eмакс = hf − W₀ */
   Emax(p){ return this.Ephot(p)-this.W0(p); },
-  /* красная граница: f₀ = W₀/h, λ₀ = hc/W₀ */
   lam0(p){ return this.h*this.c/(this.W0(p)*this.e)*1e9; },
   freq0(p){ return this.W0(p)*this.e/this.h; },
   works(p){ return this.Emax(p)>0; },
-  /* задерживающее напряжение: eU = Eмакс */
   Ustop(p){ return Math.max(0,this.Emax(p)); },
-  /* ток пропорционален интенсивности — но только если эффект вообще идёт */
-  current(p){ return this.works()? 0:0; },
-  init(p){ return {t:0,ph:0,event:null,__stop:null}; },
-  step(s,dt,p){ s.t+=dt; s.ph+=dt*1.4; },
+  /* Ток в долях тока насыщения. Энергии вылетевших электронов считаем
+     распределёнными равномерно от 0 до Eмакс (простая модель: в опыте край
+     размыт тепловым движением). При U ≥ 0 долетают все — насыщение; при
+     тормозящем — доля с E > e|U|. */
+  frac(p,U){ U=U===undefined?p.U:U; const Em=this.Emax(p);
+    if(!(Em>0)) return 0; if(U>=0) return 1; return clamp(1+U/Em,0,1); },
+  Isat(p){ return this.works(p)? p.inten/100 : 0; },           // в условных единицах
+  /* цвет света по длине волны */
+  цвет(lam,v){ return lam<380? v.c('--second') : lam<440? '#6d5bd0' : lam<490? '#3b82f6' : lam<560? '#16a34a' :
+                  lam<590? '#ca8a04' : lam<630? '#ea580c' : lam<750? '#dc2626' : '#7f1d1d'; },
+  /* геометрия трубки: катод слева, анод справа, зазор D */
+  K:-2.2, A:2.2, KV:2.6,                                 // KV — скорость (усл./с) электрона с энергией 1 эВ
+  init(p){ return {t:0,ph:0,els:[],seed:12345,изл:0,__stop:null}; },
+  rnd(s){ s.seed=(s.seed*16807)%2147483647; return s.seed/2147483647; },
+  step(s,dt,p){
+    s.t+=dt; s.ph+=dt;
+    const Em=this.Emax(p), D=this.A-this.K;
+    if(Em>0){
+      s.изл+=dt*14*p.inten/100;                          // электронов в секунду при 100 %
+      while(s.изл>=1){ s.изл-=1;
+        const E=Em*this.rnd(s);                          // энергия вылета, эВ
+        s.els.push({x:this.K+0.12, y:-1+2*this.rnd(s), E, v:this.KV*Math.sqrt(E)});
+      }
+    }
+    // однородное поле: v² = KV²·(E + U·(x − K)/D)
+    const out=[];
+    for(const e of s.els){
+      const Ek=e.E+p.U*(e.x-this.K)/D;
+      const a=this.KV*this.KV*p.U/(2*D);                 // ускорение вдоль x
+      e.v+=a*dt; e.x+=e.v*dt;
+      if(e.x>=this.A || e.x<=this.K+0.05 || Ek<-0.5) continue;
+      out.push(e);
+    }
+    s.els=out.length>300?out.slice(-300):out;
+  },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
     const E=this.Ephot(p), W0=this.W0(p), Em=this.Emax(p), ok=Em>0;
@@ -14784,101 +14834,135 @@ photoeffect:{
       ['энергия фотона E = hf',E,'эВ'],
       ['работа выхода W₀',W0,'эВ'],
       ['красная граница λ₀ = hc/W₀',this.lam0(p),'нм'],
-      ['есть ли фотоэффект',ok?1:0, ok?'ДА: E > W₀':'НЕТ: фотон слабее работы выхода']];
-    if(ok){
-      out.push(['максимальная энергия Eмакс = hf − W₀',Em,'эВ'],
-        ['задерживающее напряжение U',this.Ustop(p),'В'],
-        ['скорость электрона',Math.sqrt(2*Em*this.e/9.109e-31)/1e6,'·10⁶ м/с'],
-        ['ток (пропорционален интенсивности)',p.inten,'%']);
-    } else {
-      out.push(['ток',0,'нет тока при любой интенсивности']);
-    }
+      ['есть ли фотоэффект',ok?1:0, ok?'да: hf > W₀':'нет: фотон слабее работы выхода']];
+    if(ok) out.push(['максимальная энергия Eмакс = hf − W₀',Em,'эВ'],
+        ['задерживающее напряжение U = Eмакс/e',this.Ustop(p),'В'],
+        ['скорость электрона √(2Eмакс/m)',Math.sqrt(2*Em*this.e/9.1093837e-31)/1e6,'·10⁶ м/с']);
+    out.push(['напряжение на аноде',p.U,'В'],
+      ['ток, доля от насыщения',this.frac(p)*100, ok?'%':'% — электронов нет']);
     return out;
   },
   graphs:[],
   presets:[
-    {name:'Цезий, фиолетовый свет — эффект есть',values:{metal:'cs',lam:400,inten:60}},
-    {name:'Цезий, красный свет — эффекта нет',values:{metal:'cs',lam:750,inten:60}},
-    {name:'Яркий красный всё равно не помогает',values:{metal:'cs',lam:750,inten:100}},
-    {name:'Цинк: нужен ультрафиолет',values:{metal:'zn',lam:250,inten:60}},
-    {name:'Платина: очень высокий порог',values:{metal:'pt',lam:200,inten:60}}
+    {name:'Натрий, фиолетовый свет — ток есть',values:{metal:'na',lam:400,inten:60,U:1}},
+    {name:'Запирание: U = −Eмакс/e',values:{metal:'na',lam:400,inten:60,U:-0.82}},
+    {name:'Красный свет — эффекта нет',values:{metal:'na',lam:700,inten:100,U:1}},
+    {name:'Ярче — больше ток, запирание то же',values:{metal:'na',lam:400,inten:100,U:-0.5}},
+    {name:'Цинк: нужен ультрафиолет',values:{metal:'zn',lam:250,inten:60,U:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const scale=clamp(Math.min((W-16)/(10.6*PX_PER_M),(H-16)/(10.2*PX_PER_M)),0.002,30);
+    return {x:-0.1,y:-0.1,scale};
   },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const ok=this.works(p), E=this.Ephot(p), W0=this.W0(p), Em=this.Emax(p);
-    // цвет света по длине волны (грубо)
-    const lightCol = p.lam<380? sec : (p.lam<450? '#7b6bd6' : (p.lam<500? '#4a90d9' :
-      (p.lam<570? '#4caf7d' : (p.lam<590? '#d4b942' : (p.lam<620? '#e08a3c' : dang)))));
-    // пластина металла
-    ctx.fillStyle=ink; ctx.fillRect(0.6,-2.6,0.5,5.2);
-    v.label(ctx,`металл, W₀ = ${W0} эВ`,1.1,2.6,-4,-14,ink);
-    // падающие фотоны
-    const nf=Math.max(2,Math.round(p.inten/14));
-    for(let i=0;i<nf;i++){
-      const y=-2.1+ (i+0.5)*(4.2/nf);
-      const t=((s.ph*0.55+i*0.17)%1+1)%1;
-      const x=-4.4+t*5;
-      ctx.strokeStyle=lightCol; ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath();
-      for(let k=0;k<=26;k++){ const xx=x-0.75+k*0.03, yy=y+0.11*Math.sin(k*0.85);
-        k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }
-      ctx.stroke(); ctx.globalAlpha=1;
-      ctx.fillStyle=lightCol; ctx.beginPath(); ctx.arc(x,y,v.lw(2.6),0,7); ctx.fill();
-    }
-    v.label(ctx,`фотоны: λ = ${p.lam} нм, E = ${E.toFixed(2)} эВ`,-4.4,2.6,0,-14,lightCol);
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), ok=v.c('--ok');
+    const W0=this.W0(p), E=this.Ephot(p), Em=this.Emax(p), works=Em>0, свет=this.цвет(p.lam,v);
+    const K=this.K, A=this.A, D=A-K, TY=1.4;             // трубка поднята: под ней цепь и графики
+    ctx.save(); ctx.translate(0,TY);
+    /* подписи рисуются в экранных координатах мимо ctx.translate — им сдвиг добавляем сами */
+    const L=(t,x,y,dx,dy,c)=>v.label(ctx,t,x,y+TY,dx,dy,c);
 
-    // вылетающие электроны (или их отсутствие)
-    if(ok && p.flow){
-      const ne=Math.max(2,Math.round(p.inten/16));
-      for(let i=0;i<ne;i++){
-        const y=-1.8+(i+0.5)*(3.6/ne);
-        const t=((s.ph*0.75+i*0.21)%1+1)%1;
-        const x=1.2+t*3.2;
-        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(x,y,v.lw(3.4),0,7); ctx.fill();
-        v.arrow(ctx,x,y,x+0.4,y,meas);
-      }
-      v.label(ctx,`электроны: Eмакс = ${Em.toFixed(2)} эВ`,4.6,2.2,-90,0,meas);
-      v.label(ctx,`их число зависит от интенсивности (${p.inten}%),`,4.6,2.2,-150,16,ink3);
-      v.label(ctx,'а энергия — только от частоты света',4.6,2.2,-150,30,ink3);
-    } else if(!ok){
-      v.label(ctx,'электроны не вылетают',2.2,1.2,0,0,dang);
-      v.label(ctx,`энергии фотона (${E.toFixed(2)} эВ) не хватает,`,2.2,1.2,0,16,ink3);
-      v.label(ctx,`чтобы совершить работу выхода (${W0} эВ)`,2.2,1.2,0,30,ink3);
-      v.label(ctx,'увеличение яркости не помогает — фотонов больше,',2.2,1.2,0,50,dang);
-      v.label(ctx,'но каждый по-прежнему слишком слаб',2.2,1.2,0,64,dang);
-    }
+    /* ---- трубка ---- */
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath();
+    { const x=K-0.9, y=-1.7, w=D+1.8, h=3.4, r=0.8;       // скруглённый прямоугольник вручную: roundRect есть не везде
+      ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+    ctx.stroke();
+    L('вакуум',0,1.7,-20,-8,ink3);
+    // катод и анод
+    ctx.fillStyle=ink; ctx.fillRect(K-0.18,-1.15,0.18,2.3); ctx.fillRect(A,-1.15,0.18,2.3);
+    L(`катод: ${({cs:'цезий',na:'натрий',zn:'цинк',pt:'платина'})[p.metal]}, W₀ = ${W0} эВ`,K,-1.15,-60,16,ink);
+    L('анод',A,-1.15,-8,16,ink);
 
-    // график Eмакс(f) — прямая с наклоном h
-    if(p.graph){
-      const gx=-4.6, gy=-3.0, gw=4.2, gh=2.0;
-      const fmax=1.8e15, Emx=6;
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      ctx.globalAlpha=1;
-      v.label(ctx,'Eмакс',gx,gy+gh,-30,-4,ink3); v.label(ctx,'f',gx+gw,gy,4,10,ink3);
-      // прямая Eмакс = hf − W₀ (только положительная часть)
-      const f0=this.freq0(p);
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8);
-      ctx.beginPath();
-      ctx.moveTo(gx+gw*(f0/fmax), gy);
-      ctx.lineTo(gx+gw, gy+gh*((this.h*fmax/this.e-W0)/Emx));
+    /* ---- свет: пучок и бегущие фотоны ---- */
+    const sx=-4.4, sy=2.9;                               // лампа (в системе трубки)
+    ctx.fillStyle=свет; ctx.globalAlpha=p.inten>0?0.16+0.3*p.inten/100:0.05;
+    ctx.beginPath(); ctx.moveTo(sx,sy+0.35); ctx.lineTo(K-0.18,0.9); ctx.lineTo(K-0.18,-0.9); ctx.lineTo(sx,sy-0.35); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.fillStyle=ink3; ctx.beginPath(); ctx.arc(sx,sy,0.35,0,7); ctx.fill();
+    L(`λ = ${p.lam} нм, hf = ${E.toFixed(2)} эВ`,sx,sy,-20,-24,свет);
+    const nf=Math.round(2+6*p.inten/100);
+    if(p.inten>0) for(let i=0;i<nf;i++){
+      const u=((s.ph*0.7+i/nf)%1+1)%1, yy=-0.8+1.6*((i*0.37)%1);
+      const x=sx+(K-0.2-sx)*u, y=sy+(yy-sy)*u, dx=K-0.2-sx, dy=yy-sy, L=Math.hypot(dx,dy);
+      ctx.strokeStyle=свет; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
+      for(let k=0;k<=16;k++){ const t=-0.45+k*0.03, w=0.12*Math.sin(k*1.2);
+        const px=x+dx/L*t - dy/L*w, py=y+dy/L*t + dx/L*w; k?ctx.lineTo(px,py):ctx.moveTo(px,py); }
       ctx.stroke();
-      // красная граница
-      ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx+gw*(f0/fmax),gy); ctx.lineTo(gx+gw*(f0/fmax),gy+gh*0.85); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,'f₀',gx+gw*(f0/fmax),gy,-4,12,dang);
-      // текущая точка
-      const fx=gx+gw*clamp(this.freq(p)/fmax,0,1), fy=gy+gh*clamp(Math.max(0,Em)/Emx,0,1);
-      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(fx,fy,v.lw(3.4),0,7); ctx.fill();
-      v.label(ctx,'наклон прямой = постоянная Планка h',gx,gy+gh,0,-18,ink3);
     }
-    v.label(ctx,`Eмакс = hf − W₀ = ${E.toFixed(2)} − ${W0} = ${Em.toFixed(2)} эВ`,1.4,-3.2,-70,0,ok?acc:dang);
+
+    /* ---- электроны ---- */
+    for(const e of s.els){
+      ctx.fillStyle=e.v>=0?meas:dang;
+      ctx.beginPath(); ctx.arc(e.x,e.y,v.lw(3.2),0,7); ctx.fill();
+    }
+    if(!works) L('электроны не вылетают: hf < W₀',0,0.2,-80,0,dang);
+    else if(p.U<0) L(`поле тормозит: долетают только E > ${(-p.U).toFixed(2)} эВ`,0,-0.2,-100,0,p.U<=-Em?dang:ink);
+    // поле между пластинами
+    if(Math.abs(p.U)>0.02){
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(4)]);
+      for(const y of [-0.8,0.8]){ v.arrow(ctx,p.U>0?A-0.3:K+0.3,y,p.U>0?K+0.3:A-0.3,y,ink3); }
+      ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      L('E поля',0,0.8,-18,-10,ink3);
+    }
+
+    /* ---- внешняя цепь: батарея и амперметр ---- */
+    const yw=-2.6;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath(); ctx.moveTo(K-0.09,-1.15); ctx.lineTo(K-0.09,yw); ctx.lineTo(-0.35,yw);
+    ctx.moveTo(0.35,yw); ctx.lineTo(1.1,yw); ctx.moveTo(1.9,yw); ctx.lineTo(A+0.09,yw); ctx.lineTo(A+0.09,-1.15); ctx.stroke();
+    // батарея: длинная пластина — плюс
+    const плюсСправа=p.U>=0;
+    ctx.lineWidth=v.lw(2.4);
+    ctx.beginPath(); ctx.moveTo(плюсСправа?0.35:-0.35,yw-0.45); ctx.lineTo(плюсСправа?0.35:-0.35,yw+0.45);
+    ctx.moveTo(плюсСправа?-0.35:0.35,yw-0.22); ctx.lineTo(плюсСправа?-0.35:0.35,yw+0.22); ctx.stroke();
+    L(`U = ${p.U>0?'+':''}${p.U.toFixed(2)} В`,0,yw,-34,-22,p.U<0?dang:ok);
+    // амперметр
+    const I=this.Isat(p)*this.frac(p);
+    ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath(); ctx.arc(1.5,yw,0.4,0,7); ctx.fill(); ctx.stroke();
+    const ang=Math.PI*(0.8-0.6*I);
+    ctx.strokeStyle=dang; ctx.beginPath(); ctx.moveTo(1.5,yw-0.15); ctx.lineTo(1.5+0.32*Math.cos(ang),yw-0.15+0.32*Math.sin(ang)); ctx.stroke();
+    L(`I = ${(I*100).toFixed(0)} % от насыщения при 100 %`,1.5,yw,-60,26,ink);
+
+    ctx.restore();
+
+    /* ---- лестница энергий: hf = W₀ + Eмакс ---- */
+    if(p.ladder){
+      const x0=-4.8, y0=-2.2, k=4.2/Math.max(6,E,W0+0.5);
+      ctx.fillStyle=свет; ctx.globalAlpha=.85; ctx.fillRect(x0,y0,E*k,0.38); ctx.globalAlpha=1;
+      v.label(ctx,`фотон: hf = ${E.toFixed(2)} эВ`,x0,y0+0.38,0,-10,свет);
+      ctx.fillStyle=ink3; ctx.globalAlpha=.55; ctx.fillRect(x0,y0-0.6,Math.min(W0,E)*k,0.38); ctx.globalAlpha=1;
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.strokeRect(x0,y0-0.6,W0*k,0.38);
+      if(works){ ctx.fillStyle=meas; ctx.fillRect(x0+W0*k,y0-0.6,Em*k,0.38); }
+      v.label(ctx,`W₀ = ${W0}`,x0,y0-0.6,2,24,ink3);
+      v.label(ctx,works?`Eмакс = ${Em.toFixed(2)} эВ`:'фотону не хватает энергии',x0+W0*k,y0-0.6,works?4:-40,24,works?meas:dang);
+    }
+
+    /* ---- вольт-амперная характеристика ---- */
+    if(p.graph){
+      const gx=0.6, gy=-4.7, gw=4.3, gh=2.7, Umin=-5, Umax=5;
+      const X=U=>gx+gw*(U-Umin)/(Umax-Umin), Y=I=>gy+gh*I;
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.moveTo(X(0),gy); ctx.lineTo(X(0),gy+gh*1.08); ctx.stroke();
+      // кривая при 100 % — бледно, при текущей яркости — ярко
+      for(const [ярк,alpha,wd] of [[1,0.3,1.2],[p.inten/100,1,2]]){
+        ctx.strokeStyle=acc; ctx.globalAlpha=alpha; ctx.lineWidth=v.lw(wd); ctx.beginPath();
+        for(let i=0;i<=200;i++){ const U=Umin+(Umax-Umin)*i/200, Ii=(works?ярк:0)*this.frac(p,U);
+          i?ctx.lineTo(X(U),Y(Ii)):ctx.moveTo(X(U),Y(Ii)); }
+        ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+      if(works && -Em>=Umin){
+        ctx.strokeStyle=dang; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(X(-Em),gy); ctx.lineTo(X(-Em),gy+gh*0.6); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
+        v.label(ctx,`−U₃ = −${Em.toFixed(2)} В`,X(-Em),gy,-40,14,dang);
+      }
+      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(X(p.U),Y(I),v.lw(4.5),0,7); ctx.fill();
+      v.label(ctx,'I',X(0),gy+gh*1.08,4,0,ink3);
+      v.label(ctx,'U, В',gx+gw,gy,-30,14,ink3);
+      v.label(ctx,'насыщение — растёт с яркостью',X(0.4),Y(1),0,-10,ink3);
+    }
   }
 },
 
@@ -15333,7 +15417,7 @@ uncertainty:{
           i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
         ctx.stroke(); ctx.globalAlpha=1;
       }
-      v.label(ctx,'складывая такие волны, получаем пакет',-4.4,top+0.30,0,0,sec);
+      v.label(ctx,'сумма этих волн и есть пакет вверху',-4.4,top+0.22,0,-6,sec);
       v.label(ctx,'вес',3.15,top,0,4,ink3);
       for(let j=-2;j<=2;j++){
         const w=Math.exp(-0.5*j*j/1.4);
@@ -15583,14 +15667,14 @@ tunnel:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(11*PX_PER_M),(H-70)/(8*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const scale=clamp(Math.min((W-30)/(10.6*PX_PER_M),(H-30)/(7.4*PX_PER_M)),0.002,30);
+    return {x:0,y:2.1,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const T=this.T(p), K=this.kappa(p);
     const AW=clamp(p.a*2.2,0.3,3.2);              // ширина барьера на экране
-    const x1=-AW/2, x2=AW/2, SY=0.28;             // масштаб энергии в единицы сцены
+    const x1=-AW/2, x2=AW/2, SY=clamp(4.2/Math.max(p.V,p.E,1),0.3,1.2);   // энергия в единицы сцены: выше барьер — мельче шкала, но картина во всю высоту
     // ось
     ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
     ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(5,0); ctx.stroke(); ctx.globalAlpha=1;
@@ -15603,7 +15687,7 @@ tunnel:{
     // уровень энергии
     ctx.strokeStyle=dang; ctx.setLineDash([v.lw(5),v.lw(4)]); ctx.lineWidth=v.lw(1.8);
     ctx.beginPath(); ctx.moveTo(-5,p.E*SY); ctx.lineTo(5,p.E*SY); ctx.stroke(); ctx.setLineDash([]);
-    v.label(ctx,`E = ${p.E} эВ`,-5,p.E*SY,4,-8,dang);
+    v.label(ctx,`E = ${p.E} эВ`,-5,p.E*SY,4,-32,dang);
 
     // волновая функция
     if(p.wave){
@@ -15625,15 +15709,15 @@ tunnel:{
       for(let i=0;i<=240;i++){ const x=-5+(x1+5)*i/240;
         const inc=Math.cos(kk*(x-x1)-ph);
         const ref=rR*Math.cos(kk*(x1-x)-ph);
-        const y=base+0.42*A*NORM*(inc+ref);
+        const y=base+0.75*A*NORM*(inc+ref);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
-      v.label(ctx,'падающая + отражённая',-4.9,base,0,-26,meas);
+      v.label(ctx,'падающая + отражённая',-4.9,base+1.3,0,0,meas);
       // под барьером — затухание без бега
       ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=200;i++){
         const x=x1+AW*i/200;
-        const y=base+0.42*A*ampIn(x)*Math.cos(kIn*(x-x1)-ph);
+        const y=base+0.75*A*ampIn(x)*Math.cos(kIn*(x-x1)-ph);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y);
       }
       ctx.stroke();
@@ -15643,7 +15727,7 @@ tunnel:{
         for(const sgn of [1,-1]){
           ctx.beginPath();
           for(let i=0;i<=60;i++){ const x=x1+AW*i/60;
-            const y=base+sgn*0.42*A*ampIn(x); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+            const y=base+sgn*0.75*A*ampIn(x); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
           ctx.stroke();
         }
         ctx.setLineDash([]); ctx.globalAlpha=1;
@@ -15651,18 +15735,18 @@ tunnel:{
       // прошедшая справа — продолжает фазу, накопленную в барьере
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=240;i++){ const x=x2+(5-x2)*i/240;
-        const y=base+0.42*A*sT*Math.cos(kk*(x-x2)+kIn*AW-ph);
+        const y=base+0.75*A*sT*Math.cos(kk*(x-x2)+kIn*AW-ph);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
-      v.label(ctx,`прошедшая: T = ${(T*100).toFixed(T<0.01?3:1)}%`,5,base,-104,-24,acc);
+      v.label(ctx,`прошедшая: T = ${(T*100).toFixed(T<0.01?3:1)}%`,5,base+1.0,-104,0,acc);
     }
     // вывод
     const txt = p.E<p.V
       ? `классически частица отскочила бы, но T = ${(T*100).toFixed(T<0.01?3:1)}% — она проходит сквозь барьер`
       : `энергии хватает, но часть волны всё равно отражается: T = ${(T*100).toFixed(1)}%`;
-    v.label(ctx,txt,0,-1.6,-Math.round(txt.length*3),0,p.E<p.V?dang:ink3);
-    if(p.E<p.V) v.label(ctx,'прозрачность падает экспоненциально с шириной и высотой барьера',0,-1.6,-142,16,ink3);
-    v.label(ctx,'на этом работают туннельный микроскоп и альфа-распад',0,-1.6,-118,32,ink3);
+    v.label(ctx,txt,0,-0.6,-Math.round(txt.length*3),0,p.E<p.V?dang:ink3);
+    if(p.E<p.V) v.label(ctx,'прозрачность падает экспоненциально с шириной и высотой барьера',0,-0.6,-142,16,ink3);
+    v.label(ctx,'на этом работают туннельный микроскоп и альфа-распад',0,-0.6,-118,32,ink3);
   }
 },
 
@@ -15723,37 +15807,44 @@ bohr:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const scale=clamp(Math.min((W-30)/(11*PX_PER_M),(H-30)/(8*PX_PER_M)),0.002,30);
+    return {x:0.3,y:-0.2,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const CX=-2.2, n=p.n;
-    const SC=2.6/this.r(6);                    // масштаб: шестая орбита влезает
+    /* Радиусы орбит растут как n²: от первой до шестой — в 36 раз. В одном
+       масштабе первая орбита сливается с ядром (так и было до 3.1.0: электрон
+       на n = 1 был не виден). Поэтому масштаб берётся по ТЕКУЩЕЙ орбите — она
+       всегда радиусом 2,2, — а соседние рисуются в том же масштабе, пока
+       помещаются. Отношение радиусов при этом честное. */
+    const SC=2.2/this.r(n);
     // ядро
-    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0,0.16,0,7); ctx.fill();
-    v.label(ctx,'протон',CX,0,-16,20,dang);
-    // все орбиты
+    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0,v.lw(5),0,7); ctx.fill();
+    v.label(ctx,'протон',CX,0,-18,18,dang);
+    // орбиты: текущая и соседние, если помещаются
     for(let k=1;k<=6;k++){
       const R=this.r(k)*SC, on=(k===n);
-      ctx.strokeStyle=on?acc:ink3; ctx.globalAlpha=on?1:.3; ctx.lineWidth=v.lw(on?1.8:1);
+      if(!on && (R<0.25 || R>3.3)) continue;
+      ctx.strokeStyle=on?acc:ink3; ctx.globalAlpha=on?1:.35; ctx.lineWidth=v.lw(on?1.8:1);
       if(!on){ ctx.setLineDash([v.lw(3),v.lw(4)]); }
       ctx.beginPath(); ctx.arc(CX,0,R,0,7); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      if(k<=3||on) v.label(ctx,`n=${k}`,CX+R*0.71,R*0.71,4,-4,on?acc:ink3);
+      ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      v.label(ctx,`n = ${k}`,CX+R*0.71,R*0.71,4,-4,on?acc:ink3);
     }
     const R=this.r(n)*SC;
+    v.label(ctx,`масштаб: r = ${n}²·a₀ = ${this.r(n).toFixed(3)} нм`,CX,-R,-70,26,ink3);
     // волна де Бройля вдоль орбиты: ровно n длин волн
     if(p.wave){
       ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=400;i++){
         const a=i/400*2*Math.PI;
-        const rr=R+0.16*Math.sin(n*a - (p.anim? s.ph*3:0));
+        const rr=R+0.18*Math.sin(n*a - (p.anim? s.ph*3:0));
         const x=CX+rr*Math.cos(a), y=rr*Math.sin(a);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y);
       }
       ctx.stroke();
-      v.label(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} — орбита замыкается`,CX,-R,-Math.round(46*3),24,sec);
+      v.label(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} — волна замыкается`,CX,R,-110,-14,sec);
     }
     // электрон
     const ea=s.ph;
@@ -15762,22 +15853,26 @@ bohr:{
 
     // лестница уровней
     if(p.levels){
-      const gx=2.4, gy=-2.6, gh=4.6;
+      const gx=1.5, gy=-2.6, gh=4.6;
       // энергии от −13.6 до 0
       const Y=E=>gy+gh*(1-(E/this.E1));
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke(); ctx.globalAlpha=1;
-      v.label(ctx,'E, эВ',gx,gy+gh,-4,-12,ink3);
+      v.label(ctx,'E, эВ',gx,gy+gh,-44,4,ink3);
       // уровень ионизации
       ctx.strokeStyle=dang; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); ctx.moveTo(gx,Y(0)); ctx.lineTo(gx+2.2,Y(0)); ctx.stroke(); ctx.setLineDash([]);
-      v.label(ctx,'0 эВ — ионизация',gx+2.2,Y(0),4,-4,dang);
-      for(let k=1;k<=6;k++){
+      ctx.beginPath(); ctx.moveTo(gx,Y(0)); ctx.lineTo(gx+1.4,Y(0)); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,'0 эВ — электрон свободен',gx+1.5,Y(0),2,-14,dang);
+      /* Уровни n ≥ 4 лежат в полосе шириной меньше эВ: подписать каждый нельзя —
+         раскладчик разводил подписи, и они уезжали к чужим линиям («n = 6»
+         оказывалась под n = 2). Подписываем первые три и выбранный уровень. */
+      for(let k=1;k<=8;k++){
         const E=this.E(k), y=Y(E), on=(k===n);
         ctx.strokeStyle=on?acc:ink3; ctx.globalAlpha=on?1:.55; ctx.lineWidth=v.lw(on?2.4:1.2);
-        ctx.beginPath(); ctx.moveTo(gx,y); ctx.lineTo(gx+(on?2.0:1.5),y); ctx.stroke(); ctx.globalAlpha=1;
-        v.label(ctx,`n=${k}  ${E.toFixed(2)}`,gx+(on?2.0:1.5),y,4,-4,on?acc:ink3);
+        ctx.beginPath(); ctx.moveTo(gx,y); ctx.lineTo(gx+(on?1.4:1.1),y); ctx.stroke(); ctx.globalAlpha=1;
+        if(k<=3 || on) v.label(ctx,`n = ${k}:  ${E.toFixed(2)} эВ`,gx+1.5,y,2,0,on?acc:ink3);
       }
+      if(n<4) v.label(ctx,'n = 4, 5, 6 … — всё теснее',gx+1.5,Y(this.E(5)),2,-12,ink3);
       v.label(ctx,'уровни сгущаются к нулю',gx,gy,0,20,ink3);
     }
     v.label(ctx,`E_${n} = ${this.E(n).toFixed(3)} эВ,  r_${n} = ${this.r(n).toFixed(4)} нм`,CX,-3.4,-84,0,ink3);
@@ -15957,144 +16052,224 @@ hspectrum:{
   }
 },
 
-/* ================= ГЛ.26: ОБЛАКО ВЕРОЯТНОСТИ (СТРОГАЯ ТЕОРИЯ) ================= */
+/* ================= ГЛ.26: ОРБИТАЛИ ВОДОРОДА В ОБЪЁМЕ (3.1.0) =================
+   Облако вероятности |ψ_nlm|² строится по точной волновой функции атома
+   водорода, а не по картинке из учебника:
+
+       ψ = R_nl(r)·Y_lm(θ, φ),
+       R_nl ∝ ρ^l·e^(−ρ/2)·L_(n−l−1)^(2l+1)(ρ),   ρ = 2r/(n·a₀),
+
+   L — обобщённые многочлены Лагерра, Y — сферические функции (действительные
+   для «химических» орбиталей px, dxy… или комплексные с определённым m).
+   Плотность распадается на произведение радиальной и угловой частей, поэтому
+   точки облака разыгрываются точно: радиус — по r²R², направление — по |Y|².
+   Никакой подгонки: где у функции узел, там точек нет вовсе.
+
+   Сцену вращают протягиванием (rotate3d). Разрез плоскостью показывает, что
+   внутри: у 3s — три слоя, у 3p — узловая сфера и узловая плоскость.
+
+   До 3.1.0 здесь было плоское пятно для трёх состояний — 1s, 2s и 2p. */
 orbital:{
-  title:'Атом водорода: облако вероятности',
-  /* Сцена — облако вероятности в масштабе боровского радиуса. Поэтому ни
-     осей с числами, ни надписи «сетка N м». */
+  title:'Орбитали водорода: s, p, d, f, g в объёме',
   schema:true,
-  /* Время здесь ни на что не влияет: показания и графики от него не
-     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
-     времени, поэтому часы, шкала времени и графики по времени скрыты. */
   timeless:true,
+  rotate3d:true,
+  hudAware:true,
   params:[
-    {key:'state',label:'Состояние',type:'select',default:'1s',
-     options:[{v:'1s',t:'1s (n=1, l=0)'},{v:'2s',t:'2s (n=2, l=0)'},{v:'2p',t:'2p (n=2, l=1)'}]},
+    {key:'n',label:'Главное квантовое число n',min:1,max:6,step:1,default:3},
+    {key:'l',label:'Орбитальное l (0 … n − 1): s, p, d, f, g, h',min:0,max:5,step:1,default:2},
+    {key:'m',label:'Магнитное m (−l … l)',min:-5,max:5,step:1,default:0},
+    {key:'kind',label:'Вид орбиталей',type:'select',default:'real',
+     options:[{v:'real',t:'Химические (px, dxy …): действительные'},
+              {v:'complex',t:'С определённым m: |ψ|² симметрична вокруг z'}]},
 
     {type:'group',label:'Показывать'},
-    {key:'cloud',label:'Облако вероятности',type:'check',default:true},
-    {key:'plot', label:'Радиальное распределение',type:'check',default:true},
-    {key:'marks',label:'Наиболее вероятный радиус',type:'check',default:true}
+    {key:'pts',label:'Точек в облаке',min:1000,max:30000,step:1000,default:9000},
+    {key:'phase',label:'Знак ψ цветом (+ и −)',type:'check',default:true},
+    {key:'slice',label:'Разрез: только тонкий слой',type:'check',default:false},
+    {key:'axes',label:'Оси x, y, z',type:'check',default:true},
+    {key:'radial',label:'Радиальное распределение P(r)',type:'check',default:true},
+    {key:'spin',label:'Медленно вращать',type:'check',default:true}
   ],
-  a0:0.052917721, hbar:1.054571817e-34,
-  nOf(p){ return p.state==='1s'?1:2; },
-  lOf(p){ return p.state==='2p'?1:0; },
-  /* радиальные плотности вероятности P(r) = r²|R(r)|², нормированы на единицу */
-  P(p,r){
-    const a=this.a0, x=r/a;
-    if(p.state==='1s') return 4*x*x*Math.exp(-2*x)/a;
-    if(p.state==='2s') return (x*x/8)*Math.pow(2-x,2)*Math.exp(-x)/a;
-    return (Math.pow(x,4)/24)*Math.exp(-x)/a;               // 2p
+  a0:0.052917721,                                     // нм
+  SPD:'spdfgh',
+  /* допустимые числа: l ≤ n − 1, |m| ≤ l — ползунки независимы, поэтому
+     лишнее обрезаем здесь и честно пишем об этом на панели */
+  q(p){ const n=Math.max(1,Math.round(p.n)), l=Math.max(0,Math.min(Math.round(p.l),n-1));
+    const m=Math.max(-l,Math.min(Math.round(p.m),l)); return {n,l,m}; },
+  имя(p){
+    const {n,l,m}=this.q(p), L=this.SPD[l];
+    if(p.kind==='complex') return `${n}${L}, m = ${m>0?'+':''}${m}`;
+    const T={1:{0:'z',1:'x','-1':'y'},
+             2:{0:'z²',1:'xz','-1':'yz',2:'x²−y²','-2':'xy'},
+             3:{0:'z³',1:'xz²','-1':'yz²',2:'z(x²−y²)','-2':'xyz',3:'x(x²−3y²)','-3':'y(3x²−y²)'}};
+    return `${n}${L}`+(l===0?'':(T[l]?T[l][m]:`, m = ${m>0?'+':''}${m}`));
   },
-  /* наиболее вероятный радиус (максимум P) */
-  rMax(p){
-    let best=0,bv=-1;
-    for(let i=1;i<=4000;i++){ const r=i*0.0005; const v=this.P(p,r); if(v>bv){bv=v;best=r;} }
-    return best;
+  /* обобщённый многочлен Лагерра L_k^α(x) — по рекуррентной формуле */
+  laguerre(k,a,x){
+    if(k===0) return 1;
+    let L0=1, L1=1+a-x;
+    for(let j=1;j<k;j++){ const L2=((2*j+1+a-x)*L1-(j+a)*L0)/(j+1); L0=L1; L1=L2; }
+    return L1;
   },
-  /* среднее расстояние ⟨r⟩ */
-  rMean(p){
-    let s=0,n=0; const dr=0.0005;
-    for(let i=1;i<=6000;i++){ const r=i*dr; s+=r*this.P(p,r)*dr; }
-    return s;
+  /* присоединённая функция Лежандра P_l^m(x), m ≥ 0 */
+  legendre(l,m,x){
+    let pmm=1; const s=Math.sqrt(Math.max(0,1-x*x));
+    for(let i=1;i<=m;i++) pmm*=-(2*i-1)*s;
+    if(l===m) return pmm;
+    let pm1=x*(2*m+1)*pmm; if(l===m+1) return pm1;
+    let pl=0;
+    for(let k=m+2;k<=l;k++){ pl=((2*k-1)*x*pm1-(k+m-1)*pmm)/(k-m); pmm=pm1; pm1=pl; }
+    return pl;
   },
-  /* орбитальный момент: L = √(l(l+1))·ħ */
-  L(p){ const l=this.lOf(p); return Math.sqrt(l*(l+1))*this.hbar; },
-  E(p){ const n=this.nOf(p); return -13.605693/(n*n); },
-  init(p){ return {t:0,ph:0,event:null,__stop:null}; },
+  R(n,l,r){ const ρ=2*r/n; return Math.pow(ρ,l)*Math.exp(-ρ/2)*this.laguerre(n-l-1,2*l+1,ρ); },
+  Y(l,m,kind,ct,φ){
+    const P=this.legendre(l,Math.abs(m),ct);
+    if(kind==='complex' || m===0) return P;
+    return m>0 ? P*Math.cos(m*φ) : P*Math.sin(-m*φ);
+  },
+  /* Радиальная таблица: P(r) = r²R² на сетке (в единицах a₀), нормированная,
+     её накопленная сумма — для розыгрыша радиуса, и сводка: максимум, среднее,
+     граница 99 %, радиальные узлы. Кэшируется по (n, l). */
+  _rad:{},
+  rad(n,l){
+    const key=n+','+l; if(this._rad[key]) return this._rad[key];
+    const Rmax=n*(2*n+12), N=6000, dr=Rmax/N, r=new Float64Array(N+1), P=new Float64Array(N+1), C=new Float64Array(N+1);
+    let s=0;
+    for(let i=0;i<=N;i++){ const x=i*dr, R=this.R(n,l,x); r[i]=x; P[i]=x*x*R*R; }
+    for(let i=1;i<=N;i++){ s+=(P[i]+P[i-1])/2*dr; C[i]=s; }
+    for(let i=0;i<=N;i++){ P[i]/=s; C[i]/=s; }
+    let im=0; for(let i=1;i<=N;i++) if(P[i]>P[im]) im=i;
+    let mean=0; for(let i=1;i<=N;i++) mean+=(r[i]*P[i]+r[i-1]*P[i-1])/2*dr;
+    let i99=0; while(i99<N && C[i99]<0.99) i99++;
+    const узлы=[]; for(let i=2;i<N;i++){ const a=this.R(n,l,r[i-1]), b=this.R(n,l,r[i]); if((a>0&&b<=0)||(a<0&&b>=0)) узлы.push(r[i]); }
+    return (this._rad[key]={r,P,C,dr,N,rMax:r[im],mean,r99:r[i99],узлы,norm:s});
+  },
+  /* облако точек: радиус по таблице, направление — отбором по |Y|² */
+  _cloud:{},
+  cloud(p){
+    const {n,l,m}=this.q(p);
+    // в разрезе остаётся примерно пятая часть точек — их и разыгрываем впятеро больше
+    const N=Math.min(60000,(Math.round(p.pts)||9000)*(p.slice?5:1)), key=[n,l,m,p.kind,N].join(',');
+    if(this._cloud[key]) return this._cloud[key];
+    let z=0x9e3779b9^(n*131+l*17+(m+7)*3+(p.kind==='real'?1:2));
+    const rnd=()=>{ z|=0; z=z+0x6D2B79F5|0; let t=Math.imul(z^z>>>15,1|z); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+    const T=this.rad(n,l);
+    let ymax=0;
+    for(let i=0;i<=120;i++) for(let j=0;j<=60;j++){ const y=this.Y(l,m,p.kind,-1+2*i/120,j*Math.PI/30); if(y*y>ymax) ymax=y*y; }
+    const xs=new Float32Array(N), ys=new Float32Array(N), zs=new Float32Array(N), sg=new Int8Array(N);
+    for(let k=0;k<N;k++){
+      // радиус: обратная функция распределения, двоичный поиск
+      const u=rnd(); let lo=0, hi=T.N; while(hi-lo>1){ const md=(lo+hi)>>1; if(T.C[md]<u) lo=md; else hi=md; }
+      const r=T.r[lo]+(T.r[hi]-T.r[lo])*((u-T.C[lo])/Math.max(1e-12,T.C[hi]-T.C[lo]));
+      let ct, φ, y, охрана=0;
+      do{ ct=-1+2*rnd(); φ=2*Math.PI*rnd(); y=this.Y(l,m,p.kind,ct,φ); } while(y*y<rnd()*ymax && ++охрана<5000);
+      const st=Math.sqrt(1-ct*ct);
+      xs[k]=r*st*Math.cos(φ); ys[k]=r*st*Math.sin(φ); zs[k]=r*ct;
+      sg[k]=(this.R(n,l,r)*y)>=0?1:-1;
+    }
+    // держим в кэше немного облаков: переключаться туда-обратно — мгновенно
+    const ks=Object.keys(this._cloud); if(ks.length>12) delete this._cloud[ks[0]];
+    return (this._cloud[key]={xs,ys,zs,sg,N});
+  },
+  init(p){ return {t:0,__stop:null}; },
   step(s,dt,p){ s.t+=dt; },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
-    let norm=0; const dr=0.0002;
-    for(let i=1;i<=15000;i++){ norm+=this.P(p,i*dr)*dr; }
-    return [['состояние',0,p.state],
-      ['главное квантовое число n',this.nOf(p),''],
-      ['орбитальное квантовое число l',this.lOf(p),''],
-      ['энергия E = −13,6/n²',this.E(p),'эВ'],
-      ['боровский радиус a₀',this.a0,'нм'],
-      ['наиболее вероятный радиус',this.rMax(p),'нм'],
-      ['в единицах a₀',this.rMax(p)/this.a0,'a₀'],
-      ['среднее расстояние ⟨r⟩',this.rMean(p),'нм'],
-      ['⟨r⟩ в единицах a₀',this.rMean(p)/this.a0,'a₀'],
-      ['орбитальный момент √(l(l+1))ħ',this.L(p)/this.hbar,'ħ'],
-      ['нормировка ∫P(r)dr',norm,'']];
+    const {n,l,m}=this.q(p), T=this.rad(n,l);
+    const обрезано=(n!==p.n||l!==p.l||m!==p.m);
+    const out=[['орбиталь',this.имя(p),''],
+      ['квантовые числа n, l, m',`${n}, ${l}, ${m}`, обрезано?'— подправлено: l ≤ n − 1, |m| ≤ l':''],
+      ['энергия E = −13,6 эВ/n²',-13.605693/(n*n),'эВ'],
+      ['радиальных узлов n − l − 1',n-l-1,''],
+      ['угловых узлов l',l,''],
+      ['момент |L| = √(l(l+1))·ħ',Math.sqrt(l*(l+1)),'ħ'],
+      ['проекция Lz',p.kind==='complex'||m===0 ? m : NaN,
+        p.kind==='complex'||m===0 ? 'ħ' : 'ħ — не определена: орбиталь — смесь +m и −m'],
+      ['наиболее вероятный r',T.rMax,'a₀'],
+      ['среднее ⟨r⟩',T.mean,'a₀'],
+      ['⟨r⟩ в нанометрах',T.mean*this.a0,'нм'],
+      ['99 % вероятности внутри r',T.r99,'a₀'],
+      ['нормировка ∫P(r)dr',T.C[T.N],'']];
+    return out;
   },
   graphs:[],
   presets:[
-    {name:'1s — основное состояние',values:{state:'1s'}},
-    {name:'2s — есть узел внутри',values:{state:'2s'}},
-    {name:'2p — момент импульса не ноль',values:{state:'2p'}}
+    {name:'1s — основное состояние',values:{n:1,l:0,m:0,kind:'real',slice:false}},
+    {name:'2p_z — «гантель»',values:{n:2,l:1,m:0,kind:'real',slice:false}},
+    {name:'3s в разрезе: три слоя',values:{n:3,l:0,m:0,kind:'real',slice:true}},
+    {name:'3d_z² — гантель с кольцом',values:{n:3,l:2,m:0,kind:'real',slice:false}},
+    {name:'3d_xy — четыре лепестка',values:{n:3,l:2,m:-2,kind:'real',slice:false}},
+    {name:'4f_xyz — восемь лепестков',values:{n:4,l:3,m:-2,kind:'real',slice:false}},
+    {name:'5g, m = 0',values:{n:5,l:4,m:0,kind:'real',slice:false}},
+    {name:'2p, m = +1 — бублик вокруг z',values:{n:2,l:1,m:1,kind:'complex',slice:false}}
   ],
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, {n,l}=this.q(p), R=this.rad(n,l).r99;
+    const w=p.radial?3.6*R:2.3*R, h=2.35*R;
+    const scale=clamp(Math.min((W-20)/(w*PX_PER_M),(H-20)/(h*PX_PER_M)),0.0005,40);
+    return {x:p.radial?0.65*R:0,y:0,scale};
   },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const CX=-2.6, a=this.a0;
-    const RMAX=(p.state==='1s')? 5*a : 14*a;
-    const SC=2.4/RMAX;
-    // облако вероятности
-    if(p.cloud){
-      const N=44;
-      let pmax=0;
-      for(let i=1;i<=200;i++) pmax=Math.max(pmax,this.P(p,i*RMAX/200));
-      for(let i=N;i>=1;i--){
-        const r=i*RMAX/N, pr=this.P(p,r)/pmax;
-        // плотность в точке ~ P(r)/r² (переводим радиальное распределение в объёмную плотность)
-        const dens=pr/Math.max(r*r,1e-6);
-        ctx.fillStyle=acc; ctx.globalAlpha=clamp(dens*Math.pow(RMAX,2)*0.03,0,0.5);
-        if(p.state==='2p'){
-          // 2p вытянуто вдоль оси — рисуем две доли
-          ctx.beginPath();
-          if(ctx.ellipse) ctx.ellipse(CX,0,r*SC*0.55,r*SC,0,0,7); else ctx.arc(CX,0,r*SC,0,7);
-          ctx.fill();
-        } else {
-          ctx.beginPath(); ctx.arc(CX,0,r*SC,0,7); ctx.fill();
-        }
-        ctx.globalAlpha=1;
+    const acc=v.c('--accent'), dang=v.c('--danger'), meas=v.c('--measure'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const {n,l,m}=this.q(p), T=this.rad(n,l), R=T.r99, C=this.cloud(p);
+    const пр=v.p3(null, p.spin ? s.t*0.25 : 0);
+    // оси
+    if(p.axes){
+      const L=R*1.08;
+      for(const [ax,ay,az,им] of [[1,0,0,'x'],[0,1,0,'y'],[0,0,1,'z']]){
+        const a=пр(-L*ax,-L*ay,-L*az), b=пр(L*ax,L*ay,L*az);
+        ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+        v.label(ctx,им,b[0],b[1],4,-4,ink3);
       }
     }
+    // облако: дальние точки бледнее и мельче — объём читается без освещения
+    const cp=p.phase && p.kind==='real' ? [acc,dang] : [acc,acc];
+    const w=v.lw(1.9), толщина=R*0.09;
+    const ц=[[],[]];
+    for(let k=0;k<C.N;k++){
+      const q=пр(C.xs[k],C.ys[k],C.zs[k]);
+      if(p.slice && Math.abs(q[2])>толщина) continue;
+      ц[C.sg[k]>0?0:1].push(q);
+    }
+    for(let c=0;c<2;c++){
+      ctx.fillStyle=cp[c];
+      for(const q of ц[c]){
+        const d=q[2]/R;                                  // −1 … 1, к зрителю — больше
+        ctx.globalAlpha=p.slice?0.7:clamp(0.32+0.28*d,0.1,0.65);
+        const r=w*(p.slice?1:(0.9+0.35*d));
+        ctx.fillRect(q[0]-r/2,q[1]-r/2,r,r);
+      }
+    }
+    ctx.globalAlpha=1;
     // ядро
-    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0,0.1,0,7); ctx.fill();
-    // наиболее вероятный радиус
-    if(p.marks){
-      const rm=this.rMax(p);
-      ctx.strokeStyle=meas; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.6);
-      ctx.beginPath(); ctx.arc(CX,0,rm*SC,0,7); ctx.stroke(); ctx.setLineDash([]);
-      v.label(ctx,`наиболее вероятно: ${(rm/a).toFixed(2)} a₀`,CX,rm*SC,-52,-8,meas);
-    }
-    v.label(ctx,`состояние ${p.state}`,CX,-2.7,-24,0,acc);
-    v.label(ctx,'у электрона нет орбиты — есть облако вероятности',CX,-2.7,-118,16,ink3);
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,v.lw(2.5),0,7); ctx.fill();
+    v.label(ctx,this.имя(p),-R,R,0,4,acc);
+    if(p.phase && p.kind==='real' && l>0) v.label(ctx,'цвет — знак ψ: соседние лепестки противоположны',-R,R,0,22,ink3);
+    else if(p.kind==='complex' && m!==0) v.label(ctx,'|ψ|² не зависит от угла φ: облако — тело вращения вокруг z',-R,R,0,22,ink3);
+    v.label(ctx,'протяните по сцене, чтобы повернуть',-R,-R,0,-2,ink3);
 
-    // радиальное распределение
-    if(p.plot){
-      const gx=1.0, gy=-2.0, gw=4.2, gh=3.4;
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      ctx.globalAlpha=1;
-      v.label(ctx,'P(r)',gx,gy+gh,-6,-10,ink3);
-      v.label(ctx,'r',gx+gw,gy,4,12,ink3);
-      let pmax=0;
-      for(let i=1;i<=400;i++) pmax=Math.max(pmax,this.P(p,i*RMAX/400));
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.beginPath();
-      for(let i=0;i<=400;i++){ const r=i*RMAX/400;
-        const x=gx+gw*(r/RMAX), y=gy+gh*(this.P(p,r)/pmax)*0.92;
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    // радиальное распределение P(r) со всеми узлами
+    if(p.radial){
+      const gx=R*1.25, gy=-R*0.55, gw=R*1.05, gh=R*1.0;
+      let Pm=0; for(let i=0;i<=T.N;i++) if(T.P[i]>Pm) Pm=T.P[i];
+      const X=r=>gx+gw*Math.min(1,r/R), Y=P=>gy+gh*P/Pm;
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy+gh*1.05); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
+      ctx.fillStyle=acc; ctx.globalAlpha=.14; ctx.beginPath(); ctx.moveTo(gx,gy);
+      for(let i=0;i<=T.N;i+=4){ if(T.r[i]>R) break; ctx.lineTo(X(T.r[i]),Y(T.P[i])); }
+      ctx.lineTo(X(R),gy); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+      for(let i=0;i<=T.N;i+=4){ if(T.r[i]>R) break; i?ctx.lineTo(X(T.r[i]),Y(T.P[i])):ctx.moveTo(X(T.r[i]),Y(T.P[i])); }
       ctx.stroke();
-      // отметка a₀
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx+gw*(a/RMAX),gy); ctx.lineTo(gx+gw*(a/RMAX),gy+gh*0.9); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,'a₀',gx+gw*(a/RMAX),gy,-4,14,ink3);
-      // максимум
-      const rm=this.rMax(p);
-      ctx.fillStyle=meas; ctx.beginPath();
-      ctx.arc(gx+gw*(rm/RMAX), gy+gh*(this.P(p,rm)/pmax)*0.92, v.lw(3.4),0,7); ctx.fill();
-      if(p.state==='2s') v.label(ctx,'узел: сюда электрон не попадает',gx+gw*0.16,gy+gh*0.2,0,0,ink3);
+      for(const r0 of T.узлы){ if(r0>R) continue;
+        ctx.strokeStyle=dang; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(X(r0),gy); ctx.lineTo(X(r0),gy+gh*0.6); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); }
+      ctx.strokeStyle=meas; ctx.beginPath(); ctx.moveTo(X(T.mean),gy); ctx.lineTo(X(T.mean),gy+gh*0.95); ctx.stroke();
+      v.label(ctx,'P(r) = r²R²',gx,gy+gh,4,-10,ink3);
+      v.label(ctx,`r, a₀ → ${R.toFixed(0)}`,gx+gw,gy,-50,12,ink3);
+      v.label(ctx,`⟨r⟩ = ${T.mean.toFixed(1)} a₀`,X(T.mean),gy+gh*0.95,4,-6,meas);
+      if(T.узлы.length) v.label(ctx,`узлов: ${T.узлы.length} (пунктир)`,gx,gy,0,26,dang);
     }
-    v.label(ctx,`E = ${this.E(p).toFixed(2)} эВ,  момент = ${(this.L(p)/this.hbar).toFixed(3)}·ħ`,1.0,-2.8,-40,0,ink3);
   }
 }
 ,
@@ -16205,9 +16380,12 @@ pauli:{
           const x=-4.3+c*0.62;
           ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2);
           ctx.strokeRect(x,y-0.2,0.5,0.4);
-          // два электрона в клетке — с противоположными спинами
+          /* Правило Хунда: сначала по одному электрону «спином вверх» в каждую
+             клетку, и только потом — вторые, со спином вниз. До 3.1.0 клетки
+             заполнялись парами подряд, и у углерода оба 2p-электрона сидели
+             в одной клетке — так в атоме не бывает. */
           for(let sp=0;sp<2;sp++){
-            const idx=c*2+sp;
+            const idx=sp*cells+c;
             if(idx>=q.e) continue;
             const ex=x+0.15+sp*0.2;
             ctx.strokeStyle=sp?meas:dang; ctx.lineWidth=v.lw(1.6);
@@ -16221,7 +16399,8 @@ pauli:{
         v.label(ctx,`${q.e} из ${this.cap(q.l)}`,-4.3+cells*0.62,y,6,4,ink3);
         y-=0.62;
       }
-      v.label(ctx,'в одной клетке — не больше двух электронов, и только с разными спинами',-5.2,y,0,10,ink3);
+      v.label(ctx,'в клетке не больше двух электронов, и спины у них разные',-5.2,-3.2,0,0,ink3);
+      v.label(ctx,'клетки подоболочки заселяются сначала по одному (правило Хунда)',-5.2,-3.2,0,16,ink3);
     }
 
     // оболочки
@@ -16329,11 +16508,11 @@ periodic:{
        Раньше они делили одну область и налезали друг на друга. */
     // график энергии ионизации
     if(p.graph){
-      const gx=-5.6, gy=-2.9, gw=11.2, gh=3.1, Emax=26;
+      const gx=-5.6, gy=-3.0, gw=11.2, gh=2.9, Emax=26;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
       ctx.globalAlpha=1;
-      v.label(ctx,'энергия ионизации, эВ',gx,gy+gh,2,-12,ink3);
+      v.label(ctx,'энергия ионизации, эВ',gx+gw,gy+gh,-150,-4,ink3);
       v.label(ctx,'Z',gx+gw,gy,8,4,ink3);
       const X=Z=>gx+gw*(Z/36), Y=E=>gy+gh*(E/Emax);
       // кривая
@@ -16357,25 +16536,27 @@ periodic:{
         X(p.Z), Y(this.E(p)), X(p.Z)>gx+gw*0.72? -96 : 10, -8, meas);
       v.label(ctx,'пики — благородные газы, провалы — щелочные металлы',gx,gy,2,22,ink3);
     }
-    // таблица
+    /* Таблица — в настоящей раскладке: 18 столбцов, s-элементы слева,
+       p-элементы справа, d-элементы с 4-го периода. Символы рисуются без
+       раскладки подписей (v.text): до 3.1.0 раскладчик разводил их, и символы
+       съезжали в соседние клетки, а «период N» — к чужим строкам. */
     if(p.table){
-      const rows=[[1,2],[3,10],[11,18],[19,36]];
-      let y=3.35;
-      rows.forEach((r,ri)=>{
-        let x=-5.6;
-        for(let Z=r[0];Z<=r[1];Z++){
-          const on=(Z===p.Z), noble=this.nobles.includes(Z);
-          ctx.fillStyle= on? acc : (noble? dang : ink3);
-          ctx.globalAlpha= on?1:(noble?.5:.22);
-          ctx.fillRect(x,y-0.21,0.50,0.42);
-          ctx.globalAlpha=1;
-          v.label(ctx,this.names[Z],x+0.25,y,-8,4, on?'#fff':ink);
-          x+=0.56;
-        }
-        v.label(ctx,`период ${ri+1}`,-5.6,y,-54,4,ink3);
-        y-=0.56;
-      });
-      v.label(ctx,'каждый период кончается благородным газом — замкнутой оболочкой',-5.6,y,0,10,ink3);
+      const c=0.62, x0=-5.58, y0=3.45;
+      const место=Z=>{ if(Z===1) return [0,0]; if(Z===2) return [17,0];
+        if(Z<=10) return [Z<=4?Z-3:Z-10+17,1]; if(Z<=18) return [Z<=12?Z-11:Z-18+17,2]; return [Z-19,3]; };
+      for(let Z=1;Z<=36;Z++){
+        const [col,row]=место(Z), x=x0+col*c, y=y0-row*c;
+        const on=(Z===p.Z), noble=this.nobles.includes(Z), alk=this.alkali.includes(Z), d=Z>=21&&Z<=30;
+        ctx.fillStyle= on? acc : (noble? dang : (alk? sec : ink3));
+        ctx.globalAlpha= on?1:(noble||alk?.35:(d?.12:.2));
+        ctx.fillRect(x+0.03,y-c/2+0.03,c-0.06,c-0.06);
+        ctx.globalAlpha=1;
+        v.text(ctx,this.names[Z],x+c/2,y,on?'#fff':ink,10,'center',on);
+      }
+      for(let r=0;r<4;r++) v.text(ctx,`${r+1}`,x0-0.12,y0-r*c,ink3,10,'right');
+      v.text(ctx,'период',x0-0.12,y0+c*0.85,ink3,9,'right');
+      v.text(ctx,'s',x0+c,y0+c*0.8,ink3,9); v.text(ctx,'d (с 4-го периода)',x0+c*6.5,y0-c*2,ink3,9); v.text(ctx,'p',x0+c*15,y0+c*0.8,ink3,9);
+      v.label(ctx,'каждый период кончается благородным газом — замкнутой оболочкой',x0,y0-3.5*c,0,4,ink3);
     }
     // итоговая подпись — под графиком, в свободной полосе
     v.label(ctx,`${this.names[p.Z]} — ${this.kind(p)}`,0,-3.5,
@@ -16487,7 +16668,7 @@ xray:{
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8); ctx.setLineDash([v.lw(4),v.lw(3)]);
     ctx.beginPath(); ctx.moveTo(X(lm),gy); ctx.lineTo(X(lm),gy+gh*0.9); ctx.stroke(); ctx.setLineDash([]);
     v.label(ctx,`λмин = ${lm.toFixed(1)} пм`,X(lm),gy+gh*0.9,-8,-8,dang);
-    v.label(ctx,'левее — ничего: у электрона нет столько энергии',X(lm),gy+gh*0.9,-8,8,ink3);
+    v.label(ctx,'короче λмин — ничего: eU не хватает',X(lm),gy+gh*0.9,-8,8,ink3);
     // характеристические линии
     if(p.lines && this.linesVisible(p)){
       for(const [lam,nm,hh] of [[this.lamKa(p),'Kα',0.95],[this.lamKb(p),'Kβ',0.6]]){
@@ -16496,9 +16677,9 @@ xray:{
         ctx.beginPath(); ctx.moveTo(X(lam),gy); ctx.lineTo(X(lam),gy+gh*hh); ctx.stroke();
         v.label(ctx,`${nm} = ${lam.toFixed(1)} пм`,X(lam),gy+gh*hh,-16,-10,meas);
       }
-      v.label(ctx,'острые линии — характеристические: зависят только от материала анода',gx,gy+gh,4,10,meas);
+      v.label(ctx,'острые линии — характеристические: у каждого анода свои',gx,gy,4,64,meas);
     } else if(p.lines){
-      v.label(ctx,'характеристических линий нет: не хватает напряжения выбить K-электрон',gx,gy+gh,4,10,dang);
+      v.label(ctx,'линий нет: напряжения не хватает, чтобы выбить K-электрон',gx,gy,4,64,dang);
     }
     // подпись
     v.label(ctx,`анод: Z = ${p.Z}${this.anodes[p.Z]?' ('+this.anodes[p.Z]+')':''},  U = ${p.U} кВ`,gx,gy,4,32,ink3);
@@ -16506,6 +16687,360 @@ xray:{
   }
 }
 ,
+});
+
+;
+'use strict';
+/* =============================================================================
+   КВАНТОВАЯ МЕХАНИКА: ИЗМЕРЕНИЕ (3.1.0)
+
+   Две сцены о том, что отличает квантовую механику от волн и частиц по
+   отдельности:
+     • двухщелевой опыт с одиночными электронами — каждый оставляет одну
+       точку, а картина из тысяч точек интерференционная; узнали, через какую
+       щель прошёл электрон, — интерференция пропала;
+     • опыт Штерна — Герлаха — пучок атомов в неоднородном магнитном поле
+       расщепляется на два пятна, а не размазывается полосой; последовательные
+       магниты показывают, что измерение меняет состояние.
+
+   Случайность здесь настоящая: каждое попадание разыгрывается по
+   вероятности, которую даёт теория, генератором с зерном — поэтому две
+   одинаковые настройки дают одинаковую картину, а статистика сходится к
+   теории так, как в опыте.
+   ============================================================================= */
+const КВ2={
+  rnd(s){ s.seed=(Math.imul(s.seed^(s.seed>>>15),2246822507)+0x9e3779b9)|0;
+    return ((s.seed>>>0)%1000003)/1000003; },
+  sinc(x){ return Math.abs(x)<1e-9 ? 1 : Math.sin(x)/x; }
+};
+
+Object.assign(SIMS,{
+/* ================== ДВУХЩЕЛЕВОЙ ОПЫТ С ОДИНОЧНЫМИ ЭЛЕКТРОНАМИ ================= */
+slits1:{
+  title:'Двухщелевой опыт: электроны по одному',
+  schema:true,
+  hudAware:true,
+  params:[
+    {key:'E',label:'Энергия электронов E',unit:'эВ',min:5,max:300,step:5,default:50},
+    {key:'d',label:'Расстояние между щелями d',unit:'нм',min:100,max:1500,step:10,default:400},
+    {key:'a',label:'Ширина щели a',unit:'нм',min:20,max:300,step:5,default:80},
+    {key:'L',label:'Расстояние до экрана L',unit:'м',min:0.2,max:2,step:0.1,default:1},
+    {key:'open',label:'Щели',type:'select',default:'both',
+     options:[{v:'both',t:'Открыты обе'},{v:'left',t:'Только верхняя'},{v:'right',t:'Только нижняя'}]},
+    {key:'which',label:'Детектор «через какую щель»',type:'check',default:false},
+    {key:'rate',label:'Электронов в секунду',min:1,max:400,step:1,default:60},
+
+    {type:'group',label:'Показывать'},
+    {key:'theory',label:'Теоретическая кривая |ψ|²',type:'check',default:true},
+    {key:'hist',label:'Гистограмма попаданий',type:'check',default:true},
+
+    {type:'group',label:'Остановка таймера'},
+    {key:'Nstop',label:'Когда попаданий станет (0 — выкл)',min:0,max:20000,step:100,default:0}
+  ],
+  h:6.62607015e-34, me:9.1093837015e-31, e:1.602176634e-19,
+  /* длина волны де Бройля λ = h/√(2meE), в нм */
+  lam(p){ return this.h/Math.sqrt(2*this.me*p.E*this.e)*1e9; },
+  /* ширина полосы на экране Δx = λL/d и половина центрального максимума
+     огибающей λL/a — в миллиметрах */
+  fringe(p){ return this.lam(p)*p.L/p.d*1e3; },
+  envelope(p){ return this.lam(p)*p.L/p.a*1e3; },
+  /* интенсивность на экране в точке x (мм); малые углы: sin θ ≈ x/L */
+  I(p,x){
+    const s=x*1e-3/p.L, λ=this.lam(p);
+    const env=Math.pow(КВ2.sinc(Math.PI*p.a*s/λ),2);
+    if(p.open!=='both' || p.which) return env;         // одна щель или известен путь — без интерференции
+    return env*Math.pow(Math.cos(Math.PI*p.d*s/λ),2);
+  },
+  X(p){ return 1.5*this.envelope(p); },               // полуширина экрана, мм: центральный максимум огибающей и половина соседних
+  BINS:120,
+  init(p){ return {t:0,seed:20260926,hits:[],bins:new Array(this.BINS).fill(0),полёт:[],копилка:0,__stop:null}; },
+  step(s,dt,p){
+    s.t+=dt;
+    s.копилка+=dt*p.rate;
+    const X=this.X(p);
+    while(s.копилка>=1){
+      s.копилка-=1;
+      // точка на экране — отбором по |ψ|² (максимум равен 1 в центре)
+      let x, охр=0;
+      do{ x=(КВ2.rnd(s)*2-1)*X; } while(КВ2.rnd(s)>this.I(p,x) && ++охр<400);
+      const y=КВ2.rnd(s);                              // высота вдоль щели — равномерно
+      const щель = p.open==='left'?1 : p.open==='right'?-1 : (КВ2.rnd(s)<0.5?1:-1);
+      s.полёт.push({x,y,щель,t:0});
+      if(s.полёт.length>60) { const q=s.полёт.shift(); this.засчитать(s,q,X); }
+    }
+    const скорость=Math.max(1.6,p.rate/30);               // при частом счёте летят быстрее, чтобы долетать
+    for(const q of s.полёт) q.t+=dt*скорость;
+    while(s.полёт.length && s.полёт[0].t>=1) this.засчитать(s,s.полёт.shift(),X);
+    if(p.Nstop>0 && s.hits.length>=p.Nstop){ s.__stop=`Попаданий: ${s.hits.length}. Сравните гистограмму с кривой |ψ|²`; }
+  },
+  засчитать(s,q,X){
+    s.hits.push(q); if(s.hits.length>20000) s.hits.shift();
+    const b=Math.floor((q.x+X)/(2*X)*this.BINS); if(b>=0&&b<this.BINS) s.bins[b]++;
+  },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  readouts(s,p){
+    return [['попало на экран',s.hits.length,'электронов'],
+      ['длина волны де Бройля λ = h/√(2mE)',this.lam(p)*1e3,'пм'],
+      ['ширина полосы Δx = λL/d',this.fringe(p),'мм'],
+      ['первый ноль огибающей λL/a',this.envelope(p),'мм'],
+      ['полос в центральном максимуме ≈ 2d/a',p.open==='both'&&!p.which?2*p.d/p.a:NaN, p.open==='both'&&!p.which?'':'— интерференции нет'],
+      ['путь известен',p.which?1:0, p.which?'да — картина двух щелей без полос':'нет']];
+  },
+  graphs:[],
+  presets:[
+    {name:'Обе щели: полосы из отдельных точек',values:{open:'both',which:false,rate:60,E:50,d:400,a:80}},
+    {name:'Быстро набрать 5000 попаданий',values:{open:'both',which:false,rate:400,Nstop:5000}},
+    {name:'Детектор включён — полосы исчезают',values:{open:'both',which:true,rate:200}},
+    {name:'Одна щель — только огибающая',values:{open:'left',which:false,rate:200}},
+    {name:'Медленные электроны — шире полосы',values:{open:'both',which:false,E:10,rate:200}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-20)/(11.2*PX_PER_M),(H-20)/(8.2*PX_PER_M)),0.002,30);
+    return {x:0.4,y:0,scale};
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const X=this.X(p), H=3.6;                          // экран — по вертикали от −H до H
+    const Y=x=>x/X*H;                                  // миллиметры экрана → сцена
+    const src=-5, wall=-2.2, scr=1.8;
+    // пушка
+    ctx.fillStyle=ink; ctx.fillRect(src-0.5,-0.3,0.5,0.6);
+    v.label(ctx,`электроны, E = ${p.E} эВ`,src-0.5,-0.3,0,16,ink3);
+    // стенка со щелями (на сцене щели раздвинуты условно, 0,7 — «d»)
+    const ys=0.7, wa=0.18;
+    ctx.fillStyle=ink3;
+    ctx.fillRect(wall-0.08,-H,0.16,H-ys-wa); ctx.fillRect(wall-0.08,-ys+wa,0.16,2*(ys-wa)); ctx.fillRect(wall-0.08,ys+wa,0.16,H-ys-wa);
+    if(p.open==='left') ctx.fillRect(wall-0.08,-ys-wa,0.16,2*wa);
+    if(p.open==='right') ctx.fillRect(wall-0.08,ys-wa,0.16,2*wa);
+    v.label(ctx,`d = ${p.d} нм, a = ${p.a} нм`,wall,-H,-50,16,ink3);
+    if(p.which){                                        // детектор у щелей
+      for(const y of [ys,-ys]){ ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.arc(wall+0.35,y,0.16,0,7); ctx.stroke(); }
+      v.label(ctx,'детектор: какая щель',wall+0.35,ys,-60,-18,dang);
+    }
+    // летящие электроны: до стенки прямо, потом к точке попадания
+    for(const q of s.полёт){
+      const yh=Y(q.x), sl=q.щель*ys;
+      let x,y;
+      if(q.t<0.5){ const u=q.t/0.5; x=src+(wall-src)*u; y=sl*u; }
+      else { const u=(q.t-0.5)/0.5; x=wall+(scr-wall)*u; y=sl+(yh-sl)*u; }
+      ctx.fillStyle=p.which?dang:acc; ctx.beginPath(); ctx.arc(x,y,v.lw(2.6),0,7); ctx.fill();
+    }
+    // экран с точками попаданий
+    ctx.fillStyle=v.c('--panel-2'); ctx.fillRect(scr,-H,1.1,2*H);
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.strokeRect(scr,-H,1.1,2*H);
+    ctx.fillStyle=ink; ctx.globalAlpha=Math.max(0.25,Math.min(0.9,300/Math.max(1,s.hits.length)*2));
+    const r=v.lw(1.3);
+    for(let i=Math.max(0,s.hits.length-8000);i<s.hits.length;i++){ const q=s.hits[i]; ctx.fillRect(scr+0.05+q.y*1.0-r/2,Y(q.x)-r/2,r,r); }
+    ctx.globalAlpha=1;
+    v.label(ctx,`экран: ${s.hits.length} точек`,scr,H,0,-10,ink);
+    // гистограмма и теория — справа от экрана, столбики вбок
+    const gx=scr+1.3, gw=2.6;
+    let mx=0; for(const b of s.bins) if(b>mx) mx=b;
+    if(p.hist && mx>0){
+      ctx.fillStyle=acc; ctx.globalAlpha=.45;
+      const bh=2*H/this.BINS;
+      s.bins.forEach((b,i)=>{ if(b) ctx.fillRect(gx,-H+i*bh,gw*b/mx,bh*0.9); });
+      ctx.globalAlpha=1;
+    }
+    if(p.theory){
+      /* Кривая в тех же единицах, что столбики: ожидаемое число попаданий в
+         корзину = N·I(x)/ΣI по центрам корзин. Пока точек нет — в полный рост. */
+      let S=0; for(let i=0;i<this.BINS;i++) S+=this.I(p,-X+2*X*(i+0.5)/this.BINS);
+      const N=s.hits.length, n=400;
+      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
+      for(let i=0;i<=n;i++){ const x=-X+2*X*i/n, I=this.I(p,x);
+        const w = mx>0 ? gw*(N*I/S)/mx : gw*I;
+        i?ctx.lineTo(gx+Math.min(w,gw*1.2),Y(x)):ctx.moveTo(gx+Math.min(w,gw*1.2),Y(x)); }
+      ctx.stroke();
+      v.label(ctx,'|ψ|² — теория',gx+gw,H,-80,-10,dang);
+    }
+    // масштаб экрана
+    v.label(ctx,`±${X.toFixed(2)} мм`,scr+1.1,-H,4,10,ink3);
+    const Δ=this.fringe(p);
+    if(p.open==='both'&&!p.which) v.label(ctx,`полосы через Δx = λL/d = ${Δ.toFixed(3)} мм`,wall,H,-40,-10,ink);
+    else v.label(ctx,p.which?'путь известен — интерференции нет':'одна щель — только огибающая',wall,H,-40,-10,dang);
+  }
+},
+
+/* ================== ОПЫТ ШТЕРНА — ГЕРЛАХА ================= */
+sterngerlach:{
+  title:'Спин: опыт Штерна — Герлаха',
+  schema:true,
+  hudAware:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'one',
+     options:[{v:'one',t:'Один магнит: пятна или полоса?'},
+              {v:'two',t:'Два магнита: z, потом под углом θ'},
+              {v:'three',t:'Три магнита: z, x, снова z'}]},
+    {key:'spin',label:'Спин атомов',type:'select',default:'half',
+     options:[{v:'half',t:'½ — серебро (два пятна)'},{v:'one',t:'1 — три пятна'}]},
+    {key:'th',label:'Угол второго магнита θ',unit:'°',min:0,max:180,step:5,default:90,если:p=>p.mode==='two'},
+    {key:'classic',label:'Показать классическое ожидание',type:'check',default:true},
+    {key:'rate',label:'Атомов в секунду',min:1,max:300,step:1,default:40}
+  ],
+  /* Вероятности. Спин ½: после «+z» второй магнит под углом θ даёт «+» с
+     вероятностью cos²(θ/2). Спин 1 в первом магните — три исхода по трети
+     (неполяризованный пучок). В опыте «z, x, z» после выбора «+x» третий
+     магнит снова даёт 50/50: знание о z стёрто. */
+  P2(p){ const t=p.th*Math.PI/180; return Math.pow(Math.cos(t/2),2); },
+  исходы(p){ return p.spin==='one'?[1,0,-1]:[1,-1]; },
+  init(p){ return {t:0,seed:777,A:{},B:{},C:{},летят:[],копилка:0,N:0,__stop:null}; },
+  step(s,dt,p){
+    s.t+=dt; s.копилка+=dt*p.rate;
+    while(s.копилка>=1){ s.копилка-=1; s.летят.push(this.атом(s,p)); s.N++; }
+    const скорость=Math.max(0.8,p.rate/60);              // при частом счёте летят быстрее
+    for(const a of s.летят) a.t+=dt*скорость;
+    while(s.летят.length && s.летят[0].t>=1){ const a=s.летят.shift(); this.засчитать(s,a); }
+    // лишние в полёте не теряем, а сразу засчитываем: статистика не должна зависеть от анимации
+    while(s.летят.length>200) this.засчитать(s,s.летят.shift());
+  },
+  /* судьба одного атома: исходы в каждом магните, по вероятностям */
+  атом(s,p){
+    const r=()=>КВ2.rnd(s);
+    const out=this.исходы(p);
+    const m1=out[Math.floor(r()*out.length)];
+    const a={t:0,m1,m2:null,m3:null,y0:(r()-0.5)*0.3,кл:(r()*2-1)};
+    if(p.mode==='one') return a;
+    if(m1!==1) return a;                                // во второй магнит идут только «+»
+    if(p.mode==='two'){
+      if(p.spin==='half') a.m2 = r()<this.P2(p)?1:-1;
+      else { const c=Math.cos(p.th*Math.PI/180), P=[(1+c)*(1+c)/4,(1-c*c)/2,(1-c)*(1-c)/4], u=r();
+        a.m2 = u<P[0]?1 : u<P[0]+P[1]?0 : -1; }
+      return a;
+    }
+    // «z, x, z»: второй — вдоль x, дальше идут только «+x»; третий — снова z
+    if(p.spin==='half'){ a.m2=r()<0.5?1:-1; if(a.m2===1) a.m3=r()<0.5?1:-1; }
+    else { const u=r(); a.m2=u<0.25?1:u<0.75?0:-1; if(a.m2===1){ const w=r(); a.m3=w<0.25?1:w<0.75?0:-1; } }
+    return a;
+  },
+  засчитать(s,a){
+    s.A[a.m1]=(s.A[a.m1]||0)+1;
+    if(a.m2!==null) s.B[a.m2]=(s.B[a.m2]||0)+1;
+    if(a.m3!==null) s.C[a.m3]=(s.C[a.m3]||0)+1;
+  },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  readouts(s,p){
+    const доля=(o,k)=>{ const n=Object.values(o).reduce((a,b)=>a+b,0); return n?(o[k]||0)/n*100:NaN; };
+    const out=[['атомов прошло',s.N,''],
+      ['первый магнит (z): вверх',доля(s.A,1),'%'],
+      ['первый магнит (z): вниз',доля(s.A,-1),'%']];
+    if(p.spin==='one') out.push(['первый магнит: посередине',доля(s.A,0),'%']);
+    if(p.mode==='two'){
+      out.push([`второй магнит (угол ${p.th}°): «+»`,доля(s.B,1),'%']);
+    }
+    if(p.mode==='three') out.push(['второй (x): «+x»',доля(s.B,1),'%'],['третий (снова z): вверх',доля(s.C,1),'% — опять половина']);
+    out.push(['проекция спина на ось',0, p.spin==='half'?'только +ħ/2 или −ħ/2':'только +ħ, 0 или −ħ']);
+    return out;
+  },
+  graphs:[],
+  presets:[
+    {name:'Серебро: два пятна, а не полоса',values:{mode:'one',spin:'half',classic:true,rate:60}},
+    {name:'Спин 1: три пятна',values:{mode:'one',spin:'one',rate:60}},
+    {name:'Второй магнит под 90°: 50 на 50',values:{mode:'two',spin:'half',th:90,rate:120}},
+    {name:'Второй магнит под 60°: 75 на 25',values:{mode:'two',spin:'half',th:60,rate:120}},
+    {name:'z, x, z: измерение стирает прошлое',values:{mode:'three',spin:'half',rate:150}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const w=p.mode==='one'?9.4:p.mode==='two'?11.5:13.8;
+    const scale=clamp(Math.min((W-20)/(w*PX_PER_M),(H-20)/(7*PX_PER_M)),0.002,30);
+    return {x:p.mode==='one'?0:p.mode==='two'?1.1:2.2,y:0.3,scale};
+  },
+  /* магнит: клин сверху (северный полюс) и паз снизу — поле неоднородно */
+  магнит(ctx,v,x,y0,подпись,подписи){
+    const acc=v.c('--accent'), dang=v.c('--danger'), ink3=v.c('--ink-3');
+    ctx.save(); ctx.translate(x+0.8,y0);
+    ctx.fillStyle=dang; ctx.globalAlpha=.75;
+    ctx.beginPath(); ctx.moveTo(-0.8,0.9); ctx.lineTo(0.8,0.9); ctx.lineTo(0.8,0.55); ctx.lineTo(0,0.25); ctx.lineTo(-0.8,0.55); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=acc;
+    ctx.beginPath(); ctx.moveTo(-0.8,-0.9); ctx.lineTo(0.8,-0.9); ctx.lineTo(0.8,-0.3); ctx.lineTo(0.3,-0.3); ctx.lineTo(0.3,-0.5); ctx.lineTo(-0.3,-0.5); ctx.lineTo(-0.3,-0.3); ctx.lineTo(-0.8,-0.3); ctx.closePath(); ctx.fill();
+    ctx.restore(); ctx.globalAlpha=1;
+    // подпись откладываем: экраны рисуются позже и закрыли бы её
+    подписи.push([подпись,x+0.8,y0-0.9]);
+  },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const S=0.9;                                        // расщепление по высоте за один магнит
+    const src=-4.2, m1=-2.6;
+    ctx.fillStyle=ink; ctx.fillRect(src-0.5,-0.25,0.5,0.5);
+    v.label(ctx,'печь: атомы',src-0.5,0.25,-6,-12,ink3);
+    const подписи=[];
+    this.магнит(ctx,v,m1,0,'магнит z',подписи);
+    const уровни=this.исходы(p);
+    const yOf=m=>m*S;
+    // один магнит: экран
+    const scr1=p.mode==='one'?3.2:1.4;
+    const cnt=o=>Object.values(o).reduce((a,b)=>a+b,0);
+    if(p.mode==='one'){
+      ctx.fillStyle=v.c('--panel-2'); ctx.fillRect(scr1,-2.6,0.5,5.2);
+      if(p.classic){                                     // классика: сплошная полоса
+        ctx.fillStyle=ink3; ctx.globalAlpha=.25; ctx.fillRect(scr1-0.35,-S,0.25,2*S); ctx.globalAlpha=1;
+        v.label(ctx,'классика: полоса',scr1-0.35,0,-110,0,ink3);
+      }
+      for(const m of уровни){ const n=s.A[m]||0, y=yOf(m)*1.6;
+        ctx.fillStyle=acc; ctx.globalAlpha=Math.min(0.9,0.15+n/Math.max(1,cnt(s.A))*1.4);
+        ctx.beginPath(); ctx.ellipse(scr1+0.25,y,0.18,0.28,0,0,7); ctx.fill(); ctx.globalAlpha=1;
+        v.label(ctx,`${m>0?'+':m<0?'−':''}${p.spin==='half'?'ħ/2':(m===0?'0':'ħ')}: ${n}`,scr1+0.5,y,6,0,acc);
+      }
+      v.label(ctx,'опыт: пятна',scr1,2.6,-10,-8,acc);
+    } else {
+      // верхний пучок идёт дальше, нижний — в поглотитель
+      ctx.fillStyle=ink; ctx.fillRect(scr1-0.1,yOf(-1)*1.2-0.25,0.2,0.5);
+      v.label(ctx,'поглотитель',scr1,yOf(-1)*1.2,-30,20,ink3);
+      const x2=scr1+0.6;
+      // второй магнит, повёрнутый вокруг оси пучка: показываем поворот подписью и наклоном полюсов
+      this.магнит(ctx,v,x2,yOf(1)*1.2,p.mode==='two'?`магнит под ${p.th}°`:'магнит x',подписи);
+      if(p.mode==='two'){                                   // вид вдоль пучка: куда смотрит ось второго магнита
+        const cx=x2+0.8, cy=yOf(1)*1.2+1.45, t=p.th*Math.PI/180;
+        ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.arc(cx,cy,0.32,0,7); ctx.stroke();
+        v.arrow(ctx,cx,cy,cx+0.3*Math.sin(t),cy+0.3*Math.cos(t),ok);
+        v.label(ctx,'ось',cx,cy,14,-4,ok);
+      }
+      const scr2=x2+2.2;
+      if(p.mode==='two'){
+        ctx.fillStyle=v.c('--panel-2'); ctx.fillRect(scr2,-2.6,0.5,5.2);
+        for(const m of уровни){ const n=s.B[m]||0, y=yOf(1)*1.2+m*S;
+          ctx.fillStyle=ok; ctx.globalAlpha=Math.min(0.9,0.15+n/Math.max(1,cnt(s.B))*1.4);
+          ctx.beginPath(); ctx.arc(scr2+0.25,y,0.22,0,7); ctx.fill(); ctx.globalAlpha=1;
+          v.label(ctx,`${m>0?'+':m<0?'−':'0'}: ${n}`,scr2+0.5,y,6,0,ok);
+        }
+        if(p.spin==='half') v.label(ctx,`теория: «+» = cos²(θ/2) = ${(this.P2(p)*100).toFixed(0)} %`,scr2,-2.6,-60,18,ink);
+      } else {
+        ctx.fillStyle=ink; ctx.fillRect(scr2-0.1,yOf(1)*1.2+S-0.25-2*S,0.2,0.5);
+        const x3=scr2+0.5;
+        this.магнит(ctx,v,x3,yOf(1)*1.2+S,'снова z',подписи);
+        const scr3=x3+2.2;
+        ctx.fillStyle=v.c('--panel-2'); ctx.fillRect(scr3,-2.6,0.5,5.2);
+        for(const m of уровни){ const n=s.C[m]||0, y=yOf(1)*1.2+S+m*S*0.8;
+          ctx.fillStyle=dang; ctx.globalAlpha=Math.min(0.9,0.15+n/Math.max(1,cnt(s.C))*1.4);
+          ctx.beginPath(); ctx.arc(scr3+0.25,y,0.22,0,7); ctx.fill(); ctx.globalAlpha=1;
+          v.label(ctx,`${m>0?'+z':m<0?'−z':'0'}: ${n}`,scr3+0.5,y,6,0,dang);
+        }
+        v.label(ctx,'снова 50 на 50: измерение x стёрло знание о z',scr3,-2.6,-290,18,ink);
+      }
+    }
+    // летящие атомы: точки вдоль пучков
+    const x2=scr1+0.6, scr2=x2+2.2, x3=scr2+0.5, scr3=x3+2.2;
+    const конец = p.mode==='one'?scr1 : p.mode==='two'?scr2 : scr3;
+    const изгиб=(x,x0,L)=>Math.min(1,Math.pow(Math.max(0,x-x0)/L,2));   // в магните путь — парабола
+    for(const a of s.летят){
+      const x=src+(конец-src)*a.t;
+      let y;
+      if(p.mode==='one') y=a.y0+yOf(a.m1)*1.6*изгиб(x,m1,scr1-m1);
+      else {
+        y=a.y0+yOf(a.m1)*1.2*изгиб(x,m1,scr1-m1);
+        if(x>scr1){ if(a.m1!==1) continue;             // нижний пучок остался в поглотителе
+          y=yOf(1)*1.2+(a.m2===null?0:a.m2*S*изгиб(x,x2,2.2)); }
+        if(p.mode==='three' && x>scr2){ if(a.m2!==1) continue;
+          y=yOf(1)*1.2+S+(a.m3===null?0:a.m3*S*0.8*изгиб(x,x3,2.2)); }
+      }
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(x,y,v.lw(2.4),0,7); ctx.fill();
+    }
+    for(const [t,x,y] of подписи) v.label(ctx,t,x,y,-24,16,ink3);
+    v.label(ctx,p.spin==='half'?'проекция спина на ось магнита — только ±ħ/2':'проекция — только +ħ, 0, −ħ',src-0.5,-2.6,0,20,ink3);
+  }
+}
 });
 
 ;
@@ -18910,42 +19445,55 @@ lightclock:{
   }
 },
 
-/* ================== ДИАГРАММА МИНКОВСКОГО ================= */
+/* ================== ДИАГРАММА МИНКОВСКОГО =================
+   Диаграмма — это стопка «снимков пространства», положенных друг на друга
+   по времени. Поэтому она оживлена: внизу — полоса пространства «сейчас»
+   (Земля, ракета, снаряд, свет), вверху — та же история целиком. Линия
+   «сейчас на Земле» ползёт вверх и показывает, какой снимок изображён в
+   полосе; косая линия «сейчас в ракете» — что одновременно для ракеты.
+   В 3.0.0 сцена была неподвижной и перегруженной подписями: половину её
+   закрывала панель показаний, и понять из неё что-нибудь было трудно. */
 minkowski:{
   title:'Диаграмма Минковского: одновременность и сложение скоростей',
   schema:true,
-  timeless:true,
+  timeUnit:'год',                                    // секунда сцены — год по земным часам
+  hudAware:true,
   params:[
     {key:'beta',label:'Скорость ракеты v/c',min:-0.9,max:0.9,step:0.05,default:0.6},
     {key:'u',label:'Скорость снаряда в ракете u′/c',min:-0.95,max:0.95,step:0.05,default:0.6},
-    {key:'dx',label:'Расстояние между событиями в ракете Δx′',unit:'св. год',min:0,max:3,step:0.25,default:2},
+    {key:'dx',label:'Расстояние между событиями A и B в ракете Δx′',unit:'св. год',min:0,max:3,step:0.25,default:2},
 
     {type:'group',label:'Показывать'},
-    {key:'grid',label:'Сетка ракеты (x′, ct′)',type:'check',default:true},
-    {key:'cone',label:'Световой конус',type:'check',default:true},
-    {key:'simul',label:'Одновременные в ракете события',type:'check',default:true},
-    {key:'galileo',label:'Ответ Галилея v + u′',type:'check',default:true}
+    {key:'cone', label:'Свет и световой конус',type:'check',default:true},
+    {key:'simul',label:'События A и B, одновременные в ракете',type:'check',default:true},
+    {key:'galileo',label:'Ответ Галилея v + u′',type:'check',default:true},
+    {key:'grid', label:'Сетка ракеты (x′, ct′)',type:'check',default:false}
   ],
+  T1:1.5, TEND:5.4,                                  // момент A и B в ракете; конец показа
   g(p){ return REL.gamma(p.beta); },
   uLab(p){ return REL.add(p.beta,p.u); },
-  /* перевод событий ракеты (x′, ct′) в координаты Земли (x, ct) */
+  /* события ракеты (x′, ct′) → координаты Земли (x, ct) */
   toLab(p,x1,t1){ const g=this.g(p), b=p.beta; return [g*(x1+b*t1), g*(t1+b*x1)]; },
-  T1:1.5,                                            // «сейчас» ракеты для пары событий
-  init(p){ return {t:0}; },
-  step(s,dt,p){ s.t+=dt; },
+  events(p){ return {A:this.toLab(p,0,this.T1), B:this.toLab(p,p.dx,this.T1)}; },
+  init(p){ return {t:0,__stop:null}; },
+  step(s,dt,p){
+    const t=s.t+dt;
+    if(t>=this.TEND){ s.t=this.TEND;
+      const E=this.events(p);
+      s.__stop=`В ракете A и B произошли одновременно, а на Земле B ${E.B[1]>=E.A[1]?'позже':'раньше'} на ${Math.abs(E.B[1]-E.A[1]).toFixed(2)} года. ↻ — посмотреть снова`;
+      return; }
+    s.t=t;
+  },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
-    const g=this.g(p), b=p.beta, u=this.uLab(p);
-    const A=this.toLab(p,0,this.T1), B=this.toLab(p,p.dx,this.T1);
-    const dt=B[1]-A[1], dX=B[0]-A[0];
-    return [['γ ракеты',g,''],
-      ['u = (v + u′)/(1 + vu′/c²)',u,'c'],
-      ['по Галилею v + u′',b+p.u, Math.abs(b+p.u)>=1?'c — быстрее света!':'c'],
-      ['события A, B: Δt′ в ракете',0,'год — одновременны'],
-      ['Δt на Земле = γvΔx′/c²',dt,'год'],
-      ['интервал (cΔt)² − Δx² в ракете',-p.dx*p.dx,'св. год²'],
-      ['интервал (cΔt)² − Δx² на Земле',dt*dt-dX*dX,'св. год² — тот же'],
-      ['наклон осей ракеты',Math.atan(Math.abs(b))*180/Math.PI,'°']];
+    const g=this.g(p), u=this.uLab(p), E=this.events(p);
+    const dt=E.B[1]-E.A[1], dX=E.B[0]-E.A[0];
+    return [['время: на Земле t · в ракете t/γ',s.t,`год · ${(s.t/g).toFixed(2)} год`],
+      ['γ ракеты',g,''],
+      ['снаряд u = (v + u′)/(1 + vu′/c²)',u,'c'],
+      ['по Галилею v + u′',p.beta+p.u, Math.abs(p.beta+p.u)>=1?'c — быстрее света!':'c'],
+      ['A и B на Земле: Δt = γvΔx′/c²',dt,'год'],
+      ['интервал (cΔt)² − Δx²',dt*dt-dX*dX,'св. год² — как и в ракете']];
   },
   graphs:[],
   presets:[
@@ -18953,93 +19501,100 @@ minkowski:{
     {name:'0,9c + 0,9c = 0,994c',values:{beta:0.9,u:0.9,dx:2}},
     {name:'Медленно: почти как у Галилея',values:{beta:0.1,u:0.1,dx:2}},
     {name:'Встречный снаряд',values:{beta:0.6,u:-0.8,dx:2}},
-    {name:'Ракета стоит: сетки совпадают',values:{beta:0,u:0.5,dx:2}}
+    {name:'Ракета стоит: одновременность общая',values:{beta:0,u:0.5,dx:2}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-30)/(8.6*PX_PER_M),(H-30)/(7.2*PX_PER_M)),0.002,30);
-    return {x:0,y:2.8,scale};
+    const scale=clamp(Math.min((W-24)/(8.6*PX_PER_M),(H-24)/(8.2*PX_PER_M)),0.002,30);
+    return {x:0,y:1.75,scale};
   },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
-    const X0=-4, X1=4, Tm=6, b=p.beta, g=this.g(p);
-    ctx.save(); ctx.beginPath(); ctx.rect(X0-0.3,-0.6,X1-X0+0.6,Tm+0.8); ctx.clip();
-    // сетка Земли — бледная
-    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.5;
-    for(let k=-4;k<=4;k++){ ctx.beginPath(); ctx.moveTo(k,-0.5); ctx.lineTo(k,Tm); ctx.stroke(); }
-    for(let k=0;k<=6;k++){ ctx.beginPath(); ctx.moveTo(X0,k); ctx.lineTo(X1,k); ctx.stroke(); }
+    const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), sec=v.c('--second');
+    const X0=-4, X1=4, T=5.6, b=p.beta, g=this.g(p), u=this.uLab(p), uG=b+p.u;
+    const t=s.t, E=this.events(p);
+    const dot=(x,y,r,c,пусто)=>{ ctx.beginPath(); ctx.arc(x,y,v.lw(r),0,7);
+      if(пусто){ ctx.strokeStyle=c; ctx.lineWidth=v.lw(1.6); ctx.stroke(); } else { ctx.fillStyle=c; ctx.fill(); } };
+
+    /* ---------- диаграмма ---------- */
+    ctx.save(); ctx.beginPath(); ctx.rect(X0,-0.25,X1-X0,T+0.25); ctx.clip();
+    // сетка Земли: годы и световые годы
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.55;
+    for(let k=-4;k<=4;k++){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k,T); ctx.stroke(); }
+    for(let k=1;k<=5;k++){ ctx.beginPath(); ctx.moveTo(X0,k); ctx.lineTo(X1,k); ctx.stroke(); }
     ctx.globalAlpha=1;
+    if(p.grid && Math.abs(b)>1e-6){
+      ctx.strokeStyle=acc; ctx.globalAlpha=.2;
+      for(let k=-8;k<=8;k++){
+        const a=this.toLab(p,k,-8), c2=this.toLab(p,k,8), d=this.toLab(p,-8,k), e=this.toLab(p,8,k);
+        ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
     // световой конус
     if(p.cone){
-      ctx.fillStyle=meas; ctx.globalAlpha=.08;
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Tm,Tm); ctx.lineTo(-Tm,Tm); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha=1;
-      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(5),v.lw(4)]);
-      ctx.beginPath(); ctx.moveTo(-Tm,Tm); ctx.lineTo(0,0); ctx.lineTo(Tm,Tm); ctx.stroke();
-      ctx.setLineDash(EMPTY_DASH);
+      ctx.fillStyle=meas; ctx.globalAlpha=.07;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(T,T); ctx.lineTo(-T,T); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.8);
+      ctx.beginPath(); ctx.moveTo(-T,T); ctx.lineTo(0,0); ctx.lineTo(T,T); ctx.stroke();
     }
-    // сетка ракеты: линии x′ = const и ct′ = const
-    if(p.grid && Math.abs(b)>1e-6){
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.28;
-      for(let k=-8;k<=8;k++){
-        const a=this.toLab(p,k,-8), c2=this.toLab(p,k,8);
-        ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.stroke();
-        const d=this.toLab(p,-8,k), e=this.toLab(p,8,k);
-        ctx.beginPath(); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
-      }
-      ctx.globalAlpha=1;
-    }
-    // оси Земли
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
-    ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X1,0); ctx.moveTo(0,-0.5); ctx.lineTo(0,Tm); ctx.stroke();
-    // оси ракеты
-    {
-      const a=this.toLab(p,0,-2), c2=this.toLab(p,0,8), d=this.toLab(p,-8,0), e=this.toLab(p,8,0);
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
-      // деления: единица ракеты на её осях длиннее — масштаб тоже меняется
-      ctx.fillStyle=acc;
-      for(let k=1;k<=6;k++){
-        const q=this.toLab(p,0,k); if(q[1]<Tm){ ctx.beginPath(); ctx.arc(q[0],q[1],v.lw(2.6),0,7); ctx.fill(); }
-        const r=this.toLab(p,k,0); if(r[0]<X1){ ctx.beginPath(); ctx.arc(r[0],r[1],v.lw(2.6),0,7); ctx.fill(); }
-      }
-    }
-    // мировая линия снаряда и ответ Галилея
-    const u=this.uLab(p), uG=b+p.u;
-    const wl=(uu,col,dash)=>{
-      ctx.strokeStyle=col; ctx.lineWidth=v.lw(2.2); if(dash) ctx.setLineDash([v.lw(6),v.lw(4)]);
-      const tEnd=Math.min(Tm, Math.abs(uu)>1e-6? 3.9/Math.abs(uu):Tm);
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(uu*tEnd,tEnd); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
-      return [uu*tEnd,tEnd];
-    };
-    let pg=null;
-    if(p.galileo && Math.abs(uG-u)>0.005) pg=wl(uG,dang,true);
-    const pu=wl(u,ok,false);
-    // одновременные в ракете события A и B
-    let A=null,B=null;
+    // мировые линии: Земля (ось ct), ракета (ось ct′), снаряд, Галилей
+    const wl=(uu,col,w,dash,до)=>{ ctx.strokeStyle=col; ctx.lineWidth=v.lw(w); ctx.setLineDash(dash?[v.lw(6),v.lw(4)]:EMPTY_DASH);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(uu*до,до); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); };
+    ctx.globalAlpha=.35; wl(0,ink,2,false,T); wl(b,acc,2.4,false,T); wl(u,ok,2.2,false,T);
+    if(p.galileo) wl(uG,dang,1.6,true,T);
+    ctx.globalAlpha=1;
+    // пройденная часть мировых линий — ярко
+    wl(0,ink,2.4,false,t); wl(b,acc,2.8,false,t); wl(u,ok,2.6,false,t);
+    if(p.galileo) wl(uG,dang,1.8,true,t);
+    // ось x′ ракеты (её «сейчас» в момент старта) — тонко
+    { const d=this.toLab(p,-8,0), e=this.toLab(p,8,0);
+      ctx.strokeStyle=acc; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.2);
+      ctx.beginPath(); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke(); ctx.globalAlpha=1; }
+    // «сейчас на Земле» — горизонталь
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(2),v.lw(3)]);
+    ctx.beginPath(); ctx.moveTo(X0,t); ctx.lineTo(X1,t); ctx.stroke();
+    // «сейчас в ракете» — косая линия через ракету: ct′ = t/γ
+    const r1=this.toLab(p,-8,t/g), r2=this.toLab(p,8,t/g);
+    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8);
+    ctx.beginPath(); ctx.moveTo(r1[0],r1[1]); ctx.lineTo(r2[0],r2[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
+    // события A и B: пустые — ещё не случились по земным часам, залитые — уже
     if(p.simul){
-      A=this.toLab(p,0,this.T1); B=this.toLab(p,p.dx,this.T1);
       const l1=this.toLab(p,-8,this.T1), l2=this.toLab(p,8,this.T1);
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(3),v.lw(3)]);
-      ctx.beginPath(); ctx.moveTo(l1[0],l1[1]); ctx.lineTo(l2[0],l2[1]); ctx.stroke();
-      ctx.strokeStyle=ink3;
-      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(X0,A[1]); ctx.moveTo(B[0],B[1]); ctx.lineTo(X0,B[1]); ctx.stroke();
-      ctx.setLineDash(EMPTY_DASH);
-      for(const q of [A,B]){ ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(q[0],q[1],v.lw(5),0,7); ctx.fill(); }
+      ctx.strokeStyle=sec; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(l1[0],l1[1]); ctx.lineTo(l2[0],l2[1]); ctx.stroke(); ctx.globalAlpha=1;
+      for(const q of [E.A,E.B]) dot(q[0],q[1],5.5,sec,t<q[1]);
     }
+    // тела на мировых линиях в момент t
+    dot(0,t,4,ink); dot(b*t,t,5,acc); dot(u*t,t,4.5,ok);
     ctx.restore();
-    // подписи — вне обрезки, чтобы раскладчик мог их прижать к краю
-    v.label(ctx,'x, св. год',X1,0,-64,12,ink);
-    v.label(ctx,'ct, год',0,Tm,6,8,ink);
-    { const e=this.toLab(p,0,Math.min(4.5,Tm/g*0.9)); v.label(ctx,'ct′ (ракета)',e[0],e[1],6,0,acc); }
-    { const e=this.toLab(p,Math.min(3.6,3.9/g),0); v.label(ctx,'x′',e[0],e[1],4,-10,acc); }
-    v.label(ctx,`снаряд: u = ${u.toFixed(3)}c`,pu[0],pu[1],6,10,ok);
-    if(pg) v.label(ctx,`Галилей: v + u′ = ${uG.toFixed(2)}c${Math.abs(uG)>=1?' — быстрее света':''}`,pg[0],pg[1],-40,-12,dang);
-    if(p.cone) v.label(ctx,'свет: x = ±ct',-Tm*0.8,Tm*0.8,6,0,meas);
-    if(A){
-      v.label(ctx,'A',A[0],A[1],-14,-8,acc); v.label(ctx,'B',B[0],B[1],8,-8,acc);
-      v.label(ctx,`в ракете A и B одновременны; на Земле B позже на ${(B[1]-A[1]).toFixed(2)} года`,X0,-0.35,0,0,ink3);
+    // оси
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4);
+    ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X1,0); ctx.moveTo(0,0); ctx.lineTo(0,T); ctx.stroke();
+    v.label(ctx,'ct, год',0,T,6,6,ink3);
+    v.label(ctx,'x, св. год',X1,0,-62,-8,ink3);
+    v.label(ctx,'сейчас на Земле',X0,t,4,-8,ink);
+    { const q=this.toLab(p,Math.min(3,3.6/g),t/g); if(q[1]<T && q[1]>0) v.label(ctx,'сейчас в ракете',q[0],q[1],-40,-12,acc); }
+    if(p.simul){
+      v.label(ctx,'A',E.A[0],E.A[1],-16,-8,sec); v.label(ctx,'B',E.B[0],E.B[1],8,-8,sec);
     }
+
+    /* ---------- полоса пространства «сейчас» ---------- */
+    const yS=-1.3;
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(X0,yS); ctx.lineTo(X1,yS); ctx.stroke();
+    for(let k=-4;k<=4;k++){ ctx.beginPath(); ctx.moveTo(k,yS-0.08); ctx.lineTo(k,yS+0.08); ctx.stroke(); }
+    v.label(ctx,`пространство сейчас — t = ${t.toFixed(2)} год по земным часам`,X0,yS,0,46,ink3);
+    const inX=x=>x>=X0-1e-9&&x<=X1+1e-9;
+    if(p.cone){ for(const x of [-t,t]) if(inX(x)) dot(x,yS,4,meas); }
+    if(p.simul) for(const [q,n] of [[E.A,'A'],[E.B,'B']])
+      if(Math.abs(t-q[1])<0.12 && inX(q[0])){ dot(q[0],yS,9,sec,true); v.label(ctx,`вспышка ${n}`,q[0],yS,-24,-30,sec); }
+    // у каждого тела своя строка подписи — точки часто стоят рядом
+    const тела=[[0,ink,'Земля',4,16],[b*t,acc,'ракета',5.5,-16],[u*t,ok,'снаряд',4.5,-30]];
+    if(p.galileo) тела.push([uG*t,dang,'Галилей',4,30]);
+    for(const [x,c,имя,r,dy] of тела){ if(!inX(x)) continue; dot(x,yS,r,c,имя==='Галилей');
+      v.label(ctx,имя,x,yS,-16,dy,c); }
+    if(p.cone && inX(t)) v.label(ctx,'свет',t,yS,-10,16,meas);
   }
 },
 
@@ -26344,6 +26899,17 @@ const T_qwave={
   выбраться, и миллион слабых фотонов не заменят одного достаточно энергичного. График $E_{\\text{макс}}$ от частоты
   — прямая, наклон которой равен постоянной Планка $h$. Это дало первый независимый способ её измерить.</div>
 
+  <h3 class="sub">Как это измеряют: опыт Столетова</h3>
+  <p>Катод освещают в вакуумной трубке, напротив ставят анод и подают между ними напряжение $U$; ток в цепи
+  показывает амперметр. При $U>0$ поле тянет все вылетевшие электроны к аноду, и ток выходит на
+  <strong>насыщение</strong> — оно пропорционально яркости: сколько фотонов, столько электронов. При $U&lt;0$
+  поле тормозит, и до анода долетают только электроны с энергией больше $e|U|$. Ток обрывается при
+  <strong>задерживающем напряжении</strong>:</p>
+  <div class="callout">$eU_{\\text{з}}=E_{\\text{макс}}=hf-W_0$. Задерживающее напряжение не зависит от яркости — у
+  яркого и тусклого света вольт-амперные характеристики обрываются в одной точке. По тому, как $U_{\\text{з}}$
+  растёт с частотой, и измерили $h/e$. В симуляции «Фотоэффект» напряжение на аноде меняется ползунком, а
+  точка на характеристике показывает, где вы сейчас.</div>
+
   <h3 class="sub">Эффект Комптона</h3>
   <p>Если фотон — частица, у него должен быть импульс. Из связи энергии и импульса излучения ($p=U/c$, мы получили
   её в главе о взаимодействии излучения с веществом) следует: $p=\\dfrac{hf}{c}=\\dfrac{h}{\\lambda}$.</p>
@@ -26469,6 +27035,8 @@ const T_qwave={
     {tex:'E_{\\text{макс}}=hf-W_0',
      kind:'следствие',
      note:'Уравнение Эйнштейна для фотоэффекта: энергия электрона зависит от частоты, а не от яркости.', sim:'photoeffect'},
+    {tex:'eU_{\\text{з}}=hf-W_0', kind:'следствие',
+     note:'Задерживающее напряжение: при нём ток фотоэлемента обрывается. От яркости не зависит — яркость меняет только ток насыщения.', sim:'photoeffect'},
     {tex:'\\lambda_0=\\dfrac{hc}{W_0}',
      kind:'следствие',
      note:'Красная граница: длиннее этой волны фотоэффекта нет при любой интенсивности.', sim:'photoeffect'},
@@ -26968,7 +27536,7 @@ const T_hydrogen={
   explore:[
     {sim:'bohr', do:`Переведите электрон с 2 на 1 и с 3 на 2`, see:`кванты разные — отсюда и разные линии в спектре`},
     {sim:'hspectrum', do:`Сравните серии Лаймана и Бальмера`, see:`первая в ультрафиолете, вторая — видимая, хотя атом один`},
-    {sim:'orbital', do:`Сравните 1s, 2s и 2p`, see:`форма облака разная, а «орбиты» нет ни у одного`},
+    {sim:'orbital', do:`Поверните 3d и 4f, включите разрез у 3s`, see:`лепестки орбиталей, узловые плоскости и сферы; у 3s три слоя, а «орбиты» нет ни у одного состояния`},
   ],
   theory:`
   <p>Атом водорода — простейшая система: один протон и один электрон. Именно на нём квантовая механика впервые
@@ -27024,6 +27592,28 @@ const T_hydrogen={
   <div class="callout">$L=\\sqrt{l(l+1)}\\,\\hbar$, причём $l$ может принимать значения от $0$ до $n-1$. У состояния
   1s момент импульса равен <em>нулю</em> — электрон вообще не «вращается», что в модели Бора было бы немыслимо.
   Состояния с $l=0$ сферически симметричны, с $l=1$ вытянуты в двух долях.</div>
+
+  <h3 class="sub">Орбитали: s, p, d, f, g</h3>
+  <p>Волновая функция водорода распадается на две части: $\\psi_{nlm}=R_{nl}(r)\\,Y_{lm}(\\theta,\\varphi)$.
+  Радиальная $R_{nl}$ говорит, как далеко от ядра электрон, угловая $Y_{lm}$ — в каких направлениях. Третье
+  квантовое число $m$ — проекция момента на ось — пробегает значения от $-l$ до $l$, всего $2l+1$
+  штук. Состояния по традиции называют буквами: $l=0$ — <strong>s</strong>, 1 — <strong>p</strong>,
+  2 — <strong>d</strong>, 3 — <strong>f</strong>, 4 — <strong>g</strong>.</p>
+  <ul>
+    <li><strong>s</strong> — шар; при $n\\ge2$ — шар из вложенных слоёв.</li>
+    <li><strong>p</strong> — три «гантели» вдоль осей $x$, $y$, $z$: две доли с противоположными знаками $\\psi$.</li>
+    <li><strong>d</strong> — пять форм: четыре «клевера» из четырёх лепестков и $d_{z^2}$ — гантель с кольцом.</li>
+    <li><strong>f</strong> и <strong>g</strong> — ещё больше лепестков: у $f$ их до восьми.</li>
+  </ul>
+  <p>Где у волновой функции узел, туда электрон не попадает никогда. Узлов всего $n-1$: $l$ из них —
+  угловые (плоскости и конусы через ядро), а $n-l-1$ — радиальные сферы. Средний радиус облака
+  $\\langle r\\rangle=\\tfrac12\\bigl(3n^2-l(l+1)\\bigr)a_0$: при том же $n$ облако с большим $l$ чуть ближе
+  к ядру.</p>
+  <div class="callout">«Химические» орбитали $p_x$, $d_{xy}$ и им подобные — действительные комбинации
+  состояний с $+m$ и $-m$. У них определённая форма, но нет определённой проекции момента $L_z$.
+  Состояния с определённым $m\\ne0$, наоборот, симметричны вокруг оси $z$ — это «бублики». Обе картины
+  описывают одни и те же уровни энергии; в симуляции «Орбитали водорода» можно переключаться между ними
+  и вращать облако рукой.</div>
 
   <h3 class="sub">Почему атом вообще не схлопывается</h3>
   <p>Классическая физика тут терпит полное поражение, и стоит осознать масштаб катастрофы. Вращающийся
@@ -27132,7 +27722,11 @@ const T_hydrogen={
      note:'Орбитальный момент импульса; $l$ принимает значения от 0 до $n-1$.', sim:'orbital'},
     {tex:'P(r)=r^2\\left|R(r)\\right|^2',
      kind:'определение',
-     note:'Радиальное распределение вероятности. Для 1s максимум приходится ровно на $a_0$.', sim:'orbital'}
+     note:'Радиальное распределение вероятности. Для 1s максимум приходится ровно на $a_0$.', sim:'orbital'},
+    {tex:'\\langle r\\rangle=\\tfrac12\\bigl(3n^2-l(l+1)\\bigr)a_0', kind:'следствие',
+     note:'Средний радиус орбитали: 1,5$a_0$ у 1s, 5$a_0$ у 2p, 10,5$a_0$ у 3d.', sim:'orbital'},
+    {tex:'N_{\\text{узл}}=n-1=\\underbrace{(n-l-1)}_{\\text{сферы}}+\\underbrace{l}_{\\text{через ядро}}', kind:'следствие',
+     note:'Узловые поверхности, где $\\psi=0$: радиальные сферы и угловые плоскости или конусы.', sim:'orbital'}
   ],
   mistakes:[
     {wrong:'Электрон вращается вокруг ядра по орбите, как планета вокруг Солнца.',
@@ -27236,14 +27830,14 @@ const T_hydrogen={
     /* ---------- Орбитали ---------- */
     {level:1, sim:'orbital', unit:'',
      statement:`Чему равно орбитальное квантовое число $l$ у выбранного состояния?`,
-     hint:'У s-состояний $l=0$, у p-состояний $l=1$.',
-     answer:p=>({'1s':0,'2s':0,'2p':1})[p.state]},
+     hint:'У s-состояний $l=0$, у p — 1, у d — 2, у f — 3, у g — 4.',
+     answer:p=>SIMS.orbital.q(p).l},
 
     {level:3, sim:'orbital', unit:'',
      statement:`Сколько всего различных состояний (с учётом спина) имеет подоболочка
        выбранного типа?`,
      hint:'Вместимость подоболочки равна $2(2l+1)$.',
-     answer:p=>{ const l={'1s':0,'2s':0,'2p':1}[p.state]; return 2*(2*l+1); }},
+     answer:p=>{ const l=SIMS.orbital.q(p).l; return 2*(2*l+1); }},
 
     {level:3, sim:'orbital', unit:'нм',
      statement:`Во сколько раз наиболее вероятный радиус состояния <strong>2p</strong> больше
@@ -27252,15 +27846,15 @@ const T_hydrogen={
      hint:'Максимум радиального распределения для 2p приходится на $4a_0$.',
      answer:()=>4},
 
+    /* До 3.1.0 здесь спрашивали про 3d, которого в симуляции не было. Теперь в
+       ней есть все орбитали до n = 6, поэтому задача другая: формулу для ⟨r⟩
+       надо применить к соседнему состоянию, а на панели её можно проверить. */
     {level:4, sim:'orbital', unit:'',
-     /* Момент выбранного состояния показан на панели, поэтому спрашиваем про
-        состояние, которого в симуляции нет: формулу надо применить, а не
-        списать. */
-     statement:`Модуль орбитального момента равен $L=\\sqrt{l(l+1)}\\,\\hbar$. Чему он равен
-       в единицах $\\hbar$ для состояния <strong>3d</strong> ($n=3$, $l=2$)? Такого состояния
-       в симуляции нет — примените формулу сами, а на панели проверьте её на 2p.`,
-     hint:'Подставьте $l=2$. Обратите внимание: ответ не равен двум — момент никогда не бывает ровно $l\\hbar$.',
-     answer:()=>Math.sqrt(2*3)},
+     statement:`Средний радиус орбитали равен $\\langle r\\rangle=\\tfrac12\\bigl(3n^2-l(l+1)\\bigr)a_0$.
+       Каким он будет (в единицах $a_0$) у орбитали с тем же $n$, но с <strong>наибольшим
+       возможным</strong> $l$?`,
+     hint:'Наибольшее $l=n-1$. Проверьте формулу на панели для выбранной орбитали, потом поставьте $l=n-1$.',
+     answer:p=>{ const n=SIMS.orbital.q(p).n, l=n-1; return (3*n*n-l*(l+1))/2; }},
 
     {level:5, sim:'orbital', unit:'',
      statement:`Какова вероятность обнаружить электрон в состоянии 1s <strong>внутри</strong>
@@ -27308,6 +27902,10 @@ const T_atomic={
   <p>Электроны занимают состояния снизу вверх по энергии — так получается электронная конфигурация. У углерода это
   1s² 2s² 2p², у натрия 1s² 2s² 2p⁶ 3s¹. Правило не абсолютно: у хрома и меди выгоднее оказывается наполовину или
   полностью заполненная 3d-подоболочка, и порядок нарушается — симуляция об этом честно предупреждает.</p>
+  <p>Внутри подоболочки действует <strong>правило Хунда</strong>: электроны сначала занимают разные клетки по
+  одному, с одинаковыми спинами, и только потом начинают садиться парами. У углерода два 2p-электрона сидят в
+  двух разных клетках, а не в одной: так они дальше друг от друга и меньше отталкиваются. У азота три
+  2p-электрона — по одному в каждой клетке, и поэтому азот так устойчив к ионизации.</p>
 
   <h3 class="sub">Периодическая система</h3>
   <p>Теперь понятно, откуда берётся периодичность Менделеева. Химические свойства определяются
@@ -27353,7 +27951,7 @@ const T_atomic={
   связи и знаменитый валентный угол около 109°. Именно эта особенность углерода делает возможным бесконечное
   разнообразие органических молекул, а в другом варианте гибридизации даёт плоские слои графита.</p>`,
   time:45,
-  needs:['q.hydrogen'],
+  needs:['q.hydrogen','q.spin'],
   why:`Один запрет — двум электронам нельзя в одно состояние — превращает набор уровней
     в таблицу Менделеева. Из него же следует, почему вещество не схлопывается и почему
     химия периодична.`,
@@ -29156,6 +29754,383 @@ const T_rel={
   ]
 };
 
+/* ===================== ДВУХЩЕЛЕВОЙ ОПЫТ С ОДИНОЧНЫМИ ЧАСТИЦАМИ =====================
+   Тема добавлена в 3.1.0. Опыт, который Фейнман называл единственной загадкой
+   квантовой механики: отдельные частицы, а картина — волновая. */
+const T_slits={
+  id:'q.slits', ch:'21а', title:'Двухщелевой опыт: частица, волна и измерение',
+  key:[
+    `Каждый электрон оставляет на экране одну точку — как частица. Куда именно, предсказать нельзя.`,
+    `Тысячи точек складываются в интерференционные полосы: плотность попаданий пропорциональна $|\\psi|^2$, где $\\psi=\\psi_1+\\psi_2$.`,
+    `Полосы идут через $\\Delta x=\\lambda L/d$, где $\\lambda=h/p$ — длина волны де Бройля электрона.`,
+    `Узнали, через какую щель прошёл электрон, — полосы исчезают: складываются вероятности $|\\psi_1|^2+|\\psi_2|^2$, а не амплитуды.`,
+    `Квантовая механика предсказывает вероятности, и предсказывает их точно: гистограмма тысяч попаданий ложится на кривую $|\\psi|^2$.`,
+  ],
+  explore:[
+    {sim:'slits1', do:`Поставьте 40 электронов в секунду и смотрите на первые точки`, see:`точки падают как попало — и только через сотню-другую проступают полосы`},
+    {sim:'slits1', do:`Включите детектор «через какую щель»`, see:`полосы исчезают, остаётся одна широкая гора — сумма двух картин от одной щели`},
+    {sim:'slits1', do:`Уменьшите энергию электронов вчетверо`, see:`длина волны вырастет вдвое — и полосы станут вдвое шире`},
+  ],
+  theory:`
+  <p>Опыт Юнга с двумя щелями доказал, что свет — волна. В XX веке его повторили с электронами — и
+  получили то же самое: за двумя щелями на экране появляются светлые и тёмные полосы. Электрон,
+  частица с массой и зарядом, интерферирует, как волна с длиной $\\lambda=h/p$.</p>
+
+  <h3 class="sub">По одному</h3>
+  <p>Самое удивительное начинается, когда пучок делают таким слабым, что в приборе в каждый момент
+  находится не больше одного электрона (Тономура, 1989). Каждый электрон оставляет на экране
+  <strong>одну</strong> точку — никакой «размазанной волны» экран не видит. Первые точки ложатся
+  беспорядочно. Но через несколько сотен становится видна закономерность, а через тысячи — чёткие
+  полосы. Интерферирует не пучок сам с собой: каждый электрон «знает» о двух щелях сразу.</p>
+  <div class="callout">Волновая функция $\\psi$ — не облако вещества, а амплитуда вероятности. Вероятность
+  найти электрон в точке пропорциональна $|\\psi|^2$. Через две щели проходят две амплитуды, и
+  складываются они сами, а не их квадраты: $\\psi=\\psi_1+\\psi_2$. Отсюда слагаемое
+  $2|\\psi_1||\\psi_2|\\cos\\delta$, которое и рисует полосы.</div>
+
+  <h3 class="sub">Где полосы</h3>
+  <p>Амплитуды приходят в фазе там, где разность путей от щелей кратна длине волны: $d\\sin\\theta=m\\lambda$.
+  Углы малы, поэтому $\\sin\\theta\\approx x/L$, и светлые полосы стоят через
+  $\\Delta x=\\dfrac{\\lambda L}{d}$. Для электронов с энергией 50 эВ $\\lambda=0{,}17$ нм: при щелях
+  через 400 нм и экране в метре полосы отстоят на 0,4 мм. Каждая щель ширины $a$ даёт ещё и
+  огибающую — картину одной щели с первым нулём при $x=\\lambda L/a$.</p>
+
+  <h3 class="sub">Какая щель?</h3>
+  <p>Поставим у щелей детектор, который отмечает, где прошёл электрон. Детектор срабатывает то у
+  одной щели, то у другой — электрон всегда проходит через одну. Но полосы на экране исчезают:
+  остаётся гладкая гора. Как только путь известен, складываются уже вероятности:
+  $P=|\\psi_1|^2+|\\psi_2|^2$. Слагаемое с $\\cos\\delta$ пропадает, потому что измерение сбивает
+  фазы.</p>
+  <div class="callout">Это не несовершенство прибора. Любой способ узнать путь — свет, рассеянный на
+  электроне, отдача щели — неизбежно вносит в фазу разброс больше $\\pi$. Соотношение
+  неопределённостей здесь работает как закон: знание пути и интерференция несовместимы.</div>
+
+  <h3 class="sub">Не только электроны</h3>
+  <p>Интерференцию наблюдали для нейтронов, атомов и даже молекул фуллерена C<sub>60</sub> из
+  шестидесяти атомов углерода (Арндт и Цайлингер, 1999). Граница между «квантовым» и «классическим»
+  определяется не размером частицы, а тем, насколько её путь можно узнать по следам, которые она
+  оставляет в окружении.</p>`,
+  time:30,
+  needs:['q.wave','op.interf'],
+  why:`Этот опыт — квантовая механика в миниатюре. В нём видно всё сразу: частицы, волны, вероятности
+    и то, как измерение меняет результат. Понять его — значит понять, почему «где электрон» и
+    «какова его волна» не спорят друг с другом.`,
+  derivations:[
+    {
+      goal:'x_m=\\dfrac{m\\lambda L}{d}',
+      from:['\\lambda=\\dfrac{h}{p}'],
+      steps:[
+        {tex:'d\\sin\\theta=m\\lambda',
+         why:'светлая полоса там, где амплитуды от двух щелей приходят в фазе: разность путей — целое число длин волн',
+         op:['физика','геометрия']},
+        {tex:'\\sin\\theta\\approx\\operatorname{tg}\\theta=\\dfrac{x}{L}',
+         why:'экран далеко: $L$ в миллионы раз больше $d$, углы крошечные',
+         op:['малый-угол']},
+        {tex:'x_m=\\dfrac{m\\lambda L}{d}',
+         why:'выразили координату $m$-й полосы',
+         op:['выразить','целое-число']},
+        {tex:'\\Delta x=x_{m+1}-x_m=\\dfrac{\\lambda L}{d}',
+         why:'полосы равноотстоят; чем меньше $d$ и больше $\\lambda$, тем они шире',
+         op:['подстановка']}
+      ],
+      sim:'slits1'
+    },
+    {
+      goal:'|\\psi|^2=|\\psi_1|^2+|\\psi_2|^2+2|\\psi_1||\\psi_2|\\cos\\delta',
+      from:['\\psi=\\psi_1+\\psi_2'],
+      steps:[
+        {tex:'\\psi_1=|\\psi_1|e^{i\\varphi_1},\\quad \\psi_2=|\\psi_2|e^{i\\varphi_2}',
+         why:'у каждой амплитуды есть модуль и фаза; фаза набегает вдоль пути',
+         op:['обозначение','фаза']},
+        {tex:'|\\psi|^2=(\\psi_1+\\psi_2)(\\psi_1^*+\\psi_2^*)',
+         why:'квадрат модуля комплексного числа — произведение на сопряжённое',
+         op:['скобки']},
+        {tex:'|\\psi|^2=|\\psi_1|^2+|\\psi_2|^2+2|\\psi_1||\\psi_2|\\cos(\\varphi_1-\\varphi_2)',
+         why:'перекрёстные слагаемые $\\psi_1\\psi_2^*+\\psi_1^*\\psi_2$ дают удвоенную действительную часть',
+         op:['тождества']},
+        {tex:'\\delta=\\varphi_1-\\varphi_2=\\dfrac{2\\pi d\\sin\\theta}{\\lambda}',
+         why:'разность фаз — разность путей, измеренная в длинах волн',
+         op:['фаза','физика']},
+        {tex:'\\text{путь известен: }\\langle\\cos\\delta\\rangle=0\\ \\Rightarrow\\ P=|\\psi_1|^2+|\\psi_2|^2',
+         why:'измерение пути вносит случайную добавку к фазе больше $\\pi$; среднее косинуса — ноль, полосы исчезают',
+         op:['среднее']}
+      ],
+      sim:'slits1'
+    },
+    {
+      goal:'I=I_0\\cos^2\\dfrac{\\pi d\\sin\\theta}{\\lambda}',
+      from:['|\\psi|^2=|\\psi_1|^2+|\\psi_2|^2+2|\\psi_1||\\psi_2|\\cos\\delta'],
+      steps:[
+        {tex:'|\\psi_1|=|\\psi_2|\\ \\Rightarrow\\ |\\psi|^2=2|\\psi_1|^2(1+\\cos\\delta)',
+         why:'щели одинаковые — одинаковы и амплитуды',
+         op:['симметрия','подстановка']},
+        {tex:'1+\\cos\\delta=2\\cos^2\\dfrac{\\delta}{2}',
+         why:'формула косинуса двойного угла',
+         op:['тождества']},
+        {tex:'I=I_0\\cos^2\\dfrac{\\pi d\\sin\\theta}{\\lambda}',
+         why:'$I_0=4|\\psi_1|^2$ — яркость в центре; в тёмных полосах ровно ноль',
+         op:['обозначение']}
+      ],
+      sim:'slits1'
+    }
+  ],
+  formulas:[
+    {tex:'\\psi=\\psi_1+\\psi_2', kind:'закон',
+     note:'Принцип суперпозиции: если путей два, складываются амплитуды, а не вероятности.', sim:'slits1'},
+    {tex:'|\\psi|^2=|\\psi_1|^2+|\\psi_2|^2+2|\\psi_1||\\psi_2|\\cos\\delta', kind:'следствие',
+     note:'Плотность вероятности с интерференционным слагаемым. Если путь известен, его нет.', sim:'slits1'},
+    {tex:'I=I_0\\cos^2\\dfrac{\\pi d\\sin\\theta}{\\lambda}', kind:'следствие',
+     note:'Картина двух одинаковых узких щелей. Щели конечной ширины добавляют огибающую — картину одной щели.', sim:'slits1'},
+    {tex:'x_m=\\dfrac{m\\lambda L}{d},\\quad \\Delta x=\\dfrac{\\lambda L}{d}', kind:'следствие',
+     note:'Положения светлых полос и расстояние между ними на далёком экране.', sim:'slits1'},
+    {tex:'\\lambda=\\dfrac{h}{\\sqrt{2m_eE}}', kind:'определение',
+     note:'Длина волны де Бройля электрона с кинетической энергией $E$; при 50 эВ — 0,17 нм.', sim:'slits1'}
+  ],
+  mistakes:[
+    {wrong:'Электрон на самом деле проходит через одну щель, просто мы не знаем, через какую.',
+     right:'Если бы так, картина была бы суммой двух картин от одной щели — без полос. Полосы есть, значит, так сказать нельзя.',
+     why:'«Не знаем, через какую» — это классическое незнание, при нём складываются вероятности. Полосы возникают, только когда складываются амплитуды обоих путей. Как только путь стал известен хоть в принципе, полосы пропадают.'},
+    {wrong:'Интерференция — это когда электроны пучка мешают друг другу.',
+     right:'Полосы получаются, даже когда электроны летят строго по одному, с перерывами в миллисекунды.',
+     why:'Опыт Тономуры поставлен так, что в приборе одновременно не бывает двух электронов. Картина от этого не меняется: интерферирует каждый электрон со «своим» вторым путём.'},
+    {wrong:'Волновая функция — это размазанный по пространству электрон.',
+     right:'Экран всегда регистрирует электрон целиком, в одной точке. $|\\psi|^2$ — плотность вероятности, а не плотность вещества.',
+     why:'Размазанного заряда никто никогда не видел: детектор срабатывает целиком или не срабатывает. Волной описывается то, где электрон может оказаться.'},
+    {wrong:'Если сделать детектор деликатнее, можно узнать путь и сохранить полосы.',
+     right:'Нельзя: любое устройство, способное различить пути, вносит в фазу разброс, стирающий полосы.',
+     why:'Это прямое следствие соотношения неопределённостей: различить пути — значит измерить координату с точностью лучше $d/2$, а это даёт электрону неопределённость импульса, сдвигающую полосы больше чем на полполосы.'}
+  ],
+  checks:[
+    {q:'Почему первые сто точек на экране не похожи на полосы?',
+     a:'Каждая точка — случайный исход с вероятностью $|\\psi|^2$. Закономерность видна только в статистике — как у монеты, у которой по десяти бросаниям не угадать 50 на 50.'},
+    {q:'Что изменится, если закрыть одну щель?',
+     a:'Исчезнет интерференционное слагаемое: останется широкая картина одной щели. В тех местах, где раньше были тёмные полосы, электронов станет больше, — закрыв щель, можно увеличить поток в точку.'},
+    {q:'Как изменятся полосы, если увеличить энергию электронов?',
+     a:'Импульс вырастет, длина волны $\\lambda=h/p$ уменьшится, и полосы сойдутся: $\\Delta x=\\lambda L/d$.'}
+  ],
+  links:[
+    {to:'op.interf', text:'Тот же опыт Юнга, что доказал волновую природу света. Формулы для полос — те же, меняется только смысл $\\lambda$.'},
+    {to:'q.wave', text:'Длина волны де Бройля $\\lambda=h/p$ задаёт ширину полос — это и есть её прямое измерение.'},
+    {to:'q.qm', text:'$|\\psi|^2$ как плотность вероятности и соотношение неопределённостей объясняют, почему знание пути стирает полосы.'},
+    {to:'q.spin', text:'В опыте Штерна — Герлаха измерение тоже меняет состояние: после измерения одной проекции спина другая становится случайной.'}
+  ],
+  problems:[
+    {level:1, sim:'slits1', unit:'пм',
+     statement:`Чему равна длина волны де Бройля электронов при выбранной энергии?`,
+     hint:'$\\lambda=h/\\sqrt{2m_eE}$; удобно помнить: $\\lambda\\approx1{,}226/\\sqrt{E_{\\text{эВ}}}$ нм.',
+     answer:p=>SIMS.slits1.lam(p)*1e3},
+
+    {level:2, sim:'slits1', unit:'мм',
+     statement:`Какой станет ширина полосы, если энергию электронов увеличить в <strong>4 раза</strong>, а щели
+       и экран оставить?`,
+     hint:'$\\lambda\\propto1/\\sqrt E$, а $\\Delta x\\propto\\lambda$.',
+     answer:p=>SIMS.slits1.fringe(p)/2},
+
+    {level:3, sim:'slits1', unit:'',
+     statement:`Сколько светлых полос укладывается внутри центрального максимума огибающей — между её
+       первыми нулями?`,
+     hint:'Полосы стоят при $x=m\\lambda L/d$, нули огибающей — при $x=\\pm\\lambda L/a$. Полоса, попавшая точно на ноль, не видна.',
+     answer:p=>2*Math.ceil(p.d/p.a-1e-9)-1},
+
+    {level:4, sim:'slits1', unit:'эВ',
+     statement:`При какой энергии электронов полосы на экране разойдутся ровно на <strong>1 мм</strong>
+       (щели и экран — как в опыте)?`,
+     hint:'Из $\\Delta x=\\lambda L/d$ найдите $\\lambda$, потом $E=h^2/(2m_e\\lambda^2)$.',
+     answer:p=>{ const d=SIMS.slits1, lam=p.d*1e-9*1e-3/p.L; return d.h*d.h/(2*d.me*lam*lam)/d.e; }},
+
+    {level:5, sim:'slits1', unit:'%',
+     statement:`Открыта одна щель. Какая доля всех электронов попадает в центральный максимум — между
+       первыми нулями картины?`,
+     hint:'Интенсивность одной щели $\\propto\\left(\\dfrac{\\sin u}{u}\\right)^2$; нужно $\\dfrac1\\pi\\displaystyle\\int_{-\\pi}^{\\pi}\\dfrac{\\sin^2u}{u^2}du$.',
+     answer:()=>{ let s=0; const n=20000; for(let i=0;i<n;i++){ const u=-Math.PI+2*Math.PI*(i+0.5)/n; s+=Math.pow(Math.sin(u)/u,2); }
+       return s*(2*Math.PI/n)/Math.PI*100; }}
+  ]
+};
+
+/* ============================ СПИН: ОПЫТ ШТЕРНА — ГЕРЛАХА ============================
+   Тема добавлена в 3.1.0: до неё спин появлялся в «Атомной физике» готовым
+   числом, без опыта, который его открыл. */
+const T_spin={
+  id:'q.spin', ch:'23а', title:'Спин: опыт Штерна — Герлаха',
+  key:[
+    `В неоднородном магнитном поле на магнитный момент действует сила $F_z=\\mu_z\\,\\partial B/\\partial z$ — пучок отклоняется в зависимости от проекции момента.`,
+    `Классически ждали сплошную полосу. Штерн и Герлах (1922) увидели два пятна: проекция момента принимает только отдельные значения.`,
+    `У электрона есть собственный момент — спин $s=\\tfrac12$. Его проекция на любую ось равна только $+\\hbar/2$ или $-\\hbar/2$.`,
+    `После отбора «+z» магнит под углом $\\theta$ даёт «+» с вероятностью $\\cos^2(\\theta/2)$: измерение одной проекции делает другую случайной.`,
+    `Спин объясняет, почему в каждом состоянии $(n,l,m)$ атома помещаются ровно два электрона.`,
+  ],
+  explore:[
+    {sim:'sterngerlach', do:`Сравните классическое ожидание с опытом`, see:`вместо полосы — два пятна поровну: проекция спина на ось магнита только $\\pm\\hbar/2$`},
+    {sim:'sterngerlach', do:`Поставьте второй магнит под $90^\\circ$, потом под $60^\\circ$`, see:`50 на 50 и 75 на 25 — ровно $\\cos^2(\\theta/2)$`},
+    {sim:'sterngerlach', do:`Выберите «z, x, снова z»`, see:`атомы, отобранные «+z», после измерения по x снова делятся пополам`},
+  ],
+  theory:`
+  <p>Электрон в атоме — это движущийся заряд, а значит, маленький магнит. Его магнитный момент
+  $\\vec\\mu$ пропорционален моменту импульса. Можно ли его увидеть? Штерн и Герлах в 1922 году пропустили
+  пучок атомов серебра через магнит особой формы — один полюс клином, другой с пазом, — так, чтобы поле
+  было <strong>неоднородным</strong>.</p>
+
+  <h3 class="sub">Сила в неоднородном поле</h3>
+  <p>В однородном поле на магнитик действует только вращающий момент, а суммарная сила равна нулю. В
+  неоднородном — нет: энергия $U=-\\mu_zB$ зависит от координаты, и появляется сила
+  $F_z=\\mu_z\\dfrac{\\partial B}{\\partial z}$. Атом с моментом «вверх» уходит вверх, «вниз» — вниз.</p>
+  <div class="callout">Классически моменты атомов в горячем пучке направлены как попало, и $\\mu_z$ принимает
+  любые значения от $-\\mu$ до $+\\mu$. На экране должна была получиться сплошная полоса. Получилось
+  два отдельных пятна. Проекция момента на ось поля <strong>квантуется</strong>.</div>
+
+  <h3 class="sub">Спин</h3>
+  <p>У серебра единственный внешний электрон находится в s-состоянии, где орбитального момента нет вовсе
+  ($l=0$). Значит, два пятна даёт собственный момент электрона — <strong>спин</strong>. Число пятен
+  $2s+1=2$ даёт $s=\\tfrac12$: проекция спина на любую ось равна $+\\hbar/2$ или $-\\hbar/2$, а модуль —
+  $\\hbar\\sqrt{s(s+1)}=\\tfrac{\\sqrt3}{2}\\hbar$. Частицы со спином 1 дают три пятна.</p>
+
+  <h3 class="sub">Измерение меняет состояние</h3>
+  <p>Отберём атомы, ушедшие вверх во «+z», и пустим их во второй магнит. Если он тоже вдоль z, все
+  атомы снова уйдут вверх — состояние определено. Повернём его на угол $\\theta$: вверх уйдёт доля
+  $\\cos^2(\\theta/2)$ — при $90^\\circ$ ровно половина. А если после «+x» поставить третий магнит снова
+  вдоль z, атомы снова разделятся пополам: измерение проекции на x стёрло знание о z.</p>
+  <div class="callout">Проекции спина на разные оси нельзя знать одновременно — как координату и импульс.
+  Это не недостаток приборов, а свойство самого состояния: у атома, прошедшего «+x», проекции на z просто
+  нет определённого значения.</div>
+
+  <h3 class="sub">Зачем это химии</h3>
+  <p>Спин даёт электрону ещё одно квантовое число $m_s=\\pm\\tfrac12$. Поэтому в каждом орбитальном
+  состоянии $(n,l,m)$ помещаются два электрона с противоположными спинами, в оболочке — $2n^2$. Из этого
+  правила — принципа Паули — вырастает вся периодическая система.</p>`,
+  time:30,
+  needs:['q.hydrogen','em.fields'],
+  why:`Опыт Штерна — Герлаха впервые показал квантование «напрямую» — пятнами на пластинке. Он же
+    открыл спин и стал простейшим примером того, как измерение одной величины делает случайной другую.`,
+  derivations:[
+    {
+      goal:'F_z=\\mu_z\\dfrac{\\partial B}{\\partial z}',
+      from:['U=-\\vec\\mu\\cdot\\vec B'],
+      steps:[
+        {tex:'U=-\\mu_zB(z)',
+         why:'энергия магнитного момента в поле; поле направлено вдоль $z$',
+         op:['физика','проекция']},
+        {tex:'F_z=-\\dfrac{\\partial U}{\\partial z}',
+         why:'сила — это убыль потенциальной энергии на единицу пути',
+         op:['физика']},
+        {tex:'F_z=\\mu_z\\dfrac{\\partial B}{\\partial z}',
+         why:'момент атома за время пролёта не меняется, дифференцируем только поле',
+         op:['производная','подстановка']},
+        {tex:'\\dfrac{\\partial B}{\\partial z}=0\\ \\Rightarrow\\ F_z=0',
+         why:'в однородном поле пучок не отклонился бы вовсе — поэтому один полюс сделан клином',
+         op:['крайний-случай']}
+      ],
+      sim:'sterngerlach'
+    },
+    {
+      goal:'S_z=\\pm\\dfrac{\\hbar}{2}',
+      from:['N=2s+1'],
+      steps:[
+        {tex:'N=2s+1=2',
+         why:'проекция момента принимает $2s+1$ значений; в опыте с серебром — два пятна',
+         op:['подсчёт','физика']},
+        {tex:'s=\\tfrac12',
+         why:'выразили спиновое число',
+         op:['выразить']},
+        {tex:'m_s=-s,\\ \\dots,\\ s\\ \\Rightarrow\\ m_s=\\pm\\tfrac12',
+         why:'проекции идут с шагом 1 от $-s$ до $s$',
+         op:['целое-число']},
+        {tex:'S_z=m_s\\hbar=\\pm\\dfrac{\\hbar}{2}',
+         why:'проекция момента — квантовое число, умноженное на $\\hbar$',
+         op:['подстановка']}
+      ],
+      sim:'sterngerlach'
+    },
+    {
+      goal:'P_+=\\cos^2\\dfrac{\\theta}{2}',
+      from:['S_z=\\pm\\dfrac{\\hbar}{2}'],
+      steps:[
+        {tex:'\\langle S_n\\rangle=\\dfrac{\\hbar}{2}\\cos\\theta',
+         why:'атом отобран «+z»; в среднем его спин смотрит вдоль z, и проекция на новую ось — как у вектора',
+         op:['проекция','физика']},
+        {tex:'\\langle S_n\\rangle=\\dfrac{\\hbar}{2}P_+-\\dfrac{\\hbar}{2}(1-P_+)',
+         why:'сам исход — только $+\\hbar/2$ или $-\\hbar/2$; среднее — сумма исходов, взвешенных вероятностями',
+         op:['среднее']},
+        {tex:'2P_+-1=\\cos\\theta',
+         why:'приравняли два выражения и сократили $\\hbar/2$',
+         op:['система','сократить']},
+        {tex:'P_+=\\dfrac{1+\\cos\\theta}{2}=\\cos^2\\dfrac{\\theta}{2}',
+         why:'формула половинного угла. При $\\theta=90^\\circ$ — половина, при $180^\\circ$ — ноль',
+         op:['выразить','тождества']}
+      ],
+      sim:'sterngerlach'
+    }
+  ],
+  formulas:[
+    {tex:'F_z=\\mu_z\\dfrac{\\partial B}{\\partial z}', kind:'следствие',
+     note:'Сила на магнитный момент в неоднородном поле. В однородном поле она равна нулю.', sim:'sterngerlach'},
+    {tex:'N=2s+1', kind:'закон',
+     note:'Число возможных проекций момента со спиновым (или орбитальным) числом $s$ — число пятен в опыте.', sim:'sterngerlach'},
+    {tex:'S_z=\\pm\\dfrac{\\hbar}{2},\\quad |\\vec S|=\\hbar\\sqrt{s(s+1)}=\\dfrac{\\sqrt3}{2}\\hbar', kind:'следствие',
+     note:'Спин электрона: проекция на любую ось — только два значения, модуль больше проекции.', sim:'sterngerlach'},
+    {tex:'P_+=\\cos^2\\dfrac{\\theta}{2}', kind:'следствие',
+     note:'Вероятность исхода «+» у магнита, повёрнутого на угол $\\theta$ к оси, вдоль которой спин был отобран.', sim:'sterngerlach'},
+    {tex:'\\mu_B=\\dfrac{e\\hbar}{2m_e}\\approx9{,}27\\cdot10^{-24}\\ \\text{Дж/Тл}', kind:'определение',
+     note:'Магнетон Бора — естественная единица магнитного момента электрона.', sim:'sterngerlach'}
+  ],
+  mistakes:[
+    {wrong:'Спин — это вращение электрона вокруг своей оси, как у волчка.',
+     right:'Спин — собственный момент импульса без всякого вращения: электрон, насколько известно, точечный.',
+     why:'Если считать электрон шариком классического радиуса и требовать момент $\\hbar/2$, его «экватор» должен был бы двигаться быстрее света. Слово «спин» осталось с тех времён, когда об этом не знали.'},
+    {wrong:'В пучке просто были атомы двух сортов: «вверх» и «вниз».',
+     right:'Если бы так, второй магнит под $90^\\circ$ давал бы что угодно, но не всегда ровно 50 на 50, а третий после x не возвращал бы разделение по z.',
+     why:'Последовательные магниты показывают, что «сорт» создаётся измерением. У атома, отобранного «+x», нет определённой проекции на z — есть только вероятности.'},
+    {wrong:'Два пятна — это $l=1$ с проекциями $\\pm1$.',
+     right:'У $l=1$ было бы три пятна ($m=-1,0,1$). Два пятна возможны только при полуцелом моменте — это и выдало спин ½.',
+     why:'Число пятен $2j+1$ нечётно для любого орбитального момента. Чётное число пятен у серебра нельзя объяснить движением электрона по орбите.'},
+    {wrong:'Поле магнита толкает атомы, потому что атомы заряжены.',
+     right:'Атомы серебра нейтральны. Сила действует на магнитный момент и только в неоднородном поле.',
+     why:'Именно поэтому опыт ставили с атомами: пучок электронов отклонила бы сила Лоренца, куда большая, и спиновое расщепление утонуло бы в ней.'}
+  ],
+  checks:[
+    {q:'Почему в опыте нужен магнит с клиновидным полюсом?',
+     a:'Сила на магнитный момент пропорциональна градиенту поля. В однородном поле её нет — клин делает поле сильнее у острия.'},
+    {q:'Сколько пятен даст пучок частиц со спином 1?',
+     a:'Три: $2s+1=3$, проекции $+\\hbar$, $0$, $-\\hbar$.'},
+    {q:'Что покажет второй магнит, поставленный против первого ($\\theta=180^\\circ$), для атомов «+z»?',
+     a:'Все атомы уйдут в «−» этого магнита: $\\cos^2 90^\\circ=0$. Отобранная проекция на z — это проекция $-\\hbar/2$ на противоположную ось.'}
+  ],
+  links:[
+    {to:'q.hydrogen', text:'Спин — четвёртое квантовое число после $n$, $l$, $m$. С ним состояния водорода описаны полностью.'},
+    {to:'q.atomic', text:'Принцип Паули: два электрона с противоположными спинами в каждом состоянии $(n,l,m)$ — отсюда строение оболочек.'},
+    {to:'em.fields', text:'Магнитный момент рамки с током и сила на него в неоднородном поле — классическая часть опыта.'},
+    {to:'q.slits', text:'И там, и тут измерение меняет результат: узнав путь, теряем полосы; измерив x, теряем z.'}
+  ],
+  problems:[
+    {level:1, sim:'sterngerlach', unit:'',
+     statement:`Сколько пятен даст на экране пучок атомов выбранного спина?`,
+     hint:'Число проекций — $2s+1$.',
+     answer:p=>p.spin==='one'?3:2},
+
+    {level:2, sim:'sterngerlach', unit:'%',
+     statement:`Атомы, ушедшие вверх в первом магните, попадают во второй, повёрнутый на угол $\\theta$.
+       Какая их доля уйдёт вверх во втором магните (спин ½)?`,
+     hint:'$P_+=\\cos^2(\\theta/2)$.',
+     answer:p=>Math.pow(Math.cos(p.th*Math.PI/360),2)*100},
+
+    {level:3, sim:'sterngerlach', unit:'°',
+     statement:`На какой угол надо повернуть второй магнит, чтобы вверх уходила ровно <strong>четверть</strong>
+       атомов, отобранных «+z»?`,
+     hint:'Решите $\\cos^2(\\theta/2)=\\tfrac14$.',
+     answer:()=>120},
+
+    {level:3, sim:'sterngerlach', unit:'',
+     statement:`Каков модуль спина электрона в единицах $\\hbar$? Сравните его с проекцией $\\hbar/2$.`,
+     hint:'$|\\vec S|=\\hbar\\sqrt{s(s+1)}$ при $s=\\tfrac12$.',
+     answer:()=>Math.sqrt(3)/2},
+
+    {level:4, sim:'sterngerlach', unit:'мм',
+     statement:`Атомы серебра ($m=1{,}79\\cdot10^{-25}$ кг) с моментом $\\mu_B$ летят со скоростью 500 м/с
+       через магнит длиной 3,5 см с градиентом поля 1000 Тл/м. На сколько миллиметров отклонится атом
+       к выходу из магнита?`,
+     hint:'$F=\\mu_B\\,\\partial B/\\partial z$, время пролёта $L/v$, отклонение $z=Ft^2/2m$.',
+     answer:()=>{ const F=9.274e-24*1000, t=0.035/500; return F*t*t/(2*1.79e-25)*1e3; }}
+  ]
+};
+
 /* Разделы и темы — строго по оглавлению Дж. Орира «Физика» (т. 1–2, 1981) */
 const SECTIONS=[
  {id:'intro', title:'Phy.Sim', topics:[ T_intro ]},
@@ -29195,8 +30170,10 @@ const SECTIONS=[
  ]},
  {id:'quantum', title:'Квантовая физика', topics:[
    T_qwave,
+   T_slits,
    T_qm,
    T_hydrogen,
+   T_spin,
    T_atomic,
    T_condensed,
    T_nuclear,
@@ -31635,6 +32612,9 @@ const УЧ=(function(){
     ['Относительность','Как мюоны из верхних слоёв атмосферы успевают долететь до земли?','rel.sr','lightclock'],
     ['Относительность','Почему 0,6c + 0,6c — это не 1,2c?','rel.sr','minkowski'],
     ['Относительность','Почему ни один ускоритель не разгонит частицу до скорости света?','rel.sr','relmotion'],
+    ['Квант','Как один электрон проходит через две щели сразу?','q.slits','slits1'],
+    ['Квант','Почему пучок атомов серебра в магните разделился на два, а не размазался?','q.spin','sterngerlach'],
+    ['Квант','Какой формы электронные облака в атоме — s, p, d, f?','q.hydrogen','orbital'],
     ['Квант','Почему свет может выбить электрон, только если он нужного цвета?','q.wave','photoeffect'],
     ['Квант','Как частица проходит сквозь стену?','q.qm','tunnel'],
     ['Квант','Почему атом не схлопывается, раз электрон крутится вокруг ядра?','q.hydrogen','bohr'],
@@ -33206,6 +34186,18 @@ function сценаПолоска(){ return CH>0 && CH<ПОЛОСКА; }
 
 const VIEW={
   get quality(){return S.settings.quality}, c:css,
+  /* 3D (3.1.0). Сцены с rotate3d:true рисуют объёмные фигуры: ориентация
+     хранится в виде (a.view.rot) и меняется протягиванием по сцене — мышью
+     или пальцем. Проекция ортогональная: z — вверх, поворот вокруг
+     вертикали (yaw) и наклон к зрителю (pitch). Возвращает функцию
+     (x,y,z) → [X, Y, глубина]; глубина растёт к зрителю. */
+  get rot3d(){ const a=A(); return (a&&a.view.rot)||(a&&a.def.rot0)||{yaw:-0.6,pitch:0.35}; },
+  p3(rot,доп){
+    const y0=(rot||this.rot3d).yaw+(доп||0), p0=(rot||this.rot3d).pitch;
+    const cy=Math.cos(y0), sy=Math.sin(y0), cp=Math.cos(p0), sp=Math.sin(p0);
+    return (x,y,z)=>{ const x1=x*cy-y*sy, y1=x*sy+y*cy;          // поворот вокруг z
+      return [x1, z*cp-y1*sp, y1*cp+z*sp]; };                        // наклон вокруг x
+  },
   lw:px=>px*(S.settings.lineW||1)/ppm(),
   /* Подписи на сцене. Позиции в симуляциях заданы вручную пиксельными
      сдвигами, поэтому на разных зумах и наборах параметров они наезжали друг
@@ -33304,6 +34296,17 @@ const VIEW={
     }
     ctx.fillText(text,x,y); ctx.restore();
   },
+  /* Текст в заданной точке — без раскладки. Подписи v.label разводятся,
+     чтобы не налезать друг на друга; для содержимого клеток таблицы это
+     вредно: символ уезжает в соседнюю клетку. align — 'center' | 'left' | 'right'. */
+  text(ctx,text,wx,wy,color,px,align,bold){
+    const [sx,sy]=toScreen(wx,wy);
+    ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.font=(bold?'600 ':'')+sceneFont(px||(+prefGet('labelSize')||11));
+    ctx.textAlign=align||'center'; ctx.textBaseline='middle';
+    ctx.fillStyle=color||css('--ink-2'); ctx.fillText(String(text),sx,sy);
+    ctx.restore();
+  },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
      o = { x, y,                      точка приложения (центр тела)
            forces:[{fx,fy,label,color?}],   силы в ньютонах
@@ -33328,7 +34331,9 @@ const VIEW={
     for(const f of F){
       const c=f.color||this.c('--ink-2');
       this.arrow(ctx,o.x,o.y,o.x+f.fx*k,o.y+f.fy*k,c);
-      const m=Math.hypot(f.fx,f.fy);
+      /* mag — настоящая величина силы. Нужна там, где вектор нарисован в
+         проекции (объёмные сцены): длина на экране короче настоящей. */
+      const m=isFinite(f.mag)?f.mag:Math.hypot(f.fx,f.fy);
       this.label(ctx,`${f.label} = ${m.toFixed(1)} ${u}`,o.x+f.fx*k,o.y+f.fy*k,
         f.fx>=0?8:-8-String(f.label).length*7, f.fy>=0?-10:12, c);
     }
@@ -33336,7 +34341,7 @@ const VIEW={
       ctx.save(); ctx.setLineDash([this.lw(5),this.lw(4)]);
       this.arrow(ctx,o.x,o.y,o.x+rx*k,o.y+ry*k,this.c('--danger'));
       ctx.restore();
-      this.label(ctx,`F рез = ${Math.hypot(rx,ry).toFixed(1)} ${u}`,
+      this.label(ctx,`F рез = ${(isFinite(o.resMag)?o.resMag:Math.hypot(rx,ry)).toFixed(1)} ${u}`,
         o.x+rx*k,o.y+ry*k,8,12,this.c('--danger'));
     }
     if(o.sum){                                     // правило многоугольника: хвост к концу
@@ -35575,6 +36580,13 @@ function openSim(id){
   S.playing=true; setPlayIcon(); acc=0;
   загрузитьЗаметки(a,id); renderNotes();
   renderParams(); buildGraphs(); renderPresets(); renderSimTools();
+  /* Сцены-схемы во всю ширину (hudAware) открываются со свёрнутой панелью
+     показаний: иначе она закрывает половину рисунка. Сохранённое состояние
+     панели не трогаем — у остальных симуляций оно возвращается как было. */
+  { const hud=$('#hud'), свёрнута=a.def.hudAware ? true : LS.get('fold.hud',false);
+    hud.classList.toggle('fold',свёрнута);
+    const кн=hud.querySelector('.fp-fold');
+    if(кн){ кн.textContent=свёрнута?'▸':'▾'; кн.setAttribute('aria-expanded',String(!свёрнута)); } }
   try{ syncMbar(); }catch(_){}
   requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
 }
@@ -35957,6 +36969,12 @@ $$('#cwrap').addEventListener('pointerdown',e=>{
       return;
     }
   }
+  /* Объёмные сцены: протягивание левой кнопкой или пальцем поворачивает
+     фигуру, а не двигает вид. Двигать вид — Shift, средняя кнопка, два пальца. */
+  if(a.def.rotate3d && e.button===0 && (S.tool==='cursor'||S.tool==='pan')){
+    const r=a.view.rot||(a.view.rot=Object.assign({yaw:-0.6,pitch:0.35},a.def.rot0||{}));
+    drag={mode:'rot3d',px,py,yaw:r.yaw,pitch:r.pitch}; return;
+  }
   if(S.tool==='pan'){ drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y}; return; }
   const [sx,sy]=snapPt(wx,wy);
   /* Alt+клик — быстрый ластик: убрать одну лишнюю пометку, не уходя за
@@ -36007,6 +37025,12 @@ addEventListener('pointermove',e=>{
   if(drag.mode==='pan'){
     if(Math.hypot(px-drag.px,py-drag.py)>3) drag.moved=true;
     a.view.x=drag.vx-(px-drag.px)/ppm(); a.view.y=drag.vy+(py-drag.py)/ppm();
+  }
+  else if(drag.mode==='rot3d'){
+    const r=a.view.rot||(a.view.rot=Object.assign({yaw:-0.6,pitch:0.35},a.def.rot0||{}));
+    r.yaw=drag.yaw+(px-drag.px)*0.01;
+    r.pitch=clamp(drag.pitch+(py-drag.py)*0.01,-1.5,1.5);
+    if(!S.playing) drawAll();
   }
   else if(drag.mode==='simdraw'){ a.def.wireMove(a.params,drag.handle,wx,wy); }
   else if(drag.mode==='click'){
@@ -36203,7 +37227,24 @@ function setZoom(){
   const m2=$('#mb-zoom'); if(m2 && document.activeElement!==m2) m2.value=lbl;   // то же поле на телефоне
 }
 const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZMIN,ZMAX); setZoom(); };
-function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,a.def.fit(a.params,{W:CW,H:CH})); setZoom(); }
+/* Вид «вписать в кадр». Схемы, которые занимают всю сцену (диаграмма
+   Минковского, орбитали), объявляют hudAware: у них рисунок вписывается в
+   часть кадра под панелью показаний, иначе панель закрывала бы его верх.
+   Если места под панелью слишком мало — вписываем как обычно. */
+function видВКадре(def,params){
+  const f=def.fit(params,{W:CW,H:CH});
+  if(!def.hudAware) return f;
+  const hud=document.querySelector('#hud');
+  if(!hud||hud.classList.contains('hidden')||hud.classList.contains('fold')||prefGet('hud')===false) return f;
+  const wr=document.querySelector('#cwrap'); if(!wr) return f;
+  const r=hud.getBoundingClientRect(), w=wr.getBoundingClientRect();
+  const низ=r.bottom-w.top+6;
+  if(!(r.width>0) || низ<=0 || низ>CH*0.55 || r.width<CW*0.35) return f;
+  const g=def.fit(params,{W:CW,H:CH-низ});
+  if(g.scale<f.scale*0.55) return f;
+  return Object.assign({},g,{y:g.y+(низ/2)/(PX_PER_M*g.scale)});
+}
+function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,видВКадре(a.def,a.params)); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
 $$('#btn-zin').onclick=()=>zoom(kzs());
 $$('#btn-zout').onclick=()=>zoom(1/kzs());
@@ -38321,7 +39362,7 @@ function onViewportChange(){
   // Отключается настройкой «вписывать сцену при повороте».
   const a=A();
   if(prefGet('autoFit')!==false && a && a.def.fit && !$('#simpane').classList.contains('hidden')){
-    const f=a.def.fit(a.params,{W:CW,H:CH});
+    const f=видВКадре(a.def,a.params);
     a.view.scale=f.scale; a.view.x=f.x; a.view.y=f.y;
   }
 }
@@ -40529,7 +41570,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '3.0.0';
+window.PHYSIM_BUILD = '3.1.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

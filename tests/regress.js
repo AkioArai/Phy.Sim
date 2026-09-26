@@ -255,8 +255,8 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('81 симуляция', counts.sims === 81, counts);
-    ok('темы и задачи на месте', counts.topics >= 37 && counts.problems >= 409, counts);
+    ok('83 симуляции', counts.sims === 83, counts);
+    ok('темы и задачи на месте', counts.topics >= 39 && counts.problems >= 419, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
     // тем же кодом, что и в жизни. Ловим и исключения, и NaN в показаниях.
@@ -317,7 +317,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 47, оси.схем);
+    ok('схемы размечены', оси.схем === 49, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -1131,7 +1131,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 29 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 31 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1477,6 +1477,34 @@ async function сторож(b) {
       });
       ok('доступность: сцена описана словами, сообщения объявляются, у кнопок-значков есть имена',
         /^Симуляция «/.test(дост.описание) && дост.тост === 'polite' && дост.безИмени.length === 0, дост);
+    }
+
+    /* ============ 3.1.0 ============ */
+    /* Орбитали: облако строится, сцена поворачивается протягиванием, панель
+       показаний у схемы свёрнута; новые темы открываются со своими сценами. */
+    {
+      const о = await p.evaluate(async () => {
+        openTopic('q.hydrogen'); openSim('orbital'); loadPreset({ n:4, l:3, m:-2, kind:'real', slice:false });
+        await new Promise(z => setTimeout(z, 120));
+        const a = A(), облако = a.def.cloud(a.params), свёрнута = document.querySelector('#hud').classList.contains('fold');
+        const r = document.querySelector('#scene').getBoundingClientRect();
+        const до = Object.assign({}, a.view.rot || {});
+        const ев = (тип, x, y) => document.querySelector('#scene').dispatchEvent(new PointerEvent(тип, { clientX:x, clientY:y, button:0, bubbles:true, pointerId:1, pointerType:'mouse' }));
+        ев('pointerdown', r.left + 150, r.top + 200);
+        window.dispatchEvent(new PointerEvent('pointermove', { clientX:r.left + 250, clientY:r.top + 240, pointerId:1, bubbles:true }));
+        window.dispatchEvent(new PointerEvent('pointerup', { clientX:r.left + 250, clientY:r.top + 240, pointerId:1, bubbles:true }));
+        const после = a.view.rot;
+        const темы = ['q.slits', 'q.spin'].map(id => { openTopic(id); return S.topic && S.topic.id === id && S.topic.problems.length === 5; });
+        openSim('slits1'); const b = A(); restart(b);
+        for (let k = 0; k < 3 / DT; k++) b.def.step(b.state, DT, b.params);
+        const попаданий = b.state.hits.length;
+        openSim('lift');
+        const какБыла = document.querySelector('#hud').classList.contains('fold') === LS.get('fold.hud', false);
+        return { точек: облако.N, свёрнута, повернулась: !!после && Math.abs((после.yaw || 0) - (до.yaw === undefined ? -0.6 : до.yaw)) > 0.5,
+                 темы, попаданий, какБыла };
+      });
+      ok('3.1: орбиталь 4f вращается протягиванием, панель у схемы свёрнута (у лифта — как была), новые темы с задачами, электроны копятся',
+        о.точек >= 1000 && о.свёрнута && о.повернулась && о.темы.every(Boolean) && о.попаданий > 100 && о.какБыла, о);
     }
 
     /* Декоративных градиентов больше нет: шапка темы, главная, кнопки */
