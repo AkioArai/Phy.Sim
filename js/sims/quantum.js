@@ -1,25 +1,32 @@
 'use strict';
 Object.assign(SIMS,{
-/* ================== ГЛ.24: ФОТОЭФФЕКТ ================= */
+/* ================== ГЛ.24: ФОТОЭФФЕКТ (3.1.0) =================
+   Опыт Столетова так, как его ставят: вакуумная трубка, свет на катод,
+   анод под напряжением U от батареи, амперметр в цепи. Электроны вылетают
+   с энергиями от нуля до Eмакс = hf − W₀ и летят к аноду в однородном поле.
+   При U < 0 поле их тормозит: долетают только те, у кого E > e|U|, и при
+   U = −Eмакс/e ток обрывается — это задерживающее напряжение. Рядом —
+   вольт-амперная характеристика с точкой, где стоит ползунок, и «лестница
+   энергий»: энергия фотона складывается из работы выхода и энергии электрона.
+
+   До 3.1.0 сцена была россыпью фотонов, подписей и графика без связи между
+   ними, и понять из неё ход опыта было трудно. */
 photoeffect:{
-  title:'Фотоэффект: свет выбивает электроны',
-  /* Сцена — схема опыта и график запирающего напряжения. Поэтому ни осей с
-     числами, ни надписи «сетка N м». */
+  title:'Фотоэффект: опыт Столетова',
   schema:true,
-  /* Время здесь ни на что не влияет: показания и графики от него не
-     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
-     времени, поэтому часы, шкала времени и графики по времени скрыты. */
   timeless:true,
+  hudAware:true,
   params:[
-    {key:'metal',label:'Металл (работа выхода)',type:'select',default:'cs',
+    {key:'metal',label:'Металл катода (работа выхода)',type:'select',default:'na',
      options:[{v:'cs',t:'Цезий — 2,14 эВ'},{v:'na',t:'Натрий — 2,28 эВ'},
               {v:'zn',t:'Цинк — 4,3 эВ'},{v:'pt',t:'Платина — 5,65 эВ'}]},
     {key:'lam', label:'Длина волны света λ',unit:'нм',min:150,max:900,step:5,default:400},
-    {key:'inten',label:'Интенсивность света',unit:'%',min:10,max:100,step:5,default:60},
+    {key:'inten',label:'Интенсивность света',unit:'%',min:0,max:100,step:5,default:60},
+    {key:'U',label:'Напряжение на аноде U (минус — тормозит)',unit:'В',min:-5,max:5,step:0.05,default:1},
 
     {type:'group',label:'Показывать'},
-    {key:'graph',label:'График Eмакс(f)',type:'check',default:true},
-    {key:'flow', label:'Вылетающие электроны',type:'check',default:true}
+    {key:'graph',label:'Вольт-амперная характеристика I(U)',type:'check',default:true},
+    {key:'ladder',label:'Лестница энергий hf = W₀ + Eмакс',type:'check',default:true}
   ],
   h:6.62607015e-34, e:1.602176634e-19, c:2.99792458e8,
   W:{cs:2.14,na:2.28,zn:4.3,pt:5.65},                    // работа выхода, эВ
@@ -29,16 +36,45 @@ photoeffect:{
   Ephot(p){ return this.h*this.freq(p)/this.e; },
   /* уравнение Эйнштейна: Eмакс = hf − W₀ */
   Emax(p){ return this.Ephot(p)-this.W0(p); },
-  /* красная граница: f₀ = W₀/h, λ₀ = hc/W₀ */
   lam0(p){ return this.h*this.c/(this.W0(p)*this.e)*1e9; },
   freq0(p){ return this.W0(p)*this.e/this.h; },
   works(p){ return this.Emax(p)>0; },
-  /* задерживающее напряжение: eU = Eмакс */
   Ustop(p){ return Math.max(0,this.Emax(p)); },
-  /* ток пропорционален интенсивности — но только если эффект вообще идёт */
-  current(p){ return this.works()? 0:0; },
-  init(p){ return {t:0,ph:0,event:null,__stop:null}; },
-  step(s,dt,p){ s.t+=dt; s.ph+=dt*1.4; },
+  /* Ток в долях тока насыщения. Энергии вылетевших электронов считаем
+     распределёнными равномерно от 0 до Eмакс (простая модель: в опыте край
+     размыт тепловым движением). При U ≥ 0 долетают все — насыщение; при
+     тормозящем — доля с E > e|U|. */
+  frac(p,U){ U=U===undefined?p.U:U; const Em=this.Emax(p);
+    if(!(Em>0)) return 0; if(U>=0) return 1; return clamp(1+U/Em,0,1); },
+  Isat(p){ return this.works(p)? p.inten/100 : 0; },           // в условных единицах
+  /* цвет света по длине волны */
+  цвет(lam,v){ return lam<380? v.c('--second') : lam<440? '#6d5bd0' : lam<490? '#3b82f6' : lam<560? '#16a34a' :
+                  lam<590? '#ca8a04' : lam<630? '#ea580c' : lam<750? '#dc2626' : '#7f1d1d'; },
+  /* геометрия трубки: катод слева, анод справа, зазор D */
+  K:-2.2, A:2.2, KV:2.6,                                 // KV — скорость (усл./с) электрона с энергией 1 эВ
+  init(p){ return {t:0,ph:0,els:[],seed:12345,изл:0,__stop:null}; },
+  rnd(s){ s.seed=(s.seed*16807)%2147483647; return s.seed/2147483647; },
+  step(s,dt,p){
+    s.t+=dt; s.ph+=dt;
+    const Em=this.Emax(p), D=this.A-this.K;
+    if(Em>0){
+      s.изл+=dt*14*p.inten/100;                          // электронов в секунду при 100 %
+      while(s.изл>=1){ s.изл-=1;
+        const E=Em*this.rnd(s);                          // энергия вылета, эВ
+        s.els.push({x:this.K+0.12, y:-1+2*this.rnd(s), E, v:this.KV*Math.sqrt(E)});
+      }
+    }
+    // однородное поле: v² = KV²·(E + U·(x − K)/D)
+    const out=[];
+    for(const e of s.els){
+      const Ek=e.E+p.U*(e.x-this.K)/D;
+      const a=this.KV*this.KV*p.U/(2*D);                 // ускорение вдоль x
+      e.v+=a*dt; e.x+=e.v*dt;
+      if(e.x>=this.A || e.x<=this.K+0.05 || Ek<-0.5) continue;
+      out.push(e);
+    }
+    s.els=out.length>300?out.slice(-300):out;
+  },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
     const E=this.Ephot(p), W0=this.W0(p), Em=this.Emax(p), ok=Em>0;
@@ -47,101 +83,134 @@ photoeffect:{
       ['энергия фотона E = hf',E,'эВ'],
       ['работа выхода W₀',W0,'эВ'],
       ['красная граница λ₀ = hc/W₀',this.lam0(p),'нм'],
-      ['есть ли фотоэффект',ok?1:0, ok?'ДА: E > W₀':'НЕТ: фотон слабее работы выхода']];
-    if(ok){
-      out.push(['максимальная энергия Eмакс = hf − W₀',Em,'эВ'],
-        ['задерживающее напряжение U',this.Ustop(p),'В'],
-        ['скорость электрона',Math.sqrt(2*Em*this.e/9.109e-31)/1e6,'·10⁶ м/с'],
-        ['ток (пропорционален интенсивности)',p.inten,'%']);
-    } else {
-      out.push(['ток',0,'нет тока при любой интенсивности']);
-    }
+      ['есть ли фотоэффект',ok?1:0, ok?'да: hf > W₀':'нет: фотон слабее работы выхода']];
+    if(ok) out.push(['максимальная энергия Eмакс = hf − W₀',Em,'эВ'],
+        ['задерживающее напряжение U = Eмакс/e',this.Ustop(p),'В'],
+        ['скорость электрона √(2Eмакс/m)',Math.sqrt(2*Em*this.e/9.1093837e-31)/1e6,'·10⁶ м/с']);
+    out.push(['напряжение на аноде',p.U,'В'],
+      ['ток, доля от насыщения',this.frac(p)*100, ok?'%':'% — электронов нет']);
     return out;
   },
   graphs:[],
   presets:[
-    {name:'Цезий, фиолетовый свет — эффект есть',values:{metal:'cs',lam:400,inten:60}},
-    {name:'Цезий, красный свет — эффекта нет',values:{metal:'cs',lam:750,inten:60}},
-    {name:'Яркий красный всё равно не помогает',values:{metal:'cs',lam:750,inten:100}},
-    {name:'Цинк: нужен ультрафиолет',values:{metal:'zn',lam:250,inten:60}},
-    {name:'Платина: очень высокий порог',values:{metal:'pt',lam:200,inten:60}}
+    {name:'Натрий, фиолетовый свет — ток есть',values:{metal:'na',lam:400,inten:60,U:1}},
+    {name:'Запирание: U = −Eмакс/e',values:{metal:'na',lam:400,inten:60,U:-0.82}},
+    {name:'Красный свет — эффекта нет',values:{metal:'na',lam:700,inten:100,U:1}},
+    {name:'Ярче — больше ток, запирание то же',values:{metal:'na',lam:400,inten:100,U:-0.5}},
+    {name:'Цинк: нужен ультрафиолет',values:{metal:'zn',lam:250,inten:60,U:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const scale=clamp(Math.min((W-16)/(10.6*PX_PER_M),(H-16)/(10.2*PX_PER_M)),0.002,30);
+    return {x:-0.1,y:-0.1,scale};
   },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const ok=this.works(p), E=this.Ephot(p), W0=this.W0(p), Em=this.Emax(p);
-    // цвет света по длине волны (грубо)
-    const lightCol = p.lam<380? sec : (p.lam<450? '#7b6bd6' : (p.lam<500? '#4a90d9' :
-      (p.lam<570? '#4caf7d' : (p.lam<590? '#d4b942' : (p.lam<620? '#e08a3c' : dang)))));
-    // пластина металла
-    ctx.fillStyle=ink; ctx.fillRect(0.6,-2.6,0.5,5.2);
-    v.label(ctx,`металл, W₀ = ${W0} эВ`,1.1,2.6,-4,-14,ink);
-    // падающие фотоны
-    const nf=Math.max(2,Math.round(p.inten/14));
-    for(let i=0;i<nf;i++){
-      const y=-2.1+ (i+0.5)*(4.2/nf);
-      const t=((s.ph*0.55+i*0.17)%1+1)%1;
-      const x=-4.4+t*5;
-      ctx.strokeStyle=lightCol; ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath();
-      for(let k=0;k<=26;k++){ const xx=x-0.75+k*0.03, yy=y+0.11*Math.sin(k*0.85);
-        k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }
-      ctx.stroke(); ctx.globalAlpha=1;
-      ctx.fillStyle=lightCol; ctx.beginPath(); ctx.arc(x,y,v.lw(2.6),0,7); ctx.fill();
-    }
-    v.label(ctx,`фотоны: λ = ${p.lam} нм, E = ${E.toFixed(2)} эВ`,-4.4,2.6,0,-14,lightCol);
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), ok=v.c('--ok');
+    const W0=this.W0(p), E=this.Ephot(p), Em=this.Emax(p), works=Em>0, свет=this.цвет(p.lam,v);
+    const K=this.K, A=this.A, D=A-K, TY=1.4;             // трубка поднята: под ней цепь и графики
+    ctx.save(); ctx.translate(0,TY);
+    /* подписи рисуются в экранных координатах мимо ctx.translate — им сдвиг добавляем сами */
+    const L=(t,x,y,dx,dy,c)=>v.label(ctx,t,x,y+TY,dx,dy,c);
 
-    // вылетающие электроны (или их отсутствие)
-    if(ok && p.flow){
-      const ne=Math.max(2,Math.round(p.inten/16));
-      for(let i=0;i<ne;i++){
-        const y=-1.8+(i+0.5)*(3.6/ne);
-        const t=((s.ph*0.75+i*0.21)%1+1)%1;
-        const x=1.2+t*3.2;
-        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(x,y,v.lw(3.4),0,7); ctx.fill();
-        v.arrow(ctx,x,y,x+0.4,y,meas);
-      }
-      v.label(ctx,`электроны: Eмакс = ${Em.toFixed(2)} эВ`,4.6,2.2,-90,0,meas);
-      v.label(ctx,`их число зависит от интенсивности (${p.inten}%),`,4.6,2.2,-150,16,ink3);
-      v.label(ctx,'а энергия — только от частоты света',4.6,2.2,-150,30,ink3);
-    } else if(!ok){
-      v.label(ctx,'электроны не вылетают',2.2,1.2,0,0,dang);
-      v.label(ctx,`энергии фотона (${E.toFixed(2)} эВ) не хватает,`,2.2,1.2,0,16,ink3);
-      v.label(ctx,`чтобы совершить работу выхода (${W0} эВ)`,2.2,1.2,0,30,ink3);
-      v.label(ctx,'увеличение яркости не помогает — фотонов больше,',2.2,1.2,0,50,dang);
-      v.label(ctx,'но каждый по-прежнему слишком слаб',2.2,1.2,0,64,dang);
-    }
+    /* ---- трубка ---- */
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(K-0.9,-1.7,D+1.8,3.4,0.8); else ctx.rect(K-0.9,-1.7,D+1.8,3.4);
+    ctx.stroke();
+    L('вакуум',0,1.7,-20,-8,ink3);
+    // катод и анод
+    ctx.fillStyle=ink; ctx.fillRect(K-0.18,-1.15,0.18,2.3); ctx.fillRect(A,-1.15,0.18,2.3);
+    L(`катод: ${({cs:'цезий',na:'натрий',zn:'цинк',pt:'платина'})[p.metal]}, W₀ = ${W0} эВ`,K,-1.15,-60,16,ink);
+    L('анод',A,-1.15,-8,16,ink);
 
-    // график Eмакс(f) — прямая с наклоном h
-    if(p.graph){
-      const gx=-4.6, gy=-3.0, gw=4.2, gh=2.0;
-      const fmax=1.8e15, Emx=6;
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      ctx.globalAlpha=1;
-      v.label(ctx,'Eмакс',gx,gy+gh,-30,-4,ink3); v.label(ctx,'f',gx+gw,gy,4,10,ink3);
-      // прямая Eмакс = hf − W₀ (только положительная часть)
-      const f0=this.freq0(p);
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8);
-      ctx.beginPath();
-      ctx.moveTo(gx+gw*(f0/fmax), gy);
-      ctx.lineTo(gx+gw, gy+gh*((this.h*fmax/this.e-W0)/Emx));
+    /* ---- свет: пучок и бегущие фотоны ---- */
+    const sx=-4.4, sy=2.9;                               // лампа (в системе трубки)
+    ctx.fillStyle=свет; ctx.globalAlpha=p.inten>0?0.16+0.3*p.inten/100:0.05;
+    ctx.beginPath(); ctx.moveTo(sx,sy+0.35); ctx.lineTo(K-0.18,0.9); ctx.lineTo(K-0.18,-0.9); ctx.lineTo(sx,sy-0.35); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.fillStyle=ink3; ctx.beginPath(); ctx.arc(sx,sy,0.35,0,7); ctx.fill();
+    L(`λ = ${p.lam} нм, hf = ${E.toFixed(2)} эВ`,sx,sy,-20,-24,свет);
+    const nf=Math.round(2+6*p.inten/100);
+    if(p.inten>0) for(let i=0;i<nf;i++){
+      const u=((s.ph*0.7+i/nf)%1+1)%1, yy=-0.8+1.6*((i*0.37)%1);
+      const x=sx+(K-0.2-sx)*u, y=sy+(yy-sy)*u, dx=K-0.2-sx, dy=yy-sy, L=Math.hypot(dx,dy);
+      ctx.strokeStyle=свет; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
+      for(let k=0;k<=16;k++){ const t=-0.45+k*0.03, w=0.12*Math.sin(k*1.2);
+        const px=x+dx/L*t - dy/L*w, py=y+dy/L*t + dx/L*w; k?ctx.lineTo(px,py):ctx.moveTo(px,py); }
       ctx.stroke();
-      // красная граница
-      ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx+gw*(f0/fmax),gy); ctx.lineTo(gx+gw*(f0/fmax),gy+gh*0.85); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,'f₀',gx+gw*(f0/fmax),gy,-4,12,dang);
-      // текущая точка
-      const fx=gx+gw*clamp(this.freq(p)/fmax,0,1), fy=gy+gh*clamp(Math.max(0,Em)/Emx,0,1);
-      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(fx,fy,v.lw(3.4),0,7); ctx.fill();
-      v.label(ctx,'наклон прямой = постоянная Планка h',gx,gy+gh,0,-18,ink3);
     }
-    v.label(ctx,`Eмакс = hf − W₀ = ${E.toFixed(2)} − ${W0} = ${Em.toFixed(2)} эВ`,1.4,-3.2,-70,0,ok?acc:dang);
+
+    /* ---- электроны ---- */
+    for(const e of s.els){
+      ctx.fillStyle=e.v>=0?meas:dang;
+      ctx.beginPath(); ctx.arc(e.x,e.y,v.lw(3.2),0,7); ctx.fill();
+    }
+    if(!works) L('электроны не вылетают: hf < W₀',0,0.2,-80,0,dang);
+    else if(p.U<0) L(`поле тормозит: долетают только E > ${(-p.U).toFixed(2)} эВ`,0,-0.2,-100,0,p.U<=-Em?dang:ink);
+    // поле между пластинами
+    if(Math.abs(p.U)>0.02){
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(4)]);
+      for(const y of [-0.8,0.8]){ v.arrow(ctx,p.U>0?A-0.3:K+0.3,y,p.U>0?K+0.3:A-0.3,y,ink3); }
+      ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      L('E поля',0,0.8,-18,-10,ink3);
+    }
+
+    /* ---- внешняя цепь: батарея и амперметр ---- */
+    const yw=-2.6;
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath(); ctx.moveTo(K-0.09,-1.15); ctx.lineTo(K-0.09,yw); ctx.lineTo(-0.35,yw);
+    ctx.moveTo(0.35,yw); ctx.lineTo(1.1,yw); ctx.moveTo(1.9,yw); ctx.lineTo(A+0.09,yw); ctx.lineTo(A+0.09,-1.15); ctx.stroke();
+    // батарея: длинная пластина — плюс
+    const плюсСправа=p.U>=0;
+    ctx.lineWidth=v.lw(2.4);
+    ctx.beginPath(); ctx.moveTo(плюсСправа?0.35:-0.35,yw-0.45); ctx.lineTo(плюсСправа?0.35:-0.35,yw+0.45);
+    ctx.moveTo(плюсСправа?-0.35:0.35,yw-0.22); ctx.lineTo(плюсСправа?-0.35:0.35,yw+0.22); ctx.stroke();
+    L(`U = ${p.U>0?'+':''}${p.U.toFixed(2)} В`,0,yw,-34,-22,p.U<0?dang:ok);
+    // амперметр
+    const I=this.Isat(p)*this.frac(p);
+    ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath(); ctx.arc(1.5,yw,0.4,0,7); ctx.fill(); ctx.stroke();
+    const ang=Math.PI*(0.8-0.6*I);
+    ctx.strokeStyle=dang; ctx.beginPath(); ctx.moveTo(1.5,yw-0.15); ctx.lineTo(1.5+0.32*Math.cos(ang),yw-0.15+0.32*Math.sin(ang)); ctx.stroke();
+    L(`I = ${(I*100).toFixed(0)} % от насыщения при 100 %`,1.5,yw,-60,26,ink);
+
+    ctx.restore();
+
+    /* ---- лестница энергий: hf = W₀ + Eмакс ---- */
+    if(p.ladder){
+      const x0=-4.8, y0=-2.2, k=4.2/Math.max(6,E,W0+0.5);
+      ctx.fillStyle=свет; ctx.globalAlpha=.85; ctx.fillRect(x0,y0,E*k,0.38); ctx.globalAlpha=1;
+      v.label(ctx,`фотон: hf = ${E.toFixed(2)} эВ`,x0,y0+0.38,0,-10,свет);
+      ctx.fillStyle=ink3; ctx.globalAlpha=.55; ctx.fillRect(x0,y0-0.6,Math.min(W0,E)*k,0.38); ctx.globalAlpha=1;
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.strokeRect(x0,y0-0.6,W0*k,0.38);
+      if(works){ ctx.fillStyle=meas; ctx.fillRect(x0+W0*k,y0-0.6,Em*k,0.38); }
+      v.label(ctx,`W₀ = ${W0}`,x0,y0-0.6,2,24,ink3);
+      v.label(ctx,works?`Eмакс = ${Em.toFixed(2)} эВ`:'фотону не хватает энергии',x0+W0*k,y0-0.6,works?4:-40,24,works?meas:dang);
+    }
+
+    /* ---- вольт-амперная характеристика ---- */
+    if(p.graph){
+      const gx=0.6, gy=-4.7, gw=4.3, gh=2.7, Umin=-5, Umax=5;
+      const X=U=>gx+gw*(U-Umin)/(Umax-Umin), Y=I=>gy+gh*I;
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.moveTo(X(0),gy); ctx.lineTo(X(0),gy+gh*1.08); ctx.stroke();
+      // кривая при 100 % — бледно, при текущей яркости — ярко
+      for(const [ярк,alpha,wd] of [[1,0.3,1.2],[p.inten/100,1,2]]){
+        ctx.strokeStyle=acc; ctx.globalAlpha=alpha; ctx.lineWidth=v.lw(wd); ctx.beginPath();
+        for(let i=0;i<=200;i++){ const U=Umin+(Umax-Umin)*i/200, Ii=(works?ярк:0)*this.frac(p,U);
+          i?ctx.lineTo(X(U),Y(Ii)):ctx.moveTo(X(U),Y(Ii)); }
+        ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+      if(works && -Em>=Umin){
+        ctx.strokeStyle=dang; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(X(-Em),gy); ctx.lineTo(X(-Em),gy+gh*0.6); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
+        v.label(ctx,`−U₃ = −${Em.toFixed(2)} В`,X(-Em),gy,-40,14,dang);
+      }
+      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(X(p.U),Y(I),v.lw(4.5),0,7); ctx.fill();
+      v.label(ctx,'I',X(0),gy+gh*1.08,4,0,ink3);
+      v.label(ctx,'U, В',gx+gw,gy,-30,14,ink3);
+      v.label(ctx,'насыщение — растёт с яркостью',X(0.4),Y(1),0,-10,ink3);
+    }
   }
 },
 
@@ -596,7 +665,7 @@ uncertainty:{
           i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
         ctx.stroke(); ctx.globalAlpha=1;
       }
-      v.label(ctx,'складывая такие волны, получаем пакет',-4.4,top+0.30,0,0,sec);
+      v.label(ctx,'сумма этих волн и есть пакет вверху',-4.4,top+0.22,0,-6,sec);
       v.label(ctx,'вес',3.15,top,0,4,ink3);
       for(let j=-2;j<=2;j++){
         const w=Math.exp(-0.5*j*j/1.4);
@@ -846,14 +915,14 @@ tunnel:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(11*PX_PER_M),(H-70)/(8*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const scale=clamp(Math.min((W-30)/(10.6*PX_PER_M),(H-30)/(7.4*PX_PER_M)),0.002,30);
+    return {x:0,y:2.1,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const T=this.T(p), K=this.kappa(p);
     const AW=clamp(p.a*2.2,0.3,3.2);              // ширина барьера на экране
-    const x1=-AW/2, x2=AW/2, SY=0.28;             // масштаб энергии в единицы сцены
+    const x1=-AW/2, x2=AW/2, SY=clamp(4.2/Math.max(p.V,p.E,1),0.3,1.2);   // энергия в единицы сцены: выше барьер — мельче шкала, но картина во всю высоту
     // ось
     ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
     ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(5,0); ctx.stroke(); ctx.globalAlpha=1;
@@ -866,7 +935,7 @@ tunnel:{
     // уровень энергии
     ctx.strokeStyle=dang; ctx.setLineDash([v.lw(5),v.lw(4)]); ctx.lineWidth=v.lw(1.8);
     ctx.beginPath(); ctx.moveTo(-5,p.E*SY); ctx.lineTo(5,p.E*SY); ctx.stroke(); ctx.setLineDash([]);
-    v.label(ctx,`E = ${p.E} эВ`,-5,p.E*SY,4,-8,dang);
+    v.label(ctx,`E = ${p.E} эВ`,-5,p.E*SY,4,-32,dang);
 
     // волновая функция
     if(p.wave){
@@ -888,15 +957,15 @@ tunnel:{
       for(let i=0;i<=240;i++){ const x=-5+(x1+5)*i/240;
         const inc=Math.cos(kk*(x-x1)-ph);
         const ref=rR*Math.cos(kk*(x1-x)-ph);
-        const y=base+0.42*A*NORM*(inc+ref);
+        const y=base+0.75*A*NORM*(inc+ref);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
-      v.label(ctx,'падающая + отражённая',-4.9,base,0,-26,meas);
+      v.label(ctx,'падающая + отражённая',-4.9,base+1.3,0,0,meas);
       // под барьером — затухание без бега
       ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=200;i++){
         const x=x1+AW*i/200;
-        const y=base+0.42*A*ampIn(x)*Math.cos(kIn*(x-x1)-ph);
+        const y=base+0.75*A*ampIn(x)*Math.cos(kIn*(x-x1)-ph);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y);
       }
       ctx.stroke();
@@ -906,7 +975,7 @@ tunnel:{
         for(const sgn of [1,-1]){
           ctx.beginPath();
           for(let i=0;i<=60;i++){ const x=x1+AW*i/60;
-            const y=base+sgn*0.42*A*ampIn(x); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+            const y=base+sgn*0.75*A*ampIn(x); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
           ctx.stroke();
         }
         ctx.setLineDash([]); ctx.globalAlpha=1;
@@ -914,18 +983,18 @@ tunnel:{
       // прошедшая справа — продолжает фазу, накопленную в барьере
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=240;i++){ const x=x2+(5-x2)*i/240;
-        const y=base+0.42*A*sT*Math.cos(kk*(x-x2)+kIn*AW-ph);
+        const y=base+0.75*A*sT*Math.cos(kk*(x-x2)+kIn*AW-ph);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
-      v.label(ctx,`прошедшая: T = ${(T*100).toFixed(T<0.01?3:1)}%`,5,base,-104,-24,acc);
+      v.label(ctx,`прошедшая: T = ${(T*100).toFixed(T<0.01?3:1)}%`,5,base+1.0,-104,0,acc);
     }
     // вывод
     const txt = p.E<p.V
       ? `классически частица отскочила бы, но T = ${(T*100).toFixed(T<0.01?3:1)}% — она проходит сквозь барьер`
       : `энергии хватает, но часть волны всё равно отражается: T = ${(T*100).toFixed(1)}%`;
-    v.label(ctx,txt,0,-1.6,-Math.round(txt.length*3),0,p.E<p.V?dang:ink3);
-    if(p.E<p.V) v.label(ctx,'прозрачность падает экспоненциально с шириной и высотой барьера',0,-1.6,-142,16,ink3);
-    v.label(ctx,'на этом работают туннельный микроскоп и альфа-распад',0,-1.6,-118,32,ink3);
+    v.label(ctx,txt,0,-0.6,-Math.round(txt.length*3),0,p.E<p.V?dang:ink3);
+    if(p.E<p.V) v.label(ctx,'прозрачность падает экспоненциально с шириной и высотой барьера',0,-0.6,-142,16,ink3);
+    v.label(ctx,'на этом работают туннельный микроскоп и альфа-распад',0,-0.6,-118,32,ink3);
   }
 },
 
@@ -986,37 +1055,44 @@ bohr:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const scale=clamp(Math.min((W-30)/(11*PX_PER_M),(H-30)/(8*PX_PER_M)),0.002,30);
+    return {x:0.3,y:-0.2,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const CX=-2.2, n=p.n;
-    const SC=2.6/this.r(6);                    // масштаб: шестая орбита влезает
+    /* Радиусы орбит растут как n²: от первой до шестой — в 36 раз. В одном
+       масштабе первая орбита сливается с ядром (так и было до 3.1.0: электрон
+       на n = 1 был не виден). Поэтому масштаб берётся по ТЕКУЩЕЙ орбите — она
+       всегда радиусом 2,2, — а соседние рисуются в том же масштабе, пока
+       помещаются. Отношение радиусов при этом честное. */
+    const SC=2.2/this.r(n);
     // ядро
-    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0,0.16,0,7); ctx.fill();
-    v.label(ctx,'протон',CX,0,-16,20,dang);
-    // все орбиты
+    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0,v.lw(5),0,7); ctx.fill();
+    v.label(ctx,'протон',CX,0,-18,18,dang);
+    // орбиты: текущая и соседние, если помещаются
     for(let k=1;k<=6;k++){
       const R=this.r(k)*SC, on=(k===n);
-      ctx.strokeStyle=on?acc:ink3; ctx.globalAlpha=on?1:.3; ctx.lineWidth=v.lw(on?1.8:1);
+      if(!on && (R<0.25 || R>3.3)) continue;
+      ctx.strokeStyle=on?acc:ink3; ctx.globalAlpha=on?1:.35; ctx.lineWidth=v.lw(on?1.8:1);
       if(!on){ ctx.setLineDash([v.lw(3),v.lw(4)]); }
       ctx.beginPath(); ctx.arc(CX,0,R,0,7); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      if(k<=3||on) v.label(ctx,`n=${k}`,CX+R*0.71,R*0.71,4,-4,on?acc:ink3);
+      ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      v.label(ctx,`n = ${k}`,CX+R*0.71,R*0.71,4,-4,on?acc:ink3);
     }
     const R=this.r(n)*SC;
+    v.label(ctx,`масштаб: r = ${n}²·a₀ = ${this.r(n).toFixed(3)} нм`,CX,-R,-70,26,ink3);
     // волна де Бройля вдоль орбиты: ровно n длин волн
     if(p.wave){
       ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
       for(let i=0;i<=400;i++){
         const a=i/400*2*Math.PI;
-        const rr=R+0.16*Math.sin(n*a - (p.anim? s.ph*3:0));
+        const rr=R+0.18*Math.sin(n*a - (p.anim? s.ph*3:0));
         const x=CX+rr*Math.cos(a), y=rr*Math.sin(a);
         i?ctx.lineTo(x,y):ctx.moveTo(x,y);
       }
       ctx.stroke();
-      v.label(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} — орбита замыкается`,CX,-R,-Math.round(46*3),24,sec);
+      v.label(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} — волна замыкается`,CX,R,-110,-14,sec);
     }
     // электрон
     const ea=s.ph;
@@ -1025,22 +1101,26 @@ bohr:{
 
     // лестница уровней
     if(p.levels){
-      const gx=2.4, gy=-2.6, gh=4.6;
+      const gx=1.5, gy=-2.6, gh=4.6;
       // энергии от −13.6 до 0
       const Y=E=>gy+gh*(1-(E/this.E1));
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke(); ctx.globalAlpha=1;
-      v.label(ctx,'E, эВ',gx,gy+gh,-4,-12,ink3);
+      v.label(ctx,'E, эВ',gx,gy+gh,-44,4,ink3);
       // уровень ионизации
       ctx.strokeStyle=dang; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); ctx.moveTo(gx,Y(0)); ctx.lineTo(gx+2.2,Y(0)); ctx.stroke(); ctx.setLineDash([]);
-      v.label(ctx,'0 эВ — ионизация',gx+2.2,Y(0),4,-4,dang);
-      for(let k=1;k<=6;k++){
+      ctx.beginPath(); ctx.moveTo(gx,Y(0)); ctx.lineTo(gx+1.4,Y(0)); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,'0 эВ — электрон свободен',gx+1.5,Y(0),2,-14,dang);
+      /* Уровни n ≥ 4 лежат в полосе шириной меньше эВ: подписать каждый нельзя —
+         раскладчик разводил подписи, и они уезжали к чужим линиям («n = 6»
+         оказывалась под n = 2). Подписываем первые три и выбранный уровень. */
+      for(let k=1;k<=8;k++){
         const E=this.E(k), y=Y(E), on=(k===n);
         ctx.strokeStyle=on?acc:ink3; ctx.globalAlpha=on?1:.55; ctx.lineWidth=v.lw(on?2.4:1.2);
-        ctx.beginPath(); ctx.moveTo(gx,y); ctx.lineTo(gx+(on?2.0:1.5),y); ctx.stroke(); ctx.globalAlpha=1;
-        v.label(ctx,`n=${k}  ${E.toFixed(2)}`,gx+(on?2.0:1.5),y,4,-4,on?acc:ink3);
+        ctx.beginPath(); ctx.moveTo(gx,y); ctx.lineTo(gx+(on?1.4:1.1),y); ctx.stroke(); ctx.globalAlpha=1;
+        if(k<=3 || on) v.label(ctx,`n = ${k}:  ${E.toFixed(2)} эВ`,gx+1.5,y,2,0,on?acc:ink3);
       }
+      if(n<4) v.label(ctx,'n = 4, 5, 6 … — всё теснее',gx+1.5,Y(this.E(5)),2,-12,ink3);
       v.label(ctx,'уровни сгущаются к нулю',gx,gy,0,20,ink3);
     }
     v.label(ctx,`E_${n} = ${this.E(n).toFixed(3)} эВ,  r_${n} = ${this.r(n).toFixed(4)} нм`,CX,-3.4,-84,0,ink3);
@@ -1548,9 +1628,12 @@ pauli:{
           const x=-4.3+c*0.62;
           ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2);
           ctx.strokeRect(x,y-0.2,0.5,0.4);
-          // два электрона в клетке — с противоположными спинами
+          /* Правило Хунда: сначала по одному электрону «спином вверх» в каждую
+             клетку, и только потом — вторые, со спином вниз. До 3.1.0 клетки
+             заполнялись парами подряд, и у углерода оба 2p-электрона сидели
+             в одной клетке — так в атоме не бывает. */
           for(let sp=0;sp<2;sp++){
-            const idx=c*2+sp;
+            const idx=sp*cells+c;
             if(idx>=q.e) continue;
             const ex=x+0.15+sp*0.2;
             ctx.strokeStyle=sp?meas:dang; ctx.lineWidth=v.lw(1.6);
@@ -1564,7 +1647,8 @@ pauli:{
         v.label(ctx,`${q.e} из ${this.cap(q.l)}`,-4.3+cells*0.62,y,6,4,ink3);
         y-=0.62;
       }
-      v.label(ctx,'в одной клетке — не больше двух электронов, и только с разными спинами',-5.2,y,0,10,ink3);
+      v.label(ctx,'в клетке не больше двух электронов, и спины у них разные',-5.2,-3.2,0,0,ink3);
+      v.label(ctx,'клетки подоболочки заселяются сначала по одному (правило Хунда)',-5.2,-3.2,0,16,ink3);
     }
 
     // оболочки
@@ -1672,11 +1756,11 @@ periodic:{
        Раньше они делили одну область и налезали друг на друга. */
     // график энергии ионизации
     if(p.graph){
-      const gx=-5.6, gy=-2.9, gw=11.2, gh=3.1, Emax=26;
+      const gx=-5.6, gy=-3.0, gw=11.2, gh=2.9, Emax=26;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
       ctx.globalAlpha=1;
-      v.label(ctx,'энергия ионизации, эВ',gx,gy+gh,2,-12,ink3);
+      v.label(ctx,'энергия ионизации, эВ',gx+gw,gy+gh,-150,-4,ink3);
       v.label(ctx,'Z',gx+gw,gy,8,4,ink3);
       const X=Z=>gx+gw*(Z/36), Y=E=>gy+gh*(E/Emax);
       // кривая
@@ -1700,25 +1784,27 @@ periodic:{
         X(p.Z), Y(this.E(p)), X(p.Z)>gx+gw*0.72? -96 : 10, -8, meas);
       v.label(ctx,'пики — благородные газы, провалы — щелочные металлы',gx,gy,2,22,ink3);
     }
-    // таблица
+    /* Таблица — в настоящей раскладке: 18 столбцов, s-элементы слева,
+       p-элементы справа, d-элементы с 4-го периода. Символы рисуются без
+       раскладки подписей (v.text): до 3.1.0 раскладчик разводил их, и символы
+       съезжали в соседние клетки, а «период N» — к чужим строкам. */
     if(p.table){
-      const rows=[[1,2],[3,10],[11,18],[19,36]];
-      let y=3.35;
-      rows.forEach((r,ri)=>{
-        let x=-5.6;
-        for(let Z=r[0];Z<=r[1];Z++){
-          const on=(Z===p.Z), noble=this.nobles.includes(Z);
-          ctx.fillStyle= on? acc : (noble? dang : ink3);
-          ctx.globalAlpha= on?1:(noble?.5:.22);
-          ctx.fillRect(x,y-0.21,0.50,0.42);
-          ctx.globalAlpha=1;
-          v.label(ctx,this.names[Z],x+0.25,y,-8,4, on?'#fff':ink);
-          x+=0.56;
-        }
-        v.label(ctx,`период ${ri+1}`,-5.6,y,-54,4,ink3);
-        y-=0.56;
-      });
-      v.label(ctx,'каждый период кончается благородным газом — замкнутой оболочкой',-5.6,y,0,10,ink3);
+      const c=0.62, x0=-5.58, y0=3.45;
+      const место=Z=>{ if(Z===1) return [0,0]; if(Z===2) return [17,0];
+        if(Z<=10) return [Z<=4?Z-3:Z-10+17,1]; if(Z<=18) return [Z<=12?Z-11:Z-18+17,2]; return [Z-19,3]; };
+      for(let Z=1;Z<=36;Z++){
+        const [col,row]=место(Z), x=x0+col*c, y=y0-row*c;
+        const on=(Z===p.Z), noble=this.nobles.includes(Z), alk=this.alkali.includes(Z), d=Z>=21&&Z<=30;
+        ctx.fillStyle= on? acc : (noble? dang : (alk? sec : ink3));
+        ctx.globalAlpha= on?1:(noble||alk?.35:(d?.12:.2));
+        ctx.fillRect(x+0.03,y-c/2+0.03,c-0.06,c-0.06);
+        ctx.globalAlpha=1;
+        v.text(ctx,this.names[Z],x+c/2,y,on?'#fff':ink,10,'center',on);
+      }
+      for(let r=0;r<4;r++) v.text(ctx,`${r+1}`,x0-0.12,y0-r*c,ink3,10,'right');
+      v.text(ctx,'период',x0-0.12,y0+c*0.85,ink3,9,'right');
+      v.text(ctx,'s',x0+c,y0+c*0.8,ink3,9); v.text(ctx,'d (с 4-го периода)',x0+c*6.5,y0-c*2,ink3,9); v.text(ctx,'p',x0+c*15,y0+c*0.8,ink3,9);
+      v.label(ctx,'каждый период кончается благородным газом — замкнутой оболочкой',x0,y0-3.5*c,0,4,ink3);
     }
     // итоговая подпись — под графиком, в свободной полосе
     v.label(ctx,`${this.names[p.Z]} — ${this.kind(p)}`,0,-3.5,
@@ -1830,7 +1916,7 @@ xray:{
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8); ctx.setLineDash([v.lw(4),v.lw(3)]);
     ctx.beginPath(); ctx.moveTo(X(lm),gy); ctx.lineTo(X(lm),gy+gh*0.9); ctx.stroke(); ctx.setLineDash([]);
     v.label(ctx,`λмин = ${lm.toFixed(1)} пм`,X(lm),gy+gh*0.9,-8,-8,dang);
-    v.label(ctx,'левее — ничего: у электрона нет столько энергии',X(lm),gy+gh*0.9,-8,8,ink3);
+    v.label(ctx,'короче λмин — ничего: eU не хватает',X(lm),gy+gh*0.9,-8,8,ink3);
     // характеристические линии
     if(p.lines && this.linesVisible(p)){
       for(const [lam,nm,hh] of [[this.lamKa(p),'Kα',0.95],[this.lamKb(p),'Kβ',0.6]]){
@@ -1839,9 +1925,9 @@ xray:{
         ctx.beginPath(); ctx.moveTo(X(lam),gy); ctx.lineTo(X(lam),gy+gh*hh); ctx.stroke();
         v.label(ctx,`${nm} = ${lam.toFixed(1)} пм`,X(lam),gy+gh*hh,-16,-10,meas);
       }
-      v.label(ctx,'острые линии — характеристические: зависят только от материала анода',gx,gy+gh,4,10,meas);
+      v.label(ctx,'острые линии — характеристические: у каждого анода свои',gx,gy,4,64,meas);
     } else if(p.lines){
-      v.label(ctx,'характеристических линий нет: не хватает напряжения выбить K-электрон',gx,gy+gh,4,10,dang);
+      v.label(ctx,'линий нет: напряжения не хватает, чтобы выбить K-электрон',gx,gy,4,64,dang);
     }
     // подпись
     v.label(ctx,`анод: Z = ${p.Z}${this.anodes[p.Z]?' ('+this.anodes[p.Z]+')':''},  U = ${p.U} кВ`,gx,gy,4,32,ink3);

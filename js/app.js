@@ -190,6 +190,17 @@ const VIEW={
     }
     ctx.fillText(text,x,y); ctx.restore();
   },
+  /* Текст в заданной точке — без раскладки. Подписи v.label разводятся,
+     чтобы не налезать друг на друга; для содержимого клеток таблицы это
+     вредно: символ уезжает в соседнюю клетку. align — 'center' | 'left' | 'right'. */
+  text(ctx,text,wx,wy,color,px,align,bold){
+    const [sx,sy]=toScreen(wx,wy);
+    ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.font=(bold?'600 ':'')+sceneFont(px||(+prefGet('labelSize')||11));
+    ctx.textAlign=align||'center'; ctx.textBaseline='middle';
+    ctx.fillStyle=color||css('--ink-2'); ctx.fillText(String(text),sx,sy);
+    ctx.restore();
+  },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
      o = { x, y,                      точка приложения (центр тела)
            forces:[{fx,fy,label,color?}],   силы в ньютонах
