@@ -2449,6 +2449,13 @@ function openSim(id){
   S.playing=true; setPlayIcon(); acc=0;
   загрузитьЗаметки(a,id); renderNotes();
   renderParams(); buildGraphs(); renderPresets(); renderSimTools();
+  /* Сцены-схемы во всю ширину (hudAware) открываются со свёрнутой панелью
+     показаний: иначе она закрывает половину рисунка. Сохранённое состояние
+     панели не трогаем — у остальных симуляций оно возвращается как было. */
+  { const hud=$('#hud'), свёрнута=a.def.hudAware ? true : LS.get('fold.hud',false);
+    hud.classList.toggle('fold',свёрнута);
+    const кн=hud.querySelector('.fp-fold');
+    if(кн){ кн.textContent=свёрнута?'▸':'▾'; кн.setAttribute('aria-expanded',String(!свёрнута)); } }
   try{ syncMbar(); }catch(_){}
   requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
 }
@@ -3077,7 +3084,24 @@ function setZoom(){
   const m2=$('#mb-zoom'); if(m2 && document.activeElement!==m2) m2.value=lbl;   // то же поле на телефоне
 }
 const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZMIN,ZMAX); setZoom(); };
-function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,a.def.fit(a.params,{W:CW,H:CH})); setZoom(); }
+/* Вид «вписать в кадр». Схемы, которые занимают всю сцену (диаграмма
+   Минковского, орбитали), объявляют hudAware: у них рисунок вписывается в
+   часть кадра под панелью показаний, иначе панель закрывала бы его верх.
+   Если места под панелью слишком мало — вписываем как обычно. */
+function видВКадре(def,params){
+  const f=def.fit(params,{W:CW,H:CH});
+  if(!def.hudAware) return f;
+  const hud=document.querySelector('#hud');
+  if(!hud||hud.classList.contains('hidden')||hud.classList.contains('fold')||prefGet('hud')===false) return f;
+  const wr=document.querySelector('#cwrap'); if(!wr) return f;
+  const r=hud.getBoundingClientRect(), w=wr.getBoundingClientRect();
+  const низ=r.bottom-w.top+6;
+  if(!(r.width>0) || низ<=0 || низ>CH*0.55 || r.width<CW*0.35) return f;
+  const g=def.fit(params,{W:CW,H:CH-низ});
+  if(g.scale<f.scale*0.55) return f;
+  return Object.assign({},g,{y:g.y+(низ/2)/(PX_PER_M*g.scale)});
+}
+function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,видВКадре(a.def,a.params)); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
 $$('#btn-zin').onclick=()=>zoom(kzs());
 $$('#btn-zout').onclick=()=>zoom(1/kzs());
@@ -5195,7 +5219,7 @@ function onViewportChange(){
   // Отключается настройкой «вписывать сцену при повороте».
   const a=A();
   if(prefGet('autoFit')!==false && a && a.def.fit && !$('#simpane').classList.contains('hidden')){
-    const f=a.def.fit(a.params,{W:CW,H:CH});
+    const f=видВКадре(a.def,a.params);
     a.view.scale=f.scale; a.view.x=f.x; a.view.y=f.y;
   }
 }

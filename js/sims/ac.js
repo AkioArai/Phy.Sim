@@ -46,7 +46,11 @@ rlc:{
     return {u:p.U0*Math.sin(ph), i, uR:p.R*i,
       uL:k.XL*k.I0*Math.cos(ph-k.phi), uC:-k.XC*k.I0*Math.cos(ph-k.phi), k};
   },
-  init(p){ return {t:0,q:0,__stop:null}; },
+  /* Заряд, прошедший по контуру, — интеграл тока. Начальное значение берём
+     так, чтобы качание было симметричным около нуля: q = −(I₀/ω)·cos(ωt − φ),
+     в единицах секунд сцены. */
+  init(p){ const k=this.calc(p), w=k.w*this.SLOW*1e-3;
+    return {t:0,q:-k.I0/w*Math.cos(-k.phi),__stop:null}; },
   step(s,dt,p){
     const t=s.t+dt*this.SLOW;
     if(p.tStop>0 && t>=p.tStop){ s.t=p.tStop; s.__stop=`Остановка по времени: t = ${p.tStop} мс`; return; }
@@ -123,7 +127,13 @@ rlc:{
     v.label(ctx,`U₀ = ${p.U0} В, f = ${p.f} Гц`,X0,Yb,-10,16,ink3);
     // бегущие точки: смещение пропорционально прошедшему заряду
     if(p.flow){
-      const per=2*((X1-X0)+(Yt-Yb)), n=16, sh=((s.q/Math.max(1e-9,k.I0/k.w))*0.35)%1;
+      /* Переменный ток качает заряды туда-обратно, а не гонит по кругу.
+         Сдвиг точек — прошедший заряд, отнесённый к его размаху за
+         полпериода: точки качаются на восьмую часть контура. В 3.0.0 здесь
+         стоял множитель, при котором точки пробегали десятки кругов за
+         полпериода, и казалось, что ток просто несётся. */
+      const Tсц=1/(p.f*this.SLOW*1e-3), qa=Math.max(1e-12,k.I0*Tсц/Math.PI);
+      const per=2*((X1-X0)+(Yt-Yb)), n=16, sh=0.25*s.q/qa;        // q/qa в пределах ±½
       const at=d=>{ d=((d%per)+per)%per;
         if(d<(Yt-Yb)) return [X0,Yb+d]; d-=(Yt-Yb);
         if(d<(X1-X0)) return [X0+d,Yt]; d-=(X1-X0);

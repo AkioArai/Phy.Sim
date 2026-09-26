@@ -170,42 +170,55 @@ lightclock:{
   }
 },
 
-/* ================== ДИАГРАММА МИНКОВСКОГО ================= */
+/* ================== ДИАГРАММА МИНКОВСКОГО =================
+   Диаграмма — это стопка «снимков пространства», положенных друг на друга
+   по времени. Поэтому она оживлена: внизу — полоса пространства «сейчас»
+   (Земля, ракета, снаряд, свет), вверху — та же история целиком. Линия
+   «сейчас на Земле» ползёт вверх и показывает, какой снимок изображён в
+   полосе; косая линия «сейчас в ракете» — что одновременно для ракеты.
+   В 3.0.0 сцена была неподвижной и перегруженной подписями: половину её
+   закрывала панель показаний, и понять из неё что-нибудь было трудно. */
 minkowski:{
   title:'Диаграмма Минковского: одновременность и сложение скоростей',
   schema:true,
-  timeless:true,
+  timeUnit:'год',                                    // секунда сцены — год по земным часам
+  hudAware:true,
   params:[
     {key:'beta',label:'Скорость ракеты v/c',min:-0.9,max:0.9,step:0.05,default:0.6},
     {key:'u',label:'Скорость снаряда в ракете u′/c',min:-0.95,max:0.95,step:0.05,default:0.6},
-    {key:'dx',label:'Расстояние между событиями в ракете Δx′',unit:'св. год',min:0,max:3,step:0.25,default:2},
+    {key:'dx',label:'Расстояние между событиями A и B в ракете Δx′',unit:'св. год',min:0,max:3,step:0.25,default:2},
 
     {type:'group',label:'Показывать'},
-    {key:'grid',label:'Сетка ракеты (x′, ct′)',type:'check',default:true},
-    {key:'cone',label:'Световой конус',type:'check',default:true},
-    {key:'simul',label:'Одновременные в ракете события',type:'check',default:true},
-    {key:'galileo',label:'Ответ Галилея v + u′',type:'check',default:true}
+    {key:'cone', label:'Свет и световой конус',type:'check',default:true},
+    {key:'simul',label:'События A и B, одновременные в ракете',type:'check',default:true},
+    {key:'galileo',label:'Ответ Галилея v + u′',type:'check',default:true},
+    {key:'grid', label:'Сетка ракеты (x′, ct′)',type:'check',default:false}
   ],
+  T1:1.5, TEND:5.4,                                  // момент A и B в ракете; конец показа
   g(p){ return REL.gamma(p.beta); },
   uLab(p){ return REL.add(p.beta,p.u); },
-  /* перевод событий ракеты (x′, ct′) в координаты Земли (x, ct) */
+  /* события ракеты (x′, ct′) → координаты Земли (x, ct) */
   toLab(p,x1,t1){ const g=this.g(p), b=p.beta; return [g*(x1+b*t1), g*(t1+b*x1)]; },
-  T1:1.5,                                            // «сейчас» ракеты для пары событий
-  init(p){ return {t:0}; },
-  step(s,dt,p){ s.t+=dt; },
+  events(p){ return {A:this.toLab(p,0,this.T1), B:this.toLab(p,p.dx,this.T1)}; },
+  init(p){ return {t:0,__stop:null}; },
+  step(s,dt,p){
+    const t=s.t+dt;
+    if(t>=this.TEND){ s.t=this.TEND;
+      const E=this.events(p);
+      s.__stop=`В ракете A и B произошли одновременно, а на Земле B ${E.B[1]>=E.A[1]?'позже':'раньше'} на ${Math.abs(E.B[1]-E.A[1]).toFixed(2)} года. ↻ — посмотреть снова`;
+      return; }
+    s.t=t;
+  },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
-    const g=this.g(p), b=p.beta, u=this.uLab(p);
-    const A=this.toLab(p,0,this.T1), B=this.toLab(p,p.dx,this.T1);
-    const dt=B[1]-A[1], dX=B[0]-A[0];
-    return [['γ ракеты',g,''],
-      ['u = (v + u′)/(1 + vu′/c²)',u,'c'],
-      ['по Галилею v + u′',b+p.u, Math.abs(b+p.u)>=1?'c — быстрее света!':'c'],
-      ['события A, B: Δt′ в ракете',0,'год — одновременны'],
-      ['Δt на Земле = γvΔx′/c²',dt,'год'],
-      ['интервал (cΔt)² − Δx² в ракете',-p.dx*p.dx,'св. год²'],
-      ['интервал (cΔt)² − Δx² на Земле',dt*dt-dX*dX,'св. год² — тот же'],
-      ['наклон осей ракеты',Math.atan(Math.abs(b))*180/Math.PI,'°']];
+    const g=this.g(p), u=this.uLab(p), E=this.events(p);
+    const dt=E.B[1]-E.A[1], dX=E.B[0]-E.A[0];
+    return [['время: на Земле t · в ракете t/γ',s.t,`год · ${(s.t/g).toFixed(2)} год`],
+      ['γ ракеты',g,''],
+      ['снаряд u = (v + u′)/(1 + vu′/c²)',u,'c'],
+      ['по Галилею v + u′',p.beta+p.u, Math.abs(p.beta+p.u)>=1?'c — быстрее света!':'c'],
+      ['A и B на Земле: Δt = γvΔx′/c²',dt,'год'],
+      ['интервал (cΔt)² − Δx²',dt*dt-dX*dX,'св. год² — как и в ракете']];
   },
   graphs:[],
   presets:[
@@ -213,93 +226,100 @@ minkowski:{
     {name:'0,9c + 0,9c = 0,994c',values:{beta:0.9,u:0.9,dx:2}},
     {name:'Медленно: почти как у Галилея',values:{beta:0.1,u:0.1,dx:2}},
     {name:'Встречный снаряд',values:{beta:0.6,u:-0.8,dx:2}},
-    {name:'Ракета стоит: сетки совпадают',values:{beta:0,u:0.5,dx:2}}
+    {name:'Ракета стоит: одновременность общая',values:{beta:0,u:0.5,dx:2}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-30)/(8.6*PX_PER_M),(H-30)/(7.2*PX_PER_M)),0.002,30);
-    return {x:0,y:2.8,scale};
+    const scale=clamp(Math.min((W-24)/(8.6*PX_PER_M),(H-24)/(8.2*PX_PER_M)),0.002,30);
+    return {x:0,y:1.75,scale};
   },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
-    const X0=-4, X1=4, Tm=6, b=p.beta, g=this.g(p);
-    ctx.save(); ctx.beginPath(); ctx.rect(X0-0.3,-0.6,X1-X0+0.6,Tm+0.8); ctx.clip();
-    // сетка Земли — бледная
-    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.5;
-    for(let k=-4;k<=4;k++){ ctx.beginPath(); ctx.moveTo(k,-0.5); ctx.lineTo(k,Tm); ctx.stroke(); }
-    for(let k=0;k<=6;k++){ ctx.beginPath(); ctx.moveTo(X0,k); ctx.lineTo(X1,k); ctx.stroke(); }
+    const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), sec=v.c('--second');
+    const X0=-4, X1=4, T=5.6, b=p.beta, g=this.g(p), u=this.uLab(p), uG=b+p.u;
+    const t=s.t, E=this.events(p);
+    const dot=(x,y,r,c,пусто)=>{ ctx.beginPath(); ctx.arc(x,y,v.lw(r),0,7);
+      if(пусто){ ctx.strokeStyle=c; ctx.lineWidth=v.lw(1.6); ctx.stroke(); } else { ctx.fillStyle=c; ctx.fill(); } };
+
+    /* ---------- диаграмма ---------- */
+    ctx.save(); ctx.beginPath(); ctx.rect(X0,-0.25,X1-X0,T+0.25); ctx.clip();
+    // сетка Земли: годы и световые годы
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.55;
+    for(let k=-4;k<=4;k++){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k,T); ctx.stroke(); }
+    for(let k=1;k<=5;k++){ ctx.beginPath(); ctx.moveTo(X0,k); ctx.lineTo(X1,k); ctx.stroke(); }
     ctx.globalAlpha=1;
+    if(p.grid && Math.abs(b)>1e-6){
+      ctx.strokeStyle=acc; ctx.globalAlpha=.2;
+      for(let k=-8;k<=8;k++){
+        const a=this.toLab(p,k,-8), c2=this.toLab(p,k,8), d=this.toLab(p,-8,k), e=this.toLab(p,8,k);
+        ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
     // световой конус
     if(p.cone){
-      ctx.fillStyle=meas; ctx.globalAlpha=.08;
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Tm,Tm); ctx.lineTo(-Tm,Tm); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha=1;
-      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(5),v.lw(4)]);
-      ctx.beginPath(); ctx.moveTo(-Tm,Tm); ctx.lineTo(0,0); ctx.lineTo(Tm,Tm); ctx.stroke();
-      ctx.setLineDash(EMPTY_DASH);
+      ctx.fillStyle=meas; ctx.globalAlpha=.07;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(T,T); ctx.lineTo(-T,T); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.8);
+      ctx.beginPath(); ctx.moveTo(-T,T); ctx.lineTo(0,0); ctx.lineTo(T,T); ctx.stroke();
     }
-    // сетка ракеты: линии x′ = const и ct′ = const
-    if(p.grid && Math.abs(b)>1e-6){
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.28;
-      for(let k=-8;k<=8;k++){
-        const a=this.toLab(p,k,-8), c2=this.toLab(p,k,8);
-        ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.stroke();
-        const d=this.toLab(p,-8,k), e=this.toLab(p,8,k);
-        ctx.beginPath(); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
-      }
-      ctx.globalAlpha=1;
-    }
-    // оси Земли
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
-    ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X1,0); ctx.moveTo(0,-0.5); ctx.lineTo(0,Tm); ctx.stroke();
-    // оси ракеты
-    {
-      const a=this.toLab(p,0,-2), c2=this.toLab(p,0,8), d=this.toLab(p,-8,0), e=this.toLab(p,8,0);
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c2[0],c2[1]); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke();
-      // деления: единица ракеты на её осях длиннее — масштаб тоже меняется
-      ctx.fillStyle=acc;
-      for(let k=1;k<=6;k++){
-        const q=this.toLab(p,0,k); if(q[1]<Tm){ ctx.beginPath(); ctx.arc(q[0],q[1],v.lw(2.6),0,7); ctx.fill(); }
-        const r=this.toLab(p,k,0); if(r[0]<X1){ ctx.beginPath(); ctx.arc(r[0],r[1],v.lw(2.6),0,7); ctx.fill(); }
-      }
-    }
-    // мировая линия снаряда и ответ Галилея
-    const u=this.uLab(p), uG=b+p.u;
-    const wl=(uu,col,dash)=>{
-      ctx.strokeStyle=col; ctx.lineWidth=v.lw(2.2); if(dash) ctx.setLineDash([v.lw(6),v.lw(4)]);
-      const tEnd=Math.min(Tm, Math.abs(uu)>1e-6? 3.9/Math.abs(uu):Tm);
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(uu*tEnd,tEnd); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
-      return [uu*tEnd,tEnd];
-    };
-    let pg=null;
-    if(p.galileo && Math.abs(uG-u)>0.005) pg=wl(uG,dang,true);
-    const pu=wl(u,ok,false);
-    // одновременные в ракете события A и B
-    let A=null,B=null;
+    // мировые линии: Земля (ось ct), ракета (ось ct′), снаряд, Галилей
+    const wl=(uu,col,w,dash,до)=>{ ctx.strokeStyle=col; ctx.lineWidth=v.lw(w); ctx.setLineDash(dash?[v.lw(6),v.lw(4)]:EMPTY_DASH);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(uu*до,до); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); };
+    ctx.globalAlpha=.35; wl(0,ink,2,false,T); wl(b,acc,2.4,false,T); wl(u,ok,2.2,false,T);
+    if(p.galileo) wl(uG,dang,1.6,true,T);
+    ctx.globalAlpha=1;
+    // пройденная часть мировых линий — ярко
+    wl(0,ink,2.4,false,t); wl(b,acc,2.8,false,t); wl(u,ok,2.6,false,t);
+    if(p.galileo) wl(uG,dang,1.8,true,t);
+    // ось x′ ракеты (её «сейчас» в момент старта) — тонко
+    { const d=this.toLab(p,-8,0), e=this.toLab(p,8,0);
+      ctx.strokeStyle=acc; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.2);
+      ctx.beginPath(); ctx.moveTo(d[0],d[1]); ctx.lineTo(e[0],e[1]); ctx.stroke(); ctx.globalAlpha=1; }
+    // «сейчас на Земле» — горизонталь
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(2),v.lw(3)]);
+    ctx.beginPath(); ctx.moveTo(X0,t); ctx.lineTo(X1,t); ctx.stroke();
+    // «сейчас в ракете» — косая линия через ракету: ct′ = t/γ
+    const r1=this.toLab(p,-8,t/g), r2=this.toLab(p,8,t/g);
+    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8);
+    ctx.beginPath(); ctx.moveTo(r1[0],r1[1]); ctx.lineTo(r2[0],r2[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
+    // события A и B: пустые — ещё не случились по земным часам, залитые — уже
     if(p.simul){
-      A=this.toLab(p,0,this.T1); B=this.toLab(p,p.dx,this.T1);
       const l1=this.toLab(p,-8,this.T1), l2=this.toLab(p,8,this.T1);
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(3),v.lw(3)]);
-      ctx.beginPath(); ctx.moveTo(l1[0],l1[1]); ctx.lineTo(l2[0],l2[1]); ctx.stroke();
-      ctx.strokeStyle=ink3;
-      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(X0,A[1]); ctx.moveTo(B[0],B[1]); ctx.lineTo(X0,B[1]); ctx.stroke();
-      ctx.setLineDash(EMPTY_DASH);
-      for(const q of [A,B]){ ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(q[0],q[1],v.lw(5),0,7); ctx.fill(); }
+      ctx.strokeStyle=sec; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
+      ctx.beginPath(); ctx.moveTo(l1[0],l1[1]); ctx.lineTo(l2[0],l2[1]); ctx.stroke(); ctx.globalAlpha=1;
+      for(const q of [E.A,E.B]) dot(q[0],q[1],5.5,sec,t<q[1]);
     }
+    // тела на мировых линиях в момент t
+    dot(0,t,4,ink); dot(b*t,t,5,acc); dot(u*t,t,4.5,ok);
     ctx.restore();
-    // подписи — вне обрезки, чтобы раскладчик мог их прижать к краю
-    v.label(ctx,'x, св. год',X1,0,-64,12,ink);
-    v.label(ctx,'ct, год',0,Tm,6,8,ink);
-    { const e=this.toLab(p,0,Math.min(4.5,Tm/g*0.9)); v.label(ctx,'ct′ (ракета)',e[0],e[1],6,0,acc); }
-    { const e=this.toLab(p,Math.min(3.6,3.9/g),0); v.label(ctx,'x′',e[0],e[1],4,-10,acc); }
-    v.label(ctx,`снаряд: u = ${u.toFixed(3)}c`,pu[0],pu[1],6,10,ok);
-    if(pg) v.label(ctx,`Галилей: v + u′ = ${uG.toFixed(2)}c${Math.abs(uG)>=1?' — быстрее света':''}`,pg[0],pg[1],-40,-12,dang);
-    if(p.cone) v.label(ctx,'свет: x = ±ct',-Tm*0.8,Tm*0.8,6,0,meas);
-    if(A){
-      v.label(ctx,'A',A[0],A[1],-14,-8,acc); v.label(ctx,'B',B[0],B[1],8,-8,acc);
-      v.label(ctx,`в ракете A и B одновременны; на Земле B позже на ${(B[1]-A[1]).toFixed(2)} года`,X0,-0.35,0,0,ink3);
+    // оси
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4);
+    ctx.beginPath(); ctx.moveTo(X0,0); ctx.lineTo(X1,0); ctx.moveTo(0,0); ctx.lineTo(0,T); ctx.stroke();
+    v.label(ctx,'ct, год',0,T,6,6,ink3);
+    v.label(ctx,'x, св. год',X1,0,-62,-8,ink3);
+    v.label(ctx,'сейчас на Земле',X0,t,4,-8,ink);
+    { const q=this.toLab(p,Math.min(3,3.6/g),t/g); if(q[1]<T && q[1]>0) v.label(ctx,'сейчас в ракете',q[0],q[1],-40,-12,acc); }
+    if(p.simul){
+      v.label(ctx,'A',E.A[0],E.A[1],-16,-8,sec); v.label(ctx,'B',E.B[0],E.B[1],8,-8,sec);
     }
+
+    /* ---------- полоса пространства «сейчас» ---------- */
+    const yS=-1.3;
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
+    ctx.beginPath(); ctx.moveTo(X0,yS); ctx.lineTo(X1,yS); ctx.stroke();
+    for(let k=-4;k<=4;k++){ ctx.beginPath(); ctx.moveTo(k,yS-0.08); ctx.lineTo(k,yS+0.08); ctx.stroke(); }
+    v.label(ctx,`пространство сейчас — t = ${t.toFixed(2)} год по земным часам`,X0,yS,0,46,ink3);
+    const inX=x=>x>=X0-1e-9&&x<=X1+1e-9;
+    if(p.cone){ for(const x of [-t,t]) if(inX(x)) dot(x,yS,4,meas); }
+    if(p.simul) for(const [q,n] of [[E.A,'A'],[E.B,'B']])
+      if(Math.abs(t-q[1])<0.12 && inX(q[0])){ dot(q[0],yS,9,sec,true); v.label(ctx,`вспышка ${n}`,q[0],yS,-24,-30,sec); }
+    // у каждого тела своя строка подписи — точки часто стоят рядом
+    const тела=[[0,ink,'Земля',4,16],[b*t,acc,'ракета',5.5,-16],[u*t,ok,'снаряд',4.5,-30]];
+    if(p.galileo) тела.push([uG*t,dang,'Галилей',4,30]);
+    for(const [x,c,имя,r,dy] of тела){ if(!inX(x)) continue; dot(x,yS,r,c,имя==='Галилей');
+      v.label(ctx,имя,x,yS,-16,dy,c); }
+    if(p.cone && inX(t)) v.label(ctx,'свет',t,yS,-10,16,meas);
   }
 },
 
