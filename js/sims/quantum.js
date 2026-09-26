@@ -115,7 +115,8 @@ photoeffect:{
     /* ---- трубка ---- */
     ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.6);
     ctx.beginPath();
-    if(ctx.roundRect) ctx.roundRect(K-0.9,-1.7,D+1.8,3.4,0.8); else ctx.rect(K-0.9,-1.7,D+1.8,3.4);
+    { const x=K-0.9, y=-1.7, w=D+1.8, h=3.4, r=0.8;       // скруглённый прямоугольник вручную: roundRect есть не везде
+      ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
     ctx.stroke();
     L('вакуум',0,1.7,-20,-8,ink3);
     // катод и анод
