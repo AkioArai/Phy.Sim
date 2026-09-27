@@ -27,6 +27,7 @@ lightclock:{
      отношения — настоящее. */
   timeUnit:'нс',
   schema:true,
+  hudAware:true,
   params:[
     {key:'beta',label:'Скорость часов v/c',min:0,max:0.99,step:0.01,default:0.6},
     {key:'L0',label:'Расстояние между зеркалами L₀',unit:'м',min:0.15,max:1.5,step:0.05,default:0.3},
@@ -183,7 +184,13 @@ minkowski:{
   schema:true,
   timeUnit:'год',                                    // секунда сцены — год по земным часам
   hudAware:true,
+  /* 3.3.0: объёмный вид — плоскость пространства (x, y) и время вверх.
+     Световой «конус» тогда и правда конус: вспышка расходится кругом. */
+  rotate3d(p){ return p.view!=='2d'; },
+  rot0:{yaw:-0.55,pitch:0.32},
   params:[
+    {key:'view',label:'Вид',type:'select',default:'3d',
+     options:[{v:'3d',t:'Объёмный: пространство x, y и время вверх — световой конус'},{v:'2d',t:'Плоский: x и ct'}]},
     {key:'beta',label:'Скорость ракеты v/c',min:-0.9,max:0.9,step:0.05,default:0.6},
     {key:'u',label:'Скорость снаряда в ракете u′/c',min:-0.95,max:0.95,step:0.05,default:0.6},
     {key:'dx',label:'Расстояние между событиями A и B в ракете Δx′',unit:'св. год',min:0,max:3,step:0.25,default:2},
@@ -230,10 +237,71 @@ minkowski:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-24)/(8.6*PX_PER_M),(H-24)/(8.2*PX_PER_M)),0.002,30);
-    return {x:0,y:1.75,scale};
+    if(p.view!=='2d'){ const scale=clamp(Math.min((W-24)/(10.8*PX_PER_M),(H-24)/(10.4*PX_PER_M)),0.002,30); return {x:0,y:0.2,scale}; }
+    const scale=clamp(Math.min((W-24)/(9.2*PX_PER_M),(H-24)/(8.9*PX_PER_M)),0.002,30);
+    return {x:0,y:1.6,scale};
+  },
+  /* объёмный вид: x и y — пространство, вверх — ct. Всё рисуется проекцией
+     VIEW.p3; поворачивают протягиванием. */
+  draw3(ctx,s,v,p){
+    const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), sec=v.c('--second');
+    const пр0=v.p3(), OY=-1.9, пр=(x,y,z)=>{ const q=пр0(x,y,z); return [q[0],q[1]+OY,q[2]]; };
+    const T=4.4, R=4.0, b=p.beta, g=this.g(p), u=this.uLab(p), t=Math.min(s.t,T), E=this.events(p);
+    const линия=(pts,col,w,alpha,dash)=>{ ctx.strokeStyle=col; ctx.lineWidth=v.lw(w); ctx.globalAlpha=alpha==null?1:alpha;
+      ctx.setLineDash(dash?[v.lw(5),v.lw(4)]:EMPTY_DASH); ctx.beginPath();
+      pts.forEach((q,i)=>{ const e=пр(q[0],q[1],q[2]); i?ctx.lineTo(e[0],e[1]):ctx.moveTo(e[0],e[1]); }); ctx.stroke();
+      ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1; };
+    const грань=(pts,col,alpha)=>{ ctx.fillStyle=col; ctx.globalAlpha=alpha; ctx.beginPath();
+      pts.forEach((q,i)=>{ const e=пр(q[0],q[1],q[2]); i?ctx.lineTo(e[0],e[1]):ctx.moveTo(e[0],e[1]); }); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; };
+    const точка=(x,y,z,r,col,пусто)=>{ const e=пр(x,y,z); ctx.beginPath(); ctx.arc(e[0],e[1],v.lw(r),0,7);
+      if(пусто){ ctx.strokeStyle=col; ctx.lineWidth=v.lw(1.6); ctx.stroke(); } else { ctx.fillStyle=col; ctx.fill(); } return e; };
+    const круг=(r,z)=>{ const pts=[]; for(let i=0;i<=64;i++){ const a=i/64*2*Math.PI; pts.push([r*Math.cos(a),r*Math.sin(a),z]); } return pts; };
+    // пол: плоскость пространства в момент 0 и сетка
+    грань([[-R,-R,0],[R,-R,0],[R,R,0],[-R,R,0]],ink3,.05);
+    for(let k=-3;k<=3;k++){ линия([[k,-R,0],[k,R,0]],ink3,1,.18); линия([[-R,k,0],[R,k,0]],ink3,1,.18); }
+    // световой конус: прошлое бледно, будущее ярче
+    if(p.cone){
+      for(const [z0,зн,al] of [[0,-1,.25],[0,1,.6]]){
+        for(let i=0;i<12;i++){ const a=i/12*2*Math.PI, L=зн>0?T:1.6; линия([[0,0,0],[L*Math.cos(a),L*Math.sin(a),зн*L]],meas,1,al*0.4); }
+        for(const h of зн>0?[1,2,3,4]:[0.8,1.6]) линия(круг(h,зн*h),meas,1.1,al*0.8);
+      }
+      грань(круг(T,T),meas,.05);
+    }
+    // оси
+    линия([[-R,0,0],[R,0,0]],ink,1.4); линия([[0,-R,0],[0,R,0]],ink,1.4); линия([[0,0,-2],[0,0,T+0.4]],ink,1.4);
+    { const a=пр(R+0.15,0,0), bq=пр(0,R+0.15,0), c=пр(0,0,T+0.55);
+      v.text(ctx,'x',a[0],a[1],ink3,10,'center',true); v.text(ctx,'y',bq[0],bq[1],ink3,10,'center',true); v.text(ctx,'ct',c[0],c[1],ink3,10,'center',true); }
+    // «сейчас» Земли: горизонтальная плоскость, на ней — круг света радиусом ct
+    грань([[-R,-R,t],[R,-R,t],[R,R,t],[-R,R,t]],ink,.06);
+    линия([[-R,-R,t],[R,-R,t],[R,R,t],[-R,R,t],[-R,-R,t]],ink,1,.35,true);
+    if(p.cone && t>0.02) линия(круг(Math.min(t,R),t),meas,2.2,.9);
+    // «сейчас» ракеты: наклонная плоскость ct = τ/γ… через ракету, t′ = t/γ
+    if(Math.abs(b)>1e-6){
+      /* t′ = γ(t − βx) = τ ⇒ ct = τ/γ + βx: плоскость наклонена вдоль x */
+      const τ=t/g, Z=x=>τ/g+b*x;
+      грань([[-R,-R,Z(-R)],[R,-R,Z(R)],[R,R,Z(R)],[-R,R,Z(-R)]],acc,.08);
+      линия([[-R,0,Z(-R)],[R,0,Z(R)]],acc,1.6,.8,true);
+    }
+    // мировые линии: Земля, ракета, снаряд (вдоль x), Галилей
+    const wl=(uu,col,w,до,dash,al)=>линия([[0,0,0],[uu*до,0,до]],col,w,al,dash);
+    wl(0,ink,2,T,false,.3); wl(b,acc,2.4,T,false,.3); wl(u,ok,2.2,T,false,.3);
+    if(p.galileo) wl(b+p.u,dang,1.6,T,true,.5);
+    wl(0,ink,2.6,t); wl(b,acc,3,t); wl(u,ok,2.8,t);
+    // события A и B
+    if(p.simul) for(const [q,n] of [[E.A,'A'],[E.B,'B']]) if(q[1]<=T+0.5){ const e=точка(q[0],0,q[1],5.5,sec,t<q[1]); v.text(ctx,n,e[0]+0.25,e[1]+0.1,sec,11,'left',true); }
+    // тела сейчас
+    const e0=точка(0,0,t,4.5,ink), e1=точка(b*t,0,t,5.5,acc), e2=точка(u*t,0,t,5,ok);
+    v.text(ctx,'Земля',e0[0]-0.2,e0[1]+0.3,ink,10,'right',true);
+    v.text(ctx,'ракета',e1[0]+0.2,e1[1]+0.3,acc,10,'left',true);
+    v.text(ctx,'снаряд',e2[0]+0.2,e2[1]-0.3,ok,10,'left',true);
+    // подписи-пояснения по краю
+    v.text(ctx,'конус — куда успевает дойти свет вспышки из начала координат',0,-4.35,meas,10,'center',true);
+    v.text(ctx,'серая плоскость — «сейчас» Земли, синяя — «сейчас» ракеты',0,-4.7,ink3,10,'center');
+    v.text(ctx,'протяните по сцене, чтобы повернуть',0,-5.05,ink3,9,'center');
   },
   draw(ctx,s,v,p){
+    if(p.view!=='2d') return this.draw3(ctx,s,v,p);
     const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'),
           ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), sec=v.c('--second');
     const X0=-4, X1=4, T=5.6, b=p.beta, g=this.g(p), u=this.uLab(p), uG=b+p.u;
@@ -327,6 +395,7 @@ minkowski:{
 relmotion:{
   title:'Разгон до скорости света: постоянная сила',
   schema:true,
+  hudAware:true,
   params:[
     {key:'part',label:'Частица',type:'select',default:'e',
      options:[{v:'e',t:'Электрон — mc² = 511 кэВ'},{v:'mu',t:'Мюон — mc² = 105,7 МэВ'}]},
