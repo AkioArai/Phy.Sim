@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-3.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-3.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-3.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-3.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-3.3.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-3.3.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-3.3.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-3.3.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -93,7 +93,7 @@ KaTeX and its fonts ship inside the repository.
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
 | **40** topics in **8** sections | each one opens with what to try, then five points to remember; the full notes are one click below, collapsed |
-| **100** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
+| **103** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
 | **161** points to remember | the five sentences per topic you would want on an exam morning |
 | **97** derivations, **382** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
 | **calculator with units** | 72 км/ч в м/с, (2,5 ± 0,1) м / (3,0 ± 0,2) с, h c / (500 нм) в эВ — every number carries its dimension, adding metres to seconds is refused, uncertainty propagates |
@@ -106,9 +106,33 @@ KaTeX and its fonts ship inside the repository.
 | **100** self-checks | three questions per topic, answers hidden until you have tried |
 | **147** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
-| **77** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
+| **79** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 3.3: 3D that is right-handed, a laser you can follow
+
+- **3D where it helps.** Minkowski's diagram now opens in 2+1 dimensions: the light cone is a real
+  cone, the light from a flash grows as a circle on the Earth's "now" plane, and the rocket's "now" is
+  a second plane tilted only along its motion. The electromagnetic wave shows E and B in perpendicular
+  planes. A charge in a magnetic field with a velocity component along B draws a helix with pitch
+  h = v∥T. The field of a straight wire is a stack of rings. The bond-types scene shows rock salt,
+  diamond's tetrahedra, copper's face-centred cube and a molecular crystal as lattices you can turn.
+- **The 3D projection is no longer a mirror image.** It was left-handed, so the right-hand rule on
+  screen looked like the left-hand one. Now x is right, z is up and y goes into the screen. Dragging up
+  or down is inverted by default; there are separate settings for both drag directions.
+- **Photons drawn once, well.** One photon glyph for every scene: a smooth wave with a fading tail
+  and an arrowhead, in place of hand-made squiggles sampled six points per wavelength.
+- **The laser, explained.** "Avalanche": a photon runs along a row of excited atoms and gathers
+  identical copies, while in a row of unexcited atoms it is simply absorbed. "Whole laser": atoms are
+  drawn as two-rung ladders with the electron on one rung, photons bounce between the mirrors and leak
+  out as the beam.
+- **Fixes.** Annihilation trails were invisible and the gamma rays flew straight through the detector
+  ring. Special relativity scenes were hidden under the readouts panel. In the Lorentz-force scene the
+  field was marked "into the screen" while the charge turned the way a field out of the screen would
+  turn it. The rigid-body scene is now listed under *Rigid body: equilibrium and rotation* and under 2D
+  motion. The notes gained a light-cone section, the water-trough picture of a particle in a box and
+  packet spreading. Two problems whose answers could be read off the readouts panel were reworded.
 
 ### New in 3.2: motion in space, quantum scenes that move, the laser
 
@@ -452,7 +476,7 @@ data all did nothing there.
 
 ### Every simulation checked against the textbook
 
-`npm run physics` is a separate harness: **623 checks** that take a simulation's
+`npm run physics` is a separate harness: **625 checks** that take a simulation's
 readouts and compare them with a number computed from the closed-form solution,
 written out independently of the simulation's own code. Parameters are deliberately
 un-round (a wrong coefficient hides behind a nice number), the reference constants
@@ -622,7 +646,7 @@ email, put on a flash drive, or open by double-clicking.
 ```
 index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
-tests/physics.mjs     623 checks of readouts against closed-form solutions
+tests/physics.mjs     625 checks of readouts against closed-form solutions
 tests/answers.mjs     all 430 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
 tests/calc.mjs        the calculator, and every course formula solved both ways

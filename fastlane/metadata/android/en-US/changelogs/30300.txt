@@ -1,0 +1,4 @@
+3.3.0 — right-handed 3D, a laser you can follow.
+• Minkowski's diagram in 3D with a light cone; the EM wave, a charge's helix, a wire's field rings and crystal lattices in 3D.
+• The 3D view is no longer mirrored; vertical drag inverted by default, with settings.
+• Smooth photons everywhere; a clearer laser; annihilation and relativity scenes fixed.

@@ -1537,6 +1537,36 @@ async function сторож(b) {
         т.бросок && т.плоский && т.маятник && т.тело && т.ящик && т.фотонов > 100 && Math.abs(т.инверсия - т.порог) < 0.01 && т.тема, т);
     }
 
+    /* ============ 3.3.0 ============ */
+    /* Объёмная проекция — правая тройка: x вправо, z вверх, y уходит в
+       глубину от зрителя. До 3.3.0 изображение было зеркальным. Поворот по вертикали по умолчанию
+       инвертирован и выключается настройкой. Минковский и ЭМ-волна открываются
+       объёмными; сцены из «Что попробовать» попадают в меню темы. */
+    {
+      const т = await p.evaluate(async () => {
+        const пр = VIEW.p3({yaw:0, pitch:0.4});
+        const O = пр(0,0,0), X = пр(1,0,0), Y = пр(0,1,0), Z = пр(0,0,1);
+        /* на экране (Y вверх): глубина растёт к зрителю; у правой тройки ось y уходит от зрителя */
+        const правая = Y[2] < O[2] && X[0] > O[0] && Z[1] > O[1];
+        const тяни = (dy) => { openSim('orbital'); const a = A(); a.view.rot = {yaw:0, pitch:0.3};
+          const r = document.querySelector('#scene').getBoundingClientRect();
+          document.querySelector('#scene').dispatchEvent(new PointerEvent('pointerdown', { clientX:r.left+150, clientY:r.top+200, button:0, bubbles:true, pointerId:1, pointerType:'mouse' }));
+          window.dispatchEvent(new PointerEvent('pointermove', { clientX:r.left+150, clientY:r.top+200+dy, pointerId:1, bubbles:true }));
+          window.dispatchEvent(new PointerEvent('pointerup', { clientX:r.left+150, clientY:r.top+200+dy, pointerId:1, bubbles:true }));
+          return a.view.rot.pitch; };
+        const было = S.settings.rot3dInvX;
+        S.settings.rot3dInvX = true; const инв = тяни(-40);
+        S.settings.rot3dInvX = false; const прямо = тяни(-40);
+        S.settings.rot3dInvX = было;
+        openSim('minkowski'); const мк = typeof A().def.rotate3d === 'function' && A().def.rotate3d(A().params);
+        openSim('emwave'); const эм = A().def.rotate3d(A().params);
+        openTopic('mech.2d'); const вМеню = [...document.querySelectorAll('#simsel option')].some(o => o.value === 'rigid3d');
+        return { правая, инв, прямо, мк, эм, вМеню };
+      });
+      ok('3.3: проекция — правая тройка, поворот по вертикали инвертируется настройкой, Минковский и ЭМ-волна объёмные, сцены из «попробовать» в меню темы',
+        т.правая && т.инв > 0.3 && т.прямо < 0.3 && т.мк && т.эм && т.вМеню, т);
+    }
+
     /* Декоративных градиентов больше нет: шапка темы, главная, кнопки */
     {
       const град = await p.evaluate(() => {

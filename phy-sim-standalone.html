@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="3.2.0">
+<meta name="physim-build" content="3.3.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -3562,7 +3562,7 @@ kin1d:{
     if(p.d3){                                             // в пространстве — тела в проекции сцены
       const пр=typeof VIEW!=='undefined'&&VIEW.p3?VIEW.p3():null, out=[];
       for(let i=0;i<((p.bodies==='2')?2:1);i++){ const r=this.posOf(p,i,s.t);
-        if(пр){ const q=пр(r.x,r.z,r.y); out.push({x:q[0],y:q[1]}); } }
+        if(пр){ const q=пр(r.x,-r.z,r.y); out.push({x:q[0],y:q[1]}); } }
       return out.length?out:[{x:0,y:0}];
     }
     const n=(p.bodies==='2')?2:1, out=[{x:0,y:0}];
@@ -3900,7 +3900,7 @@ proj2d:{
     const n=(p.bodies==='2')?2:1, cols=[v.c('--accent'),v.c('--second')];
     const ink3=v.c('--ink-3'), line=v.c('--line'), meas=v.c('--measure');
     const {R}=this.охват(p), пр=v.p3();
-    const P=(x,y,z)=>{ const q=пр(x,z,y); return [q[0],q[1]]; };   // мир: y вверх; проекция: z вверх
+    const P=(x,y,z)=>{ const q=пр(x,-z,y); return [q[0],q[1]]; };   // мир: y вверх; проекция: z вверх
     const L=R*1.1;
     // земля — сетка на плоскости x–z
     ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.6;
@@ -10898,6 +10898,7 @@ Object.assign(SIMS,{
 /* ================= МАГНИТНАЯ СИЛА (гл. 17) ================= */
 magnetism:{
   title:'Магнитное поле и сила Лоренца',
+  hudAware:true,
   params:[
     {key:'scene',label:'Явление',type:'select',default:'lorentz',
      options:[{v:'lorentz',t:'Заряд в магнитном поле (окружность)'},
@@ -10907,6 +10908,8 @@ magnetism:{
     {key:'q',  label:'Заряд q',unit:'нКл',min:-10,max:10,step:0.5,default:5},
     {key:'m',  label:'Масса частицы (усл.)',min:0.1,max:5,step:0.1,default:1},
     {key:'v0', label:'Скорость частицы v',unit:'м/с',min:0.5,max:8,step:0.1,default:3},
+    {key:'d3', label:'Объёмный вид (поворачивается протягиванием)',type:'check',default:false,если:p=>p.scene==='lorentz'||p.scene==='wire'},
+    {key:'vpar',label:'Скорость вдоль поля v∥',unit:'м/с',min:-5,max:5,step:0.1,default:1.5,если:p=>p.scene==='lorentz'&&!!p.d3},
 
     {type:'group',label:'Провод / проводник'},
     {key:'I',  label:'Ток в проводе I',unit:'А',min:-10,max:10,step:0.5,default:5},
@@ -10922,11 +10925,16 @@ magnetism:{
      Единицы у сцены условные (заряд в нКл, масса «усл.»), но связь величин
      настоящая: показание R, период T = 2π/|ω| и нарисованная окружность должны
      совпадать — иначе линейка на сцене будет спорить с панелью. */
+  /* 3.3.0: с составляющей скорости вдоль поля окружность вытягивается в
+     спираль — сила Лоренца на v∥ не действует. Объёмный вид показывает это
+     и поворачивается протягиванием. */
+  rotate3d(p){ return (p.scene==='lorentz'||p.scene==='wire') && !!p.d3; },
+  rot0:{yaw:-0.6,pitch:0.28},
   omega(p){ return p.q*p.B/Math.max(p.m,1e-9); },
   radius(p){ const w=Math.abs(this.omega(p)); return w>1e-12?p.v0/w:Infinity; },
   init(p){
     // старт слева, скорость вправо
-    return {t:0,x:-3,y:0,vx:p.v0,vy:0,trail:[],event:null,__stop:null};
+    return {t:0,x:-3,y:0,z:0,vx:p.v0,vy:0,trail:[],event:null,__stop:null};
   },
   step(s,dt,p){
     if(s.event) return;
@@ -10950,7 +10958,8 @@ magnetism:{
       s.x+=S*vx+Cc*vy; s.y+=-Cc*vx+S*vy;
       const ca=Math.cos(a), sa=Math.sin(a);
       s.vx=ca*vx+sa*vy; s.vy=-sa*vx+ca*vy;
-      if(p.trail){ s.trail.push([s.x,s.y]); if(s.trail.length>600) s.trail.shift(); }
+      if(p.d3) s.z+=(p.vpar||0)*dt;
+      if(p.trail){ s.trail.push([s.x,s.y,s.z]); if(s.trail.length>(p.d3?1400:600)) s.trail.shift(); }
     }
   },
   anchors(s,p){ if(p.scene==='lorentz') return [{x:s.x,y:s.y}]; return [{x:0,y:0}]; },
@@ -10962,6 +10971,7 @@ magnetism:{
         ['радиус R = mv/(qB)',R,'м'],
         ['период T = 2πm/(qB)',w>1e-12?2*Math.PI/w:Infinity,'с'],
         ['оборотов пройдено',w*s.t/(2*Math.PI),''],
+        ...(p.d3?[['скорость вдоль поля v∥',p.vpar,'м/с'],['шаг спирали h = v∥·T',w>1e-12?Math.abs(p.vpar)*2*Math.PI/w:Infinity,'м']]:[]),
         ['сила Лоренца F = qvB',Math.abs(p.q*1e-9)*speed*p.B*1e9,'нН'],
         ['направление',p.q>0?1:0,p.q>0?'по часовой':'против часовой']];
     }
@@ -10980,22 +10990,78 @@ magnetism:{
     {name:'Сильнее поле — меньше радиус',values:{scene:'lorentz',B:1.5,q:5,m:1,v0:3}},
     {name:'Отрицательный заряд — в другую сторону',values:{scene:'lorentz',B:0.5,q:-5,m:1,v0:3}},
     {name:'Поле провода с током',values:{scene:'wire',I:5,B:0.5}},
-    {name:'Сила на проводник F = BIL',values:{scene:'force',I:5,wireLen:2,B:0.5}}
+    {name:'Сила на проводник F = BIL',values:{scene:'force',I:5,wireLen:2,B:0.5}},
+    {name:'В объёме: скорость под углом к полю — спираль',values:{scene:'lorentz',B:0.5,q:5,m:1,v0:3,d3:true,vpar:1.5}},
+    {name:'В объёме: кольца поля вокруг провода',values:{scene:'wire',I:5,d3:true}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     const scale=clamp(Math.min((W-70)/(10*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
     return {x:0,y:0,scale};
   },
+  /* провод с током в объёме: силовые линии — кольца вокруг провода на
+     любой высоте, направление — по правилу правой руки (большой палец по току) */
+  провод3(ctx,s,v,p){
+    const dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const пр=v.p3(), dir=p.I>=0?1:-1, ph=s.t*0.8*dir;
+    const кольцо=(r,z)=>{ ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6); ctx.globalAlpha=.75; ctx.beginPath();
+      for(let i=0;i<=72;i++){ const a=i/72*2*Math.PI, e=пр(r*Math.cos(a),r*Math.sin(a),z); i?ctx.lineTo(e[0],e[1]):ctx.moveTo(e[0],e[1]); } ctx.stroke(); ctx.globalAlpha=1;
+      for(let j=0;j<3;j++){ const a=ph+j*2*Math.PI/3, a2=a+dir*0.25, e1=пр(r*Math.cos(a),r*Math.sin(a),z), e2=пр(r*Math.cos(a2),r*Math.sin(a2),z); v.arrow(ctx,e1[0],e1[1],e2[0],e2[1],sec); } };
+    for(const z of [-2.4,-0.6,1.2]) for(const r of [0.9,1.8,2.7]) кольцо(r,z);
+    // провод и ток
+    const a=пр(0,0,-3.6), b=пр(0,0,3.0);
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(5); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    for(const z of [-3,-1.5,0,1.5]){ const e1=пр(0,0,z), e2=пр(0,0,z+0.6*dir); v.arrow(ctx,e1[0],e1[1],e2[0],e2[1],dang); }
+    v.text(ctx,`I = ${p.I} А`,b[0]+0.2,b[1],dang,11,'left',true);
+    const mu0=1.2566e-6;
+    v.text(ctx,'силовые линии — кольца вокруг провода на любой высоте',0,-4.3,ink,10,'center',true);
+    v.text(ctx,`правая рука: большой палец по току — пальцы по B;  B = μ₀I/2πr = ${(mu0*Math.abs(p.I)/(2*Math.PI)*1e6).toFixed(2)} мкТл при r = 1 м`,0,-4.7,ink3,9,'center');
+  },
+  /* объёмный вид: B вверх по оси z, спираль вокруг неё; камера следует за частицей по высоте */
+  draw3(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const пр=v.p3(), R=this.radius(p), k=isFinite(R)?Math.min(1,2.4/R):1;
+    const sp=Math.hypot(s.vx,s.vy)||1, qm=Math.sign(p.q)||1;
+    const fx=qm*s.vy/sp, fy=-qm*s.vx/sp;                 // к оси спирали
+    const cx=s.x+(isFinite(R)?R*fx:0), cy=s.y+(isFinite(R)?R*fy:0);
+    const P=(x,y,z)=>пр((x-cx)*k,(y-cy)*k,(z-s.z)*k+0.8);
+    // поле: вертикальные стрелки
+    if(p.field){ for(const X of [-3,0,3]) for(const Y of [-3,0,3]){ if(!X&&!Y) continue;
+      const a=пр(X,Y,-3.6), b=пр(X,Y,2.6); ctx.globalAlpha=.35; v.arrow(ctx,a[0],a[1],b[0],b[1],ink3); ctx.globalAlpha=1; }
+      const q=пр(3,3,2.9); v.text(ctx,'B',q[0],q[1],ink3,12,'center',true); }
+    // ось спирали
+    { const a=пр(0,0,-3.6), b=пр(0,0,2.6); ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(4),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); }
+    // след-спираль
+    if(p.trail&&s.trail.length>1){ ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8);
+      let пред=null; s.trail.forEach((q,i)=>{ const e=P(q[0],q[1],q[2]||0); if(Math.abs((q[2]-s.z)*k)>4.4){ пред=null; return; }
+        if(пред){ ctx.globalAlpha=0.3+0.7*i/s.trail.length; ctx.lineWidth=v.lw(2.2); ctx.beginPath(); ctx.moveTo(пред[0],пред[1]); ctx.lineTo(e[0],e[1]); ctx.stroke(); } пред=e; });
+      ctx.globalAlpha=1; }
+    // частица, скорость, сила
+    const o=P(s.x,s.y,s.z), vz=p.vpar||0, vn=Math.hypot(s.vx,s.vy,vz)||1;
+    const ve=P(s.x+s.vx/vn*1.3/k,s.y+s.vy/vn*1.3/k,s.z+vz/vn*1.3/k); v.arrow(ctx,o[0],o[1],ve[0],ve[1],meas); v.text(ctx,'v',ve[0]+0.15,ve[1]+0.15,meas,11,'left',true);
+    const fe=P(s.x+fx*0.9/k,s.y+fy*0.9/k,s.z); v.arrow(ctx,o[0],o[1],fe[0],fe[1],dang); v.text(ctx,'F',fe[0]+0.15,fe[1]+0.15,dang,11,'left',true);
+    ctx.fillStyle=p.q>0?dang:acc; ctx.beginPath(); ctx.arc(o[0],o[1],v.lw(7),0,7); ctx.fill();
+    const w=Math.abs(this.omega(p)), h=w>1e-12?Math.abs(vz)*2*Math.PI/w:0;
+    v.text(ctx,`F = qv×B лежит в плоскости, поперёк поля: вдоль B скорость не меняется`,0,-4.1,ink,10,'center',true);
+    v.text(ctx,vz?`окружность R = ${isFinite(R)?R.toFixed(2):'∞'} м вытянулась в спираль с шагом h = v∥T = ${h.toFixed(2)} м`:'v∥ = 0 — движение по окружности',0,-4.5,ink3,10,'center');
+    if(k<0.999) v.text(ctx,`масштаб по радиусу уменьшен в ${(1/k).toFixed(1)} раза`,0,-4.9,ink3,9,'center');
+  },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    // фоновое поле B (крестики = от нас)
+    if(p.scene==='lorentz' && p.d3) return this.draw3(ctx,s,v,p);
+    if(p.scene==='wire' && p.d3) return this.провод3(ctx,s,v,p);
+    /* фоновое поле B. У заряда q > 0, идущего по часовой, поле смотрит к нам
+       (⊙): F = qv×B указывает в центр. До 3.3.0 здесь стоял ⊗ при том же
+       направлении обхода — знак не сходился. У проводника с током, наоборот,
+       сила «вверх» при токе вправо — это поле от нас (⊗). */
     if(p.field){
+      const кНам=p.scene==='lorentz';
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
       for(let x=-5;x<=5;x+=1.4) for(let y=-4;y<=4;y+=1.4){
-        v.outOfPlane(ctx,x,y,false,ink3,v.lw(4));   // ⊗ поле от нас (в экран)
+        v.outOfPlane(ctx,x,y,кНам,ink3,v.lw(4));
       }
-      v.label(ctx,'B ⊗ (в плоскость экрана)',-5,-4,0,-8,ink3);
+      v.label(ctx,кНам?'B ⊙ (из экрана, к нам)':'B ⊗ (в плоскость экрана)',-5,-4,0,-8,ink3);
     }
     if(p.scene==='lorentz'){
       // след
@@ -12600,7 +12666,15 @@ emwave:{
   /* Сцена в условном масштабе: длину волны на экране задаёт отдельный
      ползунок. Поэтому ни осей с числами, ни надписи «сетка N м». */
   schema:true,
+  /* 3.3.0: объёмный вид по умолчанию. В плоском виде B приходилось рисовать
+     косой синусоидой «в перспективе», и она читалась как вторая волна рядом
+     с E, а не поперёк неё. В объёме E колеблется в вертикальной плоскости,
+     B — в горизонтальной, и их перпендикулярность видна, если повернуть. */
+  rotate3d(p){ return !!p.d3; },
+  rot0:{yaw:-0.5,pitch:0.32},
+  hudAware:true,
   params:[
+    {key:'d3',label:'Объёмный вид: E и B в перпендикулярных плоскостях',type:'check',default:true},
     {key:'band',label:'Диапазон спектра',type:'select',default:'visible',
      options:[{v:'radio',  t:'Радиоволны (1 МГц)'},
               {v:'micro',  t:'СВЧ (10 ГГц)'},
@@ -12630,7 +12704,7 @@ emwave:{
   intensity(p){ return 0.5*this.eps0*this.cLight()*p.E0*p.E0; },   // средняя интенсивность
   init(p){ return {t:0,event:null,__stop:null}; },
   step(s,dt,p){ if(p.run) s.t+=dt; },
-  dragPoints(p){ return [{x:p.px,y:0}]; },
+  dragPoints(p){ return p.d3?[]:[{x:p.px,y:0}]; },
   dragMove(p,idx,x,y){ p.px=clamp(Math.round(x*10)/10,-9,9); },
   anchors(s,p){ return [{x:p.px,y:0}]; },
   readouts(s,p){
@@ -12659,10 +12733,39 @@ emwave:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    if(p.d3){ const scale=clamp(Math.min((W-20)/(15*PX_PER_M),(H-20)/(10*PX_PER_M)),0.002,30); return {x:0,y:0,scale}; }
     const scale=clamp(Math.min((W-60)/(20*PX_PER_M),(H-60)/(9*PX_PER_M)),0.002,30);
     return {x:0,y:0,scale};
   },
+  draw3(ctx,s,v,p){
+    const meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const пр0=v.p3(), OY=0.3, пр=(x,y,z)=>{ const q=пр0(x,y,z); return [q[0],q[1]+OY]; };
+    const X0=-6.5, X1=6.5, A=2.0, e=x=>this.Eat(p,x,s.t)/p.E0, b=x=>this.Bat(p,x,s.t)/this.Bamp(p);
+    const путь=(f,col,w)=>{ ctx.strokeStyle=col; ctx.lineWidth=v.lw(w); ctx.beginPath();
+      for(let i=0;i<=300;i++){ const x=X0+(X1-X0)*i/300, q=f(x); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); } ctx.stroke(); };
+    const стрелка=(x,y,z,col,al)=>{ const a=пр(x,0,0), c=пр(x,y,z); if(Math.hypot(c[0]-a[0],c[1]-a[1])<0.05) return; ctx.globalAlpha=al; v.arrow(ctx,a[0],a[1],c[0],c[1],col); ctx.globalAlpha=1; };
+    const грань=(pts,col)=>{ ctx.fillStyle=col; ctx.globalAlpha=.05; ctx.beginPath(); pts.forEach((q,i)=>{ const c=пр(q[0],q[1],q[2]); i?ctx.lineTo(c[0],c[1]):ctx.moveTo(c[0],c[1]); }); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; };
+    грань([[X0,0,-A],[X1,0,-A],[X1,0,A],[X0,0,A]],dang);
+    if(p.Bfld) грань([[X0,-A,0],[X1,-A,0],[X1,A,0],[X0,A,0]],sec);
+    { const a=пр(X0-0.3,0,0), c=пр(X1+0.8,0,0); v.arrow(ctx,a[0],a[1],c[0],c[1],ink3); v.text(ctx,'x — туда бежит волна',c[0],c[1]-0.35,ink3,10,'right'); }
+    for(let x=X0;x<=X1+1e-9;x+=0.65) стрелка(x,0,A*e(x),dang,.5);
+    путь(x=>пр(x,0,A*e(x)),dang,2.4);
+    /* E вдоль z, волна бежит вдоль +x, значит B — вдоль −y: E × B смотрит по ходу волны */
+    if(p.Bfld){ for(let x=X0;x<=X1+1e-9;x+=0.65) стрелка(x,-A*b(x),0,sec,.5); путь(x=>пр(x,-A*b(x),0),sec,2.2); }
+    { const q=пр(X0,0,A*1.15); v.text(ctx,'E',q[0],q[1],dang,13,'center',true); }
+    if(p.Bfld){ const q=пр(X0,-A*1.25,0); v.text(ctx,'B',q[0],q[1],sec,13,'center',true); }
+    { const x=clamp(p.px,X0,X1), o=пр(x,0,0);
+      ctx.save(); ctx.lineWidth=v.lw(3.5); стрелка(x,0,A*e(x),dang,1); if(p.Bfld) стрелка(x,-A*b(x),0,sec,1); ctx.restore();
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(o[0],o[1],v.lw(6),0,7); ctx.stroke(); }
+    if(p.poynt){ const a=пр(X1-1.6,0,A+0.6), c=пр(X1+0.4,0,A+0.6); v.arrow(ctx,a[0],a[1],c[0],c[1],meas); v.text(ctx,'перенос энергии',c[0],c[1]+0.35,meas,10,'right',true); }
+    const c=this.cLight(), lam=this.lambda(p), f=this.freq(p);
+    const fs = f>=1e12?`${(f/1e12).toPrecision(3)} ТГц`:(f>=1e9?`${(f/1e9).toPrecision(3)} ГГц`:`${(f/1e6).toPrecision(3)} МГц`);
+    const ls = lam>=1?`${lam.toPrecision(3)} м`:(lam>=1e-6?`${(lam*1e6).toPrecision(3)} мкм`:`${(lam*1e9).toPrecision(3)} нм`);
+    v.text(ctx,`f = ${fs},  λ = c/f = ${ls},  E/B = c`,0,-4.2,ink,10,'center',true);
+    v.text(ctx,'E, B и направление бега взаимно перпендикулярны; поля в фазе',0,-4.6,ink3,9,'center');
+  },
   draw(ctx,s,v,p){
+    if(p.d3) return this.draw3(ctx,s,v,p);
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink3=v.c('--ink-3');
     const sc=2.6/Math.max(p.E0,1);                    // масштаб поля на экране
     // ось распространения
@@ -15184,11 +15287,8 @@ photoeffect:{
     const nf=Math.round(2+6*p.inten/100);
     if(p.inten>0) for(let i=0;i<nf;i++){
       const u=((s.ph*0.7+i/nf)%1+1)%1, yy=-0.8+1.6*((i*0.37)%1);
-      const x=sx+(K-0.2-sx)*u, y=sy+(yy-sy)*u, dx=K-0.2-sx, dy=yy-sy, L=Math.hypot(dx,dy);
-      ctx.strokeStyle=свет; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
-      for(let k=0;k<=16;k++){ const t=-0.45+k*0.03, w=0.12*Math.sin(k*1.2);
-        const px=x+dx/L*t - dy/L*w, py=y+dy/L*t + dx/L*w; k?ctx.lineTo(px,py):ctx.moveTo(px,py); }
-      ctx.stroke();
+      const x=sx+(K-0.2-sx)*u, y=sy+(yy-sy)*u;
+      v.photon(ctx,x,y,Math.atan2(yy-sy,K-0.2-sx),{len:0.9,lam:0.28,amp:0.09,phase:s.ph*12,color:свет,lw:1.8});
     }
 
     /* ---- электроны ---- */
@@ -16456,13 +16556,10 @@ const КС={
   rnd(s){ let t=(s.seed=(s.seed+0x6D2B79F5)|0); t=Math.imul(t^(t>>>15),t|1);
     t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)/4294967296; },
   гаусс(s){ const u=Math.max(1e-12,this.rnd(s)), w=this.rnd(s); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*w); },
-  /* волновой пакет: синусоида под гауссовой огибающей вдоль направления dir */
+  /* фотон с центром в (x0,y0) — обёртка над VIEW.photon */
   пакет(ctx,v,x0,y0,dir,lam,amp,sig,phase,color,lw){
-    const ux=Math.cos(dir), uy=Math.sin(dir), k=2*Math.PI/Math.max(lam,1e-6), N=90;
-    ctx.strokeStyle=color; ctx.lineWidth=v.lw(lw||2); ctx.beginPath();
-    for(let i=0;i<=N;i++){ const d=-3*sig+6*sig*i/N, w=amp*Math.exp(-d*d/(2*sig*sig))*Math.sin(k*d-phase);
-      const x=x0+ux*d-uy*w, y=y0+uy*d+ux*w; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke();
+    /* центр (x0,y0), длина 5σ: рисует общий фотон VIEW.photon */
+    const L=5*sig; v.photon(ctx,x0+Math.cos(dir)*L/2,y0+Math.sin(dir)*L/2,dir,{len:L,lam,amp,phase,color,lw});
   },
   /* рамка-панель с заголовком: скруглённый прямоугольник (arcTo — roundRect есть не везде) */
   рамка(ctx,v,x,y,w,h,title){
@@ -17465,7 +17562,7 @@ xray:{
 ;
 'use strict';
 /* =============================================================================
-   ЛАЗЕР (3.2.0)
+   ЛАЗЕР (3.2.0, сцена переделана в 3.3.0)
 
    Четырёхуровневая схема и уравнения скорости — та же модель, по которой
    считают настоящие лазеры, только в безразмерных единицах:
@@ -17477,12 +17574,26 @@ xray:{
    времени сцены), τр = τ₀/(1 − R) — сколько фотон живёт между зеркалами.
    Генерация начинается, когда усиление догоняет потери: B·N₂ = 1/τр.
    Выше порога инверсия «прилипает» к пороговой, а весь избыток накачки
-   уходит в луч. На включении видны релаксационные пички — как у
-   настоящего твердотельного лазера.
-   Сцена показывает то же самое по атомам: накачка зажигает атомы,
-   фотон вдоль оси размножается вынужденным излучением, выходное зеркало
-   выпускает часть света наружу.
+   уходит в луч.
+
+   Сцена в 3.2.0 была непонятной: тридцать две точки, крошечные змейки и
+   полоски заселённостей. Теперь два опыта:
+     · «Лавина» — сама идея: фотон летит вдоль ряда возбуждённых атомов,
+       и каждый атом отдаёт его точную копию; рядом тот же фотон летит через
+       невозбуждённые атомы и просто поглощается. Инверсия — вся разница.
+     · «Лазер целиком» — резонатор: атомы нарисованы лесенкой из двух
+       уровней с электроном на одном из них, фотоны — волнами со стрелкой,
+       справа — столбики «усиление против потерь».
    ============================================================================= */
+const ЛАЗ={
+  /* атом-лесенка: две ступеньки и электрон; f — положение электрона (0 внизу, 1 наверху) */
+  атом(ctx,v,x,y,f,col,ink3){
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.6);
+    ctx.beginPath(); ctx.moveTo(x-0.24,y-0.2); ctx.lineTo(x+0.24,y-0.2); ctx.moveTo(x-0.24,y+0.2); ctx.lineTo(x+0.24,y+0.2); ctx.stroke();
+    if(f>0.5){ ctx.fillStyle=col; ctx.globalAlpha=.18*f; ctx.beginPath(); ctx.arc(x,y,0.42,0,7); ctx.fill(); ctx.globalAlpha=1; }
+    КС.точка(ctx,v,x,y-0.2+0.4*f,4.5,f>0.5?col:ink3);
+  }
+};
 Object.assign(SIMS,{
 laser:{
   title:'Лазер: инверсия, вынужденное излучение и порог',
@@ -17490,20 +17601,22 @@ laser:{
   hudAware:true,
   timeUnit:'τ',
   params:[
+    {key:'mode',label:'Опыт',type:'select',default:'avalanche',
+     options:[{v:'avalanche',t:'Лавина фотонов: зачем нужна инверсия'},{v:'laser',t:'Лазер целиком: накачка, зеркала, порог'}]},
     {key:'med',label:'Активная среда',type:'select',default:'hene',
      options:[{v:'hene',t:'Гелий-неоновый, 632,8 нм'},{v:'ruby',t:'Рубин, 694,3 нм'},
               {v:'nd',t:'Nd:YAG, 1064 нм (инфракрасный)'},{v:'diode',t:'Полупроводниковый, 405 нм'}]},
     {key:'P',label:'Накачка P',unit:'1/τ',min:0,max:5,step:0.05,default:1.5},
     {key:'R',label:'Отражение выходного зеркала R',unit:'%',min:50,max:99.9,step:0.1,default:95},
 
-    {type:'group',label:'Показывать'},
-    {key:'levels',label:'Схема уровней и заселённости',type:'check',default:true},
-    {key:'gauge', label:'Усиление за проход против потерь',type:'check',default:true}
+    {type:'group',label:'Показывать',если:p=>p.mode==='laser'},
+    {key:'levels',label:'Схема уровней с атомами на них',type:'check',default:true,если:p=>p.mode==='laser'},
+    {key:'gauge', label:'Усиление за проход против потерь',type:'check',default:true,если:p=>p.mode==='laser'}
   ],
   h:6.62607015e-34, c:2.99792458e8, e:1.602176634e-19, kB:1.380649e-23,
   λ:{hene:632.8,ruby:694.3,nd:1064,diode:405},
   имя:{hene:'гелий-неоновый',ruby:'рубин',nd:'Nd:YAG',diode:'полупроводниковый'},
-  TAU0:0.02, BT0:1/3, BETA:1e-3, NA:32,               // BT0 = B·τ₀ — усиление за проход при N₂ = 1
+  TAU0:0.02, BT0:1/3, BETA:1e-3, NA:12,               // BT0 = B·τ₀ — усиление за проход при N₂ = 1
   B(){ return this.BT0/this.TAU0; },
   tauC(p){ return this.TAU0/(1-p.R/100); },
   Nth(p){ return 1/(this.B()*this.tauC(p)); },        // пороговая инверсия
@@ -17514,8 +17627,8 @@ laser:{
     if(p.P<=this.Pth(p)) return {N2:p.P/(1+p.P),out:0};
     return {N2:N,out:p.P*(1-N)-N}; },
   init(p){
-    const s={t:0,N2:0,n:0,seed:1960,ат:[],фот:[],всп:[],накачка:[],__stop:null};
-    for(let i=0;i<this.NA;i++) s.ат.push({x:-4.0+8.0*((i%16)+0.5)/16,y:(i<16?2.55:3.15),up:false});
+    const s={t:0,N2:0,n:0,seed:1960,ат:[],фот:[],выход:[],всп:[],накачка:[],__stop:null};
+    for(let i=0;i<this.NA;i++) s.ат.push({x:-3.9+7.8*((i%6)+0.5)/6,y:(i<6?2.35:3.35),up:false,f:0});
     return s;
   },
   step(s,dt,p){
@@ -17526,22 +17639,31 @@ laser:{
       const dN=p.P*(1-s.N2)-s.N2-st, dn=st-s.n/tc+this.BETA*s.N2;
       s.N2=clamp(s.N2+dN*h,0,1); s.n=Math.max(0,s.n+dn*h);
     }
+    if(p.mode!=='laser') return this.шагЛавины(s,dt,p);
     // ---- атомы на картинке следуют N₂
     const цель=Math.round(s.N2*this.NA), up=s.ат.filter(a=>a.up).length;
-    if(up<цель){ const g=s.ат.filter(a=>!a.up); const a=g[Math.floor(КС.rnd(s)*g.length)]; if(a){ a.up=true; s.накачка.push({x:a.x,y:a.y,t:0}); } }
-    else if(up>цель){ const g=s.ат.filter(a=>a.up); const a=g[Math.floor(КС.rnd(s)*g.length)];
+    if(up<цель && КС.rnd(s)<dt*8){ const g=s.ат.filter(a=>!a.up); const a=g[Math.floor(КС.rnd(s)*g.length)]; if(a){ a.up=true; s.накачка.push({x:a.x,y:a.y,t:0}); } }
+    else if(up>цель && КС.rnd(s)<dt*8){ const g=s.ат.filter(a=>a.up); const a=g[Math.floor(КС.rnd(s)*g.length)];
       if(a){ a.up=false; const st=B*s.n*s.N2, доля=st/(st+s.N2+1e-9);
-        if(КС.rnd(s)<доля) s.фот.push({x:a.x,y:a.y,d:КС.rnd(s)<0.5?1:-1,life:0});
-        else { const ang=КС.rnd(s)*2*Math.PI; s.всп.push({x:a.x,y:a.y,a:ang,t:0}); } } }
-    // фотоны вдоль оси: число держим пропорциональным n
-    const нужно=Math.min(40,Math.round(s.n*6));
-    while(s.фот.length<нужно && s.n>0.05) s.фот.push({x:-4+8*КС.rnd(s),y:2.4+0.9*КС.rnd(s),d:КС.rnd(s)<0.5?1:-1,life:0});
-    while(s.фот.length>нужно+4) s.фот.shift();
-    for(const f of s.фот){ f.x+=f.d*dt*6; if(f.x>5.1){ f.x=5.1; f.d=-1; } if(f.x<-5.1){ f.x=-5.1; f.d=1; } }
-    for(const q of s.всп) q.t+=dt; s.всп=s.всп.filter(q=>q.t<0.6);
-    for(const q of s.накачка) q.t+=dt; s.накачка=s.накачка.filter(q=>q.t<0.35);
+        if(КС.rnd(s)<доля) s.фот.push({x:a.x,y:a.y,d:КС.rnd(s)<0.5?1:-1});
+        else s.всп.push({x:a.x,y:a.y,a:КС.rnd(s)*2*Math.PI,t:0}); } }
+    for(const a of s.ат) a.f+=clamp((a.up?1:0)-a.f,-dt*5,dt*5);
+    // фотоны вдоль оси: их число держим пропорциональным n
+    const нужно=Math.min(14,Math.round(s.n*3));
+    while(s.фот.length<нужно && s.n>0.1) s.фот.push({x:-4+8*КС.rnd(s),y:КС.rnd(s)<0.5?2.35:3.35,d:КС.rnd(s)<0.5?1:-1});
+    while(s.фот.length>нужно+2) s.фот.shift();
+    const выпуск=Math.max(0.12,1-p.R/100);
+    for(const f of s.фот){ f.x+=f.d*dt*3.2;
+      if(f.x>5.05){ f.x=5.05; f.d=-1; if(КС.rnd(s)<выпуск) s.выход.push({x:5.4,y:f.y,t:0}); }
+      if(f.x<-5.05){ f.x=-5.05; f.d=1; } }
+    for(const q of s.выход){ q.t+=dt; q.x+=dt*3.2; } s.выход=s.выход.filter(q=>q.x<7.2);
+    for(const q of s.всп) q.t+=dt; s.всп=s.всп.filter(q=>q.t<0.9);
+    for(const q of s.накачка) q.t+=dt; s.накачка=s.накачка.filter(q=>q.t<0.4);
     if(s.t>=60) s.__stop='Прошло 60 τ — режим давно установился';
   },
+  /* лавина: время цикла 8 с, фотон бежит со скоростью 1,4 */
+  XA:[-3.6,-2.4,-1.2,0,1.2,2.4,3.6],
+  шагЛавины(s,dt,p){ if(s.t>=60) s.__stop='Прошло 60 τ — посмотрите режим «Лазер целиком»'; },
   anchors(s,p){ return [{x:0,y:2.8}]; },
   readouts(s,p){
     const N=this.Nth(p), out=s.n/this.tauC(p);
@@ -17561,59 +17683,79 @@ laser:{
     {label:'Выходная мощность',unit:'отн.',series:['мощность'],get(s,p){ return [s.n/SIMS.laser.tauC(p),null]; }}
   ],
   presets:[
-    {name:'Выше порога: луч есть, инверсия прилипла к порогу',values:{med:'hene',P:1.5,R:95}},
-    {name:'Ниже порога: только спонтанное свечение',values:{med:'hene',P:0.15,R:95}},
-    {name:'Прозрачное зеркало: генерации нет',values:{med:'ruby',P:3,R:60}},
-    {name:'Почти глухое зеркало: низкий порог',values:{med:'nd',P:0.5,R:99.5}},
-    {name:'Сильная накачка: пички при включении',values:{med:'ruby',P:4,R:90}}
+    {name:'Лавина: фотон копируется возбуждёнными атомами',values:{mode:'avalanche'}},
+    {name:'Лазер выше порога: луч есть, инверсия прилипла к порогу',values:{mode:'laser',med:'hene',P:1.5,R:95}},
+    {name:'Ниже порога: только спонтанное свечение',values:{mode:'laser',med:'hene',P:0.15,R:95}},
+    {name:'Прозрачное зеркало: генерации нет',values:{mode:'laser',med:'ruby',P:3,R:60}},
+    {name:'Сильная накачка: пички при включении',values:{mode:'laser',med:'ruby',P:4,R:90}}
   ],
   fit(p,vp){ return КС.fitBox(vp,12.8,10.2,0,0); },
+  цвет(p){ const λ=this.λ[p.med]; return λ>750?'#c0392b':КС.цветλ(λ); },
+  лавина(ctx,s,v,p){
+    const ink=v.c('--ink-2'), ink3=v.c('--ink-3'), dang=v.c('--danger'), ok=v.c('--ok'), col=this.цвет(p);
+    const T=8, t=s.t%T, V=1.4, фронт=-5.6+V*t, XA=this.XA, λs=0.34;
+    // ---- ряд 1: инверсия
+    КС.рамка(ctx,v,-6.25,0.2,12.5,4.75,'инверсия: атомы возбуждены — фотон размножается');
+    const y1=2.7;
+    let копий=0;
+    v.text(ctx,'E₂',XA[0]-0.45,y1+1.15,ink3,9,'right'); v.text(ctx,'E₁',XA[0]-0.45,y1+0.75,ink3,9,'right');
+    XA.forEach((x,i)=>{ const прошёл=фронт>x, f=прошёл?clamp(1-(фронт-x)/0.35,0,1):1;
+      ЛАЗ.атом(ctx,v,x,y1+0.95,f,col,ink3); if(прошёл) копий++; });
+    // фотоны идут стопкой: у всех одна фаза и одна голова — это копии
+    const всего=1+копий;
+    for(let k=0;k<всего;k++){ const y=y1-0.25*(всего-1)/2+0.25*k;
+      if(фронт<6.1) v.photon(ctx,Math.min(фронт,6.1),y,0,{len:1.3,lam:λs,amp:0.08,phase:s.t*8,color:col,lw:1.8}); }
+    v.text(ctx,`фотонов: ${всего}`,5.95,4.67,col,11,'right',true);
+    v.text(ctx,'каждый возбуждённый атом отдаёт копию:',0,0.95,ink,10,'center',true);
+    v.text(ctx,'та же длина волны, фаза и направление',0,0.55,ink,10,'center');
+    // ---- ряд 2: без инверсии
+    КС.рамка(ctx,v,-6.25,-4.95,12.5,4.75,'нет инверсии: атомы внизу — фотон поглощается');
+    const y2=-2.5, x0=XA[0], погл=фронт>x0;
+    v.text(ctx,'E₂',XA[0]-0.45,y2+1.15,ink3,9,'right'); v.text(ctx,'E₁',XA[0]-0.45,y2+0.75,ink3,9,'right');
+    XA.forEach((x,i)=>{ const f=(i===0&&погл)?clamp((фронт-x0)/0.35,0,1)*(1-clamp((t-(x0+5.6)/V-2.2)/0.4,0,1)):0; ЛАЗ.атом(ctx,v,x,y2+0.95,f,col,ink3); });
+    if(!погл) v.photon(ctx,фронт,y2,0,{len:1.3,lam:λs,amp:0.08,phase:s.t*8,color:col,lw:1.8});
+    else { // поглощённый фотон потом испускается спонтанно — в случайную сторону
+      const tt=t-(x0+5.6)/V-2.2, a=-2.4;
+      if(tt>0 && tt<2.2) v.photon(ctx,x0+(0.4+1.4*tt)*Math.cos(a),y2+0.95+(0.4+1.4*tt)*Math.sin(a),a,{len:0.9,lam:λs,amp:0.07,phase:s.t*8,color:col,lw:1.6,alpha:1-tt/2.2});
+      v.text(ctx,tt>0?'позже атом отдаёт энергию сам — в случайную сторону':'фотон поглотился: электрон ушёл наверх',0,-4.2,ink3,10,'center');
+    }
+    v.text(ctx,'свет усиливается, только если возбуждённых атомов',0,-3.4,dang,10,'center',true);
+    v.text(ctx,'больше, чем невозбуждённых: это и есть инверсия',0,-3.75,dang,10,'center',true);
+  },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
-    const λ=this.λ[p.med], col=λ>750?'#c0392b':КС.цветλ(λ), N=this.Nth(p), out=s.n/this.tauC(p), outSS=Math.max(0.2,this.стац(p).out);
+    if(p.mode!=='laser') return this.лавина(ctx,s,v,p);
+    const meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
+    const λ=this.λ[p.med], col=this.цвет(p), N=this.Nth(p), out=s.n/this.tauC(p), outSS=Math.max(0.2,this.стац(p).out);
     // ---- резонатор
     КС.рамка(ctx,v,-6.25,0.9,12.5,4.05,`резонатор: ${this.имя[p.med]}, λ = ${λ} нм`);
-    ctx.fillStyle=col; ctx.globalAlpha=.08; ctx.fillRect(-4.3,2.15,8.6,1.4); ctx.globalAlpha=1;
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.strokeRect(-4.3,2.15,8.6,1.4);
-    // зеркала
-    ctx.fillStyle=ink; ctx.fillRect(-5.45,1.75,0.22,2.2);
-    ctx.fillStyle=ink; ctx.globalAlpha=0.35+0.6*p.R/100; ctx.fillRect(5.23,1.75,0.12,2.2); ctx.globalAlpha=1;
-    v.text(ctx,'100 %',-5.34,1.5,ink3,9); v.text(ctx,`R = ${p.R} %`,5.29,1.5,ink3,9);
-    // накачка: вспышки снизу
-    v.text(ctx,`накачка P = ${p.P}`,-5.9,1.2,ok,9,'left',true);
-    for(const q of s.накачка){ ctx.strokeStyle=ok; ctx.globalAlpha=1-q.t/0.35; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.moveTo(q.x,1.35); ctx.lineTo(q.x,q.y-0.15); ctx.stroke(); ctx.globalAlpha=1; }
-    // атомы
-    for(const a of s.ат){ if(a.up){ ctx.fillStyle=col; ctx.globalAlpha=.3; ctx.beginPath(); ctx.arc(a.x,a.y,0.2,0,7); ctx.fill(); ctx.globalAlpha=1; }
-      КС.точка(ctx,v,a.x,a.y,a.up?5:4,a.up?dang:ink3); }
-    // спонтанные фотоны — во все стороны
-    for(const q of s.всп){ const d=0.2+q.t*3.5; ctx.strokeStyle=col; ctx.globalAlpha=1-q.t/0.6; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); ctx.moveTo(q.x+(d-0.25)*Math.cos(q.a),q.y+(d-0.25)*Math.sin(q.a)); ctx.lineTo(q.x+d*Math.cos(q.a),q.y+d*Math.sin(q.a)); ctx.stroke(); ctx.globalAlpha=1; }
-    // вынужденные фотоны — вдоль оси, в фазе
-    for(const f of s.фот){ ctx.strokeStyle=col; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
-      for(let i=0;i<=12;i++){ const x=f.x-f.d*0.35*i/12, y=f.y+0.06*Math.sin(i*1.6+s.t*20); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); }
-    // выходной луч
-    if(out>0.002){ const a=clamp(out/outSS,0.1,1); ctx.fillStyle=col; ctx.globalAlpha=0.25+0.6*a;
-      ctx.fillRect(5.38,2.75-0.08-0.12*a,0.85,0.16+0.24*a); ctx.globalAlpha=1;
-      v.text(ctx,'луч',5.8,3.3,col,10,'center',true); }
-    v.text(ctx,'● возбуждён   ● в основном состоянии',-4.25,4.25,ink3,9,'left');
-    КС.точка(ctx,v,-4.15,4.25,4,dang);
-    // ---- схема уровней
+    ctx.fillStyle=col; ctx.globalAlpha=.06; ctx.fillRect(-4.3,1.75,8.6,2.2); ctx.globalAlpha=1;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.strokeRect(-4.3,1.75,8.6,2.2);
+    ctx.fillStyle=ink; ctx.fillRect(-5.45,1.6,0.22,2.5);
+    ctx.fillStyle=ink; ctx.globalAlpha=0.35+0.6*p.R/100; ctx.fillRect(5.23,1.6,0.12,2.5); ctx.globalAlpha=1;
+    v.text(ctx,'зеркало 100 %',-5.34,1.35,ink3,9); v.text(ctx,`выход R = ${p.R} %`,5.1,1.35,ink3,9);
+    for(const q of s.накачка){ ctx.strokeStyle=ok; ctx.globalAlpha=1-q.t/0.4; ctx.lineWidth=v.lw(2.2);
+      v.arrow(ctx,q.x,q.y-0.75,q.x,q.y-0.3,ok); ctx.globalAlpha=1; }
+    for(const a of s.ат) ЛАЗ.атом(ctx,v,a.x,a.y,a.f,col,ink3);
+    for(const q of s.всп){ const d=0.35+q.t*2.2; v.photon(ctx,q.x+d*Math.cos(q.a),q.y+d*Math.sin(q.a),q.a,{len:0.5,lam:0.2,amp:0.05,color:col,lw:1.3,alpha:1-q.t/0.9}); }
+    for(const f of s.фот) v.photon(ctx,f.x,f.y+0.02,f.d>0?0:Math.PI,{len:0.9,lam:0.25,amp:0.07,phase:s.t*10,color:col,lw:1.8});
+    for(const q of s.выход) v.photon(ctx,q.x,q.y,0,{len:0.9,lam:0.25,amp:0.07,phase:s.t*10,color:col,lw:1.8,alpha:clamp(1-(q.x-5.4)/1.8,0,1)});
+    if(out>0.002) v.text(ctx,'луч →',5.85,4.35,col,11,'center',true);
+    v.text(ctx,`накачка P = ${p.P}: зелёные стрелки поднимают электроны`,-4.3,4.35,ok,9,'left',true);
+    // ---- схема уровней: атомы стоят на своих уровнях
     if(p.levels){
       const gx=-6.25, gy=-4.95, gw=6.1, gh=5.6;
-      КС.рамка(ctx,v,gx,gy,gw,gh,'схема четырёх уровней');
-      const Y={0:gy+0.6,1:gy+1.45,2:gy+3.4,3:gy+4.5}, x0=gx+0.4, x1=gx+2.6;
-      for(const k of [0,1,2,3]){ ctx.strokeStyle=ink; ctx.lineWidth=v.lw(k===0?2.4:1.8); ctx.beginPath(); ctx.moveTo(x0,Y[k]); ctx.lineTo(x1,Y[k]); ctx.stroke(); }
-      v.text(ctx,'E₃ полоса накачки',x1+0.1,Y[3],ink3,9,'left'); v.text(ctx,'E₂ верхний лазерный',x1+0.1,Y[2],ink,9,'left',true);
-      v.text(ctx,'E₁ нижний лазерный',x1+0.1,Y[1],ink,9,'left',true); v.text(ctx,'E₀ основное',x1+0.1,Y[0],ink3,9,'left');
-      v.arrow(ctx,x0+0.3,Y[0],x0+0.3,Y[3],ok); v.text(ctx,'накачка',x0+0.4,Y[0]+0.25,ok,9,'left');
-      ctx.save(); ctx.setLineDash([v.lw(3),v.lw(3)]); v.arrow(ctx,x0+0.9,Y[3],x0+0.9,Y[2],ink3); v.arrow(ctx,x0+1.8,Y[1],x0+1.8,Y[0],ink3); ctx.restore();
-      ctx.save(); ctx.lineWidth=v.lw(3); v.arrow(ctx,x0+1.35,Y[2],x0+1.35,Y[1],col); ctx.restore();
-      v.text(ctx,'лазерный переход',x0+1.45,(Y[1]+Y[2])/2,col,9,'left',true);
-      // заселённости полосками
-      const bar=(k,f,c)=>{ ctx.fillStyle=c; ctx.globalAlpha=.55; ctx.fillRect(x0,Y[k]-0.09,Math.max(0.02,(x1-x0)*f),0.18); ctx.globalAlpha=1; };
-      bar(2,s.N2,dang); bar(1,0,dang); bar(0,1-s.N2,ink3);
-      v.text(ctx,`N₂ = ${s.N2.toFixed(2)} > N₁ ≈ 0: инверсия`,gx+gw/2,gy+0.2,s.N2>0.01?dang:ink3,10,'center',true);
+      КС.рамка(ctx,v,gx,gy,gw,gh,'четыре уровня');
+      const Y={0:gy+0.75,1:gy+1.6,2:gy+3.5,3:gy+4.55}, x0=gx+0.35, x1=gx+3.1;
+      for(const k of [0,1,2,3]){ ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.8); ctx.beginPath(); ctx.moveTo(x0,Y[k]); ctx.lineTo(x1,Y[k]); ctx.stroke(); }
+      v.text(ctx,'E₃ накачка',x1+0.1,Y[3],ink3,9,'left'); v.text(ctx,'E₂ верхний',x1+0.1,Y[2],ink,9,'left',true);
+      v.text(ctx,'E₁ нижний',x1+0.1,Y[1],ink,9,'left',true); v.text(ctx,'E₀ основной',x1+0.1,Y[0],ink3,9,'left');
+      const наверху=s.ат.filter(a=>a.up).length;
+      for(let i=0;i<this.NA;i++){ const up=i<наверху, x=x0+0.2+i*0.21; КС.точка(ctx,v,x,(up?Y[2]:Y[0])+0.12,3.4,up?col:ink3); }
+      v.arrow(ctx,x1-0.25,Y[0],x1-0.25,Y[3],ok);
+      ctx.save(); ctx.setLineDash([v.lw(3),v.lw(3)]); v.arrow(ctx,x1-0.55,Y[3],x1-0.55,Y[2],ink3); v.arrow(ctx,x1-0.55,Y[1],x1-0.55,Y[0],ink3); ctx.restore();
+      ctx.save(); ctx.lineWidth=v.lw(3); v.arrow(ctx,x1-0.95,Y[2],x1-0.95,Y[1],col); ctx.restore();
+      v.text(ctx,`наверху ${наверху} из ${this.NA}, на E₁ — никого`,gx+gw/2,gy+2.5,ink,9,'center',true);
+      v.text(ctx,'E₁ сразу пустеет — инверсия лёгкая',gx+gw/2,gy+0.25,ink3,9,'center');
     }
     // ---- усиление против потерь
     if(p.gauge){
@@ -17624,9 +17766,9 @@ laser:{
         v.text(ctx,txt,gx+0.2,y,ink,10,'left',true); v.text(ctx,`${val.toFixed(1)} %`,x0+Math.max(0.03,W*val/M)+0.1,y,ink,9,'left'); };
       бар(gy+4.2,G,col,'усиление');
       бар(gy+3.3,L,ink3,'потери');
-      const порог=N<1;
-      v.text(ctx,!порог?'потери больше любого усиления:':(G>=L*0.98?'усиление = потери:':'усиление < потерь:'),gx+gw/2,gy+2.45,G>=L*0.98&&порог?ok:dang,10,'center',true);
-      v.text(ctx,!порог?'генерации не будет':(G>=L*0.98?'генерация идёт':'луча нет'),gx+gw/2,gy+2.1,G>=L*0.98&&порог?ok:dang,10,'center',true);
+      const порог=N<1, идёт=порог&&G>=L*0.98;
+      v.text(ctx,!порог?'потери больше любого усиления:':(идёт?'усиление = потери:':'усиление < потерь:'),gx+gw/2,gy+2.45,идёт?ok:dang,10,'center',true);
+      v.text(ctx,!порог?'генерации не будет':(идёт?'генерация идёт':'луча нет'),gx+gw/2,gy+2.1,идёт?ok:dang,10,'center',true);
       v.text(ctx,'выше порога усиление держится ровно',gx+gw/2,gy+1.3,ink3,9,'center');
       v.text(ctx,'на уровне потерь, а лишняя накачка',gx+gw/2,gy+0.95,ink3,9,'center');
       v.text(ctx,'уходит в луч',gx+gw/2,gy+0.6,ink3,9,'center');
@@ -19285,6 +19427,10 @@ crystal:{
   schema:true,
   timeless:true,
   hudAware:true,
+  /* 3.3.0: решётка в объёме — кубик соли, алмаз с тетраэдрами, медь,
+     молекулярный кристалл; поворачивается протягиванием */
+  rotate3d(p){ return !!p.d3; },
+  rot0:{yaw:-0.55,pitch:0.4},
   params:[
     {key:'kind',label:'Тип связи',type:'select',default:'ionic',
      options:[{v:'ionic',t:'Ионная (NaCl)'},
@@ -19294,7 +19440,8 @@ crystal:{
 
     {type:'group',label:'Показывать'},
     {key:'ebonds',label:'Как возникает связь: крупный план',type:'check',default:true},
-    {key:'props', label:'Сравнение всех четырёх типов',type:'check',default:true}
+    {key:'props', label:'Сравнение всех четырёх типов',type:'check',default:true},
+    {key:'d3',    label:'Решётка в объёме (протяните, чтобы повернуть)',type:'check',default:true}
   ],
   /* справочные данные: энергия связи (эВ на атом) и температура плавления */
   data:{
@@ -19346,7 +19493,7 @@ crystal:{
       const q=пере*пере*(3-2*пере); e(from[0]+(to[0]-from[0])*q,from[1]+(to[1]-from[1])*q,sec);
       v.text(ctx,пере<1?'Na':'Na⁺',a[0],a[1]-1.2,dang,11,'center',true); v.text(ctx,пере<1?'Cl':'Cl⁻',b[0],b[1]-1.2,acc,11,'center',true);
       if(сбл>0){ ctx.globalAlpha=сбл; v.arrow(ctx,a[0]+1.0,cy+1.05,a[0]+1.5,cy+1.05,ink); v.arrow(ctx,b[0]-1.0,cy+1.05,b[0]-1.5,cy+1.05,ink); ctx.globalAlpha=1; }
-      return пере<1?'Na отдаёт внешний электрон хлору…':'…и разноимённые ионы притягиваются';
+      return пере<1?'Na отдаёт электрон хлору…':'…ионы притягиваются';
     }
     if(p.kind==='covalent'){
       // атомы сближаются, облака перекрываются, два электрона становятся общими
@@ -19395,6 +19542,43 @@ crystal:{
     }
     if(p.kind==='metal') for(let k=0;k<22;k++){ const x=x0-0.3+((k*0.77+t*(0.6+0.05*k))%4.4+4.4)%4.4, y=y0-3*st/2+1.55*Math.sin(k*1.9+t*(0.7+0.03*k)); КС.точка(ctx,v,x,y,2.3,meas); }
   },
+  /* объёмная решётка: атомы сортируются по глубине, связи рисуются до атомов */
+  решётка3(ctx,s,v,p,col,cx,cy,sc){
+    const {acc,meas,dang,sec,ink,ink3}=col, пр0=v.p3(), P=(x,y,z)=>{ const q=пр0(x,y,z); return [cx+q[0]*sc,cy+q[1]*sc,q[2]]; };
+    const ат=[], связи=[];
+    const add=(x,y,z,вид)=>ат.push({x,y,z,вид});
+    if(p.kind==='covalent'){
+      // алмаз: ячейка ГЦК + четыре атома внутри, каждый связан с четырьмя соседями тетраэдром
+      const гцк=[[0,0,0],[2,0,0],[0,2,0],[0,0,2],[2,2,0],[2,0,2],[0,2,2],[2,2,2],[1,1,0],[1,0,1],[0,1,1],[1,1,2],[1,2,1],[2,1,1]];
+      const внутри=[[0.5,0.5,0.5],[1.5,1.5,0.5],[1.5,0.5,1.5],[0.5,1.5,1.5]];
+      for(const q of гцк) add(q[0]-1,q[1]-1,q[2]-1,'C'); for(const q of внутри) add(q[0]-1,q[1]-1,q[2]-1,'C');
+      for(const a of внутри) for(const b of гцк){ const d=Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]); if(d<0.9) связи.push([[a[0]-1,a[1]-1,a[2]-1],[b[0]-1,b[1]-1,b[2]-1]]); }
+    } else if(p.kind==='metal'){
+      // медь: гранецентрированный куб
+      for(const q of [[0,0,0],[2,0,0],[0,2,0],[0,0,2],[2,2,0],[2,0,2],[0,2,2],[2,2,2],[1,1,0],[1,0,1],[0,1,1],[1,1,2],[1,2,1],[2,1,1]]) add(q[0]-1,q[1]-1,q[2]-1,'+');
+    } else if(p.kind==='ionic'){
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++) add(i-1,j-1,k-1,(i+j+k)%2?'Cl':'Na');
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++){ if(i<2) связи.push([[i-1,j-1,k-1],[i,j-1,k-1]]); if(j<2) связи.push([[i-1,j-1,k-1],[i-1,j,k-1]]); if(k<2) связи.push([[i-1,j-1,k-1],[i-1,j-1,k]]); }
+    } else {
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++) add(i-1,j-1,k-1,'M');
+    }
+    // рёбра куба
+    if(p.kind!=='ionic'){ const r=[-1,1]; for(const a of r) for(const b of r){ for(const [u,w] of [[[-1,a,b],[1,a,b]],[[a,-1,b],[a,1,b]],[[a,b,-1],[a,b,1]]]){
+      const e1=P(u[0],u[1],u[2]), e2=P(w[0],w[1],w[2]); ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]);
+      ctx.beginPath(); ctx.moveTo(e1[0],e1[1]); ctx.lineTo(e2[0],e2[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1; } } }
+    for(const [a,b] of связи){ const e1=P(a[0],a[1],a[2]), e2=P(b[0],b[1],b[2]);
+      ctx.strokeStyle=p.kind==='covalent'?acc:ink3; ctx.globalAlpha=p.kind==='covalent'?.9:.35; ctx.lineWidth=v.lw(p.kind==='covalent'?2.6:1);
+      ctx.beginPath(); ctx.moveTo(e1[0],e1[1]); ctx.lineTo(e2[0],e2[1]); ctx.stroke(); ctx.globalAlpha=1; }
+    const t=s.t;
+    ат.map(a=>({a,e:P(a.x,a.y,a.z)})).sort((u,w)=>u.e[2]-w.e[2]).forEach(({a,e})=>{
+      const глуб=clamp(0.55+0.25*e[2],0.35,1);
+      if(a.вид==='M'){ const ang=(a.x*1.7+a.y*2.3+a.z*0.9)+0.4*Math.sin(t+a.x), dx=0.16*Math.cos(ang), dy=0.16*Math.sin(ang);
+        ctx.globalAlpha=глуб; КС.точка(ctx,v,e[0]-dx,e[1]-dy,5,sec); КС.точка(ctx,v,e[0]+dx,e[1]+dy,5,sec); ctx.globalAlpha=1; return; }
+      const r=(a.вид==='Cl'?0.2:(a.вид==='Na'?0.13:0.15))*(0.85+0.3*глуб);
+      const c=a.вид==='Cl'?acc:(a.вид==='Na'?dang:(a.вид==='+'?dang:ink));
+      ctx.globalAlpha=глуб; this.ион(ctx,v,e[0],e[1],r,c,a.вид==='Cl'?'−':(a.вид==='Na'||a.вид==='+'?'+':'')); ctx.globalAlpha=1; });
+    if(p.kind==='metal') for(let k=0;k<18;k++){ const q=P(Math.sin(k*1.3+t*(0.7+0.04*k))*1.1,Math.cos(k*2.1+t*(0.5+0.03*k))*1.1,Math.sin(k*0.7+t*(0.6+0.05*k))*1.1); КС.точка(ctx,v,q[0],q[1],2.3,meas); }
+  },
   draw(ctx,s,v,p){
     const col={acc:v.c('--accent'),meas:v.c('--measure'),dang:v.c('--danger'),sec:v.c('--second'),ink:v.c('--ink-2'),ink3:v.c('--ink-3')};
     const d=this.data[p.kind];
@@ -19404,8 +19588,9 @@ crystal:{
       v.text(ctx,txt,-3.05,0.42,col.ink,10,'center',true);
     }
     КС.рамка(ctx,v,0.35,0.1,5.9,4.85,`решётка: ${d.ex}`);
-    this.решётка(ctx,s,v,p,col,1.4,3.8);
-    v.text(ctx,{ionic:'ионы чередуются: + − + −',covalent:'каждая чёрточка — общая пара',metal:'ионы в «море» электронов',molecular:'целые молекулы, связи слабые'}[p.kind],3.3,0.42,col.ink3,10);
+    if(p.d3) this.решётка3(ctx,s,v,p,col,3.3,2.55,1.05); else this.решётка(ctx,s,v,p,col,1.4,3.8);
+    v.text(ctx,p.d3?{ionic:'у иона 6 соседей другого знака',covalent:'у атома 4 соседа — тетраэдр',metal:'ионы в вершинах и центрах граней',molecular:'в узлах — целые молекулы'}[p.kind]
+      :{ionic:'ионы чередуются: + − + −',covalent:'каждая чёрточка — общая пара',metal:'ионы в «море» электронов',molecular:'целые молекулы, связи слабые'}[p.kind],3.3,0.42,col.ink3,p.d3?9:10);
     if(p.props){
       КС.рамка(ctx,v,-6.25,-4.95,12.5,4.85,'сравнение: энергия связи на атом и свойства');
       const порядок=['covalent','metal','ionic','molecular'], x0=-3.6, W=4.6;
@@ -19775,7 +19960,7 @@ antimatter:{
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), warn=v.c('--warn')||'#e0a020';
     const T=3.6, u=(s.ph%T)/T, C=[0,1.3];
     if(p.proc==='annih'){
-      const R=3.3;
+      const R=2.95;
       // кольцо детекторов
       if(p.pet){
         const NS=40;
@@ -19786,30 +19971,39 @@ antimatter:{
         for(const h of s.хиты){ const al=clamp(1-(s.ph-h.t)/6,0,1)*0.35; if(al<=0) continue;
           ctx.strokeStyle=warn; ctx.globalAlpha=al; ctx.lineWidth=v.lw(1);
           ctx.beginPath(); ctx.moveTo(C[0]+R*Math.cos(h.a),C[1]+R*Math.sin(h.a)); ctx.lineTo(C[0]-R*Math.cos(h.a),C[1]-R*Math.sin(h.a)); ctx.stroke(); ctx.globalAlpha=1; }
-        v.text(ctx,'детекторы срабатывают парами — строго друг напротив друга',C[0],C[1]-R-0.45,ink3,10);
+        v.text(ctx,'детекторы срабатывают парами — строго друг напротив друга',C[0],C[1]-R-0.4,ink3,10);
       }
       if(u<0.55){
         // сближение по спирали: связанная пара, позитроний
         const w=u/0.55, r=1.7*(1-w*w)+0.18, a=s.ph*(2+10*w*w);
         const e1=[C[0]+r*Math.cos(a),C[1]+r*Math.sin(a)], e2=[C[0]-r*Math.cos(a),C[1]-r*Math.sin(a)];
         for(const [pnt,colr,sg] of [[e1,acc,1],[e2,dang,-1]]){
-          ctx.strokeStyle=colr; ctx.lineWidth=v.lw(2); ctx.beginPath();
-          for(let k=0;k<=24;k++){ const ww=Math.max(0,w-k*0.012), rr=1.7*(1-ww*ww)+0.18, aa=(s.ph-k*0.03)*(2+10*ww*ww);
-            ctx.globalAlpha=0.6*(1-k/24); const x=C[0]+sg*rr*Math.cos(aa), y=C[1]+sg*rr*Math.sin(aa); k?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-          ctx.stroke(); ctx.globalAlpha=1; }
+          /* след: каждый отрезок своей прозрачностью. В 3.2.0 прозрачность
+             менялась внутри одного пути, и штрих брал последнюю — нулевую:
+             следа не было видно вовсе */
+          ctx.strokeStyle=colr; ctx.lineWidth=v.lw(2.2); ctx.lineCap='round'; let пред=null;
+          for(let k=0;k<=30;k++){ const tt=s.ph-k*0.025, uu=((tt%T)+T)%T/T; if(uu>u+1e-9) break;
+            const ww=uu/0.55, rr=1.7*(1-ww*ww)+0.18, aa=tt*(2+10*ww*ww), q=[C[0]+sg*rr*Math.cos(aa),C[1]+sg*rr*Math.sin(aa)];
+            if(пред){ ctx.globalAlpha=0.7*(1-k/30); ctx.beginPath(); ctx.moveTo(пред[0],пред[1]); ctx.lineTo(q[0],q[1]); ctx.stroke(); }
+            пред=q; }
+          ctx.globalAlpha=1; }
         this.частица(ctx,v,e1[0],e1[1],acc,'e⁻'); this.частица(ctx,v,e2[0],e2[1],dang,'e⁺');
-        v.text(ctx,'электрон и позитрон притягиваются и закручиваются друг вокруг друга',C[0],C[1]-2.05,ink,10,'center',true);
+        v.text(ctx,'электрон и позитрон притягиваются и закручиваются друг вокруг друга',C[0],C[1]+R+0.4,ink,10,'center',true);
       } else if(u<0.66){
         const w=(u-0.55)/0.11;
         ctx.fillStyle=warn; ctx.globalAlpha=0.7*(1-w); ctx.beginPath(); ctx.arc(C[0],C[1],0.3+0.9*w,0,7); ctx.fill();
         ctx.globalAlpha=1-w; ctx.strokeStyle=warn; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(C[0],C[1],0.4+1.6*w,0,7); ctx.stroke(); ctx.globalAlpha=1;
-        v.text(ctx,'масса целиком превращается в энергию',C[0],C[1]-2.05,dang,10,'center',true);
+        v.text(ctx,'масса целиком превращается в энергию',C[0],C[1]+R+0.4,dang,10,'center',true);
       } else {
-        const w=(u-0.66)/0.34, d=0.2+(R-0.25)*w;
-        for(const sg of [1,-1]) КС.пакет(ctx,v,C[0]+sg*d*Math.cos(s.ось),C[1]+sg*d*Math.sin(s.ось),s.ось+(sg<0?Math.PI:0),0.28,0.2,0.35,s.ph*16,sec,2.2);
-        v.text(ctx,'γ 0,511 МэВ',C[0]+d*Math.cos(s.ось)+0.1,C[1]+d*Math.sin(s.ось)+0.45,sec,10,'center',true);
-        v.text(ctx,'γ 0,511 МэВ',C[0]-d*Math.cos(s.ось)+0.1,C[1]-d*Math.sin(s.ось)+0.45,sec,10,'center',true);
-        v.text(ctx,'два гамма-кванта уходят навстречу: суммарный импульс — ноль',C[0],C[1]-2.05,ink,10,'center',true);
+        /* кванты летят до кольца и там гаснут — детектор их поглотил */
+        const w=(u-0.66)/0.34, d=Math.min(R-0.1,0.35+R*w*1.15), дошли=d>=R-0.1;
+        for(const sg of [1,-1]){ const a=s.ось+(sg<0?Math.PI:0), x=C[0]+d*Math.cos(a), y=C[1]+d*Math.sin(a);
+          if(!дошли) v.photon(ctx,x,y,a,{len:Math.min(1.2,d),lam:0.26,amp:0.1,phase:s.ph*14,color:sec,lw:2});
+          else { ctx.fillStyle=warn; ctx.globalAlpha=.5; ctx.beginPath(); ctx.arc(x,y,0.25,0,7); ctx.fill(); ctx.globalAlpha=1; } }
+        const lx=0.55*R*Math.cos(s.ось), ly=0.55*R*Math.sin(s.ось), nx=-Math.sin(s.ось)*0.35, ny=Math.cos(s.ось)*0.35;
+        v.text(ctx,'γ 0,511 МэВ',C[0]+lx+nx,C[1]+ly+ny,sec,10,'center',true);
+        v.text(ctx,'γ 0,511 МэВ',C[0]-lx+nx,C[1]-ly+ny,sec,10,'center',true);
+        v.text(ctx,'два гамма-кванта уходят навстречу: суммарный импульс — ноль',C[0],C[1]+R+0.4,ink,10,'center',true);
       }
       if(p.bal){
         const y=-3.75, x0=-4.5, k=2.2/this.me;
@@ -19891,6 +20085,7 @@ lightclock:{
      отношения — настоящее. */
   timeUnit:'нс',
   schema:true,
+  hudAware:true,
   params:[
     {key:'beta',label:'Скорость часов v/c',min:0,max:0.99,step:0.01,default:0.6},
     {key:'L0',label:'Расстояние между зеркалами L₀',unit:'м',min:0.15,max:1.5,step:0.05,default:0.3},
@@ -20047,7 +20242,13 @@ minkowski:{
   schema:true,
   timeUnit:'год',                                    // секунда сцены — год по земным часам
   hudAware:true,
+  /* 3.3.0: объёмный вид — плоскость пространства (x, y) и время вверх.
+     Световой «конус» тогда и правда конус: вспышка расходится кругом. */
+  rotate3d(p){ return p.view!=='2d'; },
+  rot0:{yaw:-0.55,pitch:0.32},
   params:[
+    {key:'view',label:'Вид',type:'select',default:'3d',
+     options:[{v:'3d',t:'Объёмный: пространство x, y и время вверх — световой конус'},{v:'2d',t:'Плоский: x и ct'}]},
     {key:'beta',label:'Скорость ракеты v/c',min:-0.9,max:0.9,step:0.05,default:0.6},
     {key:'u',label:'Скорость снаряда в ракете u′/c',min:-0.95,max:0.95,step:0.05,default:0.6},
     {key:'dx',label:'Расстояние между событиями A и B в ракете Δx′',unit:'св. год',min:0,max:3,step:0.25,default:2},
@@ -20094,10 +20295,71 @@ minkowski:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-24)/(8.6*PX_PER_M),(H-24)/(8.2*PX_PER_M)),0.002,30);
-    return {x:0,y:1.75,scale};
+    if(p.view!=='2d'){ const scale=clamp(Math.min((W-24)/(10.8*PX_PER_M),(H-24)/(10.4*PX_PER_M)),0.002,30); return {x:0,y:0.2,scale}; }
+    const scale=clamp(Math.min((W-24)/(9.2*PX_PER_M),(H-24)/(8.9*PX_PER_M)),0.002,30);
+    return {x:0,y:1.6,scale};
+  },
+  /* объёмный вид: x и y — пространство, вверх — ct. Всё рисуется проекцией
+     VIEW.p3; поворачивают протягиванием. */
+  draw3(ctx,s,v,p){
+    const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink=v.c('--ink-2'), ink3=v.c('--ink-3'), sec=v.c('--second');
+    const пр0=v.p3(), OY=-1.9, пр=(x,y,z)=>{ const q=пр0(x,y,z); return [q[0],q[1]+OY,q[2]]; };
+    const T=4.4, R=4.0, b=p.beta, g=this.g(p), u=this.uLab(p), t=Math.min(s.t,T), E=this.events(p);
+    const линия=(pts,col,w,alpha,dash)=>{ ctx.strokeStyle=col; ctx.lineWidth=v.lw(w); ctx.globalAlpha=alpha==null?1:alpha;
+      ctx.setLineDash(dash?[v.lw(5),v.lw(4)]:EMPTY_DASH); ctx.beginPath();
+      pts.forEach((q,i)=>{ const e=пр(q[0],q[1],q[2]); i?ctx.lineTo(e[0],e[1]):ctx.moveTo(e[0],e[1]); }); ctx.stroke();
+      ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1; };
+    const грань=(pts,col,alpha)=>{ ctx.fillStyle=col; ctx.globalAlpha=alpha; ctx.beginPath();
+      pts.forEach((q,i)=>{ const e=пр(q[0],q[1],q[2]); i?ctx.lineTo(e[0],e[1]):ctx.moveTo(e[0],e[1]); }); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; };
+    const точка=(x,y,z,r,col,пусто)=>{ const e=пр(x,y,z); ctx.beginPath(); ctx.arc(e[0],e[1],v.lw(r),0,7);
+      if(пусто){ ctx.strokeStyle=col; ctx.lineWidth=v.lw(1.6); ctx.stroke(); } else { ctx.fillStyle=col; ctx.fill(); } return e; };
+    const круг=(r,z)=>{ const pts=[]; for(let i=0;i<=64;i++){ const a=i/64*2*Math.PI; pts.push([r*Math.cos(a),r*Math.sin(a),z]); } return pts; };
+    // пол: плоскость пространства в момент 0 и сетка
+    грань([[-R,-R,0],[R,-R,0],[R,R,0],[-R,R,0]],ink3,.05);
+    for(let k=-3;k<=3;k++){ линия([[k,-R,0],[k,R,0]],ink3,1,.18); линия([[-R,k,0],[R,k,0]],ink3,1,.18); }
+    // световой конус: прошлое бледно, будущее ярче
+    if(p.cone){
+      for(const [z0,зн,al] of [[0,-1,.25],[0,1,.6]]){
+        for(let i=0;i<12;i++){ const a=i/12*2*Math.PI, L=зн>0?T:1.6; линия([[0,0,0],[L*Math.cos(a),L*Math.sin(a),зн*L]],meas,1,al*0.4); }
+        for(const h of зн>0?[1,2,3,4]:[0.8,1.6]) линия(круг(h,зн*h),meas,1.1,al*0.8);
+      }
+      грань(круг(T,T),meas,.05);
+    }
+    // оси
+    линия([[-R,0,0],[R,0,0]],ink,1.4); линия([[0,-R,0],[0,R,0]],ink,1.4); линия([[0,0,-2],[0,0,T+0.4]],ink,1.4);
+    { const a=пр(R+0.15,0,0), bq=пр(0,R+0.15,0), c=пр(0,0,T+0.55);
+      v.text(ctx,'x',a[0],a[1],ink3,10,'center',true); v.text(ctx,'y',bq[0],bq[1],ink3,10,'center',true); v.text(ctx,'ct',c[0],c[1],ink3,10,'center',true); }
+    // «сейчас» Земли: горизонтальная плоскость, на ней — круг света радиусом ct
+    грань([[-R,-R,t],[R,-R,t],[R,R,t],[-R,R,t]],ink,.06);
+    линия([[-R,-R,t],[R,-R,t],[R,R,t],[-R,R,t],[-R,-R,t]],ink,1,.35,true);
+    if(p.cone && t>0.02) линия(круг(Math.min(t,R),t),meas,2.2,.9);
+    // «сейчас» ракеты: наклонная плоскость ct = τ/γ… через ракету, t′ = t/γ
+    if(Math.abs(b)>1e-6){
+      /* t′ = γ(t − βx) = τ ⇒ ct = τ/γ + βx: плоскость наклонена вдоль x */
+      const τ=t/g, Z=x=>τ/g+b*x;
+      грань([[-R,-R,Z(-R)],[R,-R,Z(R)],[R,R,Z(R)],[-R,R,Z(-R)]],acc,.08);
+      линия([[-R,0,Z(-R)],[R,0,Z(R)]],acc,1.6,.8,true);
+    }
+    // мировые линии: Земля, ракета, снаряд (вдоль x), Галилей
+    const wl=(uu,col,w,до,dash,al)=>линия([[0,0,0],[uu*до,0,до]],col,w,al,dash);
+    wl(0,ink,2,T,false,.3); wl(b,acc,2.4,T,false,.3); wl(u,ok,2.2,T,false,.3);
+    if(p.galileo) wl(b+p.u,dang,1.6,T,true,.5);
+    wl(0,ink,2.6,t); wl(b,acc,3,t); wl(u,ok,2.8,t);
+    // события A и B
+    if(p.simul) for(const [q,n] of [[E.A,'A'],[E.B,'B']]) if(q[1]<=T+0.5){ const e=точка(q[0],0,q[1],5.5,sec,t<q[1]); v.text(ctx,n,e[0]+0.25,e[1]+0.1,sec,11,'left',true); }
+    // тела сейчас
+    const e0=точка(0,0,t,4.5,ink), e1=точка(b*t,0,t,5.5,acc), e2=точка(u*t,0,t,5,ok);
+    v.text(ctx,'Земля',e0[0]-0.2,e0[1]+0.3,ink,10,'right',true);
+    v.text(ctx,'ракета',e1[0]+0.2,e1[1]+0.3,acc,10,'left',true);
+    v.text(ctx,'снаряд',e2[0]+0.2,e2[1]-0.3,ok,10,'left',true);
+    // подписи-пояснения по краю
+    v.text(ctx,'конус — куда успевает дойти свет вспышки из начала координат',0,-4.35,meas,10,'center',true);
+    v.text(ctx,'серая плоскость — «сейчас» Земли, синяя — «сейчас» ракеты',0,-4.7,ink3,10,'center');
+    v.text(ctx,'протяните по сцене, чтобы повернуть',0,-5.05,ink3,9,'center');
   },
   draw(ctx,s,v,p){
+    if(p.view!=='2d') return this.draw3(ctx,s,v,p);
     const acc=v.c('--accent'), ok=v.c('--ok'), meas=v.c('--measure'), dang=v.c('--danger'),
           ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), sec=v.c('--second');
     const X0=-4, X1=4, T=5.6, b=p.beta, g=this.g(p), u=this.uLab(p), uG=b+p.u;
@@ -20191,6 +20453,7 @@ minkowski:{
 relmotion:{
   title:'Разгон до скорости света: постоянная сила',
   schema:true,
+  hudAware:true,
   params:[
     {key:'part',label:'Частица',type:'select',default:'e',
      options:[{v:'e',t:'Электрон — mc² = 511 кэВ'},{v:'mu',t:'Мюон — mc² = 105,7 МэВ'}]},
@@ -20614,6 +20877,7 @@ const T_2d={
     {sim:'proj2d', do:`Сравните броски под $30^\\circ$ и $60^\\circ$`, see:`дальность одинаковая, а траектории разные`},
     {sim:'proj2d', do:`Включите вектор скорости и остановитесь в верхней точке`, see:`вертикальная составляющая обнулилась, горизонтальная осталась`},
     {sim:'circular', do:`Увеличьте скорость вдвое`, see:`центростремительное ускорение вырастет вчетверо`},
+    {sim:'rigid3d', do:`Откройте вращение твёрдого тела и наклоните ось`, see:`угловая скорость — это вектор на оси вращения, а скорость точки $\\vec v=\\vec\\omega\\times\\vec r$ направлена по касательной к её окружности`},
     {sim:'proj2d', do:`Включите «Показать в пространстве», поверните вид пальцем и задайте азимут $30^\\circ$`, see:`траектория — та же парабола, только в наклонной вертикальной плоскости; её тень на земле — прямая`},
   ],
   theory:`
@@ -22601,7 +22865,7 @@ const T_econs={
 };
 
 const T_rot={
-  id:'mech.rot', ch:'7', title:'Статика: равновесие тел',
+  id:'mech.rot', ch:'7', title:'Твёрдое тело: равновесие и вращение',
   key:[
     `Равновесие — это два условия сразу: $\\sum\\vec F=0$ и $\\sum M=0$ относительно любой точки.`,
     `Момент $M=Fd$, где $d$ — плечо: расстояние до <strong>линии действия</strong> силы, а не до точки приложения.`,
@@ -25419,7 +25683,7 @@ const T_magfields={
   ],
   explore:[
     {sim:'magnetism', do:`Увеличьте скорость заряда вдвое`, see:`радиус вырастет вдвое, а период останется тем же`},
-    {sim:'magnetism', do:`Пустите заряд вдоль поля`, see:`он полетит прямо: при $\\sin\\alpha=0$ силы нет`},
+    {sim:'magnetism', do:`Включите объёмный вид и добавьте скорость вдоль поля $v_\\parallel$`, see:`окружность вытягивается в спираль с шагом $h=v_\\parallel T$: вдоль $\\vec B$ сила не действует, при $\\sin\\alpha=0$ заряд летел бы прямо`},
     {sim:'ampere', do:`Обойдите контуром два тока и один`, see:`циркуляция считает только те токи, что внутри контура`},
   ],
   theory:`
@@ -26332,10 +26596,10 @@ const T_radiation={
        if(!S) return Infinity; return p.I/S; }},
 
     {level:3, sim:'displacement', unit:'нТл',
-     statement:`Чему равно магнитное поле между пластинами на расстоянии $r$ от оси,
-       если $r$ меньше радиуса пластин?`,
-     hint:'Контур радиуса $r$ охватывает лишь долю $r^2/R^2$ тока смещения.',
-     answer:p=>{ const R=p.Rp, r=p.r;
+     statement:`Чему равно магнитное поле между пластинами <strong>вдвое ближе к оси</strong>, чем контур
+       в симуляции, — на расстоянии $r/2$?`,
+     hint:'Контур радиуса $r$ охватывает лишь долю $r^2/R^2$ тока смещения; внутри пластин поле растёт пропорционально $r$.',
+     answer:p=>{ const R=p.Rp, r=p.r/2;
        if(!R||!r) return 0;
        const Ien=p.I*1e-3*Math.min(1,(r*r)/(R*R));
        return 4e-7*Math.PI*Ien/(2*Math.PI*r)*1e9; }},
@@ -26513,10 +26777,10 @@ const T_radiation={
 
     {level:4, sim:'doppler', unit:'°',
      statement:`Источник летит со скоростью $v_и$, превышающей скорость волны $c$.
-       Чему равен <strong>полуугол конуса Маха</strong>?`,
-     hint:'$\\sin\\alpha=c/v$.',
+       Чему равен <strong>полный угол раствора</strong> конуса Маха — от одной образующей до другой?`,
+     hint:'Полуугол: $\\sin\\alpha=c/v$; полный угол вдвое больше.',
      answer:p=>{ if(p.vs<=p.c) return NaN;
-       return Math.asin(p.c/p.vs)*180/Math.PI; }},
+       return 2*Math.asin(p.c/p.vs)*180/Math.PI; }},
 
     {level:5, sim:'doppler', unit:'м/с',
      statement:`Локатор посылает волну частоты $f_0$ на приближающийся объект и принимает
@@ -27922,8 +28186,8 @@ const T_qm={
     `Чем уже локализация, тем шире разброс импульса — отсюда и нулевые колебания.`,
   ],
   explore:[
-    {sim:'uncertainty', do:`Сожмите волновой пакет по координате`, see:`разброс импульса тут же вырастет — произведение не опустится ниже $\\hbar/2$`},
-    {sim:'box', do:`Уменьшите ширину ямы вдвое`, see:`все уровни поднимутся вчетверо`},
+    {sim:'uncertainty', do:`Сожмите волновой пакет по координате и запустите время`, see:`разброс импульса вырастет — и узкий пакет расплывётся за считанные фемтосекунды, а широкий почти не изменится`},
+    {sim:'box', do:`Уменьшите ширину ямы вдвое, потом включите смесь уровней`, see:`все уровни поднимутся вчетверо; смесь двух уровней плещется в лотке от стенки к стенке`},
     {sim:'tunnel', do:`Расширяйте барьер`, see:`прозрачность падает экспоненциально, а не пропорционально`},
   ],
   theory:`
@@ -27936,6 +28200,11 @@ const T_qm={
   пространству, и о положении частицы говорить бессмысленно. Чтобы получить локализованный сгусток —
   <strong>волновой пакет</strong>, — приходится сложить много синусоид с разными длинами волн. И тут возникает
   неизбежная плата: чем уже пакет в пространстве, тем больше разных импульсов в него замешано.</p>
+  <p>У этой платы есть видимое следствие: свободный пакет <strong>расплывается</strong>. Разные составляющие
+  несут разные импульсы, бегут с разными скоростями и расходятся. Для гауссова пакета электрона ширина растёт
+  как $\\Delta x(t)=\\Delta x_0\\sqrt{1+(t/\\tau)^2}$, где $\\tau=2m\\Delta x_0^2/\\hbar$. Пакет шириной 0,5 нм
+  удваивается за несколько фемтосекунд, а пакет в 0,1 нм — в двадцать пять раз быстрее: чем точнее мы знали
+  положение, тем быстрее это знание теряется. Распределение импульсов у свободной частицы при этом не меняется.</p>
 
   <h3 class="sub">Принцип неопределённости</h3>
   <p>Это не техническая трудность измерения, а свойство самих волн. Гейзенберг записал его так:</p>
@@ -27950,6 +28219,11 @@ const T_qm={
   <p>Простейшая задача, где квантование видно как на ладони. Частица заперта между двумя непроницаемыми стенками на
   расстоянии $L$. У стенок волновая функция обязана обращаться в ноль — ровно как у струны с закреплёнными концами.
   Значит, внутрь помещается лишь целое число полуволн: $\\lambda_n=\\dfrac{2L}{n}$.</p>
+  <div class="callout">Удобная картинка — вода в длинном лотке. Волна добегает до стенки, отражается без потерь
+  и складывается сама с собой, идущей навстречу. Держится только такая картина, у которой у стенок узлы: вода
+  колеблется на месте — <strong>стоячая волна</strong>, и узлы не двигаются. Симуляция «Частица в ящике»
+  показывает этот лоток в объёме и под ним — бегущую и отражённую волны, дающие в сумме стоячую. А смесь двух
+  уровней «плещется» от стенки к стенке: частица в ящике движется, только если её энергия не определена точно.</div>
   <p>Подставив это в $\\lambda=h/p$ и $E=p^2/2m$, получаем лестницу разрешённых энергий:</p>
   <div class="callout">$E_n=\\dfrac{n^2h^2}{8mL^2}$. Энергия не может быть какой угодно — только из этого набора.
   Обратите внимание на два следствия: во-первых, даже в самом низком состоянии энергия <em>не равна нулю</em>
@@ -27974,7 +28248,6 @@ const T_qm={
   шириной и высотой, поэтому эффект заметен только на атомных масштабах. Он не экзотика: на нём основан
   α-распад ядер и сканирующий туннельный микроскоп, позволяющий видеть отдельные атомы.</div>
 
-  <h3 class="sub">Гармонический осциллятор</h3>
   <h3 class="sub">Почему квантовые странности не видны в обычной жизни</h3>
   <p>Естественный вопрос: если электрон проходит через две щели сразу, почему мяч так не умеет?
   Ответ не в том, что для больших тел действуют другие законы, — законы одни. Дело в двух вещах.</p>
@@ -30100,6 +30373,7 @@ const T_rel={
   ],
   explore:[
     {sim:'lightclock', do:`Поставьте $v=0{,}87c$ и дождитесь нескольких тиков`, see:`движущиеся часы тикают вдвое реже, а стержень стал вдвое короче: $\\gamma=2$`},
+    {sim:'minkowski', do:`Поверните объёмную диаграмму и смотрите на две плоскости «сейчас»`, see:`плоскость ракеты наклонена вдоль её скорости, а круг света на земной плоскости растёт со скоростью $c$`},
     {sim:'minkowski', do:`Сложите $0{,}9c$ и $0{,}9c$`, see:`по Галилею $1{,}8c$, на самом деле $0{,}994c$ — мировая линия снаряда не выходит из светового конуса`},
     {sim:'relmotion', do:`Включите остановку на $v/c=0{,}99$`, see:`импульс рос равномерно всё время, а скорость давно почти не меняется; по Ньютону частица летела бы уже в семь раз быстрее света`},
   ],
@@ -30158,6 +30432,19 @@ const T_rel={
   вертикали — время, умноженное на $c$. Свет идёт по диагоналям под $45^\\circ$. Оси движущейся системы
   наклоняются к диагонали, как ножницы, и линии «одновременно для ракеты» оказываются косыми. При этом
   одна величина одинакова для всех: <strong>интервал</strong> $s^2=(c\\Delta t)^2-\\Delta x^2$.</p>
+
+  <h3 class="sub">Световой конус</h3>
+  <p>Добавим вторую координату пространства $y$, а время оставим вверх. Вспышка в начале координат
+  расходится кругом радиуса $ct$, и в пространстве-времени эти растущие круги складываются в
+  <strong>конус</strong>: $x^2+y^2=(ct)^2$. С третьей координатой $z$ это был бы трёхмерный «конус» в
+  четырёхмерном пространстве-времени — нарисовать его нельзя, но устроен он так же. Внутрь будущего конуса
+  попадает всё, до чего может дойти сигнал от вспышки; мировая линия любого тела идёт внутри, потому что
+  $v&lt;c$. Для событий вне конуса порядок во времени зависит от наблюдателя: одно из них не может быть причиной
+  другого.</p>
+  <div class="callout">Симуляция «Диаграмма Минковского» открывается в объёмном виде: серая горизонтальная
+  плоскость — «сейчас» по земным часам, и на ней растёт круг света. Синяя плоскость — «сейчас» для ракеты:
+  она наклонена только вдоль направления движения $x$. Поверните сцену — поперёк движения одновременность
+  у Земли и ракеты общая.</div>
 
   <h3 class="sub">Сложение скоростей</h3>
   <p>Ракета летит со скоростью $v$, из неё вперёд выпускают снаряд со скоростью $u'$ относительно ракеты.
@@ -30669,7 +30956,8 @@ const T_laser={
     `Выше порога инверсия «прилипает» к пороговой, а весь избыток накачки уходит в луч.`,
   ],
   explore:[
-    {sim:'laser', do:`Медленно поднимайте накачку от нуля`, see:`пока $P$ меньше порога, луча нет; перейдя порог, мощность растёт по прямой, а инверсия больше не растёт`},
+    {sim:'laser', do:`Начните с опыта «Лавина фотонов»`, see:`фотон, пролетая вдоль возбуждённых атомов, обрастает копиями, а в ряду невозбуждённых — просто поглощается`},
+    {sim:'laser', do:`В опыте «Лазер целиком» медленно поднимайте накачку от нуля`, see:`пока $P$ меньше порога, луча нет; перейдя порог, мощность растёт по прямой, а инверсия больше не растёт`},
     {sim:'laser', do:`Опустите отражение выходного зеркала до 60 %`, see:`потери за проход больше всего, что среда может дать, — генерации нет при любой накачке`},
     {sim:'laser', do:`Включите сильную накачку и смотрите на графики с самого начала`, see:`инверсия проскакивает порог, свет вспыхивает пичком, и так несколько раз — затухающие релаксационные колебания`},
   ],
@@ -30688,9 +30976,10 @@ const T_laser={
     испустить ещё один фотон — <em>точную копию</em>: та же частота, та же фаза, то же направление и
     поляризация. Был один фотон — стало два одинаковых.</li>
   </ul>
-  <div class="callout">В теме «Атом водорода» сцена спектра умеет показывать вынужденное испускание: выберите
-  процесс «Вынужденное испускание» — на выходе два фотона. Лазер — это та же картинка, повторённая
-  миллиарды раз цепной реакцией.</div>
+  <div class="callout">Опыт «Лавина фотонов» показывает это в два ряда. Сверху атомы возбуждены: фотон
+  летит вдоль ряда, и каждый атом отдаёт его копию — стопка одинаковых волн растёт. Снизу те же атомы в
+  основном состоянии: фотон поглощается первым же атомом, а тот потом отдаёт энергию сам, в случайную
+  сторону. Вся разница — в том, где сидят электроны. Это и есть условие усиления света.</div>
 
   <h3 class="sub">Почему свет обычно не усиливается</h3>
   <p>Вынужденное испускание и поглощение идут с одинаковой вероятностью на атом. Значит, свет усиливается,
@@ -30717,7 +31006,7 @@ const T_laser={
   <p>$$\\frac{dn}{dt}=BnN_2-\\frac{n}{\\tau_{\\text{р}}}.$$</p>
   <p>Свет нарастает, только если $BN_2>1/\\tau_{\\text{р}}$. Граница — <strong>порог генерации</strong>
   $N_{2,\\text{пор}}=1/(B\\tau_{\\text{р}})$. Чем лучше зеркала, тем дольше живёт фотон и тем ниже порог.</p>
-  <div class="callout">В симуляции справа внизу — два столбика: усиление за проход и потери через зеркало.
+  <div class="callout">В опыте «Лазер целиком» справа внизу — два столбика: усиление за проход и потери через зеркало.
   Ниже порога усиление меньше потерь, и в резонаторе только слабое спонтанное свечение. Стоит накачке
   поднять инверсию до порога — столбики сравниваются, и появляется луч.</div>
 
@@ -35111,8 +35400,13 @@ const VIEW={
   p3(rot,доп){
     const y0=(rot||this.rot3d).yaw+(доп||0), p0=(rot||this.rot3d).pitch;
     const cy=Math.cos(y0), sy=Math.sin(y0), cp=Math.cos(p0), sp=Math.sin(p0);
+    /* Зритель стоит со стороны −y и смотрит вдоль +y, как в учебнике:
+       x — вправо, z — вверх, y — в глубину. До 3.3.0 зритель стоял со
+       стороны +y при тех же x вправо и z вверх, а это зеркальное
+       изображение: правило буравчика на экране выглядело правилом левой
+       руки, винтовая линия закручивалась не в ту сторону. */
     return (x,y,z)=>{ const x1=x*cy-y*sy, y1=x*sy+y*cy;          // поворот вокруг z
-      return [x1, z*cp-y1*sp, y1*cp+z*sp]; };                        // наклон вокруг x
+      return [x1, z*cp+y1*sp, z*sp-y1*cp]; };                        // наклон вокруг x
   },
   lw:px=>px*(S.settings.lineW||1)/ppm(),
   /* Подписи на сцене. Позиции в симуляциях заданы вручную пиксельными
@@ -35290,6 +35584,31 @@ const VIEW={
     ctx.lineTo(x2-h*Math.cos(a-0.42),y2-h*Math.sin(a-0.42));
     ctx.lineTo(x2-h*Math.cos(a+0.42),y2-h*Math.sin(a+0.42));
     ctx.closePath(); ctx.fill();
+  },
+  /* Фотон (3.3.0): волна с наконечником. (x,y) — голова, dir — направление
+     полёта. Раньше каждая сцена рисовала свою «змейку»: по шесть точек на
+     длину волны (ломаная вместо синусоиды), амплитуда плясала под гауссовой
+     огибающей — получался червяк. Здесь синусоида гладкая (не меньше 20 точек
+     на период), амплитуда постоянна, хвост плавно гаснет, у головы стрелка,
+     под линией — мягкий ореол того же цвета.
+     o: {len, lam, amp, phase, color, lw, alpha} в метрах сцены. */
+  photon(ctx,x,y,dir,o){
+    o=o||{}; const len=o.len||1, lam=Math.max(o.lam||0.3,1e-3), A=o.amp==null?0.1:o.amp, ph=o.phase||0;
+    const ux=Math.cos(dir), uy=Math.sin(dir), N=Math.max(24,Math.ceil(len/lam*22));
+    const pts=[];
+    for(let i=0;i<=N;i++){ const t=i/N, d=len*t, хвост=Math.min(1,t/0.3), w=A*хвост*хвост*(3-2*хвост)*Math.sin(2*Math.PI*(d-len)/lam-ph);
+      pts.push([x-ux*(len-d)-uy*w, y-uy*(len-d)+ux*w]); }
+    const path=()=>{ ctx.beginPath(); pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); };
+    ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
+    if(o.alpha!=null) ctx.globalAlpha=o.alpha;
+    const base=ctx.globalAlpha;
+    ctx.strokeStyle=o.color||this.c('--second');
+    ctx.globalAlpha=base*0.18; ctx.lineWidth=this.lw((o.lw||2)*3.2); path(); ctx.stroke();
+    ctx.globalAlpha=base; ctx.lineWidth=this.lw(o.lw||2); path(); ctx.stroke();
+    const h=this.lw(7);
+    ctx.fillStyle=o.color||this.c('--second'); ctx.beginPath(); ctx.moveTo(x+ux*h*0.6,y+uy*h*0.6);
+    ctx.lineTo(x-ux*h*0.6-uy*h*0.55,y-uy*h*0.6+ux*h*0.55); ctx.lineTo(x-ux*h*0.6+uy*h*0.55,y-uy*h*0.6-ux*h*0.55); ctx.closePath(); ctx.fill();
+    ctx.restore();
   },
   /* Дуговая стрелка момента силы вокруг точки (cx,cy).
      dir > 0 — против часовой, dir < 0 — по часовой. r — радиус дуги (в метрах).
@@ -36587,7 +36906,9 @@ function openTopic(id){
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
   if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); показатьШапку(); обновитьЧтение(); }catch(e){ console.error(e); }
-  const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
+  /* В список идут и сцены из «Что попробовать» (3.3.0): так тема показывает
+     все свои опыты, а не только те, к которым есть формула или задача. */
+  const sims=[...new Set([...t.formulas,...t.problems,...(t.explore||[])].map(x=>x.sim).filter(id=>id&&SIMS[id]))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
   // пустая строка, а не 'block': инлайновый display перебил бы правило
@@ -37949,8 +38270,11 @@ addEventListener('pointermove',e=>{
   }
   else if(drag.mode==='rot3d'){
     const r=a.view.rot||(a.view.rot=Object.assign({yaw:-0.6,pitch:0.35},a.def.rot0||{}));
-    r.yaw=drag.yaw+(px-drag.px)*0.01;
-    r.pitch=clamp(drag.pitch+(py-drag.py)*0.01,-1.5,1.5);
+    /* Направления поворота — настройки (3.3.0): по умолчанию вертикаль
+       инвертирована — протянули вверх, фигура наклоняется к зрителю. */
+    const sx=prefGet('rot3dInvY')?-1:1, sy=prefGet('rot3dInvX')?-1:1;
+    r.yaw=drag.yaw+sx*(px-drag.px)*0.01;
+    r.pitch=clamp(drag.pitch+sy*(py-drag.py)*0.01,-1.5,1.5);
     if(!S.playing) drawAll();
   }
   else if(drag.mode==='simdraw'){ a.def.wireMove(a.params,drag.handle,wx,wy); }
@@ -39080,7 +39404,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,
   handles:'hover',
   // кастомизация окружения
-  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
@@ -39147,6 +39471,10 @@ const PREFS=[
    name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
    options:[['norm','Обычный'],['big','Крупный']]},
 
+  {cat:'scene',key:'rot3dInvX',type:'toggle',def:true,
+   name:'Объёмные сцены: инвертировать поворот по оси X',desc:'Протянули вверх — фигура наклоняется к вам, как будто её тянут за верхний край. Выключите, чтобы протягивание вверх наклоняло её от вас.'},
+  {cat:'scene',key:'rot3dInvY',type:'toggle',def:false,
+   name:'Объёмные сцены: инвертировать поворот по вертикальной оси',desc:'Меняет направление поворота при протягивании влево-вправо.'},
   {cat:'scene',key:'strobe',type:'toggle',def:false,
    name:'Стробоскоп',desc:'Метки положения тела через равные промежутки времени — как на снимке с многократной вспышкой. Где метки гуще, тело медленнее.'},
   {cat:'scene',key:'strobeDt',type:'range',def:0.25,min:0.05,max:1,step:0.05,unit:' с',
@@ -42491,7 +42819,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '3.2.0';
+window.PHYSIM_BUILD = '3.3.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

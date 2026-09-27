@@ -148,6 +148,19 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 3.3.0 — right-handed 3D, a laser you can follow
+
+          **3D where it helps.** Minkowski's diagram in 2+1 dimensions with a real light cone and two
+          "now" planes; the EM wave with E and B in perpendicular planes; a helix for a charge moving along
+          B; rings of field around a wire; crystal lattices you can turn.
+
+          **Right-handed at last.** The 3D projection was a mirror image; now x is right, z up, y into the
+          screen. Vertical drag is inverted by default, with settings for both directions.
+
+          **Clearer scenes.** One smooth photon glyph everywhere; the laser split into an "avalanche" of
+          copied photons and the full resonator; annihilation trails and detector hits fixed; relativity
+          scenes no longer hidden under the readouts; the Lorentz-force field sign corrected.
+
           ## 3.2.0 — motion in space, quantum scenes that move, the laser
 
           **A third axis in mechanics.** A projectile thrown at an azimuth, in a 3D view you can
