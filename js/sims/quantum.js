@@ -134,11 +134,8 @@ photoeffect:{
     const nf=Math.round(2+6*p.inten/100);
     if(p.inten>0) for(let i=0;i<nf;i++){
       const u=((s.ph*0.7+i/nf)%1+1)%1, yy=-0.8+1.6*((i*0.37)%1);
-      const x=sx+(K-0.2-sx)*u, y=sy+(yy-sy)*u, dx=K-0.2-sx, dy=yy-sy, L=Math.hypot(dx,dy);
-      ctx.strokeStyle=свет; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
-      for(let k=0;k<=16;k++){ const t=-0.45+k*0.03, w=0.12*Math.sin(k*1.2);
-        const px=x+dx/L*t - dy/L*w, py=y+dy/L*t + dx/L*w; k?ctx.lineTo(px,py):ctx.moveTo(px,py); }
-      ctx.stroke();
+      const x=sx+(K-0.2-sx)*u, y=sy+(yy-sy)*u;
+      v.photon(ctx,x,y,Math.atan2(yy-sy,K-0.2-sx),{len:0.9,lam:0.28,amp:0.09,phase:s.ph*12,color:свет,lw:1.8});
     }
 
     /* ---- электроны ---- */

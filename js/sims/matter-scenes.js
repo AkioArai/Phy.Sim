@@ -517,7 +517,7 @@ antimatter:{
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), warn=v.c('--warn')||'#e0a020';
     const T=3.6, u=(s.ph%T)/T, C=[0,1.3];
     if(p.proc==='annih'){
-      const R=3.3;
+      const R=2.95;
       // кольцо детекторов
       if(p.pet){
         const NS=40;
@@ -528,30 +528,39 @@ antimatter:{
         for(const h of s.хиты){ const al=clamp(1-(s.ph-h.t)/6,0,1)*0.35; if(al<=0) continue;
           ctx.strokeStyle=warn; ctx.globalAlpha=al; ctx.lineWidth=v.lw(1);
           ctx.beginPath(); ctx.moveTo(C[0]+R*Math.cos(h.a),C[1]+R*Math.sin(h.a)); ctx.lineTo(C[0]-R*Math.cos(h.a),C[1]-R*Math.sin(h.a)); ctx.stroke(); ctx.globalAlpha=1; }
-        v.text(ctx,'детекторы срабатывают парами — строго друг напротив друга',C[0],C[1]-R-0.45,ink3,10);
+        v.text(ctx,'детекторы срабатывают парами — строго друг напротив друга',C[0],C[1]-R-0.4,ink3,10);
       }
       if(u<0.55){
         // сближение по спирали: связанная пара, позитроний
         const w=u/0.55, r=1.7*(1-w*w)+0.18, a=s.ph*(2+10*w*w);
         const e1=[C[0]+r*Math.cos(a),C[1]+r*Math.sin(a)], e2=[C[0]-r*Math.cos(a),C[1]-r*Math.sin(a)];
         for(const [pnt,colr,sg] of [[e1,acc,1],[e2,dang,-1]]){
-          ctx.strokeStyle=colr; ctx.lineWidth=v.lw(2); ctx.beginPath();
-          for(let k=0;k<=24;k++){ const ww=Math.max(0,w-k*0.012), rr=1.7*(1-ww*ww)+0.18, aa=(s.ph-k*0.03)*(2+10*ww*ww);
-            ctx.globalAlpha=0.6*(1-k/24); const x=C[0]+sg*rr*Math.cos(aa), y=C[1]+sg*rr*Math.sin(aa); k?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-          ctx.stroke(); ctx.globalAlpha=1; }
+          /* след: каждый отрезок своей прозрачностью. В 3.2.0 прозрачность
+             менялась внутри одного пути, и штрих брал последнюю — нулевую:
+             следа не было видно вовсе */
+          ctx.strokeStyle=colr; ctx.lineWidth=v.lw(2.2); ctx.lineCap='round'; let пред=null;
+          for(let k=0;k<=30;k++){ const tt=s.ph-k*0.025, uu=((tt%T)+T)%T/T; if(uu>u+1e-9) break;
+            const ww=uu/0.55, rr=1.7*(1-ww*ww)+0.18, aa=tt*(2+10*ww*ww), q=[C[0]+sg*rr*Math.cos(aa),C[1]+sg*rr*Math.sin(aa)];
+            if(пред){ ctx.globalAlpha=0.7*(1-k/30); ctx.beginPath(); ctx.moveTo(пред[0],пред[1]); ctx.lineTo(q[0],q[1]); ctx.stroke(); }
+            пред=q; }
+          ctx.globalAlpha=1; }
         this.частица(ctx,v,e1[0],e1[1],acc,'e⁻'); this.частица(ctx,v,e2[0],e2[1],dang,'e⁺');
-        v.text(ctx,'электрон и позитрон притягиваются и закручиваются друг вокруг друга',C[0],C[1]-2.05,ink,10,'center',true);
+        v.text(ctx,'электрон и позитрон притягиваются и закручиваются друг вокруг друга',C[0],C[1]+R+0.4,ink,10,'center',true);
       } else if(u<0.66){
         const w=(u-0.55)/0.11;
         ctx.fillStyle=warn; ctx.globalAlpha=0.7*(1-w); ctx.beginPath(); ctx.arc(C[0],C[1],0.3+0.9*w,0,7); ctx.fill();
         ctx.globalAlpha=1-w; ctx.strokeStyle=warn; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(C[0],C[1],0.4+1.6*w,0,7); ctx.stroke(); ctx.globalAlpha=1;
-        v.text(ctx,'масса целиком превращается в энергию',C[0],C[1]-2.05,dang,10,'center',true);
+        v.text(ctx,'масса целиком превращается в энергию',C[0],C[1]+R+0.4,dang,10,'center',true);
       } else {
-        const w=(u-0.66)/0.34, d=0.2+(R-0.25)*w;
-        for(const sg of [1,-1]) КС.пакет(ctx,v,C[0]+sg*d*Math.cos(s.ось),C[1]+sg*d*Math.sin(s.ось),s.ось+(sg<0?Math.PI:0),0.28,0.2,0.35,s.ph*16,sec,2.2);
-        v.text(ctx,'γ 0,511 МэВ',C[0]+d*Math.cos(s.ось)+0.1,C[1]+d*Math.sin(s.ось)+0.45,sec,10,'center',true);
-        v.text(ctx,'γ 0,511 МэВ',C[0]-d*Math.cos(s.ось)+0.1,C[1]-d*Math.sin(s.ось)+0.45,sec,10,'center',true);
-        v.text(ctx,'два гамма-кванта уходят навстречу: суммарный импульс — ноль',C[0],C[1]-2.05,ink,10,'center',true);
+        /* кванты летят до кольца и там гаснут — детектор их поглотил */
+        const w=(u-0.66)/0.34, d=Math.min(R-0.1,0.35+R*w*1.15), дошли=d>=R-0.1;
+        for(const sg of [1,-1]){ const a=s.ось+(sg<0?Math.PI:0), x=C[0]+d*Math.cos(a), y=C[1]+d*Math.sin(a);
+          if(!дошли) v.photon(ctx,x,y,a,{len:Math.min(1.2,d),lam:0.26,amp:0.1,phase:s.ph*14,color:sec,lw:2});
+          else { ctx.fillStyle=warn; ctx.globalAlpha=.5; ctx.beginPath(); ctx.arc(x,y,0.25,0,7); ctx.fill(); ctx.globalAlpha=1; } }
+        const lx=0.55*R*Math.cos(s.ось), ly=0.55*R*Math.sin(s.ось), nx=-Math.sin(s.ось)*0.35, ny=Math.cos(s.ось)*0.35;
+        v.text(ctx,'γ 0,511 МэВ',C[0]+lx+nx,C[1]+ly+ny,sec,10,'center',true);
+        v.text(ctx,'γ 0,511 МэВ',C[0]-lx+nx,C[1]-ly+ny,sec,10,'center',true);
+        v.text(ctx,'два гамма-кванта уходят навстречу: суммарный импульс — ноль',C[0],C[1]+R+0.4,ink,10,'center',true);
       }
       if(p.bal){
         const y=-3.75, x0=-4.5, k=2.2/this.me;

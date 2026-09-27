@@ -269,6 +269,31 @@ const VIEW={
     ctx.lineTo(x2-h*Math.cos(a+0.42),y2-h*Math.sin(a+0.42));
     ctx.closePath(); ctx.fill();
   },
+  /* Фотон (3.3.0): волна с наконечником. (x,y) — голова, dir — направление
+     полёта. Раньше каждая сцена рисовала свою «змейку»: по шесть точек на
+     длину волны (ломаная вместо синусоиды), амплитуда плясала под гауссовой
+     огибающей — получался червяк. Здесь синусоида гладкая (не меньше 20 точек
+     на период), амплитуда постоянна, хвост плавно гаснет, у головы стрелка,
+     под линией — мягкий ореол того же цвета.
+     o: {len, lam, amp, phase, color, lw, alpha} в метрах сцены. */
+  photon(ctx,x,y,dir,o){
+    o=o||{}; const len=o.len||1, lam=Math.max(o.lam||0.3,1e-3), A=o.amp==null?0.1:o.amp, ph=o.phase||0;
+    const ux=Math.cos(dir), uy=Math.sin(dir), N=Math.max(24,Math.ceil(len/lam*22));
+    const pts=[];
+    for(let i=0;i<=N;i++){ const t=i/N, d=len*t, хвост=Math.min(1,t/0.3), w=A*хвост*хвост*(3-2*хвост)*Math.sin(2*Math.PI*(d-len)/lam-ph);
+      pts.push([x-ux*(len-d)-uy*w, y-uy*(len-d)+ux*w]); }
+    const path=()=>{ ctx.beginPath(); pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); };
+    ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
+    if(o.alpha!=null) ctx.globalAlpha=o.alpha;
+    const base=ctx.globalAlpha;
+    ctx.strokeStyle=o.color||this.c('--second');
+    ctx.globalAlpha=base*0.18; ctx.lineWidth=this.lw((o.lw||2)*3.2); path(); ctx.stroke();
+    ctx.globalAlpha=base; ctx.lineWidth=this.lw(o.lw||2); path(); ctx.stroke();
+    const h=this.lw(7);
+    ctx.fillStyle=o.color||this.c('--second'); ctx.beginPath(); ctx.moveTo(x+ux*h*0.6,y+uy*h*0.6);
+    ctx.lineTo(x-ux*h*0.6-uy*h*0.55,y-uy*h*0.6+ux*h*0.55); ctx.lineTo(x-ux*h*0.6+uy*h*0.55,y-uy*h*0.6-ux*h*0.55); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  },
   /* Дуговая стрелка момента силы вокруг точки (cx,cy).
      dir > 0 — против часовой, dir < 0 — по часовой. r — радиус дуги (в метрах).
      Дуга рисуется полилинией с явной параметризацией, а не ctx.arc: мировая
@@ -1565,7 +1590,9 @@ function openTopic(id){
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
   if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); показатьШапку(); обновитьЧтение(); }catch(e){ console.error(e); }
-  const sims=[...new Set([...t.formulas,...t.problems].map(x=>x.sim).filter(Boolean))];
+  /* В список идут и сцены из «Что попробовать» (3.3.0): так тема показывает
+     все свои опыты, а не только те, к которым есть формула или задача. */
+  const sims=[...new Set([...t.formulas,...t.problems,...(t.explore||[])].map(x=>x.sim).filter(id=>id&&SIMS[id]))];
   const sel=$('#simsel');
   sel.innerHTML=sims.map(id=>`<option value="${id}">${SIMS[id].title}</option>`).join('');
   // пустая строка, а не 'block': инлайновый display перебил бы правило
@@ -2927,8 +2954,11 @@ addEventListener('pointermove',e=>{
   }
   else if(drag.mode==='rot3d'){
     const r=a.view.rot||(a.view.rot=Object.assign({yaw:-0.6,pitch:0.35},a.def.rot0||{}));
-    r.yaw=drag.yaw+(px-drag.px)*0.01;
-    r.pitch=clamp(drag.pitch+(py-drag.py)*0.01,-1.5,1.5);
+    /* Направления поворота — настройки (3.3.0): по умолчанию вертикаль
+       инвертирована — протянули вверх, фигура наклоняется к зрителю. */
+    const sx=prefGet('rot3dInvY')?-1:1, sy=prefGet('rot3dInvX')?-1:1;
+    r.yaw=drag.yaw+sx*(px-drag.px)*0.01;
+    r.pitch=clamp(drag.pitch+sy*(py-drag.py)*0.01,-1.5,1.5);
     if(!S.playing) drawAll();
   }
   else if(drag.mode==='simdraw'){ a.def.wireMove(a.params,drag.handle,wx,wy); }
@@ -4058,7 +4088,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,
   handles:'hover',
   // кастомизация окружения
-  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
@@ -4125,6 +4155,10 @@ const PREFS=[
    name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
    options:[['norm','Обычный'],['big','Крупный']]},
 
+  {cat:'scene',key:'rot3dInvX',type:'toggle',def:true,
+   name:'Объёмные сцены: инвертировать поворот по оси X',desc:'Протянули вверх — фигура наклоняется к вам, как будто её тянут за верхний край. Выключите, чтобы протягивание вверх наклоняло её от вас.'},
+  {cat:'scene',key:'rot3dInvY',type:'toggle',def:false,
+   name:'Объёмные сцены: инвертировать поворот по вертикальной оси',desc:'Меняет направление поворота при протягивании влево-вправо.'},
   {cat:'scene',key:'strobe',type:'toggle',def:false,
    name:'Стробоскоп',desc:'Метки положения тела через равные промежутки времени — как на снимке с многократной вспышкой. Где метки гуще, тело медленнее.'},
   {cat:'scene',key:'strobeDt',type:'range',def:0.25,min:0.05,max:1,step:0.05,unit:' с',

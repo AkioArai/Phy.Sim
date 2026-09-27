@@ -27,13 +27,10 @@ const КС={
   rnd(s){ let t=(s.seed=(s.seed+0x6D2B79F5)|0); t=Math.imul(t^(t>>>15),t|1);
     t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)/4294967296; },
   гаусс(s){ const u=Math.max(1e-12,this.rnd(s)), w=this.rnd(s); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*w); },
-  /* волновой пакет: синусоида под гауссовой огибающей вдоль направления dir */
+  /* фотон с центром в (x0,y0) — обёртка над VIEW.photon */
   пакет(ctx,v,x0,y0,dir,lam,amp,sig,phase,color,lw){
-    const ux=Math.cos(dir), uy=Math.sin(dir), k=2*Math.PI/Math.max(lam,1e-6), N=90;
-    ctx.strokeStyle=color; ctx.lineWidth=v.lw(lw||2); ctx.beginPath();
-    for(let i=0;i<=N;i++){ const d=-3*sig+6*sig*i/N, w=amp*Math.exp(-d*d/(2*sig*sig))*Math.sin(k*d-phase);
-      const x=x0+ux*d-uy*w, y=y0+uy*d+ux*w; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke();
+    /* центр (x0,y0), длина 5σ: рисует общий фотон VIEW.photon */
+    const L=5*sig; v.photon(ctx,x0+Math.cos(dir)*L/2,y0+Math.sin(dir)*L/2,dir,{len:L,lam,amp,phase,color,lw});
   },
   /* рамка-панель с заголовком: скруглённый прямоугольник (arcTo — roundRect есть не везде) */
   рамка(ctx,v,x,y,w,h,title){
