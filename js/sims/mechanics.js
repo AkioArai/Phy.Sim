@@ -146,6 +146,12 @@ kin1d:{
     s.t=t;
   },
   anchors(s,p){
+    if(p.d3){                                             // в пространстве — тела в проекции сцены
+      const пр=typeof VIEW!=='undefined'&&VIEW.p3?VIEW.p3():null, out=[];
+      for(let i=0;i<((p.bodies==='2')?2:1);i++){ const r=this.posOf(p,i,s.t);
+        if(пр){ const q=пр(r.x,r.z,r.y); out.push({x:q[0],y:q[1]}); } }
+      return out.length?out:[{x:0,y:0}];
+    }
     const n=(p.bodies==='2')?2:1, out=[{x:0,y:0}];
     const P=(x)=>p.axis==='y'?{x:0,y:x}:{x,y:0};
     for(let i=0;i<n;i++){ out.push(P(s.b[i].x)); out.push(P(s.b[i].x0)); }
@@ -288,6 +294,16 @@ proj2d:{
     {key:'a02',  label:'Угол броска θ',          unit:'°',  min:0,    max:360, step:1,  default:0},
     {key:'delay',label:'Задержка старта Δt',     unit:'с',  min:0,    max:60,  step:0.1,default:0},
 
+    /* Третья ось (3.2.0). Бросок — плоское движение, пока ничто не толкает
+       тело вбок. Азимут поворачивает плоскость броска, боковой ветер даёт
+       ускорение вдоль z — и видно, что три проекции движутся независимо:
+       x и z равномерно (или равноускоренно под ветром), y — как всегда. */
+    {type:'group',label:'Третья ось z'},
+    {key:'d3',  label:'Показать в пространстве (оси x, y, z)',type:'check',default:false},
+    {key:'az1', label:'Азимут броска φ (от оси x к оси z)',unit:'°',min:-90,max:90,step:1,default:30,если:p=>!!p.d3},
+    {key:'az2', label:'Азимут тела 2',unit:'°',min:-90,max:90,step:1,default:0,если:p=>!!p.d3&&p.bodies==='2'},
+    {key:'wind',label:'Боковой ветер: ускорение вдоль z',unit:'м/с²',min:-10,max:10,step:0.1,default:0,если:p=>!!p.d3},
+
     {type:'group',label:'Общее'},
     {key:'ay',  label:'Ускорение вдоль оси y (равно −g)',unit:'м/с²',min:-50,max:50,step:0.1,default:-9.8},
     {key:'comp',  label:'Проекции скорости vx и vy',type:'check',default:true},
@@ -313,28 +329,38 @@ proj2d:{
     {name:'Горизонтальный бросок с высоты 45 м',
      values:{bodies:'1',x01:0,y01:45,v01:15,a01:0,ay:-9.8,stopLand:true,tStop:0}},
     {name:'Без тяготения: ускорение по y = 0',
-     values:{bodies:'1',x01:0,y01:0,v01:25,a01:45,ay:0,stopLand:false,tStop:8}}
+     values:{bodies:'1',x01:0,y01:0,v01:25,a01:45,ay:0,stopLand:false,tStop:8}},
+    {name:'В пространстве: бросок под азимутом 30°',
+     values:{bodies:'1',x01:0,y01:0,v01:25,a01:45,d3:true,az1:30,wind:0,ay:-9.8,stopLand:true,tStop:0}},
+    {name:'В пространстве: боковой ветер сносит мяч',
+     values:{bodies:'1',x01:0,y01:0,v01:25,a01:45,d3:true,az1:0,wind:3,ay:-9.8,stopLand:true,tStop:0}}
   ],
   /* параметры тела i (0/1) */
-  bodyP(p,i){ return i? {x0:p.x02,y0:p.y02,v0:p.v02,ang:p.a02,t0:p.delay}
-                      : {x0:p.x01,y0:p.y01,v0:p.v01,ang:p.a01,t0:0}; },
+  bodyP(p,i){ const az=p.d3?(i?p.az2:p.az1)||0:0;
+    return i? {x0:p.x02,y0:p.y02,v0:p.v02,ang:p.a02,t0:p.delay,az}
+            : {x0:p.x01,y0:p.y01,v0:p.v01,ang:p.a01,t0:0,az}; },
+  rotate3d(p){ return !!p.d3; },
+  rot0:{yaw:-0.75,pitch:0.4},
   /* точное положение тела i в момент t (с посадкой на землю y = 0) */
   posOf(p,i,t){
-    const b=this.bodyP(p,i), tau=t-b.t0, a=p.ay;
-    const th=b.ang*Math.PI/180, vx=b.v0*Math.cos(th), vy0=b.v0*Math.sin(th);
+    const b=this.bodyP(p,i), tau=t-b.t0, a=p.ay, aw=p.d3?(p.wind||0):0;
+    /* горизонтальная скорость v₀cosθ раскладывается по азимуту на x и z;
+       без третьей оси азимут равен нулю и всё как в плоском броске */
+    const th=b.ang*Math.PI/180, ф=b.az*Math.PI/180, vh=b.v0*Math.cos(th);
+    const vx=vh*Math.cos(ф), vz0=vh*Math.sin(ф), vy0=b.v0*Math.sin(th);
     const tf=fallTime(b.y0,vy0,a);                       // время до земли (может быть ∞)
-    if(tau<=0) return {x:b.x0,y:b.y0,vx:0,vy:0,started:false,landed:false,tf,tLand:b.t0+tf};
+    if(tau<=0) return {x:b.x0,y:b.y0,z:0,vx:0,vy:0,vz:0,started:false,landed:false,tf,tLand:b.t0+tf};
     const tt=Math.min(tau,tf);
     const landed=tau>=tf;
-    return {x:b.x0+vx*tt, y:Math.max(0,b.y0+vy0*tt+0.5*a*tt*tt),
-            vx:landed?0:vx, vy:landed?0:(vy0+a*tt),
+    return {x:b.x0+vx*tt, y:Math.max(0,b.y0+vy0*tt+0.5*a*tt*tt), z:vz0*tt+0.5*aw*tt*tt,
+            vx:landed?0:vx, vy:landed?0:(vy0+a*tt), vz:landed?0:(vz0+aw*tt),
             started:true, landed, tf, tLand:b.t0+tf};
   },
-  dist(p,t){ const A=this.posOf(p,0,t), B=this.posOf(p,1,t); return Math.hypot(A.x-B.x,A.y-B.y); },
+  dist(p,t){ const A=this.posOf(p,0,t), B=this.posOf(p,1,t); return Math.hypot(A.x-B.x,A.y-B.y,A.z-B.z); },
 
   init(p){
     const A=this.posOf(p,0,0), B=this.posOf(p,1,0);
-    return {t:0, trails:[[[A.x,A.y]],[[B.x,B.y]]], hmax:[A.y,B.y],
+    return {t:0, trails:[[[A.x,A.y,0]],[[B.x,B.y,0]]], hmax:[A.y,B.y],
             landed:[false,false], event:null, __stop:null};
   },
   put(s,p,t,n){
@@ -343,7 +369,7 @@ proj2d:{
       const r=this.posOf(p,i,t);
       if(r.y>s.hmax[i]) s.hmax[i]=r.y;
       const tr=s.trails[i], l=tr[tr.length-1];
-      if(r.started && (!l || Math.hypot(r.x-l[0],r.y-l[1])>0.02)) tr.push([r.x,r.y]);
+      if(r.started && (!l || Math.hypot(r.x-l[0],r.y-l[1],r.z-(l[2]||0))>0.02)) tr.push([r.x,r.y,r.z]);
       if(tr.length>6000) tr.shift();
     }
   },
@@ -402,10 +428,13 @@ proj2d:{
     const n=(p.bodies==='2')?2:1, out=[['t',s.t,'с']];
     for(let i=0;i<n;i++){
       const r=this.posOf(p,i,s.t), tag=n===2?` ${i+1}`:'';
-      const v=Math.hypot(r.vx,r.vy);
-      const ang=v>1e-6?(Math.atan2(r.vy,r.vx)*180/Math.PI+360)%360:0;
-      out.push([`x${tag}`,r.x,'м'],[`y${tag}`,r.y,'м'],[`v${tag}`,v,'м/с'],
-               [`vx${tag}`,r.vx,'м/с'],[`vy${tag}`,r.vy,'м/с'],[`угол v${tag}`,ang,'°'],
+      const v=Math.hypot(r.vx,r.vy,r.vz);
+      const ang=v>1e-6?(Math.atan2(r.vy,Math.hypot(r.vx,r.vz))*180/Math.PI+360)%360:0;
+      out.push([`x${tag}`,r.x,'м'],[`y${tag}`,r.y,'м']);
+      if(p.d3) out.push([`z${tag}`,r.z,'м']);
+      out.push([`v${tag}`,v,'м/с'],[`vx${tag}`,r.vx,'м/с'],[`vy${tag}`,r.vy,'м/с']);
+      if(p.d3) out.push([`vz${tag}`,r.vz,'м/с']);
+      out.push([`угол v${tag}`,ang,'°'],
                [`H max${tag}`,s.hmax[i],'м'],
                [`t полёта${tag}`,r.tLand,
                  isFinite(r.tLand)?'с':'не приземлится: ускорение направлено вверх']);
@@ -424,6 +453,7 @@ proj2d:{
       return [SIMS.proj2d.posOf(p,0,t).vy, p.bodies==='2'?SIMS.proj2d.posOf(p,1,t).vy:null]; }}
   ],
   fit(p,vp){
+    if(p.d3) return this.fit3(p,vp);
     const n=(p.bodies==='2')?2:1;
     let T=p.tStop>0?p.tStop:0;
     for(let i=0;i<n;i++){ const tl=this.posOf(p,i,0).tLand; if(isFinite(tl)) T=Math.max(T,tl); }
@@ -438,7 +468,72 @@ proj2d:{
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-50)/(spanY*PX_PER_M)),0.002,30);
     return {x:(x0+x1)/2, y:y1*0.42, scale};
   },
+  /* ---------- бросок в пространстве ---------- */
+  охват(p){
+    const n=(p.bodies==='2')?2:1;
+    let T=p.tStop>0?p.tStop:0;
+    for(let i=0;i<n;i++){ const tl=this.posOf(p,i,0).tLand; if(isFinite(tl)) T=Math.max(T,tl); }
+    T=clamp(T||8,0.5,120);
+    let R=2;
+    for(let i=0;i<n;i++) for(let k=0;k<=80;k++){ const r=this.posOf(p,i,T*k/80); R=Math.max(R,Math.abs(r.x),r.y,Math.abs(r.z)); }
+    return {T,R};
+  },
+  fit3(p,vp){
+    const W=(vp&&vp.W)||460, H=(vp&&vp.H)||320, {R}=this.охват(p);
+    const scale=clamp(Math.min(W,H)/(2.5*R*PX_PER_M),0.002,30);
+    return {x:0,y:R*0.25,scale};
+  },
+  draw3(ctx,s,v,p){
+    const n=(p.bodies==='2')?2:1, cols=[v.c('--accent'),v.c('--second')];
+    const ink3=v.c('--ink-3'), line=v.c('--line'), meas=v.c('--measure');
+    const {R}=this.охват(p), пр=v.p3();
+    const P=(x,y,z)=>{ const q=пр(x,z,y); return [q[0],q[1]]; };   // мир: y вверх; проекция: z вверх
+    const L=R*1.1;
+    // земля — сетка на плоскости x–z
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.6;
+    const шаг=Math.pow(10,Math.floor(Math.log10(L/2)))*(L/Math.pow(10,Math.floor(Math.log10(L/2)))>10?5:1);
+    for(let k=-L;k<=L+1e-9;k+=шаг){
+      let a=P(k,0,-L), b=P(k,0,L); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+      a=P(-L,0,k); b=P(L,0,k); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    // оси
+    for(const [x,y,z,им] of [[L,0,0,'x, м'],[0,L,0,'y, м'],[0,0,L,'z, м']]){
+      const o=P(0,0,0), e=P(x,y,z); v.arrow(ctx,o[0],o[1],e[0],e[1],ink3); v.label(ctx,им,e[0],e[1],6,-6,ink3);
+    }
+    for(let i=0;i<n;i++){
+      const r=this.posOf(p,i,s.t), tr=s.trails[i];
+      if(p.trail&&tr.length>1){
+        // тень траектории на земле: видно, что сверху движение — прямая (без ветра)
+        ctx.strokeStyle=cols[i]; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(4),v.lw(3)]);
+        ctx.beginPath(); tr.forEach((q,k)=>{ const a=P(q[0],0,q[2]||0); k?ctx.lineTo(a[0],a[1]):ctx.moveTo(a[0],a[1]); }); ctx.stroke();
+        ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+        ctx.lineWidth=v.lw(2); ctx.beginPath(); tr.forEach((q,k)=>{ const a=P(q[0],q[1],q[2]||0); k?ctx.lineTo(a[0],a[1]):ctx.moveTo(a[0],a[1]); }); ctx.stroke();
+      }
+      const B=P(r.x,r.y,r.z), G=P(r.x,0,r.z);
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(2),v.lw(3)]);
+      ctx.beginPath(); ctx.moveTo(B[0],B[1]); ctx.lineTo(G[0],G[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1;
+      if(r.started&&!r.landed){
+        const k=R*0.18/Math.max(1,Math.hypot(r.vx,r.vy,r.vz));
+        const E=P(r.x+r.vx*k,r.y+r.vy*k,r.z+r.vz*k);
+        v.arrow(ctx,B[0],B[1],E[0],E[1],meas);
+        if(p.comp){
+          for(const [dx,dy,dz,им,зн] of [[r.vx,0,0,'vx',r.vx],[0,r.vy,0,'vy',r.vy],[0,0,r.vz,'vz',r.vz]]){
+            if(Math.abs(зн)<0.05) continue;
+            const e=P(r.x+dx*k,r.y+dy*k,r.z+dz*k); v.arrow(ctx,B[0],B[1],e[0],e[1],cols[i]);
+            v.label(ctx,`${им} = ${зн.toFixed(1)}`,e[0],e[1],4,-6,cols[i]);
+          }
+        }
+      }
+      ctx.fillStyle=cols[i]; ctx.beginPath(); ctx.arc(B[0],B[1],v.lw(6),0,7); ctx.fill();
+      ctx.fillStyle=ink3; ctx.globalAlpha=.5; ctx.beginPath(); ctx.arc(G[0],G[1],v.lw(3.5),0,7); ctx.fill(); ctx.globalAlpha=1;
+      if(r.landed) v.label(ctx,`упал: x = ${r.x.toFixed(1)} м, z = ${r.z.toFixed(1)} м`,B[0],B[1],10,-12,cols[i]);
+    }
+    const o=P(-L,0,-L);
+    v.label(ctx,'протяните по сцене, чтобы повернуть · пунктир на земле — тень траектории',o[0],o[1],0,18,ink3);
+  },
   draw(ctx,s,v,p){
+    if(p.d3) return this.draw3(ctx,s,v,p);
     const n=(p.bodies==='2')?2:1;
     const cols=[v.c('--accent'),v.c('--second')];
     let T=0; for(let i=0;i<n;i++){ const tl=this.posOf(p,i,0).tLand; if(isFinite(tl)) T=Math.max(T,tl); }
@@ -1263,13 +1358,7 @@ conical:{
   /* Проекция 3D → 2D: экранный вектор = (X, Y + kZ). Через неё нужно пропускать
      и координаты, и СИЛЫ — иначе сумма сил на экране получается неверной.        */
   PZ:0.38,
-  /* С 3.1.0 конус можно повернуть протягиванием (rotate3d): проекция берётся
-     у сцены. Без сцены (проверки в node) — прежняя косоугольная. */
-  rotate3d:true, rot0:{yaw:0,pitch:-0.4},
-  prj(x,y,z){
-    if(typeof VIEW!=='undefined' && VIEW.p3){ const q=VIEW.p3()(x,z,y); return [q[0],q[1]]; }
-    return [x, y + this.PZ*z];
-  },
+  prj(x,y,z){ return [x, y + this.PZ*z]; },
   pos(s,p){
     const K=this.kin(p);
     const X=K.R*Math.cos(s.phi), Y=-K.h, Z=K.R*Math.sin(s.phi);

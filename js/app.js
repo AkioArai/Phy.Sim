@@ -351,8 +351,11 @@ function applyWorld(ctx){
    и никакой величины не утверждает. */
 function метрическая(){
   const a=A();
-  return !(a && a.def && a.def.schema);
+  return !(a && a.def && (a.def.schema || объёмнаяСейчас(a)));
 }
+/* Сцена, которая по желанию переходит в объём (бросок с осью z): пока она
+   объёмная, плоская сетка с числами за ней лгала бы — её не рисуем. */
+function объёмнаяСейчас(a){ const r=a&&a.def&&a.def.rotate3d; return typeof r==='function' ? !!r(a.params) : false; }
 /* Единица длины для линейки, размера, площади и координат под курсором.
    На схеме числа остаются (расстояние на картинке — тоже расстояние), но без
    «м»: приписать метры к отрезку на электрической схеме было бы неправдой. */
@@ -532,7 +535,7 @@ function drawAll(){
   VIEW.labelFrame();                       // новый кадр — раскладка подписей с чистого листа
   if(typeof слоиКамера==='function') слоиКамера(a);
   applyWorld(sctx);
-  if(S.settings.grid!==false) drawGrid(sctx);
+  if(S.settings.grid!==false && !объёмнаяСейчас(a)) drawGrid(sctx);
   /* Сцену рисуем в собственном состоянии холста. Внутри draw бывают ранние
      выходы (например, соленоид рисуется и сразу return), и если там осталась
      непогашенной прозрачность или пунктир, они протекли бы в слой пометок
@@ -2865,7 +2868,9 @@ $$('#cwrap').addEventListener('pointerdown',e=>{
   }
   /* Объёмные сцены: протягивание левой кнопкой или пальцем поворачивает
      фигуру, а не двигает вид. Двигать вид — Shift, средняя кнопка, два пальца. */
-  if(a.def.rotate3d && e.button===0 && (S.tool==='cursor'||S.tool==='pan')){
+  /* rotate3d может быть и функцией параметров: бросок поворачивается, только когда включена третья ось */
+  const объём = typeof a.def.rotate3d==='function' ? a.def.rotate3d(a.params) : a.def.rotate3d;
+  if(объём && e.button===0 && (S.tool==='cursor'||S.tool==='pan')){
     const r=a.view.rot||(a.view.rot=Object.assign({yaw:-0.6,pitch:0.35},a.def.rot0||{}));
     drag={mode:'rot3d',px,py,yaw:r.yaw,pitch:r.pitch}; return;
   }
