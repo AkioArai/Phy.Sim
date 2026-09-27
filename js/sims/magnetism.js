@@ -3,6 +3,7 @@ Object.assign(SIMS,{
 /* ================= МАГНИТНАЯ СИЛА (гл. 17) ================= */
 magnetism:{
   title:'Магнитное поле и сила Лоренца',
+  hudAware:true,
   params:[
     {key:'scene',label:'Явление',type:'select',default:'lorentz',
      options:[{v:'lorentz',t:'Заряд в магнитном поле (окружность)'},
@@ -12,6 +13,8 @@ magnetism:{
     {key:'q',  label:'Заряд q',unit:'нКл',min:-10,max:10,step:0.5,default:5},
     {key:'m',  label:'Масса частицы (усл.)',min:0.1,max:5,step:0.1,default:1},
     {key:'v0', label:'Скорость частицы v',unit:'м/с',min:0.5,max:8,step:0.1,default:3},
+    {key:'d3', label:'Объёмный вид (поворачивается протягиванием)',type:'check',default:false,если:p=>p.scene==='lorentz'||p.scene==='wire'},
+    {key:'vpar',label:'Скорость вдоль поля v∥',unit:'м/с',min:-5,max:5,step:0.1,default:1.5,если:p=>p.scene==='lorentz'&&!!p.d3},
 
     {type:'group',label:'Провод / проводник'},
     {key:'I',  label:'Ток в проводе I',unit:'А',min:-10,max:10,step:0.5,default:5},
@@ -27,11 +30,16 @@ magnetism:{
      Единицы у сцены условные (заряд в нКл, масса «усл.»), но связь величин
      настоящая: показание R, период T = 2π/|ω| и нарисованная окружность должны
      совпадать — иначе линейка на сцене будет спорить с панелью. */
+  /* 3.3.0: с составляющей скорости вдоль поля окружность вытягивается в
+     спираль — сила Лоренца на v∥ не действует. Объёмный вид показывает это
+     и поворачивается протягиванием. */
+  rotate3d(p){ return (p.scene==='lorentz'||p.scene==='wire') && !!p.d3; },
+  rot0:{yaw:-0.6,pitch:0.28},
   omega(p){ return p.q*p.B/Math.max(p.m,1e-9); },
   radius(p){ const w=Math.abs(this.omega(p)); return w>1e-12?p.v0/w:Infinity; },
   init(p){
     // старт слева, скорость вправо
-    return {t:0,x:-3,y:0,vx:p.v0,vy:0,trail:[],event:null,__stop:null};
+    return {t:0,x:-3,y:0,z:0,vx:p.v0,vy:0,trail:[],event:null,__stop:null};
   },
   step(s,dt,p){
     if(s.event) return;
@@ -55,7 +63,8 @@ magnetism:{
       s.x+=S*vx+Cc*vy; s.y+=-Cc*vx+S*vy;
       const ca=Math.cos(a), sa=Math.sin(a);
       s.vx=ca*vx+sa*vy; s.vy=-sa*vx+ca*vy;
-      if(p.trail){ s.trail.push([s.x,s.y]); if(s.trail.length>600) s.trail.shift(); }
+      if(p.d3) s.z+=(p.vpar||0)*dt;
+      if(p.trail){ s.trail.push([s.x,s.y,s.z]); if(s.trail.length>(p.d3?1400:600)) s.trail.shift(); }
     }
   },
   anchors(s,p){ if(p.scene==='lorentz') return [{x:s.x,y:s.y}]; return [{x:0,y:0}]; },
@@ -67,6 +76,7 @@ magnetism:{
         ['радиус R = mv/(qB)',R,'м'],
         ['период T = 2πm/(qB)',w>1e-12?2*Math.PI/w:Infinity,'с'],
         ['оборотов пройдено',w*s.t/(2*Math.PI),''],
+        ...(p.d3?[['скорость вдоль поля v∥',p.vpar,'м/с'],['шаг спирали h = v∥·T',w>1e-12?Math.abs(p.vpar)*2*Math.PI/w:Infinity,'м']]:[]),
         ['сила Лоренца F = qvB',Math.abs(p.q*1e-9)*speed*p.B*1e9,'нН'],
         ['направление',p.q>0?1:0,p.q>0?'по часовой':'против часовой']];
     }
@@ -85,22 +95,78 @@ magnetism:{
     {name:'Сильнее поле — меньше радиус',values:{scene:'lorentz',B:1.5,q:5,m:1,v0:3}},
     {name:'Отрицательный заряд — в другую сторону',values:{scene:'lorentz',B:0.5,q:-5,m:1,v0:3}},
     {name:'Поле провода с током',values:{scene:'wire',I:5,B:0.5}},
-    {name:'Сила на проводник F = BIL',values:{scene:'force',I:5,wireLen:2,B:0.5}}
+    {name:'Сила на проводник F = BIL',values:{scene:'force',I:5,wireLen:2,B:0.5}},
+    {name:'В объёме: скорость под углом к полю — спираль',values:{scene:'lorentz',B:0.5,q:5,m:1,v0:3,d3:true,vpar:1.5}},
+    {name:'В объёме: кольца поля вокруг провода',values:{scene:'wire',I:5,d3:true}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     const scale=clamp(Math.min((W-70)/(10*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
     return {x:0,y:0,scale};
   },
+  /* провод с током в объёме: силовые линии — кольца вокруг провода на
+     любой высоте, направление — по правилу правой руки (большой палец по току) */
+  провод3(ctx,s,v,p){
+    const dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const пр=v.p3(), dir=p.I>=0?1:-1, ph=s.t*0.8*dir;
+    const кольцо=(r,z)=>{ ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6); ctx.globalAlpha=.75; ctx.beginPath();
+      for(let i=0;i<=72;i++){ const a=i/72*2*Math.PI, e=пр(r*Math.cos(a),r*Math.sin(a),z); i?ctx.lineTo(e[0],e[1]):ctx.moveTo(e[0],e[1]); } ctx.stroke(); ctx.globalAlpha=1;
+      for(let j=0;j<3;j++){ const a=ph+j*2*Math.PI/3, a2=a+dir*0.25, e1=пр(r*Math.cos(a),r*Math.sin(a),z), e2=пр(r*Math.cos(a2),r*Math.sin(a2),z); v.arrow(ctx,e1[0],e1[1],e2[0],e2[1],sec); } };
+    for(const z of [-2.4,-0.6,1.2]) for(const r of [0.9,1.8,2.7]) кольцо(r,z);
+    // провод и ток
+    const a=пр(0,0,-3.6), b=пр(0,0,3.0);
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(5); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    for(const z of [-3,-1.5,0,1.5]){ const e1=пр(0,0,z), e2=пр(0,0,z+0.6*dir); v.arrow(ctx,e1[0],e1[1],e2[0],e2[1],dang); }
+    v.text(ctx,`I = ${p.I} А`,b[0]+0.2,b[1],dang,11,'left',true);
+    const mu0=1.2566e-6;
+    v.text(ctx,'силовые линии — кольца вокруг провода на любой высоте',0,-4.3,ink,10,'center',true);
+    v.text(ctx,`правая рука: большой палец по току — пальцы по B;  B = μ₀I/2πr = ${(mu0*Math.abs(p.I)/(2*Math.PI)*1e6).toFixed(2)} мкТл при r = 1 м`,0,-4.7,ink3,9,'center');
+  },
+  /* объёмный вид: B вверх по оси z, спираль вокруг неё; камера следует за частицей по высоте */
+  draw3(ctx,s,v,p){
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const пр=v.p3(), R=this.radius(p), k=isFinite(R)?Math.min(1,2.4/R):1;
+    const sp=Math.hypot(s.vx,s.vy)||1, qm=Math.sign(p.q)||1;
+    const fx=qm*s.vy/sp, fy=-qm*s.vx/sp;                 // к оси спирали
+    const cx=s.x+(isFinite(R)?R*fx:0), cy=s.y+(isFinite(R)?R*fy:0);
+    const P=(x,y,z)=>пр((x-cx)*k,(y-cy)*k,(z-s.z)*k+0.8);
+    // поле: вертикальные стрелки
+    if(p.field){ for(const X of [-3,0,3]) for(const Y of [-3,0,3]){ if(!X&&!Y) continue;
+      const a=пр(X,Y,-3.6), b=пр(X,Y,2.6); ctx.globalAlpha=.35; v.arrow(ctx,a[0],a[1],b[0],b[1],ink3); ctx.globalAlpha=1; }
+      const q=пр(3,3,2.9); v.text(ctx,'B',q[0],q[1],ink3,12,'center',true); }
+    // ось спирали
+    { const a=пр(0,0,-3.6), b=пр(0,0,2.6); ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(4),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); }
+    // след-спираль
+    if(p.trail&&s.trail.length>1){ ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.8);
+      let пред=null; s.trail.forEach((q,i)=>{ const e=P(q[0],q[1],q[2]||0); if(Math.abs((q[2]-s.z)*k)>4.4){ пред=null; return; }
+        if(пред){ ctx.globalAlpha=0.3+0.7*i/s.trail.length; ctx.lineWidth=v.lw(2.2); ctx.beginPath(); ctx.moveTo(пред[0],пред[1]); ctx.lineTo(e[0],e[1]); ctx.stroke(); } пред=e; });
+      ctx.globalAlpha=1; }
+    // частица, скорость, сила
+    const o=P(s.x,s.y,s.z), vz=p.vpar||0, vn=Math.hypot(s.vx,s.vy,vz)||1;
+    const ve=P(s.x+s.vx/vn*1.3/k,s.y+s.vy/vn*1.3/k,s.z+vz/vn*1.3/k); v.arrow(ctx,o[0],o[1],ve[0],ve[1],meas); v.text(ctx,'v',ve[0]+0.15,ve[1]+0.15,meas,11,'left',true);
+    const fe=P(s.x+fx*0.9/k,s.y+fy*0.9/k,s.z); v.arrow(ctx,o[0],o[1],fe[0],fe[1],dang); v.text(ctx,'F',fe[0]+0.15,fe[1]+0.15,dang,11,'left',true);
+    ctx.fillStyle=p.q>0?dang:acc; ctx.beginPath(); ctx.arc(o[0],o[1],v.lw(7),0,7); ctx.fill();
+    const w=Math.abs(this.omega(p)), h=w>1e-12?Math.abs(vz)*2*Math.PI/w:0;
+    v.text(ctx,`F = qv×B лежит в плоскости, поперёк поля: вдоль B скорость не меняется`,0,-4.1,ink,10,'center',true);
+    v.text(ctx,vz?`окружность R = ${isFinite(R)?R.toFixed(2):'∞'} м вытянулась в спираль с шагом h = v∥T = ${h.toFixed(2)} м`:'v∥ = 0 — движение по окружности',0,-4.5,ink3,10,'center');
+    if(k<0.999) v.text(ctx,`масштаб по радиусу уменьшен в ${(1/k).toFixed(1)} раза`,0,-4.9,ink3,9,'center');
+  },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    // фоновое поле B (крестики = от нас)
+    if(p.scene==='lorentz' && p.d3) return this.draw3(ctx,s,v,p);
+    if(p.scene==='wire' && p.d3) return this.провод3(ctx,s,v,p);
+    /* фоновое поле B. У заряда q > 0, идущего по часовой, поле смотрит к нам
+       (⊙): F = qv×B указывает в центр. До 3.3.0 здесь стоял ⊗ при том же
+       направлении обхода — знак не сходился. У проводника с током, наоборот,
+       сила «вверх» при токе вправо — это поле от нас (⊗). */
     if(p.field){
+      const кНам=p.scene==='lorentz';
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
       for(let x=-5;x<=5;x+=1.4) for(let y=-4;y<=4;y+=1.4){
-        v.outOfPlane(ctx,x,y,false,ink3,v.lw(4));   // ⊗ поле от нас (в экран)
+        v.outOfPlane(ctx,x,y,кНам,ink3,v.lw(4));
       }
-      v.label(ctx,'B ⊗ (в плоскость экрана)',-5,-4,0,-8,ink3);
+      v.label(ctx,кНам?'B ⊙ (из экрана, к нам)':'B ⊗ (в плоскость экрана)',-5,-4,0,-8,ink3);
     }
     if(p.scene==='lorentz'){
       // след

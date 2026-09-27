@@ -141,7 +141,15 @@ emwave:{
   /* Сцена в условном масштабе: длину волны на экране задаёт отдельный
      ползунок. Поэтому ни осей с числами, ни надписи «сетка N м». */
   schema:true,
+  /* 3.3.0: объёмный вид по умолчанию. В плоском виде B приходилось рисовать
+     косой синусоидой «в перспективе», и она читалась как вторая волна рядом
+     с E, а не поперёк неё. В объёме E колеблется в вертикальной плоскости,
+     B — в горизонтальной, и их перпендикулярность видна, если повернуть. */
+  rotate3d(p){ return !!p.d3; },
+  rot0:{yaw:-0.5,pitch:0.32},
+  hudAware:true,
   params:[
+    {key:'d3',label:'Объёмный вид: E и B в перпендикулярных плоскостях',type:'check',default:true},
     {key:'band',label:'Диапазон спектра',type:'select',default:'visible',
      options:[{v:'radio',  t:'Радиоволны (1 МГц)'},
               {v:'micro',  t:'СВЧ (10 ГГц)'},
@@ -171,7 +179,7 @@ emwave:{
   intensity(p){ return 0.5*this.eps0*this.cLight()*p.E0*p.E0; },   // средняя интенсивность
   init(p){ return {t:0,event:null,__stop:null}; },
   step(s,dt,p){ if(p.run) s.t+=dt; },
-  dragPoints(p){ return [{x:p.px,y:0}]; },
+  dragPoints(p){ return p.d3?[]:[{x:p.px,y:0}]; },
   dragMove(p,idx,x,y){ p.px=clamp(Math.round(x*10)/10,-9,9); },
   anchors(s,p){ return [{x:p.px,y:0}]; },
   readouts(s,p){
@@ -200,10 +208,39 @@ emwave:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    if(p.d3){ const scale=clamp(Math.min((W-20)/(15*PX_PER_M),(H-20)/(10*PX_PER_M)),0.002,30); return {x:0,y:0,scale}; }
     const scale=clamp(Math.min((W-60)/(20*PX_PER_M),(H-60)/(9*PX_PER_M)),0.002,30);
     return {x:0,y:0,scale};
   },
+  draw3(ctx,s,v,p){
+    const meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const пр0=v.p3(), OY=0.3, пр=(x,y,z)=>{ const q=пр0(x,y,z); return [q[0],q[1]+OY]; };
+    const X0=-6.5, X1=6.5, A=2.0, e=x=>this.Eat(p,x,s.t)/p.E0, b=x=>this.Bat(p,x,s.t)/this.Bamp(p);
+    const путь=(f,col,w)=>{ ctx.strokeStyle=col; ctx.lineWidth=v.lw(w); ctx.beginPath();
+      for(let i=0;i<=300;i++){ const x=X0+(X1-X0)*i/300, q=f(x); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); } ctx.stroke(); };
+    const стрелка=(x,y,z,col,al)=>{ const a=пр(x,0,0), c=пр(x,y,z); if(Math.hypot(c[0]-a[0],c[1]-a[1])<0.05) return; ctx.globalAlpha=al; v.arrow(ctx,a[0],a[1],c[0],c[1],col); ctx.globalAlpha=1; };
+    const грань=(pts,col)=>{ ctx.fillStyle=col; ctx.globalAlpha=.05; ctx.beginPath(); pts.forEach((q,i)=>{ const c=пр(q[0],q[1],q[2]); i?ctx.lineTo(c[0],c[1]):ctx.moveTo(c[0],c[1]); }); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; };
+    грань([[X0,0,-A],[X1,0,-A],[X1,0,A],[X0,0,A]],dang);
+    if(p.Bfld) грань([[X0,-A,0],[X1,-A,0],[X1,A,0],[X0,A,0]],sec);
+    { const a=пр(X0-0.3,0,0), c=пр(X1+0.8,0,0); v.arrow(ctx,a[0],a[1],c[0],c[1],ink3); v.text(ctx,'x — туда бежит волна',c[0],c[1]-0.35,ink3,10,'right'); }
+    for(let x=X0;x<=X1+1e-9;x+=0.65) стрелка(x,0,A*e(x),dang,.5);
+    путь(x=>пр(x,0,A*e(x)),dang,2.4);
+    /* E вдоль z, волна бежит вдоль +x, значит B — вдоль −y: E × B смотрит по ходу волны */
+    if(p.Bfld){ for(let x=X0;x<=X1+1e-9;x+=0.65) стрелка(x,-A*b(x),0,sec,.5); путь(x=>пр(x,-A*b(x),0),sec,2.2); }
+    { const q=пр(X0,0,A*1.15); v.text(ctx,'E',q[0],q[1],dang,13,'center',true); }
+    if(p.Bfld){ const q=пр(X0,-A*1.25,0); v.text(ctx,'B',q[0],q[1],sec,13,'center',true); }
+    { const x=clamp(p.px,X0,X1), o=пр(x,0,0);
+      ctx.save(); ctx.lineWidth=v.lw(3.5); стрелка(x,0,A*e(x),dang,1); if(p.Bfld) стрелка(x,-A*b(x),0,sec,1); ctx.restore();
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(o[0],o[1],v.lw(6),0,7); ctx.stroke(); }
+    if(p.poynt){ const a=пр(X1-1.6,0,A+0.6), c=пр(X1+0.4,0,A+0.6); v.arrow(ctx,a[0],a[1],c[0],c[1],meas); v.text(ctx,'перенос энергии',c[0],c[1]+0.35,meas,10,'right',true); }
+    const c=this.cLight(), lam=this.lambda(p), f=this.freq(p);
+    const fs = f>=1e12?`${(f/1e12).toPrecision(3)} ТГц`:(f>=1e9?`${(f/1e9).toPrecision(3)} ГГц`:`${(f/1e6).toPrecision(3)} МГц`);
+    const ls = lam>=1?`${lam.toPrecision(3)} м`:(lam>=1e-6?`${(lam*1e6).toPrecision(3)} мкм`:`${(lam*1e9).toPrecision(3)} нм`);
+    v.text(ctx,`f = ${fs},  λ = c/f = ${ls},  E/B = c`,0,-4.2,ink,10,'center',true);
+    v.text(ctx,'E, B и направление бега взаимно перпендикулярны; поля в фазе',0,-4.6,ink3,9,'center');
+  },
   draw(ctx,s,v,p){
+    if(p.d3) return this.draw3(ctx,s,v,p);
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink3=v.c('--ink-3');
     const sc=2.6/Math.max(p.E0,1);                    // масштаб поля на экране
     // ось распространения

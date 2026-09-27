@@ -149,7 +149,7 @@ kin1d:{
     if(p.d3){                                             // в пространстве — тела в проекции сцены
       const пр=typeof VIEW!=='undefined'&&VIEW.p3?VIEW.p3():null, out=[];
       for(let i=0;i<((p.bodies==='2')?2:1);i++){ const r=this.posOf(p,i,s.t);
-        if(пр){ const q=пр(r.x,r.z,r.y); out.push({x:q[0],y:q[1]}); } }
+        if(пр){ const q=пр(r.x,-r.z,r.y); out.push({x:q[0],y:q[1]}); } }
       return out.length?out:[{x:0,y:0}];
     }
     const n=(p.bodies==='2')?2:1, out=[{x:0,y:0}];
@@ -487,7 +487,7 @@ proj2d:{
     const n=(p.bodies==='2')?2:1, cols=[v.c('--accent'),v.c('--second')];
     const ink3=v.c('--ink-3'), line=v.c('--line'), meas=v.c('--measure');
     const {R}=this.охват(p), пр=v.p3();
-    const P=(x,y,z)=>{ const q=пр(x,z,y); return [q[0],q[1]]; };   // мир: y вверх; проекция: z вверх
+    const P=(x,y,z)=>{ const q=пр(x,-z,y); return [q[0],q[1]]; };   // мир: y вверх; проекция: z вверх
     const L=R*1.1;
     // земля — сетка на плоскости x–z
     ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.6;
