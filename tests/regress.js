@@ -255,8 +255,8 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('83 симуляции', counts.sims === 83, counts);
-    ok('темы и задачи на месте', counts.topics >= 39 && counts.problems >= 419, counts);
+    ok('85 симуляций', counts.sims === 85, counts);
+    ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
     // тем же кодом, что и в жизни. Ловим и исключения, и NaN в показаниях.
@@ -317,7 +317,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 49, оси.схем);
+    ok('схемы размечены', оси.схем === 51, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -519,7 +519,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 74 && разв.времени === 40 && разв.никак.length <= 3, разв);
+        разв.параметром >= 74 && разв.времени === 43 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1131,7 +1131,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 31 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 32 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1505,6 +1505,36 @@ async function сторож(b) {
       });
       ok('3.1: орбиталь 4f вращается протягиванием, панель у схемы свёрнута (у лифта — как была), новые темы с задачами, электроны копятся',
         о.точек >= 1000 && о.свёрнута && о.повернулась && о.темы.every(Boolean) && о.попаданий > 100 && о.какБыла, о);
+    }
+
+    /* ============ 3.2.0 ============ */
+    /* Бросок с третьей осью: сцена становится объёмной и крутится, сетка
+       прячется; конический маятник снова плоский; вращение твёрдого тела
+       и лотки частицы в ящике поворачиваются; спектр рентгена набирается;
+       лазер выходит на порог; тема «Лазер» с пятью… шестью задачами. */
+    {
+      const т = await p.evaluate(async () => {
+        const крутится = (id, vals) => { openSim(id); loadPreset(vals); const a = A();
+          const r = document.querySelector('#scene').getBoundingClientRect();
+          const до = Object.assign({}, a.view.rot || a.def.rot0 || {});
+          const ев = (тип, x, y) => document.querySelector('#scene').dispatchEvent(new PointerEvent(тип, { clientX:x, clientY:y, button:0, bubbles:true, pointerId:1, pointerType:'mouse' }));
+          ев('pointerdown', r.left + 150, r.top + 200);
+          window.dispatchEvent(new PointerEvent('pointermove', { clientX:r.left + 260, clientY:r.top + 240, pointerId:1, bubbles:true }));
+          window.dispatchEvent(new PointerEvent('pointerup', { clientX:r.left + 260, clientY:r.top + 240, pointerId:1, bubbles:true }));
+          const после = a.view.rot || {};
+          return Math.abs((после.yaw || 0) - (до.yaw || 0)) > 0.5; };
+        const бросок = крутится('proj2d', { d3:true, az1:30 });
+        const плоский = (() => { openSim('proj2d'); loadPreset({ d3:false }); return !(typeof A().def.rotate3d === 'function' && A().def.rotate3d(A().params)); })();
+        const маятник = !SIMS.conical || !SIMS.conical.rotate3d;
+        const тело = крутится('rigid3d', { mode:'axis' });
+        const ящик = крутится('box', { d3:true, n:2 });
+        openSim('xray'); const x = A(); restart(x); for (let k = 0; k < 4 / DT; k++) x.def.step(x.state, DT, x.params);
+        openSim('laser'); const л = A(); loadPreset({ P:1.5, R:95 }); restart(л); for (let k = 0; k < 40 / DT; k++) л.def.step(л.state, DT, л.params);
+        openTopic('q.laser'); const тема = S.topic && S.topic.id === 'q.laser' && S.topic.problems.length === 6;
+        return { бросок, плоский, маятник, тело, ящик, фотонов: x.state.N, инверсия: л.state.N2, порог: л.def.Nth(л.params), тема };
+      });
+      ok('3.2: бросок и твёрдое тело вращаются в объёме, маятник плоский, рентген копит спектр, лазер на пороге, тема «Лазер»',
+        т.бросок && т.плоский && т.маятник && т.тело && т.ящик && т.фотонов > 100 && Math.abs(т.инверсия - т.порог) < 0.01 && т.тема, т);
     }
 
     /* Декоративных градиентов больше нет: шапка темы, главная, кнопки */

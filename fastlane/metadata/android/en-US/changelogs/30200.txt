@@ -1,0 +1,5 @@
+3.2.0 — motion in space, quantum scenes that move, the laser.
+• A projectile with a third axis and rigid-body rotation in 3D: the dφ vector, v = ω × r.
+• Compton, de Broglie, wave packet, particle in a box (water in a trough), hydrogen spectrum and X-rays redrawn as live scenes.
+• Bond types, free electrons, binding energy and annihilation redrawn.
+• New topic: the laser — inversion, threshold, rate equations.

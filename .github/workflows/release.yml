@@ -144,9 +144,29 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 83 live simulations,
-          39 topics, 94 step-by-step derivations, 284 formulas and 419 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 85 live simulations,
+          40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 3.2.0 — motion in space, quantum scenes that move, the laser
+
+          **A third axis in mechanics.** A projectile thrown at an azimuth, in a 3D view you can
+          turn, with a side wind that bends its shadow. A new rigid-body scene explains the vector
+          of an elementary rotation angle dφ⃗, ω⃗ on the axis and v⃗ = ω⃗ × r⃗ — and shows with two
+          books why a finite rotation is not a vector. The conical pendulum is flat again.
+
+          **Quantum scenes redrawn.** Compton with an energy balance and the momentum triangle;
+          electrons building fringes one by one behind a crystal; a wave packet that really
+          spreads; the particle in a box as water in a trough — a wave and its reflection making
+          a standing wave, in 3D; a hydrogen spectrum with a spectroscope; an X-ray tube whose
+          spectrum builds up photon by photon while the anode atom shows where Kα comes from.
+
+          **Matter and nuclei.** Bonds shown forming close up; free electrons at the Fermi speed
+          with a magnifier on the Fermi edge; fission and fusion with an energy balance;
+          annihilation firing a PET detector ring, and pair-production spirals.
+
+          **New topic: the laser.** Inversion, the four-level scheme, a resonator running on the
+          rate equations — threshold, clamped gain, linear output, relaxation spikes.
 
           ## 3.1.0 — quantum physics you can see
 
