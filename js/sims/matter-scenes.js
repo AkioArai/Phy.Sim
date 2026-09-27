@@ -27,6 +27,10 @@ crystal:{
   schema:true,
   timeless:true,
   hudAware:true,
+  /* 3.3.0: решётка в объёме — кубик соли, алмаз с тетраэдрами, медь,
+     молекулярный кристалл; поворачивается протягиванием */
+  rotate3d(p){ return !!p.d3; },
+  rot0:{yaw:-0.55,pitch:0.4},
   params:[
     {key:'kind',label:'Тип связи',type:'select',default:'ionic',
      options:[{v:'ionic',t:'Ионная (NaCl)'},
@@ -36,7 +40,8 @@ crystal:{
 
     {type:'group',label:'Показывать'},
     {key:'ebonds',label:'Как возникает связь: крупный план',type:'check',default:true},
-    {key:'props', label:'Сравнение всех четырёх типов',type:'check',default:true}
+    {key:'props', label:'Сравнение всех четырёх типов',type:'check',default:true},
+    {key:'d3',    label:'Решётка в объёме (протяните, чтобы повернуть)',type:'check',default:true}
   ],
   /* справочные данные: энергия связи (эВ на атом) и температура плавления */
   data:{
@@ -88,7 +93,7 @@ crystal:{
       const q=пере*пере*(3-2*пере); e(from[0]+(to[0]-from[0])*q,from[1]+(to[1]-from[1])*q,sec);
       v.text(ctx,пере<1?'Na':'Na⁺',a[0],a[1]-1.2,dang,11,'center',true); v.text(ctx,пере<1?'Cl':'Cl⁻',b[0],b[1]-1.2,acc,11,'center',true);
       if(сбл>0){ ctx.globalAlpha=сбл; v.arrow(ctx,a[0]+1.0,cy+1.05,a[0]+1.5,cy+1.05,ink); v.arrow(ctx,b[0]-1.0,cy+1.05,b[0]-1.5,cy+1.05,ink); ctx.globalAlpha=1; }
-      return пере<1?'Na отдаёт внешний электрон хлору…':'…и разноимённые ионы притягиваются';
+      return пере<1?'Na отдаёт электрон хлору…':'…ионы притягиваются';
     }
     if(p.kind==='covalent'){
       // атомы сближаются, облака перекрываются, два электрона становятся общими
@@ -137,6 +142,43 @@ crystal:{
     }
     if(p.kind==='metal') for(let k=0;k<22;k++){ const x=x0-0.3+((k*0.77+t*(0.6+0.05*k))%4.4+4.4)%4.4, y=y0-3*st/2+1.55*Math.sin(k*1.9+t*(0.7+0.03*k)); КС.точка(ctx,v,x,y,2.3,meas); }
   },
+  /* объёмная решётка: атомы сортируются по глубине, связи рисуются до атомов */
+  решётка3(ctx,s,v,p,col,cx,cy,sc){
+    const {acc,meas,dang,sec,ink,ink3}=col, пр0=v.p3(), P=(x,y,z)=>{ const q=пр0(x,y,z); return [cx+q[0]*sc,cy+q[1]*sc,q[2]]; };
+    const ат=[], связи=[];
+    const add=(x,y,z,вид)=>ат.push({x,y,z,вид});
+    if(p.kind==='covalent'){
+      // алмаз: ячейка ГЦК + четыре атома внутри, каждый связан с четырьмя соседями тетраэдром
+      const гцк=[[0,0,0],[2,0,0],[0,2,0],[0,0,2],[2,2,0],[2,0,2],[0,2,2],[2,2,2],[1,1,0],[1,0,1],[0,1,1],[1,1,2],[1,2,1],[2,1,1]];
+      const внутри=[[0.5,0.5,0.5],[1.5,1.5,0.5],[1.5,0.5,1.5],[0.5,1.5,1.5]];
+      for(const q of гцк) add(q[0]-1,q[1]-1,q[2]-1,'C'); for(const q of внутри) add(q[0]-1,q[1]-1,q[2]-1,'C');
+      for(const a of внутри) for(const b of гцк){ const d=Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]); if(d<0.9) связи.push([[a[0]-1,a[1]-1,a[2]-1],[b[0]-1,b[1]-1,b[2]-1]]); }
+    } else if(p.kind==='metal'){
+      // медь: гранецентрированный куб
+      for(const q of [[0,0,0],[2,0,0],[0,2,0],[0,0,2],[2,2,0],[2,0,2],[0,2,2],[2,2,2],[1,1,0],[1,0,1],[0,1,1],[1,1,2],[1,2,1],[2,1,1]]) add(q[0]-1,q[1]-1,q[2]-1,'+');
+    } else if(p.kind==='ionic'){
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++) add(i-1,j-1,k-1,(i+j+k)%2?'Cl':'Na');
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++){ if(i<2) связи.push([[i-1,j-1,k-1],[i,j-1,k-1]]); if(j<2) связи.push([[i-1,j-1,k-1],[i-1,j,k-1]]); if(k<2) связи.push([[i-1,j-1,k-1],[i-1,j-1,k]]); }
+    } else {
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++) add(i-1,j-1,k-1,'M');
+    }
+    // рёбра куба
+    if(p.kind!=='ionic'){ const r=[-1,1]; for(const a of r) for(const b of r){ for(const [u,w] of [[[-1,a,b],[1,a,b]],[[a,-1,b],[a,1,b]],[[a,b,-1],[a,b,1]]]){
+      const e1=P(u[0],u[1],u[2]), e2=P(w[0],w[1],w[2]); ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]);
+      ctx.beginPath(); ctx.moveTo(e1[0],e1[1]); ctx.lineTo(e2[0],e2[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH); ctx.globalAlpha=1; } } }
+    for(const [a,b] of связи){ const e1=P(a[0],a[1],a[2]), e2=P(b[0],b[1],b[2]);
+      ctx.strokeStyle=p.kind==='covalent'?acc:ink3; ctx.globalAlpha=p.kind==='covalent'?.9:.35; ctx.lineWidth=v.lw(p.kind==='covalent'?2.6:1);
+      ctx.beginPath(); ctx.moveTo(e1[0],e1[1]); ctx.lineTo(e2[0],e2[1]); ctx.stroke(); ctx.globalAlpha=1; }
+    const t=s.t;
+    ат.map(a=>({a,e:P(a.x,a.y,a.z)})).sort((u,w)=>u.e[2]-w.e[2]).forEach(({a,e})=>{
+      const глуб=clamp(0.55+0.25*e[2],0.35,1);
+      if(a.вид==='M'){ const ang=(a.x*1.7+a.y*2.3+a.z*0.9)+0.4*Math.sin(t+a.x), dx=0.16*Math.cos(ang), dy=0.16*Math.sin(ang);
+        ctx.globalAlpha=глуб; КС.точка(ctx,v,e[0]-dx,e[1]-dy,5,sec); КС.точка(ctx,v,e[0]+dx,e[1]+dy,5,sec); ctx.globalAlpha=1; return; }
+      const r=(a.вид==='Cl'?0.2:(a.вид==='Na'?0.13:0.15))*(0.85+0.3*глуб);
+      const c=a.вид==='Cl'?acc:(a.вид==='Na'?dang:(a.вид==='+'?dang:ink));
+      ctx.globalAlpha=глуб; this.ион(ctx,v,e[0],e[1],r,c,a.вид==='Cl'?'−':(a.вид==='Na'||a.вид==='+'?'+':'')); ctx.globalAlpha=1; });
+    if(p.kind==='metal') for(let k=0;k<18;k++){ const q=P(Math.sin(k*1.3+t*(0.7+0.04*k))*1.1,Math.cos(k*2.1+t*(0.5+0.03*k))*1.1,Math.sin(k*0.7+t*(0.6+0.05*k))*1.1); КС.точка(ctx,v,q[0],q[1],2.3,meas); }
+  },
   draw(ctx,s,v,p){
     const col={acc:v.c('--accent'),meas:v.c('--measure'),dang:v.c('--danger'),sec:v.c('--second'),ink:v.c('--ink-2'),ink3:v.c('--ink-3')};
     const d=this.data[p.kind];
@@ -146,8 +188,9 @@ crystal:{
       v.text(ctx,txt,-3.05,0.42,col.ink,10,'center',true);
     }
     КС.рамка(ctx,v,0.35,0.1,5.9,4.85,`решётка: ${d.ex}`);
-    this.решётка(ctx,s,v,p,col,1.4,3.8);
-    v.text(ctx,{ionic:'ионы чередуются: + − + −',covalent:'каждая чёрточка — общая пара',metal:'ионы в «море» электронов',molecular:'целые молекулы, связи слабые'}[p.kind],3.3,0.42,col.ink3,10);
+    if(p.d3) this.решётка3(ctx,s,v,p,col,3.3,2.55,1.05); else this.решётка(ctx,s,v,p,col,1.4,3.8);
+    v.text(ctx,p.d3?{ionic:'у иона 6 соседей другого знака',covalent:'у атома 4 соседа — тетраэдр',metal:'ионы в вершинах и центрах граней',molecular:'в узлах — целые молекулы'}[p.kind]
+      :{ionic:'ионы чередуются: + − + −',covalent:'каждая чёрточка — общая пара',metal:'ионы в «море» электронов',molecular:'целые молекулы, связи слабые'}[p.kind],3.3,0.42,col.ink3,p.d3?9:10);
     if(p.props){
       КС.рамка(ctx,v,-6.25,-4.95,12.5,4.85,'сравнение: энергия связи на атом и свойства');
       const порядок=['covalent','metal','ionic','molecular'], x0=-3.6, W=4.6;
