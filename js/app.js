@@ -50,6 +50,9 @@ function resize(){
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
   const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
   CW=r.width; CH=r.height;
+  /* узкая сцена (3.4.0): плавающие панели ужимаются, чтобы не ложиться друг
+     на друга — см. #cwrap.narrow в стилях */
+  $('#cwrap').classList.toggle('narrow', CW>0 && CW<660);
   for(const c of [scene,overlay]){ c.width=Math.max(1,CW*DPR); c.height=Math.max(1,CH*DPR); }
   for(const c of gcanvas){ const b=c.getBoundingClientRect();
     c.width=Math.max(1,b.width*DPR); c.height=Math.max(1,b.height*DPR); }
@@ -78,6 +81,34 @@ const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim
 const ПОЛОСКА=140;
 function сценаПолоска(){ return CH>0 && CH<ПОЛОСКА; }
 
+/* Векторы в подписях (3.4.0). Знак «⃗» (U+20D7) — комбинируемая стрелка над
+   предыдущей буквой. Шрифты рисуют её кто как: моноширинные на Android —
+   отдельной стрелкой рядом с буквой или пустым квадратом. Поэтому стрелку
+   рисуем сами: текст выводится без неё, а над нужной буквой — тонкая
+   стрелка по ширине буквы. Работает для fillText и strokeText. */
+const ВЕКТОР='\u20d7';
+function текстСВекторами(ctx,text,x,y,обводка){
+  text=String(text);
+  if(text.indexOf(ВЕКТОР)<0){ if(обводка) ctx.strokeText(text,x,y); else ctx.fillText(text,x,y); return; }
+  const чистый=text.split(ВЕКТОР).join(''), где=[]; let k=0;
+  for(let i=0;i<text.length;i++){ if(text[i]===ВЕКТОР) где.push(k-1); else k++; }
+  if(обводка){ ctx.strokeText(чистый,x,y); return; }
+  ctx.fillText(чистый,x,y);
+  // левый край строки с учётом выравнивания
+  const W=ctx.measureText(чистый).width, al=ctx.textAlign;
+  const x0 = al==='center'?x-W/2 : (al==='right'||al==='end'?x-W:x);
+  const m=/(\d+(?:\.\d+)?)px/.exec(ctx.font), fs=m?+m[1]:11;
+  const верх = ctx.textBaseline==='middle' ? y-fs*0.62 : (ctx.textBaseline==='top'?y-fs*0.12:y-fs*1.02);
+  ctx.save(); ctx.strokeStyle=ctx.fillStyle; ctx.lineWidth=Math.max(1,fs/11); ctx.lineCap='round';
+  for(const i of где){ if(i<0) continue;
+    const a=x0+ctx.measureText(чистый.slice(0,i)).width, w=ctx.measureText(чистый[i]).width;
+    const xa=a+w*0.12, xb=a+w*0.92, h=Math.max(2,fs*0.2);
+    ctx.beginPath(); ctx.moveTo(xa,верх); ctx.lineTo(xb,верх); ctx.moveTo(xb-h,верх-h*0.6); ctx.lineTo(xb,верх); ctx.lineTo(xb-h,верх+h*0.6); ctx.stroke(); }
+  ctx.restore();
+}
+/* то же для HTML: буква со стрелкой — <span class="vec">, стрелка рисуется стилями */
+function векторыHTML(html){ return String(html).replace(/([^\s<>])\u20d7/g,'<span class="vec">$1</span>'); }
+function безВекторов(s){ return String(s).split(ВЕКТОР).join(''); }
 const VIEW={
   get quality(){return S.settings.quality}, c:css,
   /* 3D (3.1.0). Сцены с rotate3d:true рисуют объёмные фигуры: ориентация
@@ -139,7 +170,7 @@ const VIEW={
     let x=sx+dx, y=sy+dy;
     if(S.settings.labelFix!==false && isFinite(x) && isFinite(y)){
       // 0) длинные пояснения ужимаем по кеглю, пока не влезут в кадр
-      let w=ctx.measureText(text).width;
+      let w=ctx.measureText(безВекторов(text)).width;
       if(w>CW-6){
         for(let fs=base-1;fs>=Math.max(7,base-3)&&w>CW-6;fs--){
           ctx.font=sceneFont(fs);
@@ -190,10 +221,10 @@ const VIEW={
     }
     if(this._halo){
       ctx.lineJoin='round'; ctx.lineWidth=3; ctx.strokeStyle=this._halo;
-      ctx.globalAlpha=Math.min(1,ctx.globalAlpha*0.9); ctx.strokeText(text,x,y);
+      ctx.globalAlpha=Math.min(1,ctx.globalAlpha*0.9); текстСВекторами(ctx,text,x,y,true);
       ctx.globalAlpha=1;
     }
-    ctx.fillText(text,x,y); ctx.restore();
+    текстСВекторами(ctx,text,x,y); ctx.restore();
   },
   /* Текст в заданной точке — без раскладки. Подписи v.label разводятся,
      чтобы не налезать друг на друга; для содержимого клеток таблицы это
@@ -203,7 +234,7 @@ const VIEW={
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.font=(bold?'600 ':'')+sceneFont(px||(+prefGet('labelSize')||11));
     ctx.textAlign=align||'center'; ctx.textBaseline='middle';
-    ctx.fillStyle=color||css('--ink-2'); ctx.fillText(String(text),sx,sy);
+    ctx.fillStyle=color||css('--ink-2'); текстСВекторами(ctx,String(text),sx,sy);
     ctx.restore();
   },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
@@ -941,6 +972,18 @@ function fmtShort(v){
    внутри крошечного окошка — прокручивать её мышью на сцене неудобно, да и
    выглядит чужеродно. Теперь полосы нет: сколько строк влезло, столько и
    показано, а про остальные честно сказано в последней строке. */
+/* Показание-«флажок». Старые сцены пишут слово в колонку единиц, а в
+   значение — 0 или 1: ['состояние', 0, 'стоит'] выходило «0.00 стоит».
+   Если после 0/1 стоит не единица измерения, а слова, показываем слова
+   значением, а число прячем (3.4.0). */
+const ЕДИНИЦЫ_СЛОВАМИ=/^(мкТл|мТл|кОм|МОм|моль|мкКл|нКл|мкА|мкВ|мкФ|пФ|нФ|кДж|МДж|кВт|МВт|кПа|МПа|ГПа|кэВ|МэВ|ГэВ|мкм|мкс|мин|сут|лет|годы|год|ч|раз|отн|усл|ед)$/i;
+function показание(v,u){
+  if(typeof v==='number' && (v===0||v===1) && typeof u==='string'){
+    const слова=u.match(/[а-яё]{4,}/gi)||[];
+    if(слова.some(w=>!ЕДИНИЦЫ_СЛОВАМИ.test(w))) return {txt:true, v:u, u:''};
+  }
+  return {txt:typeof v==='string', v:typeof v==='string'?v:fmt(v), u:u||''};
+}
 function updateHud(a){
   if(typeof описаниеСцены==='function') описаниеСцены(a);
   const body=$('#hud-body'), panel=$('#hud'); if(!body||!panel) return;
@@ -950,11 +993,11 @@ function updateHud(a){
      Колонки решают это сами: подпись слева ужимается, число справа стоит на
      месте и не прыгает, когда меняется знак. */
   const данные=a.def.readouts(a.state,a.params);
-  const rows=данные.map(([l,v,u])=>
-    `<div class="ro"><span class="ro-l">${esc(l)}</span>` +
+  const rows=данные.map(([l,v,u])=>{ const q=показание(v,u);
+    return `<div class="ro"><span class="ro-l">${векторыHTML(esc(l))}</span>` +
     // значение может быть словом (фаза движения, режим) — выводим как есть
-    `<span class="ro-v${typeof v==='string'?' ro-txt':''}">${esc(typeof v==='string'?v:fmt(v))}</span>` +
-    `<span class="ro-u">${esc(u||'')}</span></div>`);
+    `<span class="ro-v${q.txt?' ro-txt':''}">${esc(q.v)}</span>` +
+    `<span class="ro-u">${esc(q.u)}</span></div>`; });
   const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
   /* Обрезаем строки, только если размер панели чем-то ОГРАНИЧЕН: явной высотой
      (пользователь потянул за уголок) или max-height из темы (на телефоне).
@@ -970,13 +1013,25 @@ function updateHud(a){
     const mh=parseFloat(getComputedStyle(panel).maxHeight);
     if(isFinite(mh)) avail=mh-headH-13;
   }
-  let n=rows.length;
+  let n=rows.length, поРазмеру=false;
   if(isFinite(avail) && avail>0 && lh>0){
     const fits=Math.floor(avail/lh);
-    if(fits<rows.length) n=Math.max(1,fits-1);       // строка «ещё N» тоже место занимает
+    if(fits<rows.length){ n=Math.max(1,fits-1); поРазмеру=true; }   // строка «ещё N» тоже место занимает
   }
-  body.innerHTML = n>=rows.length ? rows.join('')
-    : rows.slice(0,n).concat([`<div class="ro ro-more">… ещё ${rows.length-n} — растяните панель</div>`]).join('');
+  /* 3.4.0: по умолчанию панель показывает первые строки (настройка «hudRows»),
+     остальные — по нажатию на «ещё N». Полная панель на узкой сцене
+     закрывала половину рисунка. */
+  const лимит=+prefGet('hudRows')||0;
+  let свернуть=false;
+  if(!поРазмеру && лимит>0 && rows.length>лимит+1){
+    if(!S.hudFull) n=Math.min(n,лимит); else свернуть=true;
+  }
+  body.innerHTML = n>=rows.length ? rows.join('')+(свернуть?`<div class="ro ro-more ro-btn">▴ свернуть до ${лимит}</div>`:'')
+    : rows.slice(0,n).concat([поРазмеру?`<div class="ro ro-more">… ещё ${rows.length-n} — растяните панель</div>`
+                                       :`<div class="ro ro-more ro-btn">▾ ещё ${rows.length-n}</div>`]).join('');
+  if(!body.dataset.more){ body.dataset.more='1';
+    body.addEventListener('click',e=>{ if(!e.target.closest('.ro-btn')) return;
+      S.hudFull=!S.hudFull; const a2=A(); if(a2) updateHud(a2); }); }
 }
 
 /* ------------------------------- ГРАФИКИ -------------------------------- */
@@ -2562,14 +2617,15 @@ function renderParams(){
     if(skip||!видноПараметр(a,p)) continue;
     const d=document.createElement('div'); d.className='param'; d.dataset.key=p.key;
     if(p.type==='check'){
-      d.innerHTML=`<label class="chk"><input type="checkbox" ${a.params[p.key]?'checked':''}>${p.label}</label>`;
+      d.innerHTML=`<label class="chk"><input type="checkbox" ${a.params[p.key]?'checked':''}>${векторыHTML(p.label)}</label>`;
       d.querySelector('input').onchange=e=>commit(p.key,e.target.checked);
     } else if(p.type==='select'){
-      d.innerHTML=`<div class="name">${p.label}</div>
-        <select>${p.options.map(o=>`<option value="${o.v}" ${a.params[p.key]===o.v?'selected':''}>${o.t}</option>`).join('')}</select>`;
+      /* в <option> разметки нет — стрелку-знак убираем, иначе шрифт рисует её как попало */
+      d.innerHTML=`<div class="name">${векторыHTML(p.label)}</div>
+        <select>${p.options.map(o=>`<option value="${o.v}" ${a.params[p.key]===o.v?'selected':''}>${безВекторов(o.t)}</option>`).join('')}</select>`;
       d.querySelector('select').onchange=e=>{ commit(p.key,e.target.value); renderParams(); buildGraphs(); };
     } else {
-      d.innerHTML=`<div class="name">${p.label}</div>
+      d.innerHTML=`<div class="name">${векторыHTML(p.label)}</div>
         <div class="numfield">
           <button class="dec" tabindex="-1">−</button>
           <!-- text, а не number: браузер отбрасывает у number всё нечисловое,
@@ -3165,18 +3221,30 @@ const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZM
    Минковского, орбитали), объявляют hudAware: у них рисунок вписывается в
    часть кадра под панелью показаний, иначе панель закрывала бы его верх.
    Если места под панелью слишком мало — вписываем как обычно. */
+/* «Вписать в кадр» с учётом панели показаний (с 3.4.0 — у всех сцен, не
+   только у схем). Пробуем два свободных прямоугольника — под панелью и справа
+   от неё — и берём тот, где рисунок выходит крупнее. Если оба заметно мельче
+   кадра целиком, панель просто перекрывает угол, как раньше. */
 function видВКадре(def,params){
   const f=def.fit(params,{W:CW,H:CH});
-  if(!def.hudAware) return f;
   const hud=document.querySelector('#hud');
   if(!hud||hud.classList.contains('hidden')||hud.classList.contains('fold')||prefGet('hud')===false) return f;
   const wr=document.querySelector('#cwrap'); if(!wr) return f;
   const r=hud.getBoundingClientRect(), w=wr.getBoundingClientRect();
-  const низ=r.bottom-w.top+6;
-  if(!(r.width>0) || низ<=0 || низ>CH*0.55 || r.width<CW*0.35) return f;
-  const g=def.fit(params,{W:CW,H:CH-низ});
-  if(g.scale<f.scale*0.55) return f;
-  return Object.assign({},g,{y:g.y+(низ/2)/(PX_PER_M*g.scale)});
+  if(!(r.width>0) || getComputedStyle(hud).display==='none') return f;
+  /* низ полосы, занятой панелями сверху: показатели, PV-диаграмма, энергия */
+  let низ=r.bottom-w.top+6;
+  for(const id of ['energybox','pvbox']){ const el=document.getElementById(id);
+    if(!el||el.classList.contains('hidden')||el.classList.contains('fold')) continue;
+    const q=el.getBoundingClientRect(); if(q.width>0 && q.top-w.top<CH*0.3) низ=Math.max(низ,q.bottom-w.top+6); }
+  const право=r.right-w.left+6;
+  const вар=[];
+  if(низ>0 && низ<CH*0.6){ const g=def.fit(params,{W:CW,H:CH-низ}); вар.push(Object.assign({},g,{y:g.y+(низ/2)/(PX_PER_M*g.scale)})); }
+  if(право>0 && право<CW*0.6 && r.left-w.left<CW*0.3){ const g=def.fit(params,{W:CW-право,H:CH}); вар.push(Object.assign({},g,{x:g.x-(право/2)/(PX_PER_M*g.scale)})); }
+  if(!вар.length) return f;
+  const лучший=вар.reduce((a,b)=>b.scale>a.scale?b:a);
+  if(лучший.scale<f.scale*0.5) return f;
+  return лучший;
 }
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,видВКадре(a.def,a.params)); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
@@ -4042,7 +4110,7 @@ function renderPresets(){
     h.textContent='Примеры из учебника'; box.append(h);
     built.forEach(pr=>{
       const d=document.createElement('div'); d.className='preset';
-      const b=document.createElement('button'); b.textContent=pr.name; b.title=pr.note||'';
+      const b=document.createElement('button'); b.innerHTML=векторыHTML(esc(pr.name)); b.title=pr.note||'';
       b.onclick=()=>loadPreset(pr.values);
       const t=document.createElement('span'); t.className='del'; t.style.cursor='default';
       t.textContent='§'; t.title='Готовый пример, удалить нельзя';
@@ -4093,7 +4161,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,
   handles:'hover',
   // кастомизация окружения
-  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,hudRows:6,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
@@ -4160,6 +4228,9 @@ const PREFS=[
    name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
    options:[['norm','Обычный'],['big','Крупный']]},
 
+  {cat:'scene',key:'hudRows',type:'select',def:6,
+   name:'Панель показаний: сколько строк сразу',desc:'Остальные раскрываются строкой «ещё N». Полная панель на узкой сцене закрывает половину рисунка.',
+   options:[[4,'4'],[6,'6'],[10,'10'],[0,'Все']]},
   {cat:'scene',key:'rot3dInvX',type:'toggle',def:true,
    name:'Объёмные сцены: инвертировать поворот по оси X',desc:'Протянули вверх — фигура наклоняется к вам, как будто её тянут за верхний край. Выключите, чтобы протягивание вверх наклоняло её от вас.'},
   {cat:'scene',key:'rot3dInvY',type:'toggle',def:false,
@@ -5185,9 +5256,9 @@ function renderSheetReadouts(){
   const box=$('#msheet-ro'); if(!box||!isNarrow()) return;
   const a=A();
   if(!a||!a.def.readouts){ box.innerHTML=''; return; }
-  box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>
-    `<div class="sr"><span class="sr-l">${esc(l)}${u?', '+esc(u):''}</span>` +
-    `<span class="sr-v">${esc(typeof v==='string'?v:fmt(v))}</span></div>`).join('');
+  box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>{ const q=показание(v,u);
+    return `<div class="sr"><span class="sr-l">${векторыHTML(esc(l))}${q.u?', '+esc(q.u):''}</span>` +
+    `<span class="sr-v">${esc(q.v)}</span></div>`; }).join('');
 }
 /* Ручка листа: тянут — меняется положение, короткий тап — следующее. */
 (function листРучка(){

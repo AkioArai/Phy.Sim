@@ -2569,3 +2569,23 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 .lab-del:hover{background:var(--panel-2);color:var(--danger)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 @media (max-width:520px){ .lab-grid{grid-template-columns:1fr 84px} .lab-grid label{grid-column:1/-1} }
+
+/* Вектор над буквой в подписях параметров и показаний (3.4.0): «⃗» шрифты
+   рисуют как попало, поэтому стрелку рисуем сами — черта и уголок. */
+.vec{position:relative;display:inline-block;padding-top:.18em;line-height:1}
+.vec::before{content:'';position:absolute;left:12%;right:10%;top:.06em;border-top:1px solid currentColor}
+.vec::after{content:'';position:absolute;right:6%;top:-.08em;width:.28em;height:.28em;
+  border-top:1px solid currentColor;border-right:1px solid currentColor;transform:rotate(45deg);transform-origin:center}
+.ro-more.ro-btn{cursor:pointer;color:var(--accent);opacity:1;text-align:center;border-radius:4px;padding:1px 0;pointer-events:auto}
+.ro-more.ro-btn:hover{background:var(--hover,rgba(0,0,0,.05))}
+/* текстовое показание — через две колонки и с переносом: длинная фраза не
+   раздувает панель на полсцены (3.4.0) */
+.ro-v.ro-txt{white-space:normal;max-width:24ch;text-align:right;grid-column:2 / span 2;line-height:1.3}
+.ro-v.ro-txt + .ro-u{display:none}
+/* узкая сцена: PV-диаграмма и показатели делят верх пополам, а не лежат
+   друг на друге; гистограмма — поуже (3.4.0) */
+#cwrap.narrow .hud{max-width:calc(50% - 12px)}
+#cwrap.narrow .pvbox{width:calc(50% - 12px);min-width:170px}
+#cwrap.narrow .pvbox .pvrow{font-size:10.5px}
+#cwrap.narrow .histobox .hb{width:9px}
+#cwrap.narrow .histobox .hbars{height:70px}
