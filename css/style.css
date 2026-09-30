@@ -2589,3 +2589,5 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 #cwrap.narrow .pvbox .pvrow{font-size:10.5px}
 #cwrap.narrow .histobox .hb{width:9px}
 #cwrap.narrow .histobox .hbars{height:70px}
+/* на узкой сцене строки под PV-графиком — те же числа, что в показателях: прячем */
+#cwrap.narrow .pvbox .pvrow{display:none}

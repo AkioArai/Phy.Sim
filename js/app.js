@@ -129,6 +129,13 @@ const VIEW={
       return [x1, z*cp+y1*sp, z*sp-y1*cp]; };                        // наклон вокруг x
   },
   lw:px=>px*(S.settings.lineW||1)/ppm(),
+  /* Кегль надписей-панелей (3.4.0). Сцены-схемы из панелей (hudAware +
+     schema) свёрстаны под ~36 px на единицу сцены; в узком окне текст
+     фиксированного кегля вылезал за свои рамки. Там кегль ужимается вместе
+     с рисунком, но не мельче 72 %. Прочие сцены не затрагиваются. */
+  textK:1,
+  кегль(def){ const ref=def&&(def.textRef||(def.hudAware&&def.schema?36:0));
+    this.textK=ref?clamp(ppm()/ref,0.72,1):1; },
   /* Подписи на сцене. Позиции в симуляциях заданы вручную пиксельными
      сдвигами, поэтому на разных зумах и наборах параметров они наезжали друг
      на друга и уползали за кадр. Раскладку чиним здесь, централизованно —
@@ -232,7 +239,7 @@ const VIEW={
   text(ctx,text,wx,wy,color,px,align,bold){
     const [sx,sy]=toScreen(wx,wy);
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
-    ctx.font=(bold?'600 ':'')+sceneFont(px||(+prefGet('labelSize')||11));
+    ctx.font=(bold?'600 ':'')+sceneFont((px||(+prefGet('labelSize')||11))*this.textK);
     ctx.textAlign=align||'center'; ctx.textBaseline='middle';
     ctx.fillStyle=color||css('--ink-2'); текстСВекторами(ctx,String(text),sx,sy);
     ctx.restore();
@@ -594,6 +601,7 @@ const fmt=v=>{
 function drawAll(){
   const a=A(); if(!a) return;
   VIEW.labelFrame();                       // новый кадр — раскладка подписей с чистого листа
+  VIEW.кегль(a.def);
   if(typeof слоиКамера==='function') слоиКамера(a);
   applyWorld(sctx);
   if(S.settings.grid!==false && !объёмнаяСейчас(a)) drawGrid(sctx);
@@ -974,15 +982,26 @@ function fmtShort(v){
    показано, а про остальные честно сказано в последней строке. */
 /* Показание-«флажок». Старые сцены пишут слово в колонку единиц, а в
    значение — 0 или 1: ['состояние', 0, 'стоит'] выходило «0.00 стоит».
-   Если после 0/1 стоит не единица измерения, а слова, показываем слова
-   значением, а число прячем (3.4.0). */
-const ЕДИНИЦЫ_СЛОВАМИ=/^(мкТл|мТл|кОм|МОм|моль|мкКл|нКл|мкА|мкВ|мкФ|пФ|нФ|кДж|МДж|кВт|МВт|кПа|МПа|ГПа|кэВ|МэВ|ГэВ|мкм|мкс|мин|сут|лет|годы|год|ч|раз|отн|усл|ед)$/i;
+   Смотрим на первое слово «единицы»: если это не единица измерения
+   (м/с, кг·м², ·10⁶, %, «из», «раз», «электронов»…), значит, это текст —
+   показываем его значением, а число-флажок прячем (3.4.0). */
+const ЕДИНИЦЫ_АТОМЫ=new Set(('м см мм км нм мкм пм фм Мм с мс мкс нс фс мин ч сут год лет кг г т Н нН мкН кН Дж кДж МДж нДж мкДж '+
+  'Вт кВт МВт Па кПа МПа ГПа мкПа К K °C эВ кэВ МэВ ГэВ В мВ кВ мкВ А мА мкА Ом кОм МОм Тл мТл мкТл нТл Гц кГц МГц ГГц ТГц '+
+  'Кл мкКл нКл Ф мкФ нФ пФ Гн мГн Вб моль рад об дптр л атм дБ Бк % ° ‰ c e ħ a₀ I₀ τ '+
+  'из раз отн. усл. усл.ед. ед. шт штук электронов фотонов частиц атомов ядер точек витков').split(' '));
+function этоЕдиница(u){
+  const t=String(u).trim().split(/\s+/)[0];
+  if(!t) return true;
+  if(/^[·×(]/.test(t)) return true;                       // ·10⁶ м/с, ×10³ км, (поглощение)
+  return t.replace(/[()²³⁻¹⁰⁴⁵⁶⁷⁸⁹\d]/g,'').split(/[\/·]/).every(x=>x===''||ЕДИНИЦЫ_АТОМЫ.has(x));
+}
 function показание(v,u){
-  if(typeof v==='number' && (v===0||v===1) && typeof u==='string'){
-    const слова=u.match(/[а-яё]{4,}/gi)||[];
-    if(слова.some(w=>!ЕДИНИЦЫ_СЛОВАМИ.test(w))) return {txt:true, v:u, u:''};
-  }
-  return {txt:typeof v==='string', v:typeof v==='string'?v:fmt(v), u:u||''};
+  if(typeof v==='number' && (v===0||v===1||isNaN(v)) && typeof u==='string' && u && !этоЕдиница(u))
+    return {txt:true, v:u, u:''};
+  if(typeof v==='string') return {txt:true, v:v, u:u||''};
+  // целые (номер уровня, число электронов, заряд Z) — без «.00»
+  const цел=Number.isInteger(v) && Math.abs(v)<1e4;
+  return {txt:false, v:цел?String(v):fmt(v), u:u||''};
 }
 function updateHud(a){
   if(typeof описаниеСцены==='function') описаниеСцены(a);
@@ -2572,7 +2591,12 @@ function openSim(id){
     const кн=hud.querySelector('.fp-fold');
     if(кн){ кн.textContent=свёрнута?'▸':'▾'; кн.setAttribute('aria-expanded',String(!свёрнута)); } }
   try{ syncMbar(); }catch(_){}
-  requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
+  requestAnimationFrame(()=>{ resize(); fitView();       // сначала знаем размер холста, потом вписываем
+    /* PV-диаграмма, энергия и распределение появляются с первым кадром, уже
+       после вписывания. Через мгновение вписываем ещё раз — с учётом их
+       места, если пользователь за это время не двигал и не масштабировал вид. */
+    const вид=JSON.stringify(a.view);
+    setTimeout(()=>{ if(A()===a && JSON.stringify(a.view)===вид) fitView(); },350); });
 }
 /* Свёрнутые группы параметров запоминаются по симуляции: на «Втором законе»
    двадцать семь полей, и держать их все развёрнутыми — значит прокручивать
@@ -3221,29 +3245,35 @@ const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZM
    Минковского, орбитали), объявляют hudAware: у них рисунок вписывается в
    часть кадра под панелью показаний, иначе панель закрывала бы его верх.
    Если места под панелью слишком мало — вписываем как обычно. */
-/* «Вписать в кадр» с учётом панели показаний (с 3.4.0 — у всех сцен, не
-   только у схем). Пробуем два свободных прямоугольника — под панелью и справа
-   от неё — и берём тот, где рисунок выходит крупнее. Если оба заметно мельче
-   кадра целиком, панель просто перекрывает угол, как раньше. */
+/* «Вписать в кадр» с учётом плавающих панелей (3.4.0): показатели,
+   энергия, PV-диаграмма, распределение, сравнение. Панели — препятствия;
+   перебираем прямоугольники, чьи края совпадают с краями кадра или панелей,
+   отбрасываем те, что задевают панель, и вписываем рисунок в тот, где он
+   выходит крупнее. Раньше учитывалась одна панель показаний, и цилиндр
+   тепловой машины уходил под PV-диаграмму справа. Если свободное место
+   слишком мало (мельче половины кадра), панели просто лежат поверх. */
 function видВКадре(def,params){
   const f=def.fit(params,{W:CW,H:CH});
-  const hud=document.querySelector('#hud');
-  if(!hud||hud.classList.contains('hidden')||hud.classList.contains('fold')||prefGet('hud')===false) return f;
   const wr=document.querySelector('#cwrap'); if(!wr) return f;
-  const r=hud.getBoundingClientRect(), w=wr.getBoundingClientRect();
-  if(!(r.width>0) || getComputedStyle(hud).display==='none') return f;
-  /* низ полосы, занятой панелями сверху: показатели, PV-диаграмма, энергия */
-  let низ=r.bottom-w.top+6;
-  for(const id of ['energybox','pvbox']){ const el=document.getElementById(id);
-    if(!el||el.classList.contains('hidden')||el.classList.contains('fold')) continue;
-    const q=el.getBoundingClientRect(); if(q.width>0 && q.top-w.top<CH*0.3) низ=Math.max(низ,q.bottom-w.top+6); }
-  const право=r.right-w.left+6;
-  const вар=[];
-  if(низ>0 && низ<CH*0.6){ const g=def.fit(params,{W:CW,H:CH-низ}); вар.push(Object.assign({},g,{y:g.y+(низ/2)/(PX_PER_M*g.scale)})); }
-  if(право>0 && право<CW*0.6 && r.left-w.left<CW*0.3){ const g=def.fit(params,{W:CW-право,H:CH}); вар.push(Object.assign({},g,{x:g.x-(право/2)/(PX_PER_M*g.scale)})); }
-  if(!вар.length) return f;
-  const лучший=вар.reduce((a,b)=>b.scale>a.scale?b:a);
-  if(лучший.scale<f.scale*0.5) return f;
+  const w=wr.getBoundingClientRect(), преп=[];
+  for(const id of ['hud','energybox','pvbox','histobox','cmpbox']){ const el=document.getElementById(id); if(!el) continue;
+    if(el.classList.contains('hidden')||el.classList.contains('fold')) continue;
+    if(id==='hud' && prefGet('hud')===false) continue;
+    const q=el.getBoundingClientRect(); if(!(q.width>0&&q.height>0) || getComputedStyle(el).display==='none') continue;
+    const r={l:q.left-w.left-6,t:q.top-w.top-6,r:q.right-w.left+6,b:q.bottom-w.top+6};
+    if(r.r<=0||r.b<=0||r.l>=CW||r.t>=CH) continue;
+    преп.push(r); }
+  if(!преп.length) return f;
+  const Ls=[0,...преп.map(r=>r.r)], Rs=[CW,...преп.map(r=>r.l)], Ts=[0,...преп.map(r=>r.b)], Bs=[CH,...преп.map(r=>r.t)];
+  let лучший=null;
+  for(const l of Ls) for(const r of Rs) for(const t of Ts) for(const b of Bs){
+    const ww=r-l, hh=b-t; if(ww<CW*0.35||hh<CH*0.35) continue;
+    if(преп.some(o=>o.l<r&&o.r>l&&o.t<b&&o.b>t)) continue;
+    const g=def.fit(params,{W:ww,H:hh}), k=PX_PER_M*g.scale;
+    if(лучший&&g.scale<=лучший.scale) continue;
+    лучший=Object.assign({},g,{x:g.x-((l+r)/2-CW/2)/k, y:g.y+((t+b)/2-CH/2)/k});
+  }
+  if(!лучший||лучший.scale<f.scale*0.5) return f;
   return лучший;
 }
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,видВКадре(a.def,a.params)); setZoom(); }

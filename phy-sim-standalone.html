@@ -2706,6 +2706,28 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 .lab-del:hover{background:var(--panel-2);color:var(--danger)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 @media (max-width:520px){ .lab-grid{grid-template-columns:1fr 84px} .lab-grid label{grid-column:1/-1} }
+
+/* Вектор над буквой в подписях параметров и показаний (3.4.0): «⃗» шрифты
+   рисуют как попало, поэтому стрелку рисуем сами — черта и уголок. */
+.vec{position:relative;display:inline-block;padding-top:.18em;line-height:1}
+.vec::before{content:'';position:absolute;left:12%;right:10%;top:.06em;border-top:1px solid currentColor}
+.vec::after{content:'';position:absolute;right:6%;top:-.08em;width:.28em;height:.28em;
+  border-top:1px solid currentColor;border-right:1px solid currentColor;transform:rotate(45deg);transform-origin:center}
+.ro-more.ro-btn{cursor:pointer;color:var(--accent);opacity:1;text-align:center;border-radius:4px;padding:1px 0;pointer-events:auto}
+.ro-more.ro-btn:hover{background:var(--hover,rgba(0,0,0,.05))}
+/* текстовое показание — через две колонки и с переносом: длинная фраза не
+   раздувает панель на полсцены (3.4.0) */
+.ro-v.ro-txt{white-space:normal;max-width:24ch;text-align:right;grid-column:2 / span 2;line-height:1.3}
+.ro-v.ro-txt + .ro-u{display:none}
+/* узкая сцена: PV-диаграмма и показатели делят верх пополам, а не лежат
+   друг на друге; гистограмма — поуже (3.4.0) */
+#cwrap.narrow .hud{max-width:calc(50% - 12px)}
+#cwrap.narrow .pvbox{width:calc(50% - 12px);min-width:170px}
+#cwrap.narrow .pvbox .pvrow{font-size:10.5px}
+#cwrap.narrow .histobox .hb{width:9px}
+#cwrap.narrow .histobox .hbars{height:70px}
+/* на узкой сцене строки под PV-графиком — те же числа, что в показателях: прячем */
+#cwrap.narrow .pvbox .pvrow{display:none}
 </style>
 </head>
 <body>
@@ -7525,7 +7547,7 @@ rigid3d:{
     { const a=пр(-n[0]*1.6,-n[1]*1.6,-n[2]*1.6), b=пр(n[0]*1.6,n[1]*1.6,n[2]*1.6);
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(6),v.lw(4)]);
       ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
-      v.label(ctx,'ось вращения',b[0],b[1],6,6,ink3); }
+      v.label(ctx,'ось',b[0],b[1],6,6,ink3); }
     // тело: стержень, насаженный на ось посередине; точка P — на его конце
     let u=ВР3.cross(n,[0,0,1]); if(ВР3.len(u)<1e-6) u=[1,0,0]; { const L=ВР3.len(u); u=[u[0]/L,u[1]/L,u[2]/L]; }
     const w2=ВР3.cross(n,u);
@@ -7552,11 +7574,11 @@ rigid3d:{
       }
       // ω⃗ — от оси тела вверх по оси, по правилу буравчика
       const kw=0.6, W=[c[0]+n[0]*w*kw,c[1]+n[1]*w*kw,c[2]+n[2]*w*kw], e=пр(W[0],W[1],W[2]);
-      if(Math.abs(w)>1e-3){ v.arrow(ctx,cc[0],cc[1],e[0],e[1],dang); v.label(ctx,`ω⃗ = ${w.toFixed(2)} рад/с`,e[0],e[1],6,-8,dang); }
+      if(Math.abs(w)>1e-3){ v.arrow(ctx,cc[0],cc[1],e[0],e[1],dang); v.label(ctx,'ω⃗',e[0],e[1],6,-8,dang); }
       // dφ⃗ = ω⃗Δt — толстая короткая стрелка на той же оси, ниже тела
       const D=[n[0]*dφ*1.6,n[1]*dφ*1.6,n[2]*dφ*1.6], d0=пр(-n[0]*0.9,-n[1]*0.9,-n[2]*0.9), dd=пр(-n[0]*0.9+D[0],-n[1]*0.9+D[1],-n[2]*0.9+D[2]);
       if(Math.abs(dφ)>1e-3){ ctx.save(); ctx.lineWidth=v.lw(4); v.arrow(ctx,d0[0],d0[1],dd[0],dd[1],meas); ctx.restore();
-        v.label(ctx,`dφ⃗ = ω⃗Δt: вдоль оси, длина ${Math.abs(dφ).toFixed(3)} рад`,d0[0],d0[1],8,14,meas); }
+        v.label(ctx,'dφ⃗',dd[0],dd[1],6,6,meas); }
       // стрелка-дуга: куда идёт поворот, если смотреть с конца ω⃗
       { const R0=0.35, pts=[]; for(let k=0;k<=20;k++){ const a=(Math.sign(w)||1)*k/20*4.5, q=ВР3.ap(ВР3.rot(n,a),[u[0]*R0+n[0]*1.25,u[1]*R0+n[1]*1.25,u[2]*R0+n[2]*1.25]); pts.push(пр(q[0],q[1],q[2])); }
         ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke();
@@ -7566,15 +7588,23 @@ rigid3d:{
       ctx.beginPath(); ctx.moveTo(cc[0],cc[1]); ctx.lineTo(Pp[0],Pp[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
       v.label(ctx,'r⊥',(cc[0]+Pp[0])/2,(cc[1]+Pp[1])/2,-6,-8,sec);
       const vv=ВР3.cross([n[0]*w,n[1]*w,n[2]*w],P), kv=0.5, ve=пр(P[0]+vv[0]*kv,P[1]+vv[1]*kv,P[2]+vv[2]*kv);
-      if(ВР3.len(vv)>1e-3){ v.arrow(ctx,Pp[0],Pp[1],ve[0],ve[1],acc); v.label(ctx,`v⃗ = ω⃗ × r⃗, ${ВР3.len(vv).toFixed(2)} м/с`,ve[0],ve[1],6,-6,acc); }
+      if(ВР3.len(vv)>1e-3){ v.arrow(ctx,Pp[0],Pp[1],ve[0],ve[1],acc); v.label(ctx,'v⃗',ve[0],ve[1],6,-6,acc); }
       if(Math.abs(p.eps)>1e-3){ const E=[n[0]*p.eps*1.2,n[1]*p.eps*1.2,n[2]*p.eps*1.2], s0=пр(n[0]*0.05,n[1]*0.05,n[2]*0.05), s1=пр(E[0]+n[0]*0.05,E[1]+n[1]*0.05,E[2]+n[2]*0.05);
         ctx.save(); ctx.setLineDash([v.lw(4),v.lw(3)]); v.arrow(ctx,s0[0],s0[1],s1[0],s1[1],ok); ctx.restore(); v.label(ctx,'ε⃗',s1[0],s1[1],6,6,ok); }
     }
     ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(Pp[0],Pp[1],v.lw(5),0,7); ctx.fill();
     v.label(ctx,'P',Pp[0],Pp[1],-14,-8,sec);
-    const q=пр(0,0,-1.5);
-    v.label(ctx,'правило буравчика: с конца ω⃗ поворот виден против часовой',q[0],q[1],-150,14,ink3);
-    v.label(ctx,'протяните по сцене, чтобы повернуть вид',q[0],q[1],-100,30,ink3);
+    /* Числа — в легенде у края кадра, а у стрелок только имена (3.4.0):
+       длинные подписи у вращающихся стрелок сталкивались друг с другом. */
+    if(p.vecs){
+      const vv=ВР3.len(ВР3.cross([n[0]*w,n[1]*w,n[2]*w],P)), строки=[
+        [dang,`ω⃗ = ${w.toFixed(2)} рад/с — вдоль оси`],
+        [meas,`dφ⃗ = ω⃗Δt = ${Math.abs(w*p.dts).toFixed(3)} рад — тоже вдоль оси`],
+        [acc,`v⃗ = ω⃗ × r⃗ = ${vv.toFixed(2)} м/с — по касательной`]];
+      if(Math.abs(p.eps)>1e-3) строки.push([ok,`ε⃗ = ${p.eps.toFixed(2)} рад/с² — на той же оси`]);
+      строки.forEach(([c,t],i)=>v.text(ctx,t,-2.05,-0.95-i*0.15,c,10,'left',true));
+    }
+    v.text(ctx,'правило буравчика: с конца ω⃗ поворот виден против часовой',0,-1.62,ink3,10,'center');
   }
 }
 });
@@ -8437,6 +8467,7 @@ gas:{
    этого не запрещает. */
 micro:{
   title:'Микро- и макросостояния: откуда берётся необратимость',
+  hudAware:true,
   /* Сцена — ящик с ячейками, метров на ней нет. Поэтому ни осей с числами,
      ни надписи «сетка N м». */
   schema:true,
@@ -8542,8 +8573,8 @@ micro:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-60)/(this.Lx*1.15*PX_PER_M),(H-60)/(15.8*PX_PER_M)),0.002,30);
-    return {x:this.Lx/2,y:1.5,scale};
+    const scale=clamp(Math.min((W-60)/(this.Lx*1.15*PX_PER_M),(H-160)/(12.8*PX_PER_M)),0.002,30);
+    return {x:this.Lx/2,y:1.2,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
@@ -8559,7 +8590,10 @@ micro:{
     ctx.stroke();
     /* подпись дырки — ПОД ящиком: внутри она неизбежно легла бы на молекулы,
        которые заполняют обе половины вплотную к перегородке */
-    v.label(ctx,'дырка в перегородке',Lx/2,0,-58,16,ink3);
+    /* подписи раскладываются по строкам в ПИКСЕЛЯХ (st — высота строки в
+       единицах сцены): при любом масштабе строки не наезжают друг на друга */
+    const st=14*(v.textK||1)/ppm();
+    v.text(ctx,'↑ дырка в перегородке',Lx/2,-st*0.8,ink3,10,'center');
 
     // ---- молекулы: каждая в своей ячейке, номера — только у микросистемы
     const r=clamp(2.2/Math.sqrt(N),0.10,0.34);
@@ -8574,14 +8608,13 @@ micro:{
     }
 
     // ---- макросостояние крупно над ящиком
-    v.label(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly,-96,-34,ink);
-    v.label(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,
-      Lx/2,Ly,-96,-20,ink3);
-    if(n===N) v.label(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly,-96,-48,ok);
+    v.text(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly+st*1.9,ink,11,'center',true);
+    v.text(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,Lx/2,Ly+st*0.8,ink3,10,'center');
+    if(n===N) v.text(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly+st*3,ok,11,'center',true);
 
     // ---- гистограмма весов W(n): «гора» с острым пиком у макросистемы
     if(p.bars){
-      const gx=0, gy=-4.2, gw=Lx, gh=3.0;
+      const gh=2.6, gx=0, gy=-st*4.2-gh, gw=Lx;
       const lnMax=this.lnW(N,Math.round(N/2));
       ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
@@ -8605,23 +8638,22 @@ micro:{
             k?ctx.lineTo(x,y):ctx.moveTo(x,y);
           }
           ctx.stroke();
-          v.label(ctx,'наблюдённая частота',gx+gw,gy+gh,-118,-2,sec);
+          v.text(ctx,'— как часто наблюдалось',gx,gy+gh+st*1.9,sec,10,'left',true);
         }
       }
       /* Одна строка вместо трёх: подпись оси и пояснение к столбикам. Три
          отдельные подписи толкались друг с другом под ящиком. */
-      v.label(ctx,`высота столбика — W(n), число микросостояний · слева n = 0, справа n = ${N}`,
-        gx,gy,0,15,ink3);
+      v.text(ctx,'▇ W(n): микросостояний',gx,gy+gh+st*0.8,acc,10,'left',true);
+      v.text(ctx,'n = 0',gx,gy-st*0.8,ink3,9.5,'left'); v.text(ctx,`n = ${N}`,gx+gw,gy-st*0.8,ink3,9.5,'right');
+      v.text(ctx,'слева молекул n →',gx+gw/2,gy-st*0.8,ink3,9.5,'center');
     }
 
     // ---- вывод главы: одна строка, ради которой всё и затевалось
     const tr=this.tReturn(p), yr=tr/3.156e7;
     const when = yr>1e6 ? `${yr.toExponential(1)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
-    v.label(ctx,`вероятность «все слева» = 2^−${N} · среднее время возврата ≈ ${when}`,
-      Lx/2,-5.7,-150,0,ink3);
-    v.label(ctx, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
-                       : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',
-      Lx/2,-5.7,-150,14,N<=12?ok:meas);
+    const y=КС.абзац(ctx,v,`вероятность «все слева» = 2^−${N}; среднее время возврата ≈ ${when}`,-0.4,(p.bars?-st*5.8-2.6:-st*2.5),Lx+0.8,ink3,10,'center');
+    КС.абзац(ctx,v, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
+                       : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',-0.4,y,Lx+0.8,N<=12?ok:meas,10,'center',true);
   }
 }
 ,
@@ -8782,12 +8814,14 @@ thermo:{
     ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.5); ctx.beginPath(); ctx.moveTo(cx+cw/2,pistonY-0.22); ctx.lineTo(cx+cw/2,cyTop-1); ctx.stroke();
     v.label(ctx,'поршень',cx+cw,pistonY,8,0,sec);
     // подписи состояния
-    v.label(ctx,`V = ${st.V.toFixed(1)} л`,cx+cw/2,cyTop+cyH,-16,20,ink3);
-    v.label(ctx,`P = ${(st.P/1000).toFixed(0)} кПа`,cx+cw/2,cyTop+cyH,-16,34,ink3);
-    v.label(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw/2,cyTop+cyH,-16,48,ink3);
+    /* подписи состояния — справа от цилиндра, строками в пикселях: раньше
+       они стояли внутри цилиндра поверх молекул (3.4.0) */
+    const st2=14/ppm(), xr=cx+cw+0.3, yt=cyTop+cyH;
+    v.text(ctx,`V = ${st.V.toFixed(1)} л`,xr,yt-st2*0.5,ink,10,'left',true);
+    v.text(ctx,`P = ${(st.P/1000).toFixed(0)} кПа`,xr,yt-st2*1.5,ink,10,'left',true);
+    v.text(ctx,`T = ${st.T.toFixed(0)} K`,xr,yt-st2*2.5,ink,10,'left',true);
     const nm={iso:'изотермический',isobar:'изобарический',isochor:'изохорический',adiab:'адиабатический'}[p.proc];
-    v.label(ctx,nm+' процесс',cx+cw/2,cyTop,-40,-10,ink3);
-    v.label(ctx,'PV-диаграмма — на панели справа →',cx+cw/2,cyTop,-70,-26,ink3);
+    v.text(ctx,nm+' процесс',cx+cw/2,cyTop-1-st2,ink3,10,'center');
   }
 }
 ,
@@ -8915,7 +8949,6 @@ carnot:{
     const phase=['A→B изотерм. расширение','B→C адиабат. расширение','C→D изотерм. сжатие','D→A адиабат. сжатие'][seg];
     v.label(ctx,phase,cx+cw/2,cyTop,-46,-30,ink3);
     v.label(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw/2,pistonY,cw*20+6,0,ink3);
-    v.label(ctx,'цикл Карно — на панели справа →',cx+cw/2,cyTop+cyH,-64,26,ink3);
   }
 }
 
@@ -12655,8 +12688,10 @@ wave:{
       v.label(ctx,`φ = ${(ph*180/Math.PI).toFixed(0)}°`,cx,-p.A,-24,16,dang);
       v.label(ctx,'y — проекция вектора',cx,-p.A,-44,32,ink3);
     }
-    v.label(ctx,'частицы колеблются поперёк, а волна переносит энергию вдоль',0,-p.A-1.6,-108,0,ink3);
-    v.label(ctx,'пробную частицу можно перетаскивать',0,-p.A-1.6,-64,16,ink3);
+    // подсказки — на фиксированном расстоянии в пикселях под волной
+    { const k=1/ppm(), c=0;
+      v.text(ctx,'частицы колеблются поперёк, а волна переносит энергию вдоль',c,-p.A-56*k,ink3,10,'center');
+      v.text(ctx,'пробную частицу можно перетаскивать',c,-p.A-72*k,ink3,10,'center'); }
   }
 },
 
@@ -15582,8 +15617,8 @@ bohr:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-30)/(11*PX_PER_M),(H-30)/(8*PX_PER_M)),0.002,30);
-    return {x:0.3,y:-0.2,scale};
+    const scale=clamp(Math.min((W-30)/(12.4*PX_PER_M),(H-30)/(8.4*PX_PER_M)),0.002,30);
+    return {x:0.9,y:-0.1,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
@@ -15619,7 +15654,8 @@ bohr:{
         i?ctx.lineTo(x,y):ctx.moveTo(x,y);
       }
       ctx.stroke();
-      v.label(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} — волна замыкается`,CX,R,-110,-14,sec);
+      v.text(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} на орбите`,CX,R+0.62,sec,10,'center',true);
+      v.text(ctx,'волна замыкается сама на себя',CX,R+0.34,sec,9.5,'center');
     }
     // электрон
     const ea=s.ph;
@@ -15647,10 +15683,10 @@ bohr:{
         ctx.beginPath(); ctx.moveTo(gx,y); ctx.lineTo(gx+(on?1.4:1.1),y); ctx.stroke(); ctx.globalAlpha=1;
         if(k<=3 || on) v.label(ctx,`n = ${k}:  ${E.toFixed(2)} эВ`,gx+1.5,y,2,0,on?acc:ink3);
       }
-      if(n<4) v.label(ctx,'n = 4, 5, 6 … — всё теснее',gx+1.5,Y(this.E(5)),2,-12,ink3);
       v.label(ctx,'уровни сгущаются к нулю',gx,gy,0,20,ink3);
     }
-    v.label(ctx,`E_${n} = ${this.E(n).toFixed(3)} эВ,  r_${n} = ${this.r(n).toFixed(4)} нм`,CX,-3.4,-84,0,ink3);
+    const ин=String(n).replace(/\d/g,d=>'₀₁₂₃₄₅₆₇₈₉'[d]);
+    v.label(ctx,`E${ин} = ${this.E(n).toFixed(3)} эВ,  r${ин} = ${this.r(n).toFixed(4)} нм`,CX,-3.4,-84,0,ink3);
     v.label(ctx,'орбита устойчива, если на ней укладывается целое число волн де Бройля',CX,-3.4,-160,16,ink3);
   }
 },
@@ -16012,8 +16048,9 @@ pauli:{
     if(p.shells){
       const sh=this.byShell(p);
       const CX=3.2;
-      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0.4,0.18,0,7); ctx.fill();
-      v.label(ctx,`+${p.Z}`,CX,0.4,-7,4,'#fff');
+      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0.4,Math.max(0.2,v.lw(10)),0,7); ctx.fill();
+      v.text(ctx,`+${p.Z}`,CX,0.4,'#fff',9,'center',true);
+      const оболочки=Object.keys(sh).map(Number), Rmax=0.55+Math.max(...оболочки)*0.42;
       let k=0;
       for(const n of Object.keys(sh).map(Number).sort((a,b)=>a-b)){
         const R=0.55+n*0.42, full=(sh[n]===this.shellCap(n));
@@ -16035,8 +16072,9 @@ pauli:{
           ctx.fillStyle=full?acc:meas;
           ctx.beginPath(); ctx.arc(ex,ey,v.lw(2.6),0,7); ctx.fill();
         }
-        // подписи оболочек разносим по вертикали, иначе они ложатся друг на друга
-        v.label(ctx,`n=${n}: ${cnt}/${this.shellCap(n)}`,CX,0.4+R,10,-6-k*0,full?acc:ink3);
+        /* подписи оболочек — столбиком справа от атома: у самих колец они
+           ложились друг на друга (кольца отстоят всего на 0,42) */
+        v.text(ctx,`n=${n}: ${cnt} из ${this.shellCap(n)}`,CX+Rmax+0.3,0.4+Rmax-0.2-k*0.42,full?acc:ink3,10,'left',full);
         k++;
       }
       if(this.isNoble(p)) v.label(ctx,'все оболочки замкнуты — благородный газ',CX,-2.4,-84,0,acc);
@@ -16590,6 +16628,22 @@ const КС={
     const c=x=>Math.round(255*Math.pow(clamp(x*f,0,1),0.8));
     return `rgb(${c(r)},${c(g)},${c(b)})`;
   },
+  /* абзац с переносом по ширине w (в единицах сцены): длинная строка сама
+     ломается по словам, а не вылезает за панель в узком окне (3.4.0).
+     Возвращает y под последней строкой. */
+  абзац(ctx,v,text,x,y,w,color,px,align,bold){
+    px=px||10; const k=v.textK||1, шаг=px*k*1.35/ppm(), ширина=w*ppm();
+    ctx.save(); ctx.font=(bold?'600 ':'')+sceneFont(px*k);
+    const строки=[]; let cur='';
+    for(const слово of String(text).split(' ')){
+      const t=cur?cur+' '+слово:слово;
+      if(cur && ctx.measureText(безВекторов(t)).width>ширина){ строки.push(cur); cur=слово; } else cur=t;
+    }
+    if(cur) строки.push(cur); ctx.restore();
+    const ax=align==='center'?x+w/2:(align==='right'?x+w:x);
+    строки.forEach((l,i)=>v.text(ctx,l,ax,y-i*шаг,color,px,align||'left',bold));
+    return y-строки.length*шаг;
+  },
   точка(ctx,v,x,y,rpx,color){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,v.lw(rpx),0,7); ctx.fill(); },
   fitBox(vp,w,h,cx,cy){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -16718,7 +16772,7 @@ compton:{
     }
     // баланс энергии
     if(p.bars){
-      const bx=-6.25, by=-4.95, bw=6.1, bh=3.5, x0=bx+1.1, W=bw-1.35, Ein=this.Ein(p);
+      const bx=-6.25, by=-4.95, bw=6.1, bh=3.5, x0=bx+1.45, W=bw-1.7, Ein=this.Ein(p);
       КС.рамка(ctx,v,bx,by,bw,bh,'Энергия сохраняется');
       const полоса=(x,y,w,col,txt,txtCol)=>{ ctx.fillStyle=col; ctx.globalAlpha=.85; ctx.fillRect(x,y-0.22,Math.max(w,0.04),0.44); ctx.globalAlpha=1;
         if(txt) v.text(ctx,txt,x+0.08,y,txtCol||'#fff',10,'left',true); };
@@ -16729,7 +16783,7 @@ compton:{
       полоса(x0,by+1.35,w1,sec,w1>1.7?`фотон′ ${this.Eout(p).toFixed(1)}`:'');
       полоса(x0+w1,by+1.35,w2,meas,w2>1.4?`e⁻ ${Ke.toFixed(1)}`:'');
       if(w2<=1.4 && Ke>1e-6) v.text(ctx,`e⁻ ${Ke<0.1?Ke.toFixed(3):Ke.toFixed(1)} кэВ`,x0+w1+w2,by+1.8,meas,10,'right',true);
-      v.text(ctx,Ke>1e-6?'E′ < E, поэтому λ′ = hc/E′ длиннее λ':'удара не было — энергия та же',bx+0.2,by+0.45,ink3,10,'left');
+      v.text(ctx,Ke>1e-6?'E′ < E  ⇒  λ′ = hc/E′ длиннее λ':'удара не было — энергия та же',bx+0.2,by+0.45,ink3,10,'left');
     }
     // треугольник импульсов
     if(p.vec){
@@ -17017,12 +17071,12 @@ uncertainty:{
       for(let j=-12;j<=12;j+=4){ const k=p.p0+j; v.text(ctx,`${k}`,K(k),yb2-0.22,ink3,9); }
       v.text(ctx,'k, нм⁻¹',5.95,yb2+0.2,ink3,9,'right');
       ctx.fillStyle=sec; ctx.globalAlpha=.25; ctx.beginPath(); ctx.moveTo(-5.9,yb2);
-      for(let i=0;i<=300;i++){ const x=-5.9+11.8*i/300, k=p.p0+x/0.46; ctx.lineTo(x,yb2+2.1*Math.exp(-(k-p.p0)*(k-p.p0)/(2*dk*dk))); }
+      for(let i=0;i<=300;i++){ const x=-5.9+11.8*i/300, k=p.p0+x/0.46; ctx.lineTo(x,yb2+1.75*Math.exp(-(k-p.p0)*(k-p.p0)/(2*dk*dk))); }
       ctx.lineTo(5.9,yb2); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
-      const a=Math.max(-5.9,K(p.p0-dk)), b=Math.min(5.9,K(p.p0+dk)), y=yb2+2.35;
+      const a=Math.max(-5.9,K(p.p0-dk)), b=Math.min(5.9,K(p.p0+dk)), y=yb2+1.95;
       ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(a,y); ctx.lineTo(b,y); ctx.stroke();
       v.arrow(ctx,(a+b)/2,y,a,y,meas); v.arrow(ctx,(a+b)/2,y,b,y,meas);
-      v.text(ctx,`Δp = ħ/2Δx = ${(this.dp(p)*1e24).toFixed(2)}·10⁻²⁴ кг·м/с`,0,y+0.3,meas,10,'center',true);
+      v.text(ctx,`Δp = ħ/2Δx = ${(this.dp(p)*1e24).toFixed(2)}·10⁻²⁴ кг·м/с`,0,y+0.28,meas,10,'center',true);
       v.text(ctx,p.dx<0.3?'узкий пакет → широкий разброс скоростей → быстро расплывается'
         :(p.dx>1.2?'широкий пакет → скорости почти одинаковы → почти не расплывается'
         :'Δx·Δp = ħ/2 при t = 0; дальше Δx растёт, а Δp — нет'),0,gy+0.2,ink,10,'center');
@@ -17145,8 +17199,9 @@ box:{
       for(const x of [xL,xR]) face([пр(x,-W,-D),пр(x,W,-D),пр(x,W,1.0),пр(x,-W,1.0)],ink,.22,ink);
       // уровень покоя и узлы на ближней грани
       if(!p.mix){ for(let m=0;m<=n;m++){ const q=пр(xL+LX*m/n,передY,0); КС.точка(ctx,v,q[0],q[1],3.4,ink); } }
-      const qT=пр(0,передY,-D);
-      v.text(ctx,`L = ${p.L} нм: в длину помещается ${n} ${n===1?'полуволна':(n<5?'полуволны':'полуволн')}`,qT[0],qT[1]-0.3,ink,10,'center',true);
+      // подпись — под самым нижним углом лотка, при любом повороте
+      const низЛотка=Math.min(...[xL,xR].map(x=>Math.min(пр(x,-W,-D)[1],пр(x,W,-D)[1])));
+      v.text(ctx,`L = ${p.L} нм: в длину помещается ${n} ${n===1?'полуволна':(n<5?'полуволны':'полуволн')}`,пр(0,0,-D)[0],низЛотка-0.35,ink,10,'center',true);
       const qW=пр(xR,-передY,1.0);
       v.label(ctx,'стенка: волна отражается без потерь',qW[0],qW[1],-120,-12,ink3);
     } else {
@@ -17475,15 +17530,15 @@ xray:{
     const X=this.шкала(p), LM=this.LMAX(p), lm=this.lamMin(p);
     // ---- трубка
     КС.рамка(ctx,v,-6.25,0.75,6.1,4.2,'рентгеновская трубка');
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.ellipse(-3.3,2.6,2.75,1.35,0,0,7); ctx.stroke();
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.ellipse(-3.3,2.55,2.75,1.12,0,0,7); ctx.stroke();
     // катод-спираль
     ctx.strokeStyle='#e0782a'; ctx.lineWidth=v.lw(2); ctx.beginPath();
     for(let i=0;i<=40;i++){ const y=2.1+i/40, x=-5.55+0.12*Math.sin(i*1.4); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
-    v.text(ctx,'катод (−)',-5.3,3.45,ink3,9);
+    v.text(ctx,'катод (−)',-6.05,4.05,ink3,9,'left');
     // анод — скошенный блок
     ctx.fillStyle='#b87333'; ctx.beginPath(); ctx.moveTo(-1.95,1.9); ctx.lineTo(-1.6,1.9); ctx.lineTo(-1.2,3.3); ctx.lineTo(-1.95,3.3); ctx.closePath(); ctx.fill();
-    v.text(ctx,`анод (+)`,-1.45,1.6,ink3,9);
-    v.text(ctx,`U = ${p.U} кВ`,-3.6,3.75,ink,10,'center',true);
+    v.text(ctx,`анод (+)`,-0.3,4.05,ink3,9,'right');
+    v.text(ctx,`U = ${p.U} кВ`,-3.3,4.05,ink,10,'center',true);
     for(const e of s.летят) КС.точка(ctx,v,e.x,e.y,2.6,sec);
     v.text(ctx,'электроны разгоняются до энергии eU',-3.2,1.02,sec,9);
     // ---- атом анода: что случилось при последнем ударе
@@ -17531,7 +17586,7 @@ xray:{
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(X(0),yb); ctx.lineTo(X(LM),yb); ctx.stroke();
       const шаг=LM>250?100:(LM>120?40:20);
       for(let l=0;l<=LM;l+=шаг){ ctx.beginPath(); ctx.moveTo(X(l),yb); ctx.lineTo(X(l),yb-0.08); ctx.stroke(); v.text(ctx,`${l}`,X(l),yb-0.25,ink3,9); }
-      v.text(ctx,'λ, пм',X(LM),yb-0.5,ink3,9,'right');
+      v.text(ctx,'λ, пм',X(LM),yb+0.22,ink3,9,'right');
       for(let b=0;b<this.BINS;b++) if(s.bins[b]){ const l=(b+0.5)*LM/this.BINS;
         const хар=пик(l);
         ctx.fillStyle=хар?meas:sec; ctx.globalAlpha=.7; ctx.fillRect(X(0)+b*bw,yb,bw*0.92,H*Math.min(1,s.bins[b]/mx)); }
@@ -17784,6 +17839,7 @@ Object.assign(SIMS,{
 
 /* ================= ГЛ.28: ЗОННАЯ ТЕОРИЯ И ПОЛУПРОВОДНИКИ ================= */
 bands:{
+  hudAware:true,
   title:'Зонная теория: металл, полупроводник, диэлектрик',
   /* Сцена — зонная диаграмма: по вертикали энергия. Поэтому ни осей с
      числами, ни надписи «сетка N м». */
@@ -17857,97 +17913,79 @@ bands:{
     {name:'Алмаз: диэлектрик',values:{mat:'diamond',dope:'none',T:300}},
     {name:'Металл: зоны перекрыты',values:{mat:'metal',dope:'none',T:300}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
-  },
+  /* 3.4.0: две панели — зоны и проводимость от температуры */
+  fit(p,vp){ return КС.fitBox(vp,12.8,10,0,0); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const Eg=this.Eg(p), metal=(p.mat==='metal');
-    const bx=-4.6, bw=4.0, cy=0;
-    const gapH=metal? 0 : clamp(Eg*0.55,0.3,3.0);
-    const vTop=cy-gapH/2, cBot=cy+gapH/2;
-    // валентная зона
-    ctx.fillStyle=acc; ctx.globalAlpha=.3;
-    ctx.fillRect(bx,vTop-1.6,bw,1.6); ctx.globalAlpha=1;
-    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.4); ctx.strokeRect(bx,vTop-1.6,bw,1.6);
-    v.label(ctx,'валентная зона (заполнена)',bx,vTop-1.6,4,-6,acc);
-    // зона проводимости
-    ctx.fillStyle=meas; ctx.globalAlpha=.16;
-    ctx.fillRect(bx,cBot,bw,1.6); ctx.globalAlpha=1;
-    ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.4); ctx.strokeRect(bx,cBot,bw,1.6);
-    v.label(ctx,'зона проводимости (пустая)',bx,cBot+1.6,4,-6,meas);
-    // запрещённая зона
-    if(!metal){
-      ctx.fillStyle=ink3; ctx.globalAlpha=.1; ctx.fillRect(bx,vTop,bw,gapH); ctx.globalAlpha=1;
-      v.arrow(ctx,bx+bw*0.5,vTop,bx+bw*0.5,cBot,dang);
-      v.label(ctx,`Eg = ${Eg} эВ`,bx+bw*0.5,cy,8,0,dang);
-      v.label(ctx,'запрещённая зона',bx+bw*0.5,cy,8,16,ink3);
-    } else {
-      v.label(ctx,'зоны перекрываются — щели нет',bx+bw*0.5,cy,-60,0,dang);
-    }
-    // примесные уровни
-    if(!metal && p.dope!=='none'){
-      const y=(p.dope==='n')? cBot-0.28 : vTop+0.28;
-      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(4),v.lw(3)]);
-      for(let i=0;i<4;i++){
-        const x=bx+0.5+i*0.9;
-        ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+0.5,y); ctx.stroke();
+    // ---- 1. зонная схема
+    {
+      const px=-6.3, py=-4.9, pw=6.3, ph=9.8;
+      КС.рамка(ctx,v,px,py,pw,ph,'энергетические зоны');
+      const bx=px+0.35, bw=4.1, cy=py+4.9, BH=1.9;
+      const gapH=metal? 0 : clamp(Eg*0.55,0.3,2.6);
+      const vTop=cy-gapH/2, cBot=cy+gapH/2+(metal?-0.5:0);
+      ctx.fillStyle=acc; ctx.globalAlpha=.3; ctx.fillRect(bx,vTop-BH,bw,BH); ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.4); ctx.strokeRect(bx,vTop-BH,bw,BH);
+      v.text(ctx,'валентная',bx+bw+0.12,vTop-BH/2+0.17,acc,10,'left',true);
+      v.text(ctx,'(полна)',bx+bw+0.12,vTop-BH/2-0.17,acc,9.5,'left');
+      ctx.fillStyle=meas; ctx.globalAlpha=.16; ctx.fillRect(bx,cBot,bw,BH); ctx.globalAlpha=1;
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.4); ctx.strokeRect(bx,cBot,bw,BH);
+      v.text(ctx,'зона',bx+bw+0.12,cBot+BH/2+0.34,meas,10,'left',true);
+      v.text(ctx,'проводи-',bx+bw+0.12,cBot+BH/2,meas,10,'left',true);
+      v.text(ctx,'мости',bx+bw+0.12,cBot+BH/2-0.34,meas,10,'left',true);
+      if(!metal){
+        ctx.fillStyle=ink3; ctx.globalAlpha=.1; ctx.fillRect(bx,vTop,bw,gapH); ctx.globalAlpha=1;
+        v.arrow(ctx,bx+0.5,vTop,bx+0.5,cBot,dang);
+        v.text(ctx,`Eg = ${Eg} эВ`,bx+0.7,cy,dang,10,'left',true);
+        v.text(ctx,'щель',bx+bw+0.12,cy,ink3,9.5,'left');
+      } else v.text(ctx,'зоны перекрываются — щели нет',bx+bw/2,cBot+0.25,dang,9.5,'center',true);
+      // примесные уровни
+      if(!metal && p.dope!=='none'){
+        const y=(p.dope==='n')? cBot-0.25 : vTop+0.25;
+        ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(4),v.lw(3)]);
+        for(let i=0;i<4;i++){ const x=bx+1.5+i*0.65; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+0.4,y); ctx.stroke(); }
+        ctx.setLineDash([]);
       }
-      ctx.setLineDash([]);
-      v.label(ctx,p.dope==='n'?'донорные уровни — под самой зоной проводимости'
-                             :'акцепторные уровни — над валентной зоной',bx,y,4,p.dope==='n'?-8:16,sec);
-    }
-    // носители
-    if(p.carriers){
-      const nrel=metal? 1 : this.ni(p);
-      const nEl=metal? 10 : clamp(Math.round(nrel*4e6),0,9) + (p.dope==='n'?4:0);
-      const nHole=metal? 0 : clamp(Math.round(nrel*4e6),0,9) + (p.dope==='p'?4:0);
-      // электроны в зоне проводимости
-      ctx.fillStyle=meas;
-      for(let i=0;i<nEl;i++){
-        const x=bx+0.35+((i*0.44+s.ph*0.25)%(bw-0.7));
-        const y=cBot+0.35+((i*0.31)%1.0);
-        ctx.beginPath(); ctx.arc(x,y,v.lw(3),0,7); ctx.fill();
+      // носители
+      if(p.carriers){
+        const nrel=metal? 1 : this.ni(p);
+        const nEl=metal? 10 : clamp(Math.round(nrel*4e6),0,9) + (p.dope==='n'?4:0);
+        const nHole=metal? 0 : clamp(Math.round(nrel*4e6),0,9) + (p.dope==='p'?4:0);
+        ctx.fillStyle=meas;
+        for(let i=0;i<nEl;i++){ const x=bx+0.3+((i*0.44+s.ph*0.25)%(bw-0.6)), y=cBot+0.35+((i*0.31)%(BH-0.7));
+          ctx.beginPath(); ctx.arc(x,y,v.lw(3),0,7); ctx.fill(); }
+        ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.6);
+        for(let i=0;i<nHole;i++){ const x=bx+0.3+((i*0.44+s.ph*0.18)%(bw-0.6)), y=vTop-0.35-((i*0.29)%(BH-0.7));
+          ctx.beginPath(); ctx.arc(x,y,v.lw(3),0,7); ctx.stroke(); }
+        v.text(ctx,`● электронов вверху: ${nEl}`,px+0.35,py+1.35,meas,10,'left',true);
+        v.text(ctx,`○ дырок внизу: ${nHole}`,px+0.35,py+1.0,dang,10,'left',true);
       }
-      // дырки в валентной зоне
-      ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.6);
-      for(let i=0;i<nHole;i++){
-        const x=bx+0.35+((i*0.44+s.ph*0.18)%(bw-0.7));
-        const y=vTop-0.35-((i*0.29)%1.0);
-        ctx.beginPath(); ctx.arc(x,y,v.lw(3),0,7); ctx.stroke();
-      }
-      v.label(ctx,`электронов сверху: ${nEl}, дырок снизу: ${nHole}`,bx,vTop-1.6,4,20,ink3);
+      if(!metal && p.dope!=='none')
+        v.text(ctx,p.dope==='n'?'- - донорные уровни: под зоной проводимости':'- - акцепторные уровни: над валентной',px+0.35,py+0.6,sec,9.5,'left');
     }
-    // график проводимости от температуры
+    // ---- 2. проводимость от температуры
     if(p.curve){
-      const gx=0.6, gy=-2.6, gw2=4.6, gh=4.4;
+      const px=0.2, py=-4.9, pw=6.1, ph=9.8;
+      КС.рамка(ctx,v,px,py,pw,ph,'проводимость от температуры');
+      const gx=px+0.5, gy=py+3.2, gw2=pw-0.9, gh=ph-4.2;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw2,gy); ctx.stroke();
-      ctx.globalAlpha=1;
-      v.label(ctx,'проводимость',gx,gy+gh,4,-8,ink3);
-      v.label(ctx,'температура',gx+gw2,gy,-56,16,ink3);
-      // кривая
-      let vals=[];
+      ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw2,gy); ctx.stroke(); ctx.globalAlpha=1;
+      v.text(ctx,'σ',gx+0.12,gy+gh,ink3,10,'left',true);
+      v.text(ctx,'T, К →',gx+gw2,gy-0.25,ink3,9.5,'right');
+      for(const T of [300,600]) v.text(ctx,String(T),gx+gw2*(T-50)/750,gy-0.25,ink3,9,'center');
+      const vals=[];
       for(let i=0;i<=100;i++){ const T=50+i*7.5; vals.push(this.sigma(Object.assign({}, p, {T}))); }
       const mx=Math.max(...vals)||1;
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.beginPath();
-      vals.forEach((val,i)=>{ const x=gx+gw2*i/100, y=gy+gh*0.9*(val/mx);
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      vals.forEach((val,i)=>{ const x=gx+gw2*i/100, y=gy+gh*0.9*(val/mx); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
       ctx.stroke();
-      // текущая точка
       const idx=clamp(Math.round((p.T-50)/7.5),0,100);
-      ctx.fillStyle=meas; ctx.beginPath();
-      ctx.arc(gx+gw2*idx/100, gy+gh*0.9*(vals[idx]/mx), v.lw(3.6),0,7); ctx.fill();
-      v.label(ctx, metal? 'у металла проводимость ПАДАЕТ с нагревом'
-                        : 'у полупроводника проводимость РАСТЁТ с нагревом',
-        gx,gy,4,32, metal?dang:acc);
-      v.label(ctx, metal? 'мешают колебания решётки'
-                        : 'тепло забрасывает электроны через щель',
-        gx,gy,4,48,ink3);
+      КС.точка(ctx,v,gx+gw2*idx/100, gy+gh*0.9*(vals[idx]/mx),3.6,meas);
+      let y=КС.абзац(ctx,v,metal?'У металла проводимость ПАДАЕТ с нагревом: электроны рассеиваются на колебаниях решётки.'
+        :'У полупроводника проводимость РАСТЁТ с нагревом: тепло забрасывает электроны через щель.',px+0.3,py+2.35,pw-0.6,metal?dang:acc,9.5);
+      КС.абзац(ctx,v,this.kind(p),px+0.3,y-0.1,pw-0.6,ink3,9.5);
     }
-    v.label(ctx,this.kind(p),-4.6,-3.4,0,0,ink3);
   }
 }
 ,
@@ -17955,6 +17993,7 @@ bands:{
 /* ================== ГЛ.29: РАЗМЕРЫ И СТРОЕНИЕ ЯДЕР ================= */
 nucleus:{
   title:'Ядро: размеры и состав',
+  hudAware:true,
   /* Сцена — ядро в условном масштабе: настоящий радиус в фемтометрах.
      Поэтому ни осей с числами, ни надписи «сетка N м». */
   schema:true,
@@ -18005,74 +18044,66 @@ nucleus:{
     {name:'Уран-238',values:{A:238,Z:92}},
     {name:'Нестабильное ядро: слишком мало нейтронов',values:{A:238,Z:60}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
-  },
+  /* 3.4.0: две панели — ядро и карта N–Z; подписи внутри панелей */
+  fit(p,vp){ return КС.fitBox(vp,12.8,10,0,0); },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const CX=-3.0, Z=Math.min(p.Z,p.A), N=this.N(p);
-    const Rvis=0.45*Math.pow(p.A,1/3);
-    // ядро
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.4);
-    ctx.beginPath(); ctx.arc(CX,0.6,Rvis,0,7); ctx.stroke(); ctx.globalAlpha=1;
-    if(p.balls){
-      /* Нуклоны укладываем по спирали с золотым углом — она равномерно заполняет круг.
-         Размер шарика привязан к ПЛОЩАДИ: число нуклонов растёт как A, а площадь ядра
-         как A^(2/3), поэтому фиксированный радиус неизбежно приводил к слипанию.
-         Берём r так, чтобы суммарная площадь шариков была постоянной долей площади ядра,
-         тогда между ними всегда остаются просветы. */
-      const tot=Math.min(p.A,238);
-      const fill=0.26;                                   // доля площади под нуклонами
-      const rN=clamp(Rvis*Math.sqrt(fill/Math.max(tot,1)), Rvis*0.028, Rvis*0.30);
-      for(let i=0;i<tot;i++){
-        const t=(i+0.5)/tot;
-        const rr=Rvis*0.88*Math.sqrt(t);
-        const a=i*2.39996+s.ph*0.15;
-        const x=CX+rr*Math.cos(a), y=0.6+rr*Math.sin(a);
-        ctx.fillStyle=(i<Z)?dang:meas;
-        ctx.globalAlpha=.92;
-        ctx.beginPath(); ctx.arc(x,y,rN,0,7); ctx.fill();
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const Z=Math.min(p.Z,p.A), N=this.N(p), уст=this.stable(p);
+    // ---- 1. ядро
+    {
+      const bx=-6.3, by=-4.2, bw=6.1, bh=9.1, CX=bx+bw/2, CY=by+4.9;
+      КС.рамка(ctx,v,bx,by,bw,bh,`ядро: A = ${p.A}`);
+      const Rvis=0.52*Math.pow(p.A,1/3)*Math.min(1,2.75/(0.52*Math.pow(238,1/3)));
+      ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.4);
+      ctx.beginPath(); ctx.arc(CX,CY,Rvis,0,7); ctx.stroke(); ctx.globalAlpha=1;
+      if(p.balls){
+        /* спираль с золотым углом равномерно заполняет круг; протоны и
+           нейтроны перемешаны, как в настоящем ядре (раньше протоны сидели
+           в центре, а нейтроны — «шубой» снаружи) */
+        const tot=Math.min(p.A,238);
+        const rN=clamp(Rvis*Math.sqrt(0.5/Math.max(tot,1)), Rvis*0.028, Rvis*0.34);
+        for(let i=0;i<tot;i++){
+          const t=(i+0.5)/tot, rr=(Rvis-rN)*Math.sqrt(t), a=i*2.39996+s.ph*0.15;
+          ctx.fillStyle=((i*61)%tot)<Z?dang:meas; ctx.globalAlpha=.92;
+          ctx.beginPath(); ctx.arc(CX+rr*Math.cos(a),CY+rr*Math.sin(a),rN,0,7); ctx.fill();
+        }
         ctx.globalAlpha=1;
       }
-      v.label(ctx,`протонов ${Z}`,CX,0.6-Rvis,-24,-14,dang);
-      v.label(ctx,`нейтронов ${N}`,CX,0.6+Rvis,-26,18,meas);
+      v.text(ctx,`● протонов Z = ${Z}`,bx+0.3,by+2.05,dang,10,'left',true);
+      v.text(ctx,`● нейтронов N = ${N}`,bx+0.3,by+1.7,meas,10,'left',true);
+      v.text(ctx,`R = R₀·∛A = ${this.R(p).toFixed(2)} фм`,bx+0.3,by+1.3,ink,10,'left');
+      КС.абзац(ctx,v,`плотность ${this.density(p).toExponential(2)} кг/м³ — одна у всех ядер: нуклоны уложены плотно, как в капле`,bx+0.3,by+0.85,bw-0.6,ink3,9.5);
     }
-    v.label(ctx,`A = ${p.A}, R = ${this.R(p).toFixed(2)} фм`,CX,0.6,-46,Rvis*20+36,ink3);
-    v.label(ctx,'нуклоны уложены плотно — как капля жидкости',CX,0.6,-104,Rvis*20+52,ink3);
-
-    // карта стабильности N–Z
+    // ---- 2. карта стабильности N–Z
     if(p.map){
-      const gx=0.6, gy=-2.6, gw=4.8, gh=4.8, Amax=250;
+      const bx=0.1, by=-4.2, bw=6.2, bh=9.1;
+      КС.рамка(ctx,v,bx,by,bw,bh,'где ядра устойчивы');
+      const gx=bx+0.75, gy=by+1.9, gw=bw-1.1, gh=bh-2.75;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      ctx.globalAlpha=1;
-      v.label(ctx,'N (нейтроны)',gx,gy+gh,4,-8,ink3);
-      v.label(ctx,'Z (протоны)',gx+gw,gy,-56,16,ink3);
-      const X=n=>gx+gw*clamp(n/150,0,1), Y=z=>gy+gh*clamp(z/100,0,1);
+      ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
+      const X=n=>gx+gw*clamp(n/175,0,1), Y=z=>gy+gh*clamp(z/100,0,1);
+      v.text(ctx,'N →',gx+gw,gy-0.25,ink3,9.5,'right'); v.text(ctx,'Z ↑',gx+0.15,gy+gh+0.05,ink3,9.5,'left');
+      for(const n of [50,100,150]) v.text(ctx,String(n),X(n),gy-0.25,ink3,9,'center');
+      for(const z of [50]) v.text(ctx,String(z),gx-0.1,Y(z),ink3,9,'right');
       // линия N = Z
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.4; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(X(0),Y(0)); ctx.lineTo(X(100),Y(100)); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,'N = Z',X(95),Y(95),6,-4,ink3);
-      // дорожка стабильности
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.4); ctx.beginPath();
-      for(let A=2;A<=Amax;A+=2){
-        const z=this.stableZ(A), n=A-z;
-        const x=X(n), y=Y(z);
-        A===2?ctx.moveTo(x,y):ctx.lineTo(x,y);
-      }
+      КС.пунктир(ctx,v,X(0),Y(0),X(100),Y(100),ink3,.45);
+      v.text(ctx,'N = Z',X(88),Y(96),ink3,9.5,'left');
+      // долина стабильности — полоса, а не нить
+      ctx.fillStyle=acc; ctx.globalAlpha=.14; ctx.beginPath();
+      for(let A=2;A<=250;A+=4){ const z=this.stableZ(A), w=Math.max(1.2,A*0.022); A===2?ctx.moveTo(X(A-z-w),Y(z+w)):ctx.lineTo(X(A-z-w),Y(z+w)); }
+      for(let A=250;A>=2;A-=4){ const z=this.stableZ(A), w=Math.max(1.2,A*0.022); ctx.lineTo(X(A-z+w),Y(z-w)); }
+      ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
+      for(let A=2;A<=250;A+=2){ const z=this.stableZ(A), x=X(A-z), y=Y(z); A===2?ctx.moveTo(x,y):ctx.lineTo(x,y); }
       ctx.stroke();
-      v.label(ctx,'дорожка стабильности',X(90),Y(60),4,0,acc);
-      v.label(ctx,'у тяжёлых ядер нейтронов заметно больше',X(60),Y(20),-10,26,ink3);
+      // знакомые ядра — ориентиры
+      for(const [nm,A,z] of [['⁴He',4,2],['⁵⁶Fe',56,26],['²⁰⁸Pb',208,82],['²³⁸U',238,92]]){
+        КС.точка(ctx,v,X(A-z),Y(z),2.4,ink3); v.text(ctx,nm,X(A-z)+0.1,Y(z)-0.2,ink3,9,'left'); }
       // текущее ядро
-      ctx.fillStyle=this.stable(p)?meas:dang;
-      ctx.beginPath(); ctx.arc(X(N),Y(Z),v.lw(4.5),0,7); ctx.fill();
-      v.label(ctx,`A=${p.A}`,X(N),Y(Z),8,-6,this.stable(p)?meas:dang);
+      КС.точка(ctx,v,X(N),Y(Z),5,уст?meas:dang);
+      v.text(ctx,уст?'устойчиво':'распадётся',X(N)-0.15,Y(Z)+0.25,уст?meas:dang,10,'right',true);
+      КС.абзац(ctx,v,'полоса вдоль кривой — устойчивые ядра; у тяжёлых нейтронов больше, чем протонов',bx+0.3,by+1.05,bw-0.6,ink3,9.5);
     }
-    v.label(ctx,`плотность ядра ${this.density(p).toExponential(2)} кг/м³ — одна и та же у всех ядер`,-5.4,-3.4,0,0,acc);
-    if(!this.stable(p)) v.label(ctx,'такое сочетание Z и A неустойчиво — ядро распадётся',-5.4,-3.4,0,16,dang);
   }
 },
 
@@ -18081,6 +18112,7 @@ nucleus:{
 /* ================= ГЛ.29: РАДИОАКТИВНЫЙ РАСПАД ================= */
 decay:{
   title:'Радиоактивный распад: закон и виды',
+  hudAware:true,
   /* Сцена — схема превращения и кривая распада. Поэтому ни осей с числами,
      ни надписи «сетка N м». */
   schema:true,
@@ -18139,106 +18171,97 @@ decay:{
     {name:'Короткий период полураспада',values:{type:'alpha',A:238,Z:92,half:2}},
     {name:'Долгий период полураспада',values:{type:'alpha',A:238,Z:92,half:40}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+  /* 3.4.0: три панели в мировых координатах вместо подписей с пиксельными
+     сдвигами (в узком окне они наезжали на кривую и на образец). Сверху —
+     живое превращение ядра, слева — кривая, справа — образец, где
+     только что распавшиеся ядра вспыхивают. */
+  fit(p,vp){ return КС.fitBox(vp,12.8,10.4,0,0); },
+  /* ядро — шарик из нуклонов (протоны — красные, нейтроны — серые) */
+  ядро(ctx,v,x,y,A,Z,R){
+    const n=clamp(Math.round(Math.sqrt(A)*2.2),4,36), rn=R/Math.sqrt(n)*0.95;
+    for(let i=0;i<n;i++){ const r=R*Math.sqrt((i+0.5)/n)*0.92, a=i*2.39996;
+      ctx.fillStyle=((i*37)%n)<n*Z/A?v.c('--danger'):v.c('--ink-3');
+      ctx.beginPath(); ctx.arc(x+r*Math.cos(a),y+r*Math.sin(a),rn,0,7); ctx.fill(); }
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const f=this.frac(p,s.t), pr=this.product(p);
-    // схема превращения
-    const CY=2.6;
-    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(-4.2,CY,0.42,0,7); ctx.fill();
-    v.label(ctx,`${p.A}`,-4.2,CY,-8,-1,'#fff');
-    v.label(ctx,`Z=${p.Z}`,-4.2,CY,-14,20,ink3);
-    v.arrow(ctx,-3.5,CY,-2.4,CY,ink3);
-    ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(-1.7,CY,0.42,0,7); ctx.fill();
-    v.label(ctx,`${pr.A}`,-1.7,CY,-8,-1,'#fff');
-    v.label(ctx,`Z=${pr.Z}`,-1.7,CY,-14,20,ink3);
-    // вылетающая частица
-    if(p.type==='alpha'){
-      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(-0.6,CY+0.7,0.2,0,7); ctx.fill();
-      v.label(ctx,'α',-0.6,CY+0.7,-4,4,'#fff');
-      v.label(ctx,'ядро гелия: A−4, Z−2',-0.6,CY+0.7,14,0,meas);
-    } else if(p.type==='beta'){
-      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(-0.6,CY+0.7,0.16,0,7); ctx.fill();
-      v.label(ctx,'e⁻ и антинейтрино: A тот же, Z+1',-0.6,CY+0.7,14,0,meas);
-      v.label(ctx,'нейтрон в ядре превратился в протон',-0.6,CY+0.7,14,16,ink3);
-    } else {
-      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
-      for(let i=0;i<=40;i++){ const x=-1.1+i*0.04, y=CY+0.7+0.12*Math.sin(i*0.9);
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-      ctx.stroke();
-      v.label(ctx,'гамма-квант: A и Z не меняются',0.6,CY+0.7,4,0,sec);
-      v.label(ctx,'ядро просто сбрасывает лишнюю энергию',0.6,CY+0.7,4,16,ink3);
+    // ---- 1. превращение ядра
+    {
+      const bx=-6.3, by=1.55, bw=12.6, bh=3.55, CY=by+1.85, x1=-4.6, x2=-1.2, R=0.62;
+      КС.рамка(ctx,v,bx,by,bw,bh,'что происходит с ядром');
+      this.ядро(ctx,v,x1,CY,p.A,p.Z,R);
+      v.text(ctx,`A = ${p.A}, Z = ${p.Z}`,x1,CY-R-0.3,ink,10,'center',true);
+      v.arrow(ctx,x1+R+0.2,CY,x2-R-0.2,CY,ink3);
+      this.ядро(ctx,v,x2,CY,pr.A,pr.Z,R*Math.cbrt(pr.A/p.A));
+      v.text(ctx,`A = ${pr.A}, Z = ${pr.Z}`,x2,CY-R-0.3,acc,10,'center',true);
+      // вылетающая частица: каждые 2,4 с — новая
+      const u=((s.t%2.4)+2.4)%2.4/2.4, d=0.7+u*1.5, dir=0.35, px=x2+d*Math.cos(dir), py=CY+d*Math.sin(dir)*0.6;
+      if(p.type==='alpha'){
+        [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([i,j],k)=>{ ctx.fillStyle=k%3?ink3:dang; ctx.beginPath(); ctx.arc(px+i*0.1,py+j*0.1,0.1,0,7); ctx.fill(); });
+        v.text(ctx,'α',px+0.25,py+0.3,meas,11,'left',true);
+      } else if(p.type==='beta'){
+        КС.точка(ctx,v,px,py,4,meas); v.text(ctx,'e⁻',px+0.18,py+0.22,meas,10,'left',true);
+        const nx=x2+d*Math.cos(-0.35)*0.9, ny=CY+d*Math.sin(-0.35)*0.6;
+        ctx.globalAlpha=.55; КС.точка(ctx,v,nx,ny,3,ink3); ctx.globalAlpha=1; v.text(ctx,'ν̄',nx+0.18,ny-0.2,ink3,10,'left');
+      } else {
+        v.photon(ctx,px,py,dir*0.6,{len:1.3,lam:0.22,amp:0.1,phase:s.t*12,color:sec,lw:1.8});
+        v.text(ctx,'γ',px+0.2,py+0.25,sec,11,'left',true);
+      }
+      const пояс={alpha:['α-распад: A уменьшается на 4, Z — на 2','ядро выбрасывает ядро гелия'],
+        beta:['β⁻-распад: A тот же, Z больше на 1','нейтрон в ядре стал протоном и выпустил e⁻ и ν̄'],
+        gamma:['γ-излучение: A и Z не меняются','ядро сбрасывает лишнюю энергию квантом']}[p.type];
+      let y=КС.абзац(ctx,v,пояс[0],1.0,by+bh-0.75,5.1,ink,10,'left',true);
+      КС.абзац(ctx,v,пояс[1],1.0,y-0.05,5.1,ink3,10);
+      v.text(ctx,'N = N₀·e^(−λt)',1.0,by+0.75,acc,10,'left',true);
+      v.text(ctx,`λ = ln2/T½ = ${this.lam(p).toFixed(4)} 1/с`,1.0,by+0.4,acc,10,'left',true);
     }
-    // кривая распада
+    // ---- 2. кривая распада
     if(p.curve){
-      const gx=-5.2, gy=-2.8, gw=6.4, gh=4.0, Tmax=p.half*5;
+      const bx=-6.3, by=-5.1, bw=6.2, bh=6.45;
+      КС.рамка(ctx,v,bx,by,bw,bh,'сколько ядер осталось');
+      const gx=bx+0.95, gy=by+0.85, gw=bw-1.3, gh=bh-1.85, Tmax=p.half*5;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-      ctx.globalAlpha=1;
-      v.label(ctx,'N/N₀',gx,gy+gh,-4,-10,ink3);
-      v.label(ctx,'время',gx+gw,gy,-30,16,ink3);
+      ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
+      v.text(ctx,'N/N₀',gx+0.1,gy+gh+0.22,ink3,9.5,'left');
+      v.text(ctx,'время →',gx+gw,gy-0.55,ink3,9.5,'right');
       const X=t=>gx+gw*clamp(t/Tmax,0,1), Y=fr=>gy+gh*fr;
-      // экспонента
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
-      for(let i=0;i<=200;i++){ const t=Tmax*i/200;
-        i?ctx.lineTo(X(t),Y(this.frac(p,t))):ctx.moveTo(X(t),Y(this.frac(p,t))); }
-      ctx.stroke();
-      // отметки периодов полураспада
+      v.text(ctx,'100%',gx-0.1,Y(1),ink3,9,'right');
       for(let k=1;k<=4;k++){
         const t=k*p.half, fr=Math.pow(0.5,k);
-        ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-        ctx.beginPath(); ctx.moveTo(X(t),gy); ctx.lineTo(X(t),Y(fr)); ctx.lineTo(gx,Y(fr)); ctx.stroke();
-        ctx.setLineDash([]); ctx.globalAlpha=1;
-        v.label(ctx,`${k}·T½`,X(t),gy,-10,14,ink3);
-        v.label(ctx,`${(fr*100).toFixed(fr<0.2?1:0)}%`,gx,Y(fr),-32,4,ink3);
+        КС.пунктир(ctx,v,X(t),gy,X(t),Y(fr),ink3); КС.пунктир(ctx,v,gx,Y(fr),X(t),Y(fr),ink3);
+        v.text(ctx,`${k}T½`,X(t),gy-0.25,ink3,9,'center');
+        if(k<=3) v.text(ctx,`${fr*100}%`,gx-0.1,Y(fr),ink3,9,'right');
       }
-      // текущий момент
-      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(X(Math.min(s.t,Tmax)),Y(f),v.lw(4),0,7); ctx.fill();
-      v.label(ctx,`осталось ${(f*100).toFixed(1)} %`,X(Math.min(s.t,Tmax)),Y(f),8,-6,dang);
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
+      for(let i=0;i<=200;i++){ const t=Tmax*i/200; i?ctx.lineTo(X(t),Y(this.frac(p,t))):ctx.moveTo(X(t),Y(this.frac(p,t))); }
+      ctx.stroke();
+      const tx=X(Math.min(s.t,Tmax));
+      КС.точка(ctx,v,tx,Y(f),4.5,dang);
+      v.text(ctx,`${(f*100).toFixed(1)} %`,tx+0.15,Y(f)+0.25,dang,10,'left',true);
+      v.text(ctx,'каждый T½ — вдвое меньше',bx+bw-0.2,by+bh-0.75,ink3,9.5,'right');
     }
-    /* ОБРАЗЕЦ ЯДЕР. Подписи вынесены за пределы сетки: пояснение сверху,
-       расшифровка снизу — раньше строки ложились прямо на кружки. */
+    // ---- 3. образец: 81 ядро, только что распавшиеся вспыхивают
     if(p.atoms){
-      const bx=2.0, by=-2.5, cols=9, rows=9, stp=0.40;
-      const topY=by+(rows-1)*stp;
-      let aliveCount=0;
+      const bx=0.1, by=-5.1, bw=6.2, bh=6.45, cols=9, rows=9, stp=0.46, x0=bx+1.2, y0=by+1.55;
+      КС.рамка(ctx,v,bx,by,bw,bh,'образец: 81 ядро');
+      const fPrev=this.frac(p,Math.max(0,s.t-0.35));
+      let живых=0;
       for(let i=0;i<cols;i++) for(let j=0;j<rows;j++){
-        const idx=i*rows+j;
-        // устойчивый «порядок распада»: картинка не скачет от кадра к кадру
-        const seed=((idx*2654435761)%81)/81;
-        const alive=seed<f;
-        if(alive) aliveCount++;
-        const x=bx+i*stp, y=by+j*stp, r=v.lw(3.4);
-        if(alive){
-          ctx.fillStyle=dang;
-          ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
-        } else {
-          // распавшееся — пустое кольцо: разница видна сразу, без игры прозрачностью
+        const idx=i*rows+j, seed=((idx*2654435761)%81)/81, alive=seed<f;
+        const x=x0+i*stp, y=y0+j*stp, r=v.lw(4);
+        if(alive){ живых++; ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); }
+        else {
           ctx.strokeStyle=ink3; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.2);
           ctx.beginPath(); ctx.arc(x,y,r*0.85,0,7); ctx.stroke(); ctx.globalAlpha=1;
+          if(seed<fPrev){ const q=(fPrev-seed)/Math.max(1e-6,fPrev-f);   // распалось только что
+            ctx.strokeStyle=meas; ctx.globalAlpha=0.9*(1-q*0.5); ctx.lineWidth=v.lw(2);
+            ctx.beginPath(); ctx.arc(x,y,r*(1.3+q),0,7); ctx.stroke(); ctx.globalAlpha=1; }
         }
       }
-      // рамка образца
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.25; ctx.lineWidth=v.lw(1);
-      ctx.strokeRect(bx-0.3,by-0.3,(cols-1)*stp+0.6,(rows-1)*stp+0.6);
-      ctx.globalAlpha=1;
-      // пояснение — над рамкой
-      v.label(ctx,'какое ядро распадётся — предсказать нельзя,',bx-0.3,topY+0.3,0,-24,ink3);
-      v.label(ctx,'но доля оставшихся подчиняется точному закону',bx-0.3,topY+0.3,0,-8,ink3);
-      // расшифровка — под рамкой
-      ctx.fillStyle=dang;
-      ctx.beginPath(); ctx.arc(bx-0.1,by-0.62,v.lw(3.4),0,7); ctx.fill();
-      v.label(ctx,'— ещё не распалось',bx-0.1,by-0.62,10,4,ink3);
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.2);
-      ctx.beginPath(); ctx.arc(bx-0.1,by-1.02,v.lw(2.9),0,7); ctx.stroke(); ctx.globalAlpha=1;
-      v.label(ctx,'— уже распалось',bx-0.1,by-1.02,10,4,ink3);
-      v.label(ctx,`осталось ${aliveCount} ядер из ${cols*rows}`,bx-0.3,by-1.42,0,4,dang);
+      v.text(ctx,`осталось ${живых} из ${cols*rows}`,bx+bw/2,by+0.95,dang,10,'center',true);
+      v.text(ctx,'какое ядро — случай, доля — закон',bx+bw/2,by+0.55,ink3,9.5,'center');
     }
-    v.label(ctx,`N = N₀·e^(−λt),  λ = ln2/T½ = ${this.lam(p).toFixed(4)} 1/с`,-5.2,-3.6,0,0,acc);
   }
 }
 ,
@@ -18246,6 +18269,7 @@ decay:{
 /* ================== ГЛ.31: ЧЕТЫРЕ ФУНДАМЕНТАЛЬНЫХ ВЗАИМОДЕЙСТВИЯ ================= */
 forces:{
   title:'Четыре взаимодействия и слабый распад',
+  hudAware:true,
   /* Сцена — схема взаимодействий и график, а не пространство. Поэтому ни
      осей с числами, ни надписи «сетка N м». */
   schema:true,
@@ -18452,137 +18476,120 @@ forces:{
     {name:'Силы в атоме (r = 10⁻¹⁰ м): осталось два',values:{mode:'compare',logr:-10}},
     {name:'Силы в быту (r = 1 м)',values:{mode:'compare',logr:0}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    // режимы очень разные по высоте: сравнение сил длиннее из-за пояснений
-    const spanY = (p.mode==='compare') ? 10.6 : 11.6;
-    const scale=clamp(Math.min((W-60)/(13.6*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
-    return {x:0, y:(p.mode==='compare')? 1.2 : -0.35, scale};
-  },
+  /* 3.4.0: обе картинки — панели в единицах сцены, вписанные целиком */
+  fit(p,vp){ return p.mode==='compare'?КС.fitBox(vp,12.8,11.4,0,0):КС.fitBox(vp,12.8,11,0,0); },
 
   draw(ctx,s,v,p){
     if(p.mode==='compare') return this.drawCompare(ctx,s,v,p);
     return this.drawDecay(ctx,s,v,p);
   },
 
-  /* ============ РЕЖИМ 1: ЖИВОЙ АНСАМБЛЬ НЕЙТРОНОВ ============ */
+  /* ============ РЕЖИМ 1: ЖИВОЙ АНСАМБЛЬ НЕЙТРОНОВ ============
+     Четыре панели (3.4.0): ансамбль, кривая N(t), импульсы последнего
+     распада, спектр. Все подписи — внутри своих панелей. */
   drawDecay(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
           ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
-    const mid=t=>-Math.round(String(t).length*3.05);
     const Q=this.Q();
 
-    /* Сцена поделена на четыре непересекающиеся полосы: ансамбль слева сверху,
-     кривая N(t) справа сверху, разлёт импульсов справа снизу, спектр во всю
-     ширину внизу. Раньше подписи трёх блоков сходились в одной точке. */
-
     // ---------- ансамбль: нейтроны гаснут, протоны остаются ----------
-    const bx=-6.6, by=0.9, bw=5.9, bh=3.5;
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6); ctx.strokeRect(bx,by,bw,bh);
-    const r=clamp(1.5/Math.sqrt(p.N),0.035,0.12);
-    for(const q of s.nu){
-      const x=bx+0.12+q.x*(bw-0.24), y=by+0.12+q.y*(bh-0.24);
-      ctx.fillStyle=q.alive?meas:dang; ctx.globalAlpha=q.alive?.95:.45;
-      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
-      if(!q.alive && s.t-q.tp<0.35){                 // вспышка в момент распада
-        ctx.globalAlpha=1; ctx.strokeStyle=ok; ctx.lineWidth=v.lw(1.6);
-        ctx.beginPath(); ctx.arc(x,y,r+0.12+(s.t-q.tp)*0.9,0,7); ctx.stroke();
+    {
+      const px=-6.4, py=0.55, pw=6.3, ph=4.95;
+      КС.рамка(ctx,v,px,py,pw,ph,'n → p + e⁻ + ν̄: ансамбль');
+      const bx=px+0.2, by=py+0.95, bw=pw-0.4, bh=ph-1.75;
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.strokeRect(bx,by,bw,bh);
+      const r=clamp(1.5/Math.sqrt(p.N),0.035,0.12);
+      for(const q of s.nu){
+        const x=bx+0.12+q.x*(bw-0.24), y=by+0.12+q.y*(bh-0.24);
+        ctx.fillStyle=q.alive?meas:dang; ctx.globalAlpha=q.alive?.95:.45;
+        ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+        if(!q.alive && s.t-q.tp<0.35){                 // вспышка в момент распада
+          ctx.globalAlpha=1; ctx.strokeStyle=ok; ctx.lineWidth=v.lw(1.6);
+          ctx.beginPath(); ctx.arc(x,y,r+0.12+(s.t-q.tp)*0.9,0,7); ctx.stroke();
+        }
       }
+      ctx.globalAlpha=1;
+      v.text(ctx,`● нейтронов ${s.left}`,bx,py+0.62,meas,10,'left',true);
+      v.text(ctx,`● протонов ${s.decayed}`,bx+bw,py+0.62,dang,10,'right',true);
+      v.text(ctx,`×${p.boost}: в опыте прошло ${(s.t*p.boost/60).toFixed(1)} мин`,px+pw/2,py+0.27,ink3,9.5,'center');
     }
-    ctx.globalAlpha=1;
-    /* Счётчики разнесены по разным краям ящика: рядом они сталкивались и
-       автораскладка загоняла один из них внутрь рисунка. */
-    v.label(ctx,`нейтронов ${s.left}`,bx,by+bh,2,-10,meas);
-    const pl=`протонов ${s.decayed}`;
-    v.label(ctx,pl,bx+bw,by,-Math.round(pl.length*6.2)-2,15,dang);
-    v.label(ctx,`ускорено в ${p.boost}× · в опыте прошло ${(s.t*p.boost/60).toFixed(1)} мин`,
-      bx,by,4,15,ink3);
 
     // ---------- кривая N(t): опыт против теории ----------
     if(p.curve){
-      const gx=0.5, gy=2.7, gw=6.1, gh=1.7;
+      const px=0.1, py=2.75, pw=6.3, ph=2.75;
+      КС.рамка(ctx,v,px,py,pw,ph,'N(t): опыт — и теория - -');
+      const gx=px+0.55, gy=py+0.4, gw=pw-0.8, gh=ph-1.05;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy);
-      ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
       const Tmax=Math.max(s.t,this.halfLife/p.boost*2.4);
       const X=t=>gx+gw*clamp(t/Tmax,0,1), Y=n=>gy+gh*clamp(n/p.N,0,1);
       ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.3);
       ctx.beginPath();
-      for(let i=0;i<=60;i++){ const t=Tmax*i/60;
-        const n=p.N*Math.exp(-Math.LN2*t*p.boost/this.halfLife);
+      for(let i=0;i<=60;i++){ const t=Tmax*i/60, n=p.N*Math.exp(-Math.LN2*t*p.boost/this.halfLife);
         i?ctx.lineTo(X(t),Y(n)):ctx.moveTo(X(t),Y(n)); }
       ctx.stroke(); ctx.setLineDash([]);
-      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2);
-      ctx.beginPath();
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2); ctx.beginPath();
       s.trace.forEach((q,i)=>{ const x=X(q[0]),y=Y(q[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
       ctx.stroke();
-      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(X(s.t),Y(s.left),v.lw(3.2),0,7); ctx.fill();
+      КС.точка(ctx,v,X(s.t),Y(s.left),3.2,meas);
       const th=this.halfLife/p.boost;
       if(th<=Tmax){
-        ctx.strokeStyle=ok; ctx.globalAlpha=.7; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-        ctx.beginPath(); ctx.moveTo(X(th),gy); ctx.lineTo(X(th),Y(p.N/2)); ctx.lineTo(gx,Y(p.N/2));
-        ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
-        v.label(ctx,'T½',X(th),gy,-7,14,ok);
-        v.label(ctx,'N₀/2',gx,Y(p.N/2),-32,0,ok);
+        КС.пунктир(ctx,v,X(th),gy,X(th),Y(p.N/2),ok,.7); КС.пунктир(ctx,v,gx,Y(p.N/2),X(th),Y(p.N/2),ok,.7);
+        v.text(ctx,'T½',X(th),gy-0.2,ok,9.5,'center',true);
+        v.text(ctx,'½',gx-0.12,Y(p.N/2),ok,9.5,'right',true);
       }
-      v.label(ctx,'осталось нейтронов: опыт и теория',gx,gy+gh,2,-9,ink3);
     }
 
     // ---------- последний распад: сумма импульсов равна нулю ----------
-    if(p.vec && s.last){
-      const cx=3.5, cy=1.5, K=0.8/Math.max(Q,1e-6);
-      const a1=s.last.ang, a2=s.last.ang+s.last.rel;
-      const ex=Math.cos(a1)*s.last.pe*K, ey=Math.sin(a1)*s.last.pe*K;
-      const vx=Math.cos(a2)*s.last.pv*K, vy=Math.sin(a2)*s.last.pv*K;
-      const px=-(ex+vx), py=-(ey+vy);
-      ctx.globalAlpha=.4+0.6*s.flash;
-      v.arrow(ctx,cx,cy,cx+ex,cy+ey,acc);
-      v.arrow(ctx,cx,cy,cx+vx,cy+vy,ink3);
-      v.arrow(ctx,cx,cy,cx+px,cy+py,dang);
-      ctx.globalAlpha=1;
-      ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(cx,cy,v.lw(2.6),0,7); ctx.fill();
-      v.label(ctx,`e⁻ ${s.last.T.toFixed(3)}`,cx+ex,cy+ey,ex>=0?7:-62,ey>=0?-8:11,acc);
-      v.label(ctx,`ν̄ ${(Q-s.last.T).toFixed(3)}`,cx+vx,cy+vy,vx>=0?7:-58,vy>=0?-8:11,ink3);
-      v.label(ctx,'p',cx+px,cy+py,px>=0?7:-14,py>=0?-8:11,dang);
-      const cap='последний распад: Σp = 0';
-      v.label(ctx,cap,cx,0.5,mid(cap),0,ink3);
+    if(p.vec){
+      const px=0.1, py=0.55, pw=6.3, ph=2.0;
+      КС.рамка(ctx,v,px,py,pw,ph,'последний распад: Σp⃗ = 0');
+      if(s.last){
+        const cx=px+2.0, cy=py+0.85, K=0.7/Math.max(Q,1e-6);
+        const a1=s.last.ang, a2=s.last.ang+s.last.rel;
+        const ex=Math.cos(a1)*s.last.pe*K, ey=Math.sin(a1)*s.last.pe*K*0.8;
+        const vx=Math.cos(a2)*s.last.pv*K, vy=Math.sin(a2)*s.last.pv*K*0.8;
+        const qx=-(ex+vx), qy=-(ey+vy);
+        ctx.globalAlpha=.45+0.55*s.flash;
+        v.arrow(ctx,cx,cy,cx+ex,cy+ey,acc); v.arrow(ctx,cx,cy,cx+vx,cy+vy,ink3); v.arrow(ctx,cx,cy,cx+qx,cy+qy,dang);
+        ctx.globalAlpha=1;
+        КС.точка(ctx,v,cx,cy,2.6,ink);
+        v.text(ctx,`e⁻: ${s.last.T.toFixed(3)} МэВ`,px+3.35,py+1.2,acc,9.5,'left',true);
+        v.text(ctx,`ν̄: ${(Q-s.last.T).toFixed(3)} МэВ`,px+3.35,py+0.85,ink3,9.5,'left',true);
+        v.text(ctx,'p: отдача ≈ 0',px+3.35,py+0.5,dang,9.5,'left',true);
+      } else v.text(ctx,'ждём первого распада…',px+pw/2,py+0.8,ink3,10,'center');
     }
 
     // ---------- спектр: главное доказательство существования нейтрино ----------
     if(p.spec){
-      const gx=-6.6, gy=-4.3, gw=13.2, gh=2.6, nb=s.hist.length;
-      // заголовок НАД блоком: изнутри он ложился на столбики гистограммы
-      v.label(ctx,'спектр энергий электрона: непрерывный, а не одна линия',gx,gy+gh+0.28,2,0,ink3);
+      const px=-6.4, py=-5.5, pw=12.8, ph=5.85;
+      КС.рамка(ctx,v,px,py,pw,ph,'спектр энергий электрона: сплошной, а не одна линия');
+      const gx=px+0.4, gy=py+1.85, gw=pw-0.8, gh=ph-2.75, nb=s.hist.length;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
       const mx=Math.max(1,...s.hist), bwid=gw/nb;
-      ctx.fillStyle=acc; ctx.globalAlpha=.5;
+      ctx.fillStyle=acc; ctx.globalAlpha=.45;
       for(let i=0;i<nb;i++){ const h=gh*s.hist[i]/mx; if(h>0) ctx.fillRect(gx+i*bwid,gy,bwid*0.86,h); }
       ctx.globalAlpha=1;
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-      ctx.beginPath();
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.beginPath();
       const M=this.specMax();
-      for(let i=0;i<=120;i++){ const T=Q*i/120, y=gy+gh*this.spec(T)/M;
-        i?ctx.lineTo(gx+gw*i/120,y):ctx.moveTo(gx+gw*i/120,y); }
+      for(let i=0;i<=120;i++){ const T=Q*i/120, y=gy+gh*this.spec(T)/M; i?ctx.lineTo(gx+gw*i/120,y):ctx.moveTo(gx+gw*i/120,y); }
       ctx.stroke();
       // где была бы единственная линия, если бы нейтрино не существовало
       ctx.strokeStyle=dang; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.8);
       ctx.beginPath(); ctx.moveTo(gx+gw,gy); ctx.lineTo(gx+gw,gy+gh); ctx.stroke(); ctx.setLineDash([]);
-      v.label(ctx,'0',gx,gy,-2,14,ink3);
-      v.label(ctx,`${Q.toFixed(3)} МэВ`,gx+gw,gy,-54,14,ink3);
-      // вывод про красную черту — ПОД осью, чтобы не лежать на гистограмме
-      const nn=`красная черта: без нейтрино электрон всегда получал бы ровно ${Q.toFixed(3)} МэВ`;
-      v.label(ctx,nn,gx+gw,gy,-Math.round(nn.length*6.2),32,dang);
+      v.text(ctx,'0',gx,gy-0.22,ink3,9.5,'left');
+      v.text(ctx,`Q = ${Q.toFixed(3)} МэВ`,gx+gw,gy-0.22,dang,9.5,'right',true);
+      v.text(ctx,'энергия электрона T →',gx+gw/2,gy-0.22,ink3,9.5,'center');
       if(s.decayed>4){
         const av=s.sumT/s.decayed, ax=gx+gw*av/Q;
         ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6);
-        ctx.beginPath(); ctx.moveTo(ax,gy); ctx.lineTo(ax,gy+gh*0.62); ctx.stroke();
-        v.label(ctx,`⟨T⟩ = ${av.toFixed(3)}`,ax,gy+gh*0.62,-28,-7,meas);
+        ctx.beginPath(); ctx.moveTo(ax,gy); ctx.lineTo(ax,gy+gh*0.7); ctx.stroke();
+        v.text(ctx,`среднее ⟨T⟩ = ${av.toFixed(3)}`,ax+0.12,gy+gh*0.7+0.18,meas,9.5,'left',true);
       }
+      const yy=КС.абзац(ctx,v,`красная черта: будь продуктов распада только два (p и e⁻), электрон всегда уносил бы ровно ${Q.toFixed(3)} МэВ.`,px+0.25,py+1.2,pw-0.5,dang,9.5);
+      КС.абзац(ctx,v,'Сплошной спектр — след третьей, невидимой частицы. Так Паули в 1930 году предсказал нейтрино.',px+0.25,yy,pw-0.5,ink3,9.5);
     }
-
-    const fin='непрерывный спектр — прямое доказательство третьей частицы: именно поэтому Паули придумал нейтрино';
-    v.label(ctx,fin,0,-5.85,mid(fin),0,ink3);
   },
 
   /* ============ РЕЖИМ 2: КТО ПОБЕЖДАЕТ НА КАКОМ РАССТОЯНИИ ============ */
@@ -18590,7 +18597,7 @@ forces:{
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
           dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const COL={strong:dang, em:acc, weak:sec, grav:ink3};
-    const gx=-6.4, gy=-1.2, gw=12.8, gh=6.2;
+    const gx=-5.3, gy=-0.9, gw=11.6, gh=6.2;
     const LR0=-19, LR1=0;                          // показатель степени расстояния, м
     const LF0=-40, LF1=12;                         // показатель степени силы, Н
     const X=lr=>gx+gw*(lr-LR0)/(LR1-LR0);
@@ -18603,9 +18610,9 @@ forces:{
     ctx.globalAlpha=1;
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.4);
     ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.stroke();
-    for(let lr=LR0+1;lr<=LR1;lr+=3) v.label(ctx,`10${this.sup(lr)}`,X(lr),gy,-11,14,ink3);
-    v.label(ctx,'расстояние между двумя протонами, м',gx+gw/2,gy,-104,28,ink3);
-    for(let lf=LF0;lf<=LF1;lf+=20) v.label(ctx,`10${this.sup(lf)} Н`,gx,Y(lf),-40,0,ink3);
+    for(let lr=LR0+1;lr<=LR1;lr+=3) v.text(ctx,`10${this.sup(lr)}`,X(lr),gy-0.25,ink3,9.5,'center');
+    v.text(ctx,'расстояние между двумя протонами r, м',gx+gw/2,gy-0.6,ink3,9.5,'center');
+    for(let lf=LF0;lf<=LF1;lf+=20) v.text(ctx,`10${this.sup(lf)} Н`,gx-0.1,Y(lf),ink3,9.5,'right');
 
     /* Кривые сил. Подпись ставим у ПРАВОГО конца каждой кривой: у кулона и
        тяготения это правый край кадра, у сильного и слабого — их обрыв, и
@@ -18626,7 +18633,7 @@ forces:{
       if(p.names&&lastX!=null){
         const nm=this.INFO[k].name;
         const right = lastX > gx+gw-1.5;
-        v.label(ctx,nm,lastX,lastY, right? -Math.round(nm.length*6.2)-6 : 7, -9, COL[k]);
+        v.text(ctx,nm,right?lastX-0.1:lastX+0.12,lastY+0.22,COL[k],10,right?'right':'left',true);
       }
     }
 
@@ -18640,31 +18647,23 @@ forces:{
       ctx.fillStyle=COL[k]; ctx.beginPath(); ctx.arc(X(lr),Y(lf),v.lw(4),0,7); ctx.fill();
     }
     const rt = r<1e-12 ? `${(r*1e15).toPrecision(3)} фм` : `${r.toExponential(1)} м`;
-    v.label(ctx,`r = ${rt}`,X(lr),gy+gh,-Math.round(('r = '+rt).length*3.05),-10,meas);
+    v.text(ctx,`r = ${rt}`,X(lr),gy+gh+0.22,meas,10,'center',true);
 
     /* Расстановка сил — в ПРАВОМ ВЕРХНЕМ углу самого графика: кривые падают
        слева направо, поэтому там всегда пусто, а под графиком места нет. */
     const rows=this.KINDS.map(k=>({k,F:this.F(k,r)})).sort((a,b)=>b.F-a.F);
-    const lx=gx+gw-4.9, ly=gy+gh-0.15;
-    v.label(ctx,'на этом расстоянии по убыванию:',lx,ly,0,0,ink3);
+    const lx=gx+gw-0.15, ly=gy+gh-0.35;
+    v.text(ctx,'здесь по убыванию:',lx,ly,ink3,9.5,'right');
     rows.forEach((q,i)=>{
-      const t=`${i+1}. ${this.INFO[q.k].name} — ${q.F>1e-99?q.F.toExponential(2):'≈ 0'} Н`;
-      v.label(ctx,t,lx,ly,8,15+i*14,COL[q.k]);
+      const t=`${i+1}. ${this.INFO[q.k].name} ${q.F>1e-99?q.F.toExponential(1):'≈ 0'} Н`;
+      v.text(ctx,t,lx,ly-0.34*(i+1),COL[q.k],9.5,'right',true);
     });
 
-    // ---- вывод
-    v.label(ctx,'у сильного и слабого конечный радиус: за ним сила гаснет как e^(−r/r₀) — на графике это обрыв',
-      gx,gy,0,46,ink3);
-    /* Порядок «сильное > ЭМ > слабое > тяготение» из учебника верен НЕ везде:
-       это сравнение на радиусе слабого, около 10⁻¹⁸ м. Уже на фемтометре
-       слабое вымерло и оказывается слабее тяготения — и это видно на графике,
-       а не спрятано за словом «условно». */
-    v.label(ctx,'привычный порядок сильное > ЭМ > слабое > тяготение верен на 10⁻¹⁸ м; на 1 фм слабое уже вымерло',
-      gx,gy,0,60,ink3);
-    v.label(ctx,'ЭМ в 10³⁶ раз сильнее тяготения, но заряды двух знаков экранируют друг друга, а масса — одного:',
-      gx,gy,0,74,ink3);
-    v.label(ctx,'поэтому звёздами и галактиками правит самая слабая из четырёх сил.',
-      gx,gy,0,88,ink3);
+    // ---- вывод: абзацы с переносом — в узком окне строки не вылезают
+    let y=gy-1.05; const W=12.6, x0=-6.3;
+    y=КС.абзац(ctx,v,'У сильного и слабого радиус конечный: за ним сила гаснет как e^(−r/r₀) — на графике это обрыв.',x0,y,W,ink3,9.5);
+    y=КС.абзац(ctx,v,'Привычный порядок «сильное > ЭМ > слабое > тяготение» верен на 10⁻¹⁸ м; на 1 фм слабое уже вымерло.',x0,y-0.08,W,ink3,9.5);
+    КС.абзац(ctx,v,'ЭМ в 10³⁶ раз сильнее тяготения, но заряды двух знаков гасят друг друга, а масса — одного знака: поэтому звёздами и галактиками правит самая слабая из четырёх сил.',x0,y-0.08,W,ink,9.5);
   },
   sup(e){
     const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
@@ -18677,6 +18676,7 @@ forces:{
 /* ================= ГЛ.31: АДРОНЫ И КВАРКИ ================= */
 quarks:{
   title:'Адроны и кварки: из чего сложены частицы',
+  hudAware:true,
   /* Сцена — схема состава адронов. Поэтому ни осей с числами, ни надписи
      «сетка N м». */
   schema:true,
@@ -18744,85 +18744,136 @@ quarks:{
     {name:'Лямбда: есть странный кварк',values:{part:'lam'}},
     {name:'Электрон: лептон, не делится',values:{part:'e'}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+  /* 3.4.0: сцена разложена на четыре панели в мировых координатах. Раньше
+     подписи стояли пиксельными сдвигами от одной точки и в узком окне
+     наезжали друг на друга. Теперь: частица, сложение зарядов на числовой
+     оси, таблица «кирпичиков» и живая картинка конфайнмента. */
+  fit(p,vp){ return КС.fitBox(vp,12.8,10.4,0,0); },
+  /* заряд дробью: 2/3 → «+2/3» */
+  дробь(q){ const t=Math.round(Math.abs(q)*3); return (q<-1e-9?'−':'+')+(t%3===0?String(t/3):t+'/3'); },
+  /* глюон — пружинка между кварками */
+  глюон(ctx,v,x0,y0,x1,y1,color,фаза,alpha){
+    const L=Math.hypot(x1-x0,y1-y0); if(L<1e-6) return;
+    const ux=(x1-x0)/L, uy=(y1-y0)/L, N=Math.max(6,Math.round(L/0.09)), A=0.07;
+    ctx.save(); ctx.strokeStyle=color; ctx.globalAlpha=alpha==null?.8:alpha; ctx.lineWidth=v.lw(1.5); ctx.beginPath();
+    for(let i=0;i<=N*4;i++){ const t=i/(N*4), w=A*Math.sin(t*N*2*Math.PI+фаза)*Math.sin(Math.PI*t);
+      const x=x0+ux*L*t-uy*w, y=y0+uy*L*t+ux*w; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke(); ctx.restore();
+  },
+  кварк(ctx,v,x,y,k,r){
+    const anti=k.length>1;
+    ctx.fillStyle=anti?v.c('--danger'):v.c('--accent'); ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    v.text(ctx,this.qName[k],x,y,'#fff',11,'center',true);
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const c=this.comp[p.part], CX=-3.0, CY=1.2;
-    // сама частица
-    const RC=1.25;                                  // радиус оболочки частицы
-    if(c.quarks){
-      // оболочка
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.4; ctx.lineWidth=v.lw(1.4);
-      ctx.beginPath(); ctx.arc(CX,CY,RC,0,7); ctx.stroke(); ctx.globalAlpha=1;
-      const n=c.quarks.length, RQ=0.62;
-      const ang=i=>i/n*2*Math.PI - Math.PI/2 + s.ph*0.4;
-      // СНАЧАЛА связи — чтобы линии ушли под кружки, а не поверх них
-      ctx.strokeStyle=sec; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(2);
-      for(let i=0;i<n;i++){
-        const a1=ang(i), a2=ang((i+1)%n);
-        ctx.beginPath();
-        ctx.moveTo(CX+RQ*Math.cos(a1),CY+RQ*Math.sin(a1));
-        ctx.lineTo(CX+RQ*Math.cos(a2),CY+RQ*Math.sin(a2));
-        ctx.stroke();
+    const c=this.comp[p.part], t=s.ph||0;
+    // ---- 1. частица
+    {
+      const bx=-6.3, by=0.2, bw=6.1, bh=4.9, CX=bx+bw/2, CY=by+2.35, RC=1.45;
+      КС.рамка(ctx,v,bx,by,bw,bh,c.quarks?`${c.name}: из чего состоит`:`${c.name}: не делится`);
+      if(c.quarks){
+        ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1.4);
+        ctx.beginPath(); ctx.arc(CX,CY,RC,0,7); ctx.stroke(); ctx.globalAlpha=1;
+        const n=c.quarks.length, RQ=n===2?0.62:0.72;
+        const pos=c.quarks.map((k,i)=>{ const a=i/n*2*Math.PI+Math.PI/2+t*0.35, d=RQ*(1+0.05*Math.sin(t*3+i*2));
+          return [CX+d*Math.cos(a),CY+d*Math.sin(a),a]; });
+        for(let i=0;i<n;i++){ const q0=pos[i], q1=pos[(i+1)%n]; if(n===2&&i===1) break;
+          this.глюон(ctx,v,q0[0],q0[1],q1[0],q1[1],sec,t*6); }
+        c.quarks.forEach((k,i)=>{ const [x,y,a]=pos[i];
+          this.кварк(ctx,v,x,y,k,0.3);
+          v.text(ctx,this.дробь(this.q[k]),CX+(RQ+0.58)*Math.cos(a),CY+(RQ+0.58)*Math.sin(a),ink3,10,'center',true); });
+        v.text(ctx,'пружинки — глюоны, они держат кварки',CX,by+0.72,sec,10,'center');
+      } else {
+        ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(CX,CY,0.34,0,7); ctx.fill();
+        v.text(ctx,'e⁻',CX,CY,'#fff',11,'center',true);
+        v.text(ctx,'точечная частица:',CX,by+1.0,ink3,10,'center');
+        v.text(ctx,'внутренней структуры не найдено',CX,by+0.66,ink3,10,'center');
       }
-      ctx.globalAlpha=1;
-      // затем сами кварки
-      c.quarks.forEach((k,i)=>{
-        const a=ang(i);
-        const x=CX+RQ*Math.cos(a), y=CY+RQ*Math.sin(a);
-        const anti=k.length>1;
-        ctx.fillStyle=anti?dang:acc;
-        ctx.beginPath(); ctx.arc(x,y,0.32,0,7); ctx.fill();
-        v.label(ctx,this.qName[k],x,y,-5,4,'#fff');
-        // заряд выносим НАРУЖУ по радиусу — подписи не сталкиваются при вращении
-        const qv=this.q[k];
-        const txt=(qv<0?'−':'+')+(Math.abs(qv)===2/3?'2/3':'1/3');
-        const lx=CX+(RQ+0.52)*Math.cos(a), ly=CY+(RQ+0.52)*Math.sin(a);
-        v.label(ctx,txt,lx,ly,-10,4,ink3);
-      });
-      v.label(ctx,'глюоны держат кварки вместе',CX,CY-RC,-72,20,sec);
-    } else {
-      ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(CX,CY,0.34,0,7); ctx.fill();
-      v.label(ctx,'e⁻',CX,CY,-7,4,'#fff');
-      v.label(ctx,'точечная частица — внутренней структуры нет',CX,CY-RC,-118,20,ink3);
+      v.text(ctx,`${c.type} · ${String(c.mass).replace('.',',')} МэВ`,CX,by+bh-0.72,ink,10,'center',true);
     }
-    // название и тип — НАД оболочкой, а не внутри неё
-    v.label(ctx,c.name,CX,CY+RC,-Math.round(c.name.length*3),-24,acc);
-    v.label(ctx,`${c.type}, масса ${c.mass} МэВ`,CX,CY+RC,-52,-8,ink3);
-
-    // сложение зарядов
-    if(p.sum && c.quarks){
-      const bx=1.0, by=2.2;
-      v.label(ctx,'заряды кварков складываются:',bx,by,0,0,ink);
-      const parts=c.quarks.map(k=>{ const q=this.q[k];
-        return `${this.qName[k]} (${q>0?'+':'−'}${Math.abs(q)===2/3?'2/3':'1/3'})`; });
-      v.label(ctx,parts.join('  +  '),bx,by,0,22,ink3);
-      const ch=this.charge(p);
-      v.label(ctx,`= ${ch>0?'+':''}${Math.round(ch)} — заряд ${c.name}а`,bx,by,0,44,acc);
-      v.label(ctx,`барионное число: ${this.baryon(p)===1?'1 (барион)':this.baryon(p)===0?'0 (мезон)':this.baryon(p)}`,bx,by,0,68,ink3);
-      v.label(ctx,c.quarks.length===3?'три кварка — это барион':'кварк и антикварк — это мезон',bx,by,0,88,ink3);
+    // ---- 2. заряд — сумма зарядов кварков: стрелки на числовой оси
+    if(p.sum){
+      const bx=0.1, by=0.2, bw=6.2, bh=4.9, X=q=>bx+3.1+q*1.9, yA=by+1.35;
+      КС.рамка(ctx,v,bx,by,bw,bh,'заряд = сумма зарядов кварков');
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(X(-1.4),yA); ctx.lineTo(X(1.4),yA); ctx.stroke();
+      for(let k=-4;k<=4;k++){ const q=k/3, big=k%3===0;
+        ctx.beginPath(); ctx.moveTo(X(q),yA-(big?0.12:0.06)); ctx.lineTo(X(q),yA+(big?0.12:0.06)); ctx.stroke();
+        if(big) v.text(ctx,k===0?'0':(k>0?'+':'−')+Math.abs(k/3),X(q),yA-0.3,ink3,10,'center'); }
+      if(c.quarks){
+        let сумма=0;
+        c.quarks.forEach((k,i)=>{ const q=this.q[k], y=by+bh-0.95-i*0.52;
+          ctx.save(); ctx.globalAlpha=.3; ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
+          ctx.beginPath(); ctx.moveTo(X(сумма+q),y); ctx.lineTo(X(сумма+q),yA); ctx.stroke(); ctx.restore();
+          v.arrow(ctx,X(сумма),y,X(сумма+q),y,k.length>1?dang:acc);
+          const справа=Math.max(X(сумма),X(сумма+q)), слева=Math.min(X(сумма),X(сумма+q));
+          // подпись — с той стороны стрелки, где есть место в панели
+          if(справа<bx+bw-1.5) v.text(ctx,`${this.qName[k]}: ${this.дробь(q)}`,справа+0.12,y,k.length>1?dang:acc,10,'left',true);
+          else v.text(ctx,`${this.qName[k]}: ${this.дробь(q)}`,слева-0.12,y,k.length>1?dang:acc,10,'right',true);
+          сумма+=q; });
+        const ch=Math.round(сумма);
+        v.arrow(ctx,X(0),yA+0.02,X(ch),yA+0.02,meas);
+        КС.точка(ctx,v,X(ch),yA,4,meas);
+        v.text(ctx,`итог: ${ch>0?'+':ch<0?'−':''}${Math.abs(ch)} — заряд целый`,bx+bw/2,by+0.62,meas,10,'center',true);
+        const B=this.baryon(p);
+        v.text(ctx,`барионное число ${c.quarks.map(k=>k.length>1?'−⅓':'⅓').join(' + ').replace('+ −','− ')} = ${Math.round(B)}`,bx+bw/2,by+0.28,ink3,9.5,'center');
+      } else {
+        v.arrow(ctx,X(0),yA+0.02,X(-1),yA+0.02,meas); КС.точка(ctx,v,X(-1),yA,4,meas);
+        v.text(ctx,'у электрона заряд −1 — он свой,',bx+bw/2,by+3.3,ink,10,'center');
+        v.text(ctx,'а не сумма долей: кварков нет',bx+bw/2,by+2.95,ink,10,'center');
+        v.text(ctx,'барионное число 0',bx+bw/2,by+0.4,ink3,10,'center');
+      }
     }
-    // таблица
+    // ---- 3. кирпичики: кварки и лептоны
     if(p.table){
-      const tx=-5.4, ty=-1.4;
-      v.label(ctx,'КВАРКИ (в свободном виде не наблюдаются)',tx,ty,0,0,dang);
+      const bx=-6.3, by=-5.1, bw=6.1, bh=5.0, есть=new Set((c.quarks||[]).map(k=>k[0]));
+      КС.рамка(ctx,v,bx,by,bw,bh,'кирпичики вещества');
+      v.text(ctx,'кварки',bx+1.45,by+bh-0.8,dang,10,'center',true);
+      v.text(ctx,'лептоны',bx+4.5,by+bh-0.8,acc,10,'center',true);
       const qs=[['u','верхний','+2/3'],['d','нижний','−1/3'],['s','странный','−1/3']];
-      qs.forEach((r,i)=>{
-        v.label(ctx,`${r[0]} — ${r[1]}, заряд ${r[2]}`,tx,ty,10,20+i*17,ink3);
-      });
-      v.label(ctx,'ЛЕПТОНЫ (неделимы)',tx,ty,0,90,acc);
-      const ls=[['e⁻','электрон','−1'],['νe','нейтрино','0'],['μ⁻','мюон','−1']];
-      ls.forEach((r,i)=>{
-        v.label(ctx,`${r[0]} — ${r[1]}, заряд ${r[2]}`,tx,ty,10,110+i*17,ink3);
-      });
-      v.label(ctx,'адроны (протон, нейтрон, пионы) состоят из кварков;',1.0,-1.4,0,20,ink3);
-      v.label(ctx,'лептоны (электрон, нейтрино) — не состоят ни из чего',1.0,-1.4,0,38,ink3);
-      v.label(ctx,'кварк невозможно выбить поодиночке: чем дальше',1.0,-1.4,0,64,dang);
-      v.label(ctx,'растаскиваешь, тем сильнее притяжение',1.0,-1.4,0,80,dang);
+      qs.forEach((r,i)=>{ const y=by+bh-1.4-i*0.72, on=есть.has(r[0]);
+        if(on){ ctx.fillStyle=acc; ctx.globalAlpha=.12; ctx.fillRect(bx+0.15,y-0.3,2.85,0.6); ctx.globalAlpha=1; }
+        this.кварк(ctx,v,bx+0.5,y,r[0],0.22);
+        v.text(ctx,r[1],bx+0.85,y+0.1,on?ink:ink3,9.5,'left',on);
+        v.text(ctx,`заряд ${r[2]}`,bx+0.85,y-0.17,ink3,9,'left'); });
+      const ls=[['e⁻','электрон','−1'],['νₑ','нейтрино','0'],['μ⁻','мюон','−1']];
+      ls.forEach((r,i)=>{ const y=by+bh-1.4-i*0.72, on=(p.part==='e'&&i===0);
+        if(on){ ctx.fillStyle=acc; ctx.globalAlpha=.12; ctx.fillRect(bx+3.15,y-0.3,2.8,0.6); ctx.globalAlpha=1; }
+        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(bx+3.5,y,0.2,0,7); ctx.fill();
+        v.text(ctx,r[0],bx+3.5,y,'#fff',9,'center',true);
+        v.text(ctx,r[1],bx+3.82,y+0.1,on?ink:ink3,9.5,'left',on);
+        v.text(ctx,`заряд ${r[2]}`,bx+3.82,y-0.17,ink3,9,'left'); });
+      v.text(ctx,'адроны (протон, нейтрон, пион)',bx+bw/2,by+0.95,ink3,9.5,'center');
+      v.text(ctx,'сложены из кварков; лептоны — нет',bx+bw/2,by+0.6,ink3,9.5,'center');
+    }
+    // ---- 4. конфайнмент: кварк тянут — трубка рвётся — рождается пара
+    {
+      const bx=0.1, by=-5.1, bw=6.2, bh=5.0, T=6, ф=((t%T)+T)%T/T, y0=by+2.55, xL=bx+0.8;
+      КС.рамка(ctx,v,bx,by,bw,bh,'почему кварк не выбить');
+      const d=ф<0.55?0.7+ф/0.55*3.6:4.3, xR=xL+d;
+      if(ф<0.55){
+        // трубка глюонного поля: ширина постоянна, энергия растёт с длиной
+        ctx.fillStyle=sec; ctx.globalAlpha=.16+0.2*ф; ctx.fillRect(xL,y0-0.2,d,0.4); ctx.globalAlpha=1;
+        this.глюон(ctx,v,xL,y0,xR,y0,sec,t*8,.9);
+        this.кварк(ctx,v,xL,y0,'u',0.26); this.кварк(ctx,v,xR,y0,'db',0.26);
+        const E=Math.round(ф/0.55*100);
+        ctx.fillStyle=dang; ctx.globalAlpha=.8; ctx.fillRect(bx+0.4,by+1.25,(bw-0.8)*E/100,0.2); ctx.globalAlpha=1;
+        ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.strokeRect(bx+0.4,by+1.25,bw-0.8,0.2);
+        v.text(ctx,'энергия трубки растёт с длиной',bx+bw/2,by+1.72,dang,9.5,'center');
+        v.text(ctx,'тянем кварк →',xR,y0+0.6,ink3,9.5,'center');
+      } else {
+        // трубка порвалась: энергии хватило на новую пару кварк–антикварк
+        const g=(ф-0.55)/0.45, mid=xL+2.15, разлёт=g*0.9;
+        if(g<0.12){ ctx.fillStyle=v.c('--warn')||meas; ctx.globalAlpha=1-g/0.12; ctx.beginPath(); ctx.arc(mid,y0,0.35+g*3,0,7); ctx.fill(); ctx.globalAlpha=1; }
+        const aL=xL-разлёт, bL=mid-0.35-разлёт, aR=mid+0.35+разлёт, bR=xL+4.3+разлёт;
+        this.глюон(ctx,v,aL,y0,bL,y0,sec,t*8,.9); this.глюон(ctx,v,aR,y0,bR,y0,sec,t*8,.9);
+        this.кварк(ctx,v,aL,y0,'u',0.26); this.кварк(ctx,v,bL,y0,'ub',0.26);
+        this.кварк(ctx,v,aR,y0,'u',0.26); this.кварк(ctx,v,bR,y0,'db',0.26);
+        v.text(ctx,'родилась новая пара u ū',bx+bw/2,by+1.72,meas,9.5,'center',true);
+        v.text(ctx,'мезон',(aL+bL)/2,y0+0.55,ink3,9.5,'center'); v.text(ctx,'мезон',(aR+bR)/2,y0+0.55,ink3,9.5,'center');
+      }
+      v.text(ctx,'вместо одного кварка вылетают',bx+bw/2,by+0.85,ink,9.5,'center');
+      v.text(ctx,'новые адроны: одиночных кварков нет',bx+bw/2,by+0.5,ink,9.5,'center');
     }
   }
 }
@@ -19839,7 +19890,7 @@ binding:{
     for(let A=20;A<=Amax;A++){ const x=X(A), y=Y(this.BperA(A)); A===20?ctx.moveTo(x,y):ctx.lineTo(x,y); }
     ctx.stroke();
     if(p.data) for(const [A,b] of this.measured) КС.точка(ctx,v,X(A),Y(b),3,meas);
-    v.text(ctx,`вершина: A ≈ ${pk.A} (железо, никель)`,X(pk.A),Y(pk.B)+0.3,acc,10,'center',true);
+    v.text(ctx,`вершина: A ≈ ${pk.A} (железо, никель)`,X(pk.A)+0.2,Y(pk.B)-0.5,acc,10,'left',true);
     const bA=p.A<=20?this.Bm(p.A)/p.A:this.BperA(p.A);
     КС.точка(ctx,v,X(p.A),Y(bA),5,dang);
     v.text(ctx,`A = ${p.A}: ${bA.toFixed(2)}`,X(p.A)+(p.A>180?-0.15:0.15),Y(bA)-0.3,dang,10,p.A>180?'right':'left',true);
@@ -19856,7 +19907,7 @@ binding:{
         if(деление){
           if(u<0.35){ const R=this.ядро(ctx,v,cx+0.03*Math.sin(s.t*30*u),cy,p.A,col); ctx.save(); ctx.scale(1,1); ctx.restore();
             v.text(ctx,`ядро A = ${p.A}`,cx,cy-R-0.3,ink,10,'center',true); }
-          else { const d=0.2+2.0*ww; this.ядро(ctx,v,cx-d,cy,a,col); this.ядро(ctx,v,cx+d,cy,b,col);
+          else { const d=0.2+1.5*ww; this.ядро(ctx,v,cx-d,cy,a,col); this.ядро(ctx,v,cx+d,cy,b,col);
             v.text(ctx,`${a}`,cx-d,cy-1.05,ink,10,'center',true); v.text(ctx,`${b}`,cx+d,cy-1.05,ink,10,'center',true); }
         } else {
           const d=u<0.35?2.0:2.0*(1-ww);
@@ -25126,7 +25177,7 @@ const T_potential={
     }
   ],
   formulas:[
-    {tex:'E_{\\text{шар}}=\\dfrac{kQ}{r^2}\\ (r>R),\\qquad E\\propto r\\ (r<R)',
+    {tex:'E_{\\text{шар}}=\\dfrac{kQ}{r^2}\\ (r>R),\\qquad E\\propto r\\ (r\\lt R)',
      kind:'следствие',
      note:'Поле шара: снаружи как точечный заряд, внутри линейно растёт от нуля.', sim:'charged'},
     {tex:'E_{\\text{нить}}=\\dfrac{2k\\lambda}{r}',
@@ -25474,7 +25525,7 @@ const T_current={
     {tex:'R_{\\text{посл}}=R_1+R_2,\\qquad \\dfrac1{R_{\\text{пар}}}=\\dfrac1{R_1}+\\dfrac1{R_2}',
      kind:'следствие',
      note:'Последовательное и параллельное соединение резисторов. В конструкторе цепей обе схемы собраны готовыми — сравните $R_{\\text{экв}}$ с формулой.', sim:'resistors'},
-    {tex:'R_{\\text{посл}}>R_{\\text{макс}},\\qquad R_{\\text{пар}}<R_{\\text{мин}}',
+    {tex:'R_{\\text{посл}}>R_{\\text{макс}},\\qquad R_{\\text{пар}}\\lt R_{\\text{мин}}',
      kind:'следствие',
      note:'Полезная проверка: последовательное соединение всегда больше самого большого сопротивления, параллельное — меньше самого малого.', sim:'resistors'},
     {tex:'\\sum I_k=0\\ (\\text{узел}),\\qquad \\sum U_k=0\\ (\\text{контур})',
@@ -35361,6 +35412,9 @@ function resize(){
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
   const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
   CW=r.width; CH=r.height;
+  /* узкая сцена (3.4.0): плавающие панели ужимаются, чтобы не ложиться друг
+     на друга — см. #cwrap.narrow в стилях */
+  $('#cwrap').classList.toggle('narrow', CW>0 && CW<660);
   for(const c of [scene,overlay]){ c.width=Math.max(1,CW*DPR); c.height=Math.max(1,CH*DPR); }
   for(const c of gcanvas){ const b=c.getBoundingClientRect();
     c.width=Math.max(1,b.width*DPR); c.height=Math.max(1,b.height*DPR); }
@@ -35389,6 +35443,34 @@ const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim
 const ПОЛОСКА=140;
 function сценаПолоска(){ return CH>0 && CH<ПОЛОСКА; }
 
+/* Векторы в подписях (3.4.0). Знак «⃗» (U+20D7) — комбинируемая стрелка над
+   предыдущей буквой. Шрифты рисуют её кто как: моноширинные на Android —
+   отдельной стрелкой рядом с буквой или пустым квадратом. Поэтому стрелку
+   рисуем сами: текст выводится без неё, а над нужной буквой — тонкая
+   стрелка по ширине буквы. Работает для fillText и strokeText. */
+const ВЕКТОР='\u20d7';
+function текстСВекторами(ctx,text,x,y,обводка){
+  text=String(text);
+  if(text.indexOf(ВЕКТОР)<0){ if(обводка) ctx.strokeText(text,x,y); else ctx.fillText(text,x,y); return; }
+  const чистый=text.split(ВЕКТОР).join(''), где=[]; let k=0;
+  for(let i=0;i<text.length;i++){ if(text[i]===ВЕКТОР) где.push(k-1); else k++; }
+  if(обводка){ ctx.strokeText(чистый,x,y); return; }
+  ctx.fillText(чистый,x,y);
+  // левый край строки с учётом выравнивания
+  const W=ctx.measureText(чистый).width, al=ctx.textAlign;
+  const x0 = al==='center'?x-W/2 : (al==='right'||al==='end'?x-W:x);
+  const m=/(\d+(?:\.\d+)?)px/.exec(ctx.font), fs=m?+m[1]:11;
+  const верх = ctx.textBaseline==='middle' ? y-fs*0.62 : (ctx.textBaseline==='top'?y-fs*0.12:y-fs*1.02);
+  ctx.save(); ctx.strokeStyle=ctx.fillStyle; ctx.lineWidth=Math.max(1,fs/11); ctx.lineCap='round';
+  for(const i of где){ if(i<0) continue;
+    const a=x0+ctx.measureText(чистый.slice(0,i)).width, w=ctx.measureText(чистый[i]).width;
+    const xa=a+w*0.12, xb=a+w*0.92, h=Math.max(2,fs*0.2);
+    ctx.beginPath(); ctx.moveTo(xa,верх); ctx.lineTo(xb,верх); ctx.moveTo(xb-h,верх-h*0.6); ctx.lineTo(xb,верх); ctx.lineTo(xb-h,верх+h*0.6); ctx.stroke(); }
+  ctx.restore();
+}
+/* то же для HTML: буква со стрелкой — <span class="vec">, стрелка рисуется стилями */
+function векторыHTML(html){ return String(html).replace(/([^\s<>])\u20d7/g,'<span class="vec">$1</span>'); }
+function безВекторов(s){ return String(s).split(ВЕКТОР).join(''); }
 const VIEW={
   get quality(){return S.settings.quality}, c:css,
   /* 3D (3.1.0). Сцены с rotate3d:true рисуют объёмные фигуры: ориентация
@@ -35409,6 +35491,13 @@ const VIEW={
       return [x1, z*cp+y1*sp, z*sp-y1*cp]; };                        // наклон вокруг x
   },
   lw:px=>px*(S.settings.lineW||1)/ppm(),
+  /* Кегль надписей-панелей (3.4.0). Сцены-схемы из панелей (hudAware +
+     schema) свёрстаны под ~36 px на единицу сцены; в узком окне текст
+     фиксированного кегля вылезал за свои рамки. Там кегль ужимается вместе
+     с рисунком, но не мельче 72 %. Прочие сцены не затрагиваются. */
+  textK:1,
+  кегль(def){ const ref=def&&(def.textRef||(def.hudAware&&def.schema?36:0));
+    this.textK=ref?clamp(ppm()/ref,0.72,1):1; },
   /* Подписи на сцене. Позиции в симуляциях заданы вручную пиксельными
      сдвигами, поэтому на разных зумах и наборах параметров они наезжали друг
      на друга и уползали за кадр. Раскладку чиним здесь, централизованно —
@@ -35450,7 +35539,7 @@ const VIEW={
     let x=sx+dx, y=sy+dy;
     if(S.settings.labelFix!==false && isFinite(x) && isFinite(y)){
       // 0) длинные пояснения ужимаем по кеглю, пока не влезут в кадр
-      let w=ctx.measureText(text).width;
+      let w=ctx.measureText(безВекторов(text)).width;
       if(w>CW-6){
         for(let fs=base-1;fs>=Math.max(7,base-3)&&w>CW-6;fs--){
           ctx.font=sceneFont(fs);
@@ -35501,10 +35590,10 @@ const VIEW={
     }
     if(this._halo){
       ctx.lineJoin='round'; ctx.lineWidth=3; ctx.strokeStyle=this._halo;
-      ctx.globalAlpha=Math.min(1,ctx.globalAlpha*0.9); ctx.strokeText(text,x,y);
+      ctx.globalAlpha=Math.min(1,ctx.globalAlpha*0.9); текстСВекторами(ctx,text,x,y,true);
       ctx.globalAlpha=1;
     }
-    ctx.fillText(text,x,y); ctx.restore();
+    текстСВекторами(ctx,text,x,y); ctx.restore();
   },
   /* Текст в заданной точке — без раскладки. Подписи v.label разводятся,
      чтобы не налезать друг на друга; для содержимого клеток таблицы это
@@ -35512,9 +35601,9 @@ const VIEW={
   text(ctx,text,wx,wy,color,px,align,bold){
     const [sx,sy]=toScreen(wx,wy);
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
-    ctx.font=(bold?'600 ':'')+sceneFont(px||(+prefGet('labelSize')||11));
+    ctx.font=(bold?'600 ':'')+sceneFont((px||(+prefGet('labelSize')||11))*this.textK);
     ctx.textAlign=align||'center'; ctx.textBaseline='middle';
-    ctx.fillStyle=color||css('--ink-2'); ctx.fillText(String(text),sx,sy);
+    ctx.fillStyle=color||css('--ink-2'); текстСВекторами(ctx,String(text),sx,sy);
     ctx.restore();
   },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
@@ -35874,6 +35963,7 @@ const fmt=v=>{
 function drawAll(){
   const a=A(); if(!a) return;
   VIEW.labelFrame();                       // новый кадр — раскладка подписей с чистого листа
+  VIEW.кегль(a.def);
   if(typeof слоиКамера==='function') слоиКамера(a);
   applyWorld(sctx);
   if(S.settings.grid!==false && !объёмнаяСейчас(a)) drawGrid(sctx);
@@ -36252,6 +36342,29 @@ function fmtShort(v){
    внутри крошечного окошка — прокручивать её мышью на сцене неудобно, да и
    выглядит чужеродно. Теперь полосы нет: сколько строк влезло, столько и
    показано, а про остальные честно сказано в последней строке. */
+/* Показание-«флажок». Старые сцены пишут слово в колонку единиц, а в
+   значение — 0 или 1: ['состояние', 0, 'стоит'] выходило «0.00 стоит».
+   Смотрим на первое слово «единицы»: если это не единица измерения
+   (м/с, кг·м², ·10⁶, %, «из», «раз», «электронов»…), значит, это текст —
+   показываем его значением, а число-флажок прячем (3.4.0). */
+const ЕДИНИЦЫ_АТОМЫ=new Set(('м см мм км нм мкм пм фм Мм с мс мкс нс фс мин ч сут год лет кг г т Н нН мкН кН Дж кДж МДж нДж мкДж '+
+  'Вт кВт МВт Па кПа МПа ГПа мкПа К K °C эВ кэВ МэВ ГэВ В мВ кВ мкВ А мА мкА Ом кОм МОм Тл мТл мкТл нТл Гц кГц МГц ГГц ТГц '+
+  'Кл мкКл нКл Ф мкФ нФ пФ Гн мГн Вб моль рад об дптр л атм дБ Бк % ° ‰ c e ħ a₀ I₀ τ '+
+  'из раз отн. усл. усл.ед. ед. шт штук электронов фотонов частиц атомов ядер точек витков').split(' '));
+function этоЕдиница(u){
+  const t=String(u).trim().split(/\s+/)[0];
+  if(!t) return true;
+  if(/^[·×(]/.test(t)) return true;                       // ·10⁶ м/с, ×10³ км, (поглощение)
+  return t.replace(/[()²³⁻¹⁰⁴⁵⁶⁷⁸⁹\d]/g,'').split(/[\/·]/).every(x=>x===''||ЕДИНИЦЫ_АТОМЫ.has(x));
+}
+function показание(v,u){
+  if(typeof v==='number' && (v===0||v===1||isNaN(v)) && typeof u==='string' && u && !этоЕдиница(u))
+    return {txt:true, v:u, u:''};
+  if(typeof v==='string') return {txt:true, v:v, u:u||''};
+  // целые (номер уровня, число электронов, заряд Z) — без «.00»
+  const цел=Number.isInteger(v) && Math.abs(v)<1e4;
+  return {txt:false, v:цел?String(v):fmt(v), u:u||''};
+}
 function updateHud(a){
   if(typeof описаниеСцены==='function') описаниеСцены(a);
   const body=$('#hud-body'), panel=$('#hud'); if(!body||!panel) return;
@@ -36261,11 +36374,11 @@ function updateHud(a){
      Колонки решают это сами: подпись слева ужимается, число справа стоит на
      месте и не прыгает, когда меняется знак. */
   const данные=a.def.readouts(a.state,a.params);
-  const rows=данные.map(([l,v,u])=>
-    `<div class="ro"><span class="ro-l">${esc(l)}</span>` +
+  const rows=данные.map(([l,v,u])=>{ const q=показание(v,u);
+    return `<div class="ro"><span class="ro-l">${векторыHTML(esc(l))}</span>` +
     // значение может быть словом (фаза движения, режим) — выводим как есть
-    `<span class="ro-v${typeof v==='string'?' ro-txt':''}">${esc(typeof v==='string'?v:fmt(v))}</span>` +
-    `<span class="ro-u">${esc(u||'')}</span></div>`);
+    `<span class="ro-v${q.txt?' ro-txt':''}">${esc(q.v)}</span>` +
+    `<span class="ro-u">${esc(q.u)}</span></div>`; });
   const lh=parseFloat(getComputedStyle(body).lineHeight)||17;
   /* Обрезаем строки, только если размер панели чем-то ОГРАНИЧЕН: явной высотой
      (пользователь потянул за уголок) или max-height из темы (на телефоне).
@@ -36281,13 +36394,25 @@ function updateHud(a){
     const mh=parseFloat(getComputedStyle(panel).maxHeight);
     if(isFinite(mh)) avail=mh-headH-13;
   }
-  let n=rows.length;
+  let n=rows.length, поРазмеру=false;
   if(isFinite(avail) && avail>0 && lh>0){
     const fits=Math.floor(avail/lh);
-    if(fits<rows.length) n=Math.max(1,fits-1);       // строка «ещё N» тоже место занимает
+    if(fits<rows.length){ n=Math.max(1,fits-1); поРазмеру=true; }   // строка «ещё N» тоже место занимает
   }
-  body.innerHTML = n>=rows.length ? rows.join('')
-    : rows.slice(0,n).concat([`<div class="ro ro-more">… ещё ${rows.length-n} — растяните панель</div>`]).join('');
+  /* 3.4.0: по умолчанию панель показывает первые строки (настройка «hudRows»),
+     остальные — по нажатию на «ещё N». Полная панель на узкой сцене
+     закрывала половину рисунка. */
+  const лимит=+prefGet('hudRows')||0;
+  let свернуть=false;
+  if(!поРазмеру && лимит>0 && rows.length>лимит+1){
+    if(!S.hudFull) n=Math.min(n,лимит); else свернуть=true;
+  }
+  body.innerHTML = n>=rows.length ? rows.join('')+(свернуть?`<div class="ro ro-more ro-btn">▴ свернуть до ${лимит}</div>`:'')
+    : rows.slice(0,n).concat([поРазмеру?`<div class="ro ro-more">… ещё ${rows.length-n} — растяните панель</div>`
+                                       :`<div class="ro ro-more ro-btn">▾ ещё ${rows.length-n}</div>`]).join('');
+  if(!body.dataset.more){ body.dataset.more='1';
+    body.addEventListener('click',e=>{ if(!e.target.closest('.ro-btn')) return;
+      S.hudFull=!S.hudFull; const a2=A(); if(a2) updateHud(a2); }); }
 }
 
 /* ------------------------------- ГРАФИКИ -------------------------------- */
@@ -37828,7 +37953,12 @@ function openSim(id){
     const кн=hud.querySelector('.fp-fold');
     if(кн){ кн.textContent=свёрнута?'▸':'▾'; кн.setAttribute('aria-expanded',String(!свёрнута)); } }
   try{ syncMbar(); }catch(_){}
-  requestAnimationFrame(()=>{ resize(); fitView(); });   // сначала знаем размер холста, потом вписываем
+  requestAnimationFrame(()=>{ resize(); fitView();       // сначала знаем размер холста, потом вписываем
+    /* PV-диаграмма, энергия и распределение появляются с первым кадром, уже
+       после вписывания. Через мгновение вписываем ещё раз — с учётом их
+       места, если пользователь за это время не двигал и не масштабировал вид. */
+    const вид=JSON.stringify(a.view);
+    setTimeout(()=>{ if(A()===a && JSON.stringify(a.view)===вид) fitView(); },350); });
 }
 /* Свёрнутые группы параметров запоминаются по симуляции: на «Втором законе»
    двадцать семь полей, и держать их все развёрнутыми — значит прокручивать
@@ -37873,14 +38003,15 @@ function renderParams(){
     if(skip||!видноПараметр(a,p)) continue;
     const d=document.createElement('div'); d.className='param'; d.dataset.key=p.key;
     if(p.type==='check'){
-      d.innerHTML=`<label class="chk"><input type="checkbox" ${a.params[p.key]?'checked':''}>${p.label}</label>`;
+      d.innerHTML=`<label class="chk"><input type="checkbox" ${a.params[p.key]?'checked':''}>${векторыHTML(p.label)}</label>`;
       d.querySelector('input').onchange=e=>commit(p.key,e.target.checked);
     } else if(p.type==='select'){
-      d.innerHTML=`<div class="name">${p.label}</div>
-        <select>${p.options.map(o=>`<option value="${o.v}" ${a.params[p.key]===o.v?'selected':''}>${o.t}</option>`).join('')}</select>`;
+      /* в <option> разметки нет — стрелку-знак убираем, иначе шрифт рисует её как попало */
+      d.innerHTML=`<div class="name">${векторыHTML(p.label)}</div>
+        <select>${p.options.map(o=>`<option value="${o.v}" ${a.params[p.key]===o.v?'selected':''}>${безВекторов(o.t)}</option>`).join('')}</select>`;
       d.querySelector('select').onchange=e=>{ commit(p.key,e.target.value); renderParams(); buildGraphs(); };
     } else {
-      d.innerHTML=`<div class="name">${p.label}</div>
+      d.innerHTML=`<div class="name">${векторыHTML(p.label)}</div>
         <div class="numfield">
           <button class="dec" tabindex="-1">−</button>
           <!-- text, а не number: браузер отбрасывает у number всё нечисловое,
@@ -38476,18 +38607,36 @@ const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZM
    Минковского, орбитали), объявляют hudAware: у них рисунок вписывается в
    часть кадра под панелью показаний, иначе панель закрывала бы его верх.
    Если места под панелью слишком мало — вписываем как обычно. */
+/* «Вписать в кадр» с учётом плавающих панелей (3.4.0): показатели,
+   энергия, PV-диаграмма, распределение, сравнение. Панели — препятствия;
+   перебираем прямоугольники, чьи края совпадают с краями кадра или панелей,
+   отбрасываем те, что задевают панель, и вписываем рисунок в тот, где он
+   выходит крупнее. Раньше учитывалась одна панель показаний, и цилиндр
+   тепловой машины уходил под PV-диаграмму справа. Если свободное место
+   слишком мало (мельче половины кадра), панели просто лежат поверх. */
 function видВКадре(def,params){
   const f=def.fit(params,{W:CW,H:CH});
-  if(!def.hudAware) return f;
-  const hud=document.querySelector('#hud');
-  if(!hud||hud.classList.contains('hidden')||hud.classList.contains('fold')||prefGet('hud')===false) return f;
   const wr=document.querySelector('#cwrap'); if(!wr) return f;
-  const r=hud.getBoundingClientRect(), w=wr.getBoundingClientRect();
-  const низ=r.bottom-w.top+6;
-  if(!(r.width>0) || низ<=0 || низ>CH*0.55 || r.width<CW*0.35) return f;
-  const g=def.fit(params,{W:CW,H:CH-низ});
-  if(g.scale<f.scale*0.55) return f;
-  return Object.assign({},g,{y:g.y+(низ/2)/(PX_PER_M*g.scale)});
+  const w=wr.getBoundingClientRect(), преп=[];
+  for(const id of ['hud','energybox','pvbox','histobox','cmpbox']){ const el=document.getElementById(id); if(!el) continue;
+    if(el.classList.contains('hidden')||el.classList.contains('fold')) continue;
+    if(id==='hud' && prefGet('hud')===false) continue;
+    const q=el.getBoundingClientRect(); if(!(q.width>0&&q.height>0) || getComputedStyle(el).display==='none') continue;
+    const r={l:q.left-w.left-6,t:q.top-w.top-6,r:q.right-w.left+6,b:q.bottom-w.top+6};
+    if(r.r<=0||r.b<=0||r.l>=CW||r.t>=CH) continue;
+    преп.push(r); }
+  if(!преп.length) return f;
+  const Ls=[0,...преп.map(r=>r.r)], Rs=[CW,...преп.map(r=>r.l)], Ts=[0,...преп.map(r=>r.b)], Bs=[CH,...преп.map(r=>r.t)];
+  let лучший=null;
+  for(const l of Ls) for(const r of Rs) for(const t of Ts) for(const b of Bs){
+    const ww=r-l, hh=b-t; if(ww<CW*0.35||hh<CH*0.35) continue;
+    if(преп.some(o=>o.l<r&&o.r>l&&o.t<b&&o.b>t)) continue;
+    const g=def.fit(params,{W:ww,H:hh}), k=PX_PER_M*g.scale;
+    if(лучший&&g.scale<=лучший.scale) continue;
+    лучший=Object.assign({},g,{x:g.x-((l+r)/2-CW/2)/k, y:g.y+((t+b)/2-CH/2)/k});
+  }
+  if(!лучший||лучший.scale<f.scale*0.5) return f;
+  return лучший;
 }
 function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,видВКадре(a.def,a.params)); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
@@ -39353,7 +39502,7 @@ function renderPresets(){
     h.textContent='Примеры из учебника'; box.append(h);
     built.forEach(pr=>{
       const d=document.createElement('div'); d.className='preset';
-      const b=document.createElement('button'); b.textContent=pr.name; b.title=pr.note||'';
+      const b=document.createElement('button'); b.innerHTML=векторыHTML(esc(pr.name)); b.title=pr.note||'';
       b.onclick=()=>loadPreset(pr.values);
       const t=document.createElement('span'); t.className='del'; t.style.cursor='default';
       t.textContent='§'; t.title='Готовый пример, удалить нельзя';
@@ -39404,7 +39553,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   axes:false,edgeRuler:false,crosshair:false,miniMap:false,sceneTitle:false,
   handles:'hover',
   // кастомизация окружения
-  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
+  uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,hudRows:6,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
@@ -39471,6 +39620,9 @@ const PREFS=[
    name:'Размер пульта на телефоне',desc:'Крупный удобнее для больших пальцев, обычный экономит место на сцене.',
    options:[['norm','Обычный'],['big','Крупный']]},
 
+  {cat:'scene',key:'hudRows',type:'select',def:6,
+   name:'Панель показаний: сколько строк сразу',desc:'Остальные раскрываются строкой «ещё N». Полная панель на узкой сцене закрывает половину рисунка.',
+   options:[[4,'4'],[6,'6'],[10,'10'],[0,'Все']]},
   {cat:'scene',key:'rot3dInvX',type:'toggle',def:true,
    name:'Объёмные сцены: инвертировать поворот по оси X',desc:'Протянули вверх — фигура наклоняется к вам, как будто её тянут за верхний край. Выключите, чтобы протягивание вверх наклоняло её от вас.'},
   {cat:'scene',key:'rot3dInvY',type:'toggle',def:false,
@@ -40496,9 +40648,9 @@ function renderSheetReadouts(){
   const box=$('#msheet-ro'); if(!box||!isNarrow()) return;
   const a=A();
   if(!a||!a.def.readouts){ box.innerHTML=''; return; }
-  box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>
-    `<div class="sr"><span class="sr-l">${esc(l)}${u?', '+esc(u):''}</span>` +
-    `<span class="sr-v">${esc(typeof v==='string'?v:fmt(v))}</span></div>`).join('');
+  box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>{ const q=показание(v,u);
+    return `<div class="sr"><span class="sr-l">${векторыHTML(esc(l))}${q.u?', '+esc(q.u):''}</span>` +
+    `<span class="sr-v">${esc(q.v)}</span></div>`; }).join('');
 }
 /* Ручка листа: тянут — меняется положение, короткий тап — следующее. */
 (function листРучка(){

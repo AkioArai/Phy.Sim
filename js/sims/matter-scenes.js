@@ -439,7 +439,7 @@ binding:{
     for(let A=20;A<=Amax;A++){ const x=X(A), y=Y(this.BperA(A)); A===20?ctx.moveTo(x,y):ctx.lineTo(x,y); }
     ctx.stroke();
     if(p.data) for(const [A,b] of this.measured) КС.точка(ctx,v,X(A),Y(b),3,meas);
-    v.text(ctx,`вершина: A ≈ ${pk.A} (железо, никель)`,X(pk.A),Y(pk.B)+0.3,acc,10,'center',true);
+    v.text(ctx,`вершина: A ≈ ${pk.A} (железо, никель)`,X(pk.A)+0.2,Y(pk.B)-0.5,acc,10,'left',true);
     const bA=p.A<=20?this.Bm(p.A)/p.A:this.BperA(p.A);
     КС.точка(ctx,v,X(p.A),Y(bA),5,dang);
     v.text(ctx,`A = ${p.A}: ${bA.toFixed(2)}`,X(p.A)+(p.A>180?-0.15:0.15),Y(bA)-0.3,dang,10,p.A>180?'right':'left',true);
@@ -456,7 +456,7 @@ binding:{
         if(деление){
           if(u<0.35){ const R=this.ядро(ctx,v,cx+0.03*Math.sin(s.t*30*u),cy,p.A,col); ctx.save(); ctx.scale(1,1); ctx.restore();
             v.text(ctx,`ядро A = ${p.A}`,cx,cy-R-0.3,ink,10,'center',true); }
-          else { const d=0.2+2.0*ww; this.ядро(ctx,v,cx-d,cy,a,col); this.ядро(ctx,v,cx+d,cy,b,col);
+          else { const d=0.2+1.5*ww; this.ядро(ctx,v,cx-d,cy,a,col); this.ядро(ctx,v,cx+d,cy,b,col);
             v.text(ctx,`${a}`,cx-d,cy-1.05,ink,10,'center',true); v.text(ctx,`${b}`,cx+d,cy-1.05,ink,10,'center',true); }
         } else {
           const d=u<0.35?2.0:2.0*(1-ww);

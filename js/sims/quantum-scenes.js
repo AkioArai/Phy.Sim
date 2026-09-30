@@ -61,6 +61,22 @@ const КС={
     const c=x=>Math.round(255*Math.pow(clamp(x*f,0,1),0.8));
     return `rgb(${c(r)},${c(g)},${c(b)})`;
   },
+  /* абзац с переносом по ширине w (в единицах сцены): длинная строка сама
+     ломается по словам, а не вылезает за панель в узком окне (3.4.0).
+     Возвращает y под последней строкой. */
+  абзац(ctx,v,text,x,y,w,color,px,align,bold){
+    px=px||10; const k=v.textK||1, шаг=px*k*1.35/ppm(), ширина=w*ppm();
+    ctx.save(); ctx.font=(bold?'600 ':'')+sceneFont(px*k);
+    const строки=[]; let cur='';
+    for(const слово of String(text).split(' ')){
+      const t=cur?cur+' '+слово:слово;
+      if(cur && ctx.measureText(безВекторов(t)).width>ширина){ строки.push(cur); cur=слово; } else cur=t;
+    }
+    if(cur) строки.push(cur); ctx.restore();
+    const ax=align==='center'?x+w/2:(align==='right'?x+w:x);
+    строки.forEach((l,i)=>v.text(ctx,l,ax,y-i*шаг,color,px,align||'left',bold));
+    return y-строки.length*шаг;
+  },
   точка(ctx,v,x,y,rpx,color){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,v.lw(rpx),0,7); ctx.fill(); },
   fitBox(vp,w,h,cx,cy){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -189,7 +205,7 @@ compton:{
     }
     // баланс энергии
     if(p.bars){
-      const bx=-6.25, by=-4.95, bw=6.1, bh=3.5, x0=bx+1.1, W=bw-1.35, Ein=this.Ein(p);
+      const bx=-6.25, by=-4.95, bw=6.1, bh=3.5, x0=bx+1.45, W=bw-1.7, Ein=this.Ein(p);
       КС.рамка(ctx,v,bx,by,bw,bh,'Энергия сохраняется');
       const полоса=(x,y,w,col,txt,txtCol)=>{ ctx.fillStyle=col; ctx.globalAlpha=.85; ctx.fillRect(x,y-0.22,Math.max(w,0.04),0.44); ctx.globalAlpha=1;
         if(txt) v.text(ctx,txt,x+0.08,y,txtCol||'#fff',10,'left',true); };
@@ -200,7 +216,7 @@ compton:{
       полоса(x0,by+1.35,w1,sec,w1>1.7?`фотон′ ${this.Eout(p).toFixed(1)}`:'');
       полоса(x0+w1,by+1.35,w2,meas,w2>1.4?`e⁻ ${Ke.toFixed(1)}`:'');
       if(w2<=1.4 && Ke>1e-6) v.text(ctx,`e⁻ ${Ke<0.1?Ke.toFixed(3):Ke.toFixed(1)} кэВ`,x0+w1+w2,by+1.8,meas,10,'right',true);
-      v.text(ctx,Ke>1e-6?'E′ < E, поэтому λ′ = hc/E′ длиннее λ':'удара не было — энергия та же',bx+0.2,by+0.45,ink3,10,'left');
+      v.text(ctx,Ke>1e-6?'E′ < E  ⇒  λ′ = hc/E′ длиннее λ':'удара не было — энергия та же',bx+0.2,by+0.45,ink3,10,'left');
     }
     // треугольник импульсов
     if(p.vec){
@@ -488,12 +504,12 @@ uncertainty:{
       for(let j=-12;j<=12;j+=4){ const k=p.p0+j; v.text(ctx,`${k}`,K(k),yb2-0.22,ink3,9); }
       v.text(ctx,'k, нм⁻¹',5.95,yb2+0.2,ink3,9,'right');
       ctx.fillStyle=sec; ctx.globalAlpha=.25; ctx.beginPath(); ctx.moveTo(-5.9,yb2);
-      for(let i=0;i<=300;i++){ const x=-5.9+11.8*i/300, k=p.p0+x/0.46; ctx.lineTo(x,yb2+2.1*Math.exp(-(k-p.p0)*(k-p.p0)/(2*dk*dk))); }
+      for(let i=0;i<=300;i++){ const x=-5.9+11.8*i/300, k=p.p0+x/0.46; ctx.lineTo(x,yb2+1.75*Math.exp(-(k-p.p0)*(k-p.p0)/(2*dk*dk))); }
       ctx.lineTo(5.9,yb2); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
-      const a=Math.max(-5.9,K(p.p0-dk)), b=Math.min(5.9,K(p.p0+dk)), y=yb2+2.35;
+      const a=Math.max(-5.9,K(p.p0-dk)), b=Math.min(5.9,K(p.p0+dk)), y=yb2+1.95;
       ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(a,y); ctx.lineTo(b,y); ctx.stroke();
       v.arrow(ctx,(a+b)/2,y,a,y,meas); v.arrow(ctx,(a+b)/2,y,b,y,meas);
-      v.text(ctx,`Δp = ħ/2Δx = ${(this.dp(p)*1e24).toFixed(2)}·10⁻²⁴ кг·м/с`,0,y+0.3,meas,10,'center',true);
+      v.text(ctx,`Δp = ħ/2Δx = ${(this.dp(p)*1e24).toFixed(2)}·10⁻²⁴ кг·м/с`,0,y+0.28,meas,10,'center',true);
       v.text(ctx,p.dx<0.3?'узкий пакет → широкий разброс скоростей → быстро расплывается'
         :(p.dx>1.2?'широкий пакет → скорости почти одинаковы → почти не расплывается'
         :'Δx·Δp = ħ/2 при t = 0; дальше Δx растёт, а Δp — нет'),0,gy+0.2,ink,10,'center');
@@ -616,8 +632,9 @@ box:{
       for(const x of [xL,xR]) face([пр(x,-W,-D),пр(x,W,-D),пр(x,W,1.0),пр(x,-W,1.0)],ink,.22,ink);
       // уровень покоя и узлы на ближней грани
       if(!p.mix){ for(let m=0;m<=n;m++){ const q=пр(xL+LX*m/n,передY,0); КС.точка(ctx,v,q[0],q[1],3.4,ink); } }
-      const qT=пр(0,передY,-D);
-      v.text(ctx,`L = ${p.L} нм: в длину помещается ${n} ${n===1?'полуволна':(n<5?'полуволны':'полуволн')}`,qT[0],qT[1]-0.3,ink,10,'center',true);
+      // подпись — под самым нижним углом лотка, при любом повороте
+      const низЛотка=Math.min(...[xL,xR].map(x=>Math.min(пр(x,-W,-D)[1],пр(x,W,-D)[1])));
+      v.text(ctx,`L = ${p.L} нм: в длину помещается ${n} ${n===1?'полуволна':(n<5?'полуволны':'полуволн')}`,пр(0,0,-D)[0],низЛотка-0.35,ink,10,'center',true);
       const qW=пр(xR,-передY,1.0);
       v.label(ctx,'стенка: волна отражается без потерь',qW[0],qW[1],-120,-12,ink3);
     } else {
@@ -946,15 +963,15 @@ xray:{
     const X=this.шкала(p), LM=this.LMAX(p), lm=this.lamMin(p);
     // ---- трубка
     КС.рамка(ctx,v,-6.25,0.75,6.1,4.2,'рентгеновская трубка');
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.ellipse(-3.3,2.6,2.75,1.35,0,0,7); ctx.stroke();
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.ellipse(-3.3,2.55,2.75,1.12,0,0,7); ctx.stroke();
     // катод-спираль
     ctx.strokeStyle='#e0782a'; ctx.lineWidth=v.lw(2); ctx.beginPath();
     for(let i=0;i<=40;i++){ const y=2.1+i/40, x=-5.55+0.12*Math.sin(i*1.4); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
-    v.text(ctx,'катод (−)',-5.3,3.45,ink3,9);
+    v.text(ctx,'катод (−)',-6.05,4.05,ink3,9,'left');
     // анод — скошенный блок
     ctx.fillStyle='#b87333'; ctx.beginPath(); ctx.moveTo(-1.95,1.9); ctx.lineTo(-1.6,1.9); ctx.lineTo(-1.2,3.3); ctx.lineTo(-1.95,3.3); ctx.closePath(); ctx.fill();
-    v.text(ctx,`анод (+)`,-1.45,1.6,ink3,9);
-    v.text(ctx,`U = ${p.U} кВ`,-3.6,3.75,ink,10,'center',true);
+    v.text(ctx,`анод (+)`,-0.3,4.05,ink3,9,'right');
+    v.text(ctx,`U = ${p.U} кВ`,-3.3,4.05,ink,10,'center',true);
     for(const e of s.летят) КС.точка(ctx,v,e.x,e.y,2.6,sec);
     v.text(ctx,'электроны разгоняются до энергии eU',-3.2,1.02,sec,9);
     // ---- атом анода: что случилось при последнем ударе
@@ -1002,7 +1019,7 @@ xray:{
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(X(0),yb); ctx.lineTo(X(LM),yb); ctx.stroke();
       const шаг=LM>250?100:(LM>120?40:20);
       for(let l=0;l<=LM;l+=шаг){ ctx.beginPath(); ctx.moveTo(X(l),yb); ctx.lineTo(X(l),yb-0.08); ctx.stroke(); v.text(ctx,`${l}`,X(l),yb-0.25,ink3,9); }
-      v.text(ctx,'λ, пм',X(LM),yb-0.5,ink3,9,'right');
+      v.text(ctx,'λ, пм',X(LM),yb+0.22,ink3,9,'right');
       for(let b=0;b<this.BINS;b++) if(s.bins[b]){ const l=(b+0.5)*LM/this.BINS;
         const хар=пик(l);
         ctx.fillStyle=хар?meas:sec; ctx.globalAlpha=.7; ctx.fillRect(X(0)+b*bw,yb,bw*0.92,H*Math.min(1,s.bins[b]/mx)); }

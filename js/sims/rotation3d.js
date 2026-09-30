@@ -153,7 +153,7 @@ rigid3d:{
     { const a=пр(-n[0]*1.6,-n[1]*1.6,-n[2]*1.6), b=пр(n[0]*1.6,n[1]*1.6,n[2]*1.6);
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(6),v.lw(4)]);
       ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
-      v.label(ctx,'ось вращения',b[0],b[1],6,6,ink3); }
+      v.label(ctx,'ось',b[0],b[1],6,6,ink3); }
     // тело: стержень, насаженный на ось посередине; точка P — на его конце
     let u=ВР3.cross(n,[0,0,1]); if(ВР3.len(u)<1e-6) u=[1,0,0]; { const L=ВР3.len(u); u=[u[0]/L,u[1]/L,u[2]/L]; }
     const w2=ВР3.cross(n,u);
@@ -180,11 +180,11 @@ rigid3d:{
       }
       // ω⃗ — от оси тела вверх по оси, по правилу буравчика
       const kw=0.6, W=[c[0]+n[0]*w*kw,c[1]+n[1]*w*kw,c[2]+n[2]*w*kw], e=пр(W[0],W[1],W[2]);
-      if(Math.abs(w)>1e-3){ v.arrow(ctx,cc[0],cc[1],e[0],e[1],dang); v.label(ctx,`ω⃗ = ${w.toFixed(2)} рад/с`,e[0],e[1],6,-8,dang); }
+      if(Math.abs(w)>1e-3){ v.arrow(ctx,cc[0],cc[1],e[0],e[1],dang); v.label(ctx,'ω⃗',e[0],e[1],6,-8,dang); }
       // dφ⃗ = ω⃗Δt — толстая короткая стрелка на той же оси, ниже тела
       const D=[n[0]*dφ*1.6,n[1]*dφ*1.6,n[2]*dφ*1.6], d0=пр(-n[0]*0.9,-n[1]*0.9,-n[2]*0.9), dd=пр(-n[0]*0.9+D[0],-n[1]*0.9+D[1],-n[2]*0.9+D[2]);
       if(Math.abs(dφ)>1e-3){ ctx.save(); ctx.lineWidth=v.lw(4); v.arrow(ctx,d0[0],d0[1],dd[0],dd[1],meas); ctx.restore();
-        v.label(ctx,`dφ⃗ = ω⃗Δt: вдоль оси, длина ${Math.abs(dφ).toFixed(3)} рад`,d0[0],d0[1],8,14,meas); }
+        v.label(ctx,'dφ⃗',dd[0],dd[1],6,6,meas); }
       // стрелка-дуга: куда идёт поворот, если смотреть с конца ω⃗
       { const R0=0.35, pts=[]; for(let k=0;k<=20;k++){ const a=(Math.sign(w)||1)*k/20*4.5, q=ВР3.ap(ВР3.rot(n,a),[u[0]*R0+n[0]*1.25,u[1]*R0+n[1]*1.25,u[2]*R0+n[2]*1.25]); pts.push(пр(q[0],q[1],q[2])); }
         ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke();
@@ -194,15 +194,23 @@ rigid3d:{
       ctx.beginPath(); ctx.moveTo(cc[0],cc[1]); ctx.lineTo(Pp[0],Pp[1]); ctx.stroke(); ctx.setLineDash(EMPTY_DASH);
       v.label(ctx,'r⊥',(cc[0]+Pp[0])/2,(cc[1]+Pp[1])/2,-6,-8,sec);
       const vv=ВР3.cross([n[0]*w,n[1]*w,n[2]*w],P), kv=0.5, ve=пр(P[0]+vv[0]*kv,P[1]+vv[1]*kv,P[2]+vv[2]*kv);
-      if(ВР3.len(vv)>1e-3){ v.arrow(ctx,Pp[0],Pp[1],ve[0],ve[1],acc); v.label(ctx,`v⃗ = ω⃗ × r⃗, ${ВР3.len(vv).toFixed(2)} м/с`,ve[0],ve[1],6,-6,acc); }
+      if(ВР3.len(vv)>1e-3){ v.arrow(ctx,Pp[0],Pp[1],ve[0],ve[1],acc); v.label(ctx,'v⃗',ve[0],ve[1],6,-6,acc); }
       if(Math.abs(p.eps)>1e-3){ const E=[n[0]*p.eps*1.2,n[1]*p.eps*1.2,n[2]*p.eps*1.2], s0=пр(n[0]*0.05,n[1]*0.05,n[2]*0.05), s1=пр(E[0]+n[0]*0.05,E[1]+n[1]*0.05,E[2]+n[2]*0.05);
         ctx.save(); ctx.setLineDash([v.lw(4),v.lw(3)]); v.arrow(ctx,s0[0],s0[1],s1[0],s1[1],ok); ctx.restore(); v.label(ctx,'ε⃗',s1[0],s1[1],6,6,ok); }
     }
     ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(Pp[0],Pp[1],v.lw(5),0,7); ctx.fill();
     v.label(ctx,'P',Pp[0],Pp[1],-14,-8,sec);
-    const q=пр(0,0,-1.5);
-    v.label(ctx,'правило буравчика: с конца ω⃗ поворот виден против часовой',q[0],q[1],-150,14,ink3);
-    v.label(ctx,'протяните по сцене, чтобы повернуть вид',q[0],q[1],-100,30,ink3);
+    /* Числа — в легенде у края кадра, а у стрелок только имена (3.4.0):
+       длинные подписи у вращающихся стрелок сталкивались друг с другом. */
+    if(p.vecs){
+      const vv=ВР3.len(ВР3.cross([n[0]*w,n[1]*w,n[2]*w],P)), строки=[
+        [dang,`ω⃗ = ${w.toFixed(2)} рад/с — вдоль оси`],
+        [meas,`dφ⃗ = ω⃗Δt = ${Math.abs(w*p.dts).toFixed(3)} рад — тоже вдоль оси`],
+        [acc,`v⃗ = ω⃗ × r⃗ = ${vv.toFixed(2)} м/с — по касательной`]];
+      if(Math.abs(p.eps)>1e-3) строки.push([ok,`ε⃗ = ${p.eps.toFixed(2)} рад/с² — на той же оси`]);
+      строки.forEach(([c,t],i)=>v.text(ctx,t,-2.05,-0.95-i*0.15,c,10,'left',true));
+    }
+    v.text(ctx,'правило буравчика: с конца ω⃗ поворот виден против часовой',0,-1.62,ink3,10,'center');
   }
 }
 });

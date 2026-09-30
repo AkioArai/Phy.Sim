@@ -213,6 +213,7 @@ gas:{
    этого не запрещает. */
 micro:{
   title:'Микро- и макросостояния: откуда берётся необратимость',
+  hudAware:true,
   /* Сцена — ящик с ячейками, метров на ней нет. Поэтому ни осей с числами,
      ни надписи «сетка N м». */
   schema:true,
@@ -318,8 +319,8 @@ micro:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-60)/(this.Lx*1.15*PX_PER_M),(H-60)/(15.8*PX_PER_M)),0.002,30);
-    return {x:this.Lx/2,y:1.5,scale};
+    const scale=clamp(Math.min((W-60)/(this.Lx*1.15*PX_PER_M),(H-160)/(12.8*PX_PER_M)),0.002,30);
+    return {x:this.Lx/2,y:1.2,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
@@ -335,7 +336,10 @@ micro:{
     ctx.stroke();
     /* подпись дырки — ПОД ящиком: внутри она неизбежно легла бы на молекулы,
        которые заполняют обе половины вплотную к перегородке */
-    v.label(ctx,'дырка в перегородке',Lx/2,0,-58,16,ink3);
+    /* подписи раскладываются по строкам в ПИКСЕЛЯХ (st — высота строки в
+       единицах сцены): при любом масштабе строки не наезжают друг на друга */
+    const st=14*(v.textK||1)/ppm();
+    v.text(ctx,'↑ дырка в перегородке',Lx/2,-st*0.8,ink3,10,'center');
 
     // ---- молекулы: каждая в своей ячейке, номера — только у микросистемы
     const r=clamp(2.2/Math.sqrt(N),0.10,0.34);
@@ -350,14 +354,13 @@ micro:{
     }
 
     // ---- макросостояние крупно над ящиком
-    v.label(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly,-96,-34,ink);
-    v.label(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,
-      Lx/2,Ly,-96,-20,ink3);
-    if(n===N) v.label(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly,-96,-48,ok);
+    v.text(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly+st*1.9,ink,11,'center',true);
+    v.text(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,Lx/2,Ly+st*0.8,ink3,10,'center');
+    if(n===N) v.text(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly+st*3,ok,11,'center',true);
 
     // ---- гистограмма весов W(n): «гора» с острым пиком у макросистемы
     if(p.bars){
-      const gx=0, gy=-4.2, gw=Lx, gh=3.0;
+      const gh=2.6, gx=0, gy=-st*4.2-gh, gw=Lx;
       const lnMax=this.lnW(N,Math.round(N/2));
       ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
@@ -381,23 +384,22 @@ micro:{
             k?ctx.lineTo(x,y):ctx.moveTo(x,y);
           }
           ctx.stroke();
-          v.label(ctx,'наблюдённая частота',gx+gw,gy+gh,-118,-2,sec);
+          v.text(ctx,'— как часто наблюдалось',gx,gy+gh+st*1.9,sec,10,'left',true);
         }
       }
       /* Одна строка вместо трёх: подпись оси и пояснение к столбикам. Три
          отдельные подписи толкались друг с другом под ящиком. */
-      v.label(ctx,`высота столбика — W(n), число микросостояний · слева n = 0, справа n = ${N}`,
-        gx,gy,0,15,ink3);
+      v.text(ctx,'▇ W(n): микросостояний',gx,gy+gh+st*0.8,acc,10,'left',true);
+      v.text(ctx,'n = 0',gx,gy-st*0.8,ink3,9.5,'left'); v.text(ctx,`n = ${N}`,gx+gw,gy-st*0.8,ink3,9.5,'right');
+      v.text(ctx,'слева молекул n →',gx+gw/2,gy-st*0.8,ink3,9.5,'center');
     }
 
     // ---- вывод главы: одна строка, ради которой всё и затевалось
     const tr=this.tReturn(p), yr=tr/3.156e7;
     const when = yr>1e6 ? `${yr.toExponential(1)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
-    v.label(ctx,`вероятность «все слева» = 2^−${N} · среднее время возврата ≈ ${when}`,
-      Lx/2,-5.7,-150,0,ink3);
-    v.label(ctx, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
-                       : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',
-      Lx/2,-5.7,-150,14,N<=12?ok:meas);
+    const y=КС.абзац(ctx,v,`вероятность «все слева» = 2^−${N}; среднее время возврата ≈ ${when}`,-0.4,(p.bars?-st*5.8-2.6:-st*2.5),Lx+0.8,ink3,10,'center');
+    КС.абзац(ctx,v, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
+                       : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',-0.4,y,Lx+0.8,N<=12?ok:meas,10,'center',true);
   }
 }
 ,
@@ -558,12 +560,14 @@ thermo:{
     ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.5); ctx.beginPath(); ctx.moveTo(cx+cw/2,pistonY-0.22); ctx.lineTo(cx+cw/2,cyTop-1); ctx.stroke();
     v.label(ctx,'поршень',cx+cw,pistonY,8,0,sec);
     // подписи состояния
-    v.label(ctx,`V = ${st.V.toFixed(1)} л`,cx+cw/2,cyTop+cyH,-16,20,ink3);
-    v.label(ctx,`P = ${(st.P/1000).toFixed(0)} кПа`,cx+cw/2,cyTop+cyH,-16,34,ink3);
-    v.label(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw/2,cyTop+cyH,-16,48,ink3);
+    /* подписи состояния — справа от цилиндра, строками в пикселях: раньше
+       они стояли внутри цилиндра поверх молекул (3.4.0) */
+    const st2=14/ppm(), xr=cx+cw+0.3, yt=cyTop+cyH;
+    v.text(ctx,`V = ${st.V.toFixed(1)} л`,xr,yt-st2*0.5,ink,10,'left',true);
+    v.text(ctx,`P = ${(st.P/1000).toFixed(0)} кПа`,xr,yt-st2*1.5,ink,10,'left',true);
+    v.text(ctx,`T = ${st.T.toFixed(0)} K`,xr,yt-st2*2.5,ink,10,'left',true);
     const nm={iso:'изотермический',isobar:'изобарический',isochor:'изохорический',adiab:'адиабатический'}[p.proc];
-    v.label(ctx,nm+' процесс',cx+cw/2,cyTop,-40,-10,ink3);
-    v.label(ctx,'PV-диаграмма — на панели справа →',cx+cw/2,cyTop,-70,-26,ink3);
+    v.text(ctx,nm+' процесс',cx+cw/2,cyTop-1-st2,ink3,10,'center');
   }
 }
 ,
@@ -691,7 +695,6 @@ carnot:{
     const phase=['A→B изотерм. расширение','B→C адиабат. расширение','C→D изотерм. сжатие','D→A адиабат. сжатие'][seg];
     v.label(ctx,phase,cx+cw/2,cyTop,-46,-30,ink3);
     v.label(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw/2,pistonY,cw*20+6,0,ink3);
-    v.label(ctx,'цикл Карно — на панели справа →',cx+cw/2,cyTop+cyH,-64,26,ink3);
   }
 }
 

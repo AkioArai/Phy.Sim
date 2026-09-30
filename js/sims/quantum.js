@@ -429,8 +429,8 @@ bohr:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-30)/(11*PX_PER_M),(H-30)/(8*PX_PER_M)),0.002,30);
-    return {x:0.3,y:-0.2,scale};
+    const scale=clamp(Math.min((W-30)/(12.4*PX_PER_M),(H-30)/(8.4*PX_PER_M)),0.002,30);
+    return {x:0.9,y:-0.1,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
@@ -466,7 +466,8 @@ bohr:{
         i?ctx.lineTo(x,y):ctx.moveTo(x,y);
       }
       ctx.stroke();
-      v.label(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} — волна замыкается`,CX,R,-110,-14,sec);
+      v.text(ctx,`ровно ${n} ${n===1?'длина волны':(n<5?'длины волн':'длин волн')} на орбите`,CX,R+0.62,sec,10,'center',true);
+      v.text(ctx,'волна замыкается сама на себя',CX,R+0.34,sec,9.5,'center');
     }
     // электрон
     const ea=s.ph;
@@ -494,10 +495,10 @@ bohr:{
         ctx.beginPath(); ctx.moveTo(gx,y); ctx.lineTo(gx+(on?1.4:1.1),y); ctx.stroke(); ctx.globalAlpha=1;
         if(k<=3 || on) v.label(ctx,`n = ${k}:  ${E.toFixed(2)} эВ`,gx+1.5,y,2,0,on?acc:ink3);
       }
-      if(n<4) v.label(ctx,'n = 4, 5, 6 … — всё теснее',gx+1.5,Y(this.E(5)),2,-12,ink3);
       v.label(ctx,'уровни сгущаются к нулю',gx,gy,0,20,ink3);
     }
-    v.label(ctx,`E_${n} = ${this.E(n).toFixed(3)} эВ,  r_${n} = ${this.r(n).toFixed(4)} нм`,CX,-3.4,-84,0,ink3);
+    const ин=String(n).replace(/\d/g,d=>'₀₁₂₃₄₅₆₇₈₉'[d]);
+    v.label(ctx,`E${ин} = ${this.E(n).toFixed(3)} эВ,  r${ин} = ${this.r(n).toFixed(4)} нм`,CX,-3.4,-84,0,ink3);
     v.label(ctx,'орбита устойчива, если на ней укладывается целое число волн де Бройля',CX,-3.4,-160,16,ink3);
   }
 },
@@ -859,8 +860,9 @@ pauli:{
     if(p.shells){
       const sh=this.byShell(p);
       const CX=3.2;
-      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0.4,0.18,0,7); ctx.fill();
-      v.label(ctx,`+${p.Z}`,CX,0.4,-7,4,'#fff');
+      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(CX,0.4,Math.max(0.2,v.lw(10)),0,7); ctx.fill();
+      v.text(ctx,`+${p.Z}`,CX,0.4,'#fff',9,'center',true);
+      const оболочки=Object.keys(sh).map(Number), Rmax=0.55+Math.max(...оболочки)*0.42;
       let k=0;
       for(const n of Object.keys(sh).map(Number).sort((a,b)=>a-b)){
         const R=0.55+n*0.42, full=(sh[n]===this.shellCap(n));
@@ -882,8 +884,9 @@ pauli:{
           ctx.fillStyle=full?acc:meas;
           ctx.beginPath(); ctx.arc(ex,ey,v.lw(2.6),0,7); ctx.fill();
         }
-        // подписи оболочек разносим по вертикали, иначе они ложатся друг на друга
-        v.label(ctx,`n=${n}: ${cnt}/${this.shellCap(n)}`,CX,0.4+R,10,-6-k*0,full?acc:ink3);
+        /* подписи оболочек — столбиком справа от атома: у самих колец они
+           ложились друг на друга (кольца отстоят всего на 0,42) */
+        v.text(ctx,`n=${n}: ${cnt} из ${this.shellCap(n)}`,CX+Rmax+0.3,0.4+Rmax-0.2-k*0.42,full?acc:ink3,10,'left',full);
         k++;
       }
       if(this.isNoble(p)) v.label(ctx,'все оболочки замкнуты — благородный газ',CX,-2.4,-84,0,acc);
