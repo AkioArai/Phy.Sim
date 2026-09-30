@@ -2591,3 +2591,54 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 #cwrap.narrow .histobox .hbars{height:70px}
 /* на узкой сцене строки под PV-графиком — те же числа, что в показателях: прячем */
 #cwrap.narrow .pvbox .pvrow{display:none}
+
+/* ======================= ТЕЛЕФОН, 3.5.0 =======================
+   Дно листа — одна строка; редкие кнопки — в карточке «ещё» над ней.
+   Раньше в альбомной ориентации правило «вторая панель в один ряд»
+   перебивалось более поздним display:block, ряды получали display:contents,
+   и кнопки вставали столбиком во всю высоту экрана поверх сцены. Теперь
+   раскладка одна для обеих ориентаций и стоит в конце файла. */
+[data-ui="mobile"] .mbar2.show{display:block}
+[data-ui="mobile"] .mbar2 .m2row{display:flex;align-items:center;gap:2px;width:100%}
+[data-ui="mobile"] .mbar2 .m2row+.m2row{margin:0;padding:0;border:0}
+#m2more{display:none}
+[data-ui="mobile"] #m2more.open{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;
+  position:fixed;z-index:135;right:8px;bottom:calc(var(--foot,56px) + var(--vvbottom,0px) + 8px);
+  max-width:calc(100vw - 16px);padding:8px;border:1px solid var(--line);border-radius:16px;
+  background:var(--chrome);box-shadow:var(--shadow-lg);animation:m2pop .16s ease-out}
+@keyframes m2pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+[data-ui="mobile"] #m2more .mb-btn{flex:0 0 44px;width:44px;height:44px;border-radius:10px}
+[data-ui="mobile"] #m2more .m2val{flex:0 0 64px}
+[data-ui="mobile"] #m2more .mb-sep{width:1px;height:22px;background:var(--line);margin:0 4px;align-self:center}
+[data-ui="mobile"] #m2more #mb-back2,[data-ui="mobile"] #m2more .m2fps{display:none}
+[data-ui="mobile"].home-on #m2more{display:none}
+[data-ui="mobile"] .mbar2 #mb-back2,[data-ui="mobile"] .m2fps{display:none}
+[data-ui="mobile"] .mbar2 #mb-more2[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent)}
+[data-ui="mobile"] .mbar2 .mb-btn{height:40px}
+[data-ui="mobile"] .mbar2 .mbplay.m2play{flex:0 0 46px;width:46px;height:40px;border-radius:12px}
+@media (orientation:landscape){
+  [data-ui="mobile"] .mbar2.show{display:block}
+  [data-ui="mobile"] .mbar2 .m2row{display:flex}
+  [data-ui="mobile"] .mbar2 .mb-btn{height:34px}
+  [data-ui="mobile"] .mbar2 .mbplay.m2play{height:34px}
+}
+
+/* Строка показаний листа — карточки: подпись в две строки, число крупно,
+   край подсказывает, что строку можно листать. */
+[data-ui="mobile"] .msheet-ro{scroll-snap-type:x proximity;
+  -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+[data-ui="mobile"] .msheet-ro .sr{scroll-snap-align:start;background:var(--panel-2);border-radius:10px;
+  padding:5px 10px 6px;min-width:78px;max-width:140px}
+[data-ui="mobile"] .msheet-ro .sr-l{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;line-height:1.2}
+[data-ui="mobile"] .msheet-ro{flex:0 0 66px;gap:8px}
+/* Телефон боком: высоты мало — транспорт и перемотка встают в одну строку. */
+@media (orientation:landscape){
+  [data-ui="mobile"] .mbar2.show{right:50%;border-right:1px solid var(--divider)}
+  [data-ui="mobile"] #m2more.open{right:auto;left:8px;max-width:calc(50vw - 16px)}
+  [data-ui="mobile"] .timeline{left:50%!important;height:var(--foot,40px)!important}
+  [data-ui="mobile"] .msheet-ro{flex-basis:58px}
+  [data-ui="mobile"] .msheet-ro .sr{padding:3px 9px 4px}
+}
+/* полоса 88 px над конспектом — «окно» в сцену: плавающие панели в ней только мешают */
+#cwrap.strip .fpanel{display:none!important}

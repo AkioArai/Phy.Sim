@@ -430,38 +430,43 @@
            в нижней панели компьютера: отмена/повтор, сброс, время, масштаб,
            вписать, настройки, помощь и меню симуляции. Поля скорости и
            масштаба редактируемые, как на компьютере. -->
+      <!-- ============ ТЕЛЕФОН: дно листа (3.5.0) ============
+           Одна строка вместо двух: пуск, сброс, отмена и скорость — то, что
+           нажимают постоянно. Масштаб, вписывание, повтор, меню и настройки
+           ушли в карточку «ещё» над строкой: они нужны редко, а строка
+           масштаба отнимала у сцены полсотни пикселей. -->
       <div class="mbar2" id="mbar2">
         <div class="m2row">
-          <!-- Пуск/стоп продублирован здесь: без него приходилось прыгать
-               между рядами ради самой частой кнопки. -->
           <button class="mbplay m2play" id="mb-play2" title="Пуск / стоп">
             <svg viewBox="0 0 24 24" id="ic-mbplay2"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
             <svg viewBox="0 0 24 24" id="ic-mbpause2" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.4"/></svg></button>
-          <button class="iconbtn mb-btn" id="mb-undo" title="Отменить последнее действие">
-            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
-          <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
-            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h3"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-reset" title="Сбросить симуляцию">
             <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-undo" title="Отменить последнее действие">
+            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
           <span class="mb-sep"></span>
           <button class="iconbtn mb-btn" id="mb-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
           <input class="m2val" id="mb-speed" value="1×" title="Скорость времени (можно вписать своё)" inputmode="decimal">
           <button class="iconbtn mb-btn" id="mb-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
           <span class="mb-sep"></span>
-          <button class="iconbtn mb-btn" id="mb-back2" title="Вернуть основную панель">
-            <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-more2" title="Ещё: масштаб, вписать, повтор, меню, настройки" aria-expanded="false">
+            <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>
         </div>
-        <div class="m2row">
+        <div class="m2row m2more">
           <button class="iconbtn mb-btn" id="mb-zout" title="Отдалить"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
           <input class="m2val" id="mb-zoom" value="100%" title="Масштаб (можно вписать своё)" inputmode="decimal">
           <button class="iconbtn mb-btn" id="mb-zin" title="Приблизить"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-fit" title="Вписать сцену">
             <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
           <span class="mb-sep"></span>
+          <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
+            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h3"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-menu" title="Меню симуляции: запись, снимки, пресеты">
             <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-settings" title="Настройки">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-back2" title="Вернуть основную панель">
+            <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
           <div class="m2fps" id="mb-fps">—</div>
         </div>
       </div>

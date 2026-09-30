@@ -49,10 +49,17 @@ function resize(){
   const r=$('#cwrap').getBoundingClientRect();
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
   const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
+  const былаПолоска=CH>0&&CH<140, былоCH=CH;          // 140 — порог ПОЛОСКА (объявлен ниже)
   CW=r.width; CH=r.height;
+  /* Телефон (3.5.0): сцена вошла в полосу над конспектом или вышла из неё —
+     вписываем заново. Иначе в полосе 88 px оставался вид, рассчитанный на
+     полный экран, и виден был случайный обрезок рисунка. */
+  if(typeof isNarrow==='function' && isNarrow() && A() && былоCH>0 && (былаПолоска!==(CH>0&&CH<140)))
+    requestAnimationFrame(()=>{ if(typeof fitView==='function') fitView(); });
   /* узкая сцена (3.4.0): плавающие панели ужимаются, чтобы не ложиться друг
      на друга — см. #cwrap.narrow в стилях */
   $('#cwrap').classList.toggle('narrow', CW>0 && CW<660);
+  $('#cwrap').classList.toggle('strip', CH>0 && CH<140);        // полоса над конспектом: панели прячем
   for(const c of [scene,overlay]){ c.width=Math.max(1,CW*DPR); c.height=Math.max(1,CH*DPR); }
   for(const c of gcanvas){ const b=c.getBoundingClientRect();
     c.width=Math.max(1,b.width*DPR); c.height=Math.max(1,b.height*DPR); }
@@ -165,7 +172,10 @@ const VIEW={
     }
   },
   label(ctx,text,wx,wy,dx=0,dy=0,color){
-    if(S.settings.nums===false || сценаПолоска()){     // режим «без чисел» / сцена-полоска
+    /* В полосе над конспектом (88 px) подписи превращались в кашу поверх
+       рисунка — там это взгляд на тела, а не прибор (3.5.0). */
+    if(сценаПолоска()) return;
+    if(S.settings.nums===false){                     // режим «без чисел»
       text=String(text).replace(/=\s*[-+]?[\d.,]+(?:e[-+]?\d+)?\s*[^\s,;]*/gi,'')
                        .replace(/\s{2,}/g,' ').trim();
       if(!text) return;
@@ -237,6 +247,7 @@ const VIEW={
      чтобы не налезать друг на друга; для содержимого клеток таблицы это
      вредно: символ уезжает в соседнюю клетку. align — 'center' | 'left' | 'right'. */
   text(ctx,text,wx,wy,color,px,align,bold){
+    if(сценаПолоска()) return;
     const [sx,sy]=toScreen(wx,wy);
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.font=(bold?'600 ':'')+sceneFont((px||(+prefGet('labelSize')||11))*this.textK);
@@ -348,12 +359,15 @@ const VIEW={
      (VIEW.label) обходят его, а не ложатся под плашку */
   занятьНиз(строки){
     if(сценаПолоска()) return;
-    const r=this.разбитьПояснение(строки,Math.max(120,CW-32)); if(!r.строки.length) return;
+    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return;
     const h=r.строки.length*r.lh+10; this._lbl.push({x:0,y:CH-h-4,w:CW,h:h+4});
   },
   пояснение(ctx,строки){
     if(сценаПолоска()) return 0;
-    const r=this.разбитьПояснение(строки,Math.max(120,CW-32)); if(!r.строки.length) return 0;
+    /* на телефоне справа внизу висит круглая кнопка инструментов — обходим её */
+    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return 0;
     const h=r.строки.length*r.lh+10, y0=CH-h-4;
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.globalAlpha=.86; ctx.fillStyle=css('--canvas')||'#fff'; ctx.fillRect(0,y0,CW,h+4); ctx.globalAlpha=1;
@@ -3315,6 +3329,16 @@ const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZM
    тепловой машины уходил под PV-диаграмму справа. Если свободное место
    слишком мало (мельче половины кадра), панели просто лежат поверх. */
 function видВКадре(def,params){
+  /* Полоса над конспектом (телефон, 88 px, 3.5.0): вписать всю сцену в неё —
+     значит сделать тела точками. Берём обычный масштаб, как у сцены
+     нормальной высоты, и центрируем полосу на телах (anchors) — видно
+     «окно» в самое интересное место. */
+  if(CH>0 && CH<140 && typeof isNarrow==='function' && isNarrow()){
+    const g=def.fit(params,{W:CW,H:Math.max(CH,CW*0.62)}), a=A();
+    let ys=[]; try{ if(def.anchors&&a) ys=(def.anchors(a.state,params)||[]).map(q=>q.y).filter(isFinite); }catch(_){}
+    const yc=ys.length?(Math.min(...ys)+Math.max(...ys))/2:g.y;
+    return Object.assign({},g,{y:yc});
+  }
   const f=def.fit(params,{W:CW,H:CH});
   const wr=document.querySelector('#cwrap'); if(!wr) return f;
   const w=wr.getBoundingClientRect(), преп=[];
@@ -5292,9 +5316,13 @@ function setSheetTab(t){
      оставил лист развёрнутым, не схлопываем. */
   const надо = t==='params' ? 'half' : 'full';
   const сейчас=detent();
-  if(сейчас==='peek' || (надо==='full' && сейчас==='half')) setDetent(надо,true);
+  const сменили = сейчас==='peek' || (надо==='full' && сейчас==='half');
+  if(сменили) setDetent(надо,true);
   syncSheet();
-  requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
+  /* Коробка сцены поменялась — вписываем заново (3.5.0). Раньше в полосе над
+     конспектом оставался старый вид, рассчитанный на весь экран, и в 88 px
+     попадал случайный обрезок: пара подписей без рисунка. */
+  requestAnimationFrame(()=>{ resize(); if(сменили) fitView(); syncBottomInset(); });
 }
 function syncSheet(){
   /* В компьютерной раскладке листа нет — и его инлайновых display тоже не
@@ -5336,8 +5364,11 @@ function syncSheet(){
   const полный = d==='full';
   const h=(!полный && m2&&m2.classList.contains('show'))?m2.offsetHeight:0;
   const ht=(!полный && тл&&!тл.classList.contains('hidden'))?тл.offsetHeight:0;
-  document.documentElement.style.setProperty('--mbar2h',h+'px');
-  document.documentElement.style.setProperty('--foot',(h+ht)+'px');
+  /* В альбомной ориентации перемотка стоит в одной строке с транспортом
+     (3.5.0) — тогда высоты не складываются. */
+  const водну = h&&ht && innerWidth>innerHeight;
+  document.documentElement.style.setProperty('--mbar2h',(водну?0:h)+'px');
+  document.documentElement.style.setProperty('--foot',(водну?Math.max(h,ht):h+ht)+'px');
   const sh=$('#simhead-h'); void sh;
   const шапка=document.querySelector('.simhead');
   if(шапка) document.documentElement.style.setProperty('--simhead-h',(шапка.offsetHeight||36)+'px');
@@ -5382,6 +5413,19 @@ $$('#mb-fwd').onclick=()=>$('#tl-next').click();
 $$('#mb-params').onclick=()=>mSheet();
 $$('#mb-more').onclick=()=>mbarRow(true);
 $$('#mb-back2').onclick=()=>mbarRow(false);
+/* Карточка «ещё» над дном листа (3.5.0): открывается кнопкой «⋯», закрывается
+   ею же или касанием мимо. Масштаб внутри можно жать много раз подряд —
+   поэтому кнопки карточки её не закрывают, кроме меню и настроек. */
+/* Карточка живёт прямо в <body>: панель сцены — свой слой (z-index 70), и
+   всё, что внутри неё, оказывалось под листом показаний, как высоко ни ставь. */
+(function(){ const m=document.querySelector('#mbar2 .m2more'); if(m){ m.id='m2more'; document.body.appendChild(m); } })();
+function m2ещё(open){ const m=$('#m2more'), b=$('#mb-more2'); if(!m||!b) return;
+  const now=open===undefined?!m.classList.contains('open'):!!open;
+  m.classList.toggle('open',now); b.setAttribute('aria-expanded',String(now)); }
+$$('#mb-more2').onclick=e=>{ e.stopPropagation(); m2ещё(); };
+document.addEventListener('pointerdown',e=>{ const m=$('#m2more');
+  if(m&&m.classList.contains('open')&&!e.target.closest('#m2more')&&!e.target.closest('#mb-more2')) m2ещё(false); },true);
+for(const id of ['#mb-menu','#mb-settings']){ const el=$(id); if(el) el.addEventListener('click',()=>m2ещё(false)); }
 $$('#mb-reset').onclick=()=>$('#btn-reset').click();
 $$('#mb-zin').onclick=()=>$('#btn-zin').click();
 $$('#mb-zout').onclick=()=>$('#btn-zout').click();
