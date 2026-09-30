@@ -167,7 +167,19 @@ function легендаСил(ctx){
   ctx.font=sceneFont(Math.max(9,(+prefGet('labelSize')||11)-1)); ctx.textBaseline='middle';
   const строки=F.сил.map(f=>({цвет:f.color, текст:f.имя?`${f.label} — ${f.имя}`:f.label}));
   const w=Math.max(px+70, ...строки.map(r=>ctx.measureText(r.текст).width+22))+14;
-  const h=строки.length*15+28, x=10, y=CH-h-10;
+  const h=строки.length*15+28;
+  /* Угол выбираем свободный (3.4.0): левый нижний, если там нет подписей
+     сцены, иначе правый нижний (над подписью «сетка»). Раньше легенда
+     всегда ложилась влево вниз — поверх пояснений архимедовой силы и ракеты. */
+  const занято=[...VIEW._lbl,...VIEW._txt], наложение=(x,y)=>занято.reduce((a,r)=>{
+    const ox=Math.min(x+w,r.x+r.w)-Math.max(x,r.x), oy=Math.min(y+h,r.y+r.h)-Math.max(y,r.y);
+    return a+(ox>0&&oy>0?ox*oy:0); },0);
+  let x=10, y=CH-h-10, лучш=Infinity;
+  for(let dy=0; dy<=36; dy+=12){                           // чуть выше, если внизу подписи: на сам рисунок не залезаем
+    for(const [cx,cy] of [[10,CH-h-10-dy],[CW-w-10,CH-h-30-dy]]){
+      if(cx<0||cy<0) continue; const q=наложение(cx,cy);
+      if(q<лучш-1){ x=cx; y=cy; лучш=q; } }
+    if(лучш<1) break; }
   ctx.globalAlpha=.92; ctx.fillStyle=css('--chrome')||'#fff';
   ctx.fillRect(x,y,w,h); ctx.globalAlpha=1;
   ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,w-1,h-1);

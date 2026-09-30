@@ -375,7 +375,7 @@ debroglie:{
       if(L>0.03){ for(let i=0;i<=200;i++){ const x=gx+0.35+4.1*i/200, y=y0+0.3+0.18*Math.sin(2*Math.PI*(x-gx)/L-s.t*6); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } }
       else { ctx.moveTo(gx+0.35,y0+0.3); ctx.lineTo(gx+4.45,y0+0.3); }
       ctx.stroke();
-      v.text(ctx,L>0.03?`λ = ${lam.toFixed(4)} нм`:`λ ≈ ${lam.toExponential(1)} нм — в ${(1/r).toExponential(0)} раз меньше d`,gx+0.2,gy+0.2,dang,10,'left');
+      v.text(ctx,L>0.03?`λ = ${lam.toFixed(4)} нм`:`λ ≈ ${числоНаСцене(lam)} нм — в ${числоНаСцене(1/r,1)} раз меньше d`,gx+0.2,gy+0.2,dang,10,'left');
     }
     // пояснение внизу
     const [t1,t2]=vis?['каждый электрон — одна точка,','а вместе точки ложатся полосами: d·sin θ = mλ']
@@ -383,7 +383,7 @@ debroglie:{
           :['одно пятно: волна шарика несоизмеримо мала,','волновые свойства не видны']);
     v.text(ctx,t1,0,-YS-0.75,ink,11,'center',true);
     v.text(ctx,t2,0,-YS-1.15,ink,11,'center',true);
-    v.text(ctx,`λ = h/p = ${lam<1e-6?lam.toExponential(2):lam.toFixed(4)} нм,  p = ${this.p(p).toExponential(2)} кг·м/с`,0,-YS-1.6,ink3,10);
+    v.text(ctx,`λ = h/p = ${lam<1e-6?числоНаСцене(lam,3):lam.toFixed(4)} нм,  p = ${числоНаСцене(this.p(p),3)} кг·м/с`,0,-YS-1.6,ink3,10);
   }
 },
 
@@ -688,7 +688,7 @@ box:{
         ctx.beginPath(); ctx.moveTo(gx+0.2,y); ctx.lineTo(gx+(on?1.2:0.9),y); ctx.stroke(); ctx.globalAlpha=1;
         if(k<=2||on||k===top) v.text(ctx,`n=${k}`,gx+1.3,y,on?dang:ink3,9,'left',on); }
       v.text(ctx,'Eₙ ∝ n²',gx+gw/2,gy+0.22,ink3,10);
-      v.text(ctx,`${this.E(p,n)<0.01?this.E(p,n).toExponential(2):this.E(p,n).toFixed(3)} эВ`,gx+gw-0.12,gy+gh-0.28,dang,9,'right');
+      v.text(ctx,`${this.E(p,n)<0.01?числоНаСцене(this.E(p,n),3):this.E(p,n).toFixed(3)} эВ`,gx+gw-0.12,gy+gh-0.28,dang,9,'right');
     }
   }
 },

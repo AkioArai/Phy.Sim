@@ -355,7 +355,7 @@ micro:{
 
     // ---- макросостояние крупно над ящиком
     v.text(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly+st*1.9,ink,11,'center',true);
-    v.text(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,Lx/2,Ly+st*0.8,ink3,10,'center');
+    v.text(ctx,`микросостояний у него W = C(${N},${n}) = ${числоНаСцене(this.W(N,n),4)}`,Lx/2,Ly+st*0.8,ink3,10,'center');
     if(n===N) v.text(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly+st*3,ok,11,'center',true);
 
     // ---- гистограмма весов W(n): «гора» с острым пиком у макросистемы
@@ -396,7 +396,7 @@ micro:{
 
     // ---- вывод главы: одна строка, ради которой всё и затевалось
     const tr=this.tReturn(p), yr=tr/3.156e7;
-    const when = yr>1e6 ? `${yr.toExponential(1)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
+    const when = yr>1e6 ? `${числоНаСцене(yr)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
     const y=КС.абзац(ctx,v,`вероятность «все слева» = 2^−${N}; среднее время возврата ≈ ${when}`,-0.4,(p.bars?-st*5.8-2.6:-st*2.5),Lx+0.8,ink3,10,'center');
     КС.абзац(ctx,v, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
                        : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',-0.4,y,Lx+0.8,N<=12?ok:meas,10,'center',true);
@@ -530,8 +530,10 @@ thermo:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-80)/(6*PX_PER_M),(H-80)/(8*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    // цилиндр (−2,8…1,4) с подписями справа и снизу; поля — узкие, чтобы
+    // рисунок помещался и в свободный угол между панелями (3.4.0)
+    const scale=clamp(Math.min((W-36)/(6.4*PX_PER_M),(H-36)/(8.4*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.3,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
@@ -665,7 +667,13 @@ carnot:{
     {name:'Низкий КПД: T₁=400, T₂=360',values:{T1:400,T2:360,n:1,Va:8,ratio:1.6,gamma:1.5,cycles:0,tStop:0}},
     {name:'Один полный цикл',values:{T1:500,T2:350,n:1,Va:8,ratio:1.6,gamma:1.5,cycles:1,tStop:0}}
   ],
-  fit(p,vp){ return {x:0,y:0,scale:1}; },       // сцена рисует резервуары; PV — в панели
+  /* До 3.4.0 масштаб был постоянным (1) — в узком окне холодильник уходил
+     за нижний край. Теперь вписываем цилиндр с резервуарами целиком. */
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-36)/(6.4*PX_PER_M),(H-36)/(9.6*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.4,scale};
+  },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const st=this.stateAt(p,s.f), seg=Math.floor(((s.f%4)+4)%4);
@@ -680,11 +688,11 @@ carnot:{
       // нагреватель снизу (красный), когда контакт на изотерме T1 (seg 0)
       ctx.fillStyle=dang; ctx.globalAlpha=seg===0?0.5:0.15;
       ctx.fillRect(cx-0.3,cyTop+cyH+0.15,cw+0.6,0.5); ctx.globalAlpha=1;
-      v.label(ctx,`нагреватель T₁ = ${p.T1} K`,cx+cw/2,cyTop+cyH+0.65,-50,10,seg===0?dang:ink3);
+      v.text(ctx,`нагреватель T₁ = ${p.T1} K`,cx+cw/2,cyTop+cyH+0.65+9/ppm(),seg===0?dang:ink3,10,'center',seg===0);
       // холодильник сверху (синий), контакт на изотерме T2 (seg 2)
       ctx.fillStyle=sec; ctx.globalAlpha=seg===2?0.5:0.15;
       ctx.fillRect(cx-0.3,cyTop-0.9,cw+0.6,0.5); ctx.globalAlpha=1;
-      v.label(ctx,`холодильник T₂ = ${p.T2} K`,cx+cw/2,cyTop-0.9,-50,-4,seg===2?sec:ink3);
+      v.text(ctx,`холодильник T₂ = ${p.T2} K`,cx+cw/2,cyTop-1.4-10/ppm(),seg===2?sec:ink3,10,'center',seg===2);
     }
     // цилиндр
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.5);
@@ -693,8 +701,8 @@ carnot:{
     ctx.fillStyle=sec; ctx.fillRect(cx,pistonY-0.22,cw,0.22);
     ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.5); ctx.beginPath(); ctx.moveTo(cx+cw/2,pistonY-0.22); ctx.lineTo(cx+cw/2,cyTop-1.4); ctx.stroke();
     const phase=['A→B изотерм. расширение','B→C адиабат. расширение','C→D изотерм. сжатие','D→A адиабат. сжатие'][seg];
-    v.label(ctx,phase,cx+cw/2,cyTop,-46,-30,ink3);
-    v.label(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw/2,pistonY,cw*20+6,0,ink3);
+    v.text(ctx,phase,cx+cw+0.3,cyTop+cyH-12/ppm(),ink,10,'left',true);
+    v.text(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw+0.3,pistonY,ink3,10,'left');
   }
 }
 
@@ -799,8 +807,8 @@ calorimetry:{
   anchors(s,p){ return [{x:0,y:0}]; },
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),1e-7,30);
-    return {x:0,y:0.2,scale};
+    const scale=clamp(Math.min((W-50)/(11.2*PX_PER_M),(H-50)/(8.8*PX_PER_M)),1e-7,30);
+    return {x:0,y:-0.4,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
@@ -816,13 +824,13 @@ calorimetry:{
     ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y0); ctx.moveTo(x0,y0); ctx.lineTo(x0,y1); ctx.stroke();
     ctx.globalAlpha=1;
     v.label(ctx,'T, °C',x0,y1,-4,-8,ink3);
-    v.label(ctx,'подведённая теплота Q',x1,y0,-90,16,ink3);
+    v.text(ctx,'Q →',x1,y0-10/ppm(),ink3,10,'right');
     // опорные температуры
     for(const [T,lab,col] of [[S.Tm,`плавление ${S.Tm} °C`,sec],[S.Tb,`кипение ${S.Tb} °C`,dang]]){
       ctx.strokeStyle=col; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(x0,Y(T)); ctx.lineTo(x1,Y(T)); ctx.stroke();
       ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,lab,x0,Y(T),4,-6,col);
+      v.text(ctx,lab,x1,Y(T)+10/ppm(),col,10,'right',true);
     }
     // сама ломаная: наклон — нагрев, полка — переход
     ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
@@ -832,8 +840,9 @@ calorimetry:{
     // подписи этапов
     for(const g of stg){
       const xm=(X(g.Q0)+X(g.Q1))/2, flat=Math.abs(g.T1-g.T0)<1e-9;
-      if(X(g.Q1)-X(g.Q0)<0.5) continue;
-      v.label(ctx,g.kind,xm,Y((g.T0+g.T1)/2),-24,flat?-10:14,flat?meas:ink3);
+      // полки уже подписаны у пунктиров «плавление/кипение» — подписываем только наклоны
+      if(flat || X(g.Q1)-X(g.Q0)<0.5) continue;
+      v.label(ctx,g.kind,xm,Y((g.T0+g.T1)/2),6,12,ink3);
     }
     // текущая точка
     const cx=X(s.Q), cy=Y(cur.T);
@@ -843,8 +852,9 @@ calorimetry:{
     ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(cx,cy,v.lw(4.5),0,7); ctx.fill();
     v.label(ctx,`${cur.T.toFixed(1)} °C`,cx,cy,8,-8,dang);
     // ---- полоса подведённой теплоты ----
+    let низ=y0-14/ppm();
     if(p.bar){
-      const by=-2.5, bh=0.42;
+      const by=-2.5-10/ppm(), bh=0.42;
       ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.2);
       ctx.strokeRect(x0,by,x1-x0,bh);
       const cols=[sec,meas,acc,dang,ink3];
@@ -855,13 +865,13 @@ calorimetry:{
       });
       ctx.fillStyle=dang; ctx.globalAlpha=.55;
       ctx.fillRect(x0,by,cx-x0,bh); ctx.globalAlpha=1;
-      v.label(ctx,`подведено ${(s.Q/1000).toFixed(1)} кДж из ${(Qt/1000).toFixed(1)} кДж`,x0,by,0,-8,ink3);
-      v.label(ctx,`ширина участка = сколько теплоты он «съедает»`,x0,by,0,bh*20+14,ink3);
+      const k=1/ppm();
+      низ=КС.абзац(ctx,v,`подведено Q = ${(s.Q/1000).toFixed(1)} из ${(Qt/1000).toFixed(1)} кДж; ширина участка — сколько теплоты он «съедает»`,x0,by-11*k,x1-x0,ink3,9.5);
     }
-    // вывод
-    v.label(ctx,`${S.name}, ${p.m} кг: сейчас — ${cur.kind}`,x0,-3.4,0,0,acc);
-    v.label(ctx,'на полке вся теплота идёт на разрыв связей, а не на нагрев — термометр стоит',
-      x0,-3.4,0,16,ink3);
+    // вывод — строками в пикселях под полосой: при любом масштабе не наезжают
+    { const k=1/ppm(), yb=низ-6*k;
+      v.text(ctx,`${S.name}, ${p.m} кг: сейчас — ${cur.kind}`,x0,yb,acc,10,'left',true);
+      КС.абзац(ctx,v,'на полке вся теплота идёт на разрыв связей, а не на нагрев — термометр стоит',x0,yb-15*k,x1-x0,ink3,10); }
   }
 }
 ,

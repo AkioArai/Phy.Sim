@@ -82,9 +82,12 @@ spring:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const spanX=Math.max(p.A*3.2,4.5), spanY=spanX*H/W;
+    /* в кадр — от стены до крайнего положения груза (до 3.4.0 стена при
+       A ≥ 1,6 м оставалась за левым краем и пружина висела в воздухе) */
+    const wall=-Math.max(p.A*2,2.5), x0=wall-0.5, x1=p.A+1.5;
+    const spanX=x1-x0, spanY=4.4;
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    return {x:(x0+x1)/2,y:0.2,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');

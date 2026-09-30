@@ -144,7 +144,7 @@ const VIEW={
        2) если она перекрыла уже нарисованную, её сдвигаем по вертикали до
           свободного места (несколько попыток вверх/вниз).
      Список занятых прямоугольников обнуляется каждый кадр (labelFrame). */
-  _lbl:[],
+  _lbl:[], _txt:[],
   /* Память раскладки. Без неё каждый кадр решался с нуля: стоило сцене
      сдвинуться на пиксель, как подпись перескакивала на соседний ряд и тут же
      обратно — на панорамировании это выглядело как дрожь. Теперь для каждой
@@ -159,7 +159,7 @@ const VIEW={
     this._halo = prefGet('labelHalo')===false ? null
       : (prefGet('bgStyle')==='dark' ? '#161821' : (css('--canvas')||'#fff'));
     this._fbd=null;
-    this._lbl.length=0; this._lblSeq=0; this._lblFrame++;
+    this._lbl.length=0; this._txt.length=0; this._lblSeq=0; this._lblFrame++;
     if(this._lblFrame%600===0){                      // изредка чистим память
       for(const [k,m] of this._lblMem) if(this._lblFrame-m.f>600) this._lblMem.delete(k);
     }
@@ -242,6 +242,9 @@ const VIEW={
     ctx.font=(bold?'600 ':'')+sceneFont((px||(+prefGet('labelSize')||11))*this.textK);
     ctx.textAlign=align||'center'; ctx.textBaseline='middle';
     ctx.fillStyle=color||css('--ink-2'); текстСВекторами(ctx,String(text),sx,sy);
+    // место надписи запоминаем: по нему легенда сил выбирает свободный угол
+    if(this._txt.length<400){ const w=ctx.measureText(безВекторов(text)).width, al=ctx.textAlign, h=(px||11)*1.3;
+      this._txt.push({x:al==='center'?sx-w/2:(al==='right'?sx-w:sx),y:sy-h/2,w,h}); }
     ctx.restore();
   },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
@@ -591,6 +594,16 @@ const SCENE_FONTS={mono:'ui-monospace,monospace',sans:'system-ui,sans-serif',ser
 function sceneFont(px){
   const f=SCENE_FONTS[prefGet('sceneFont')]||SCENE_FONTS.mono;
   return (px||prefGet('labelSize')||11)+'px '+f;
+}
+/* Число для подписи на сцене: 8,43 · 1,7·10⁴ · 3,2·10⁻⁶ — без «8.4e+0» (3.4.0) */
+function числоНаСцене(v,знаков){
+  if(!isFinite(v)) return '—';
+  const a=Math.abs(v), d=знаков==null?2:знаков;
+  if(a===0) return '0';
+  if(a>=1e4||a<1e-2){ const e=Math.floor(Math.log10(a)), m=v/Math.pow(10,e);
+    const ст=String(e).replace(/-/,'⁻').replace(/\d/g,c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'[c]);
+    return `${(+m.toFixed(Math.max(1,d-1))).toString()}·10${ст}`; }
+  return String(+v.toFixed(a>=100?Math.min(d,1):d));
 }
 const fmt=v=>{
   if(!isFinite(v)) return '—';

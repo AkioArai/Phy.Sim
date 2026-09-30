@@ -1394,9 +1394,10 @@ conical:{
   fit(p,vp){
     const K=this.kin(p);
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const spanX=Math.max(K.R*2.6,2), spanY=Math.max(K.h*1.9,2);
+    // по вертикали — с запасом под стрелку mg ниже груза
+    const spanX=Math.max(K.R*2.6,2), spanY=Math.max(K.h*2.5,2.6);
     const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
-    return {x:0,y:-K.h/2,scale};
+    return {x:0,y:-K.h*0.72,scale};
   },
   draw(ctx,s,v,p){
     const r=this.pos(s,p), K=r.K, PZ=this.PZ;

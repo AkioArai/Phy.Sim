@@ -237,7 +237,7 @@ nucleus:{
       v.text(ctx,`● протонов Z = ${Z}`,bx+0.3,by+2.05,dang,10,'left',true);
       v.text(ctx,`● нейтронов N = ${N}`,bx+0.3,by+1.7,meas,10,'left',true);
       v.text(ctx,`R = R₀·∛A = ${this.R(p).toFixed(2)} фм`,bx+0.3,by+1.3,ink,10,'left');
-      КС.абзац(ctx,v,`плотность ${this.density(p).toExponential(2)} кг/м³ — одна у всех ядер: нуклоны уложены плотно, как в капле`,bx+0.3,by+0.85,bw-0.6,ink3,9.5);
+      КС.абзац(ctx,v,`плотность ${числоНаСцене(this.density(p),3)} кг/м³ — одна у всех ядер: нуклоны уложены плотно, как в капле`,bx+0.3,by+0.85,bw-0.6,ink3,9.5);
     }
     // ---- 2. карта стабильности N–Z
     if(p.map){
@@ -811,7 +811,7 @@ forces:{
       const lf=Math.log10(F); if(lf<LF0||lf>LF1) continue;
       ctx.fillStyle=COL[k]; ctx.beginPath(); ctx.arc(X(lr),Y(lf),v.lw(4),0,7); ctx.fill();
     }
-    const rt = r<1e-12 ? `${(r*1e15).toPrecision(3)} фм` : `${r.toExponential(1)} м`;
+    const rt = r<1e-12 ? `${(r*1e15).toPrecision(3)} фм` : `${числоНаСцене(r)} м`;
     v.text(ctx,`r = ${rt}`,X(lr),gy+gh+0.22,meas,10,'center',true);
 
     /* Расстановка сил — в ПРАВОМ ВЕРХНЕМ углу самого графика: кривые падают
@@ -820,7 +820,7 @@ forces:{
     const lx=gx+gw-0.15, ly=gy+gh-0.35;
     v.text(ctx,'здесь по убыванию:',lx,ly,ink3,9.5,'right');
     rows.forEach((q,i)=>{
-      const t=`${i+1}. ${this.INFO[q.k].name} ${q.F>1e-99?q.F.toExponential(1):'≈ 0'} Н`;
+      const t=`${i+1}. ${this.INFO[q.k].name} ${q.F>1e-99?числоНаСцене(q.F):'≈ 0'} Н`;
       v.text(ctx,t,lx,ly-0.34*(i+1),COL[q.k],9.5,'right',true);
     });
 

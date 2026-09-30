@@ -605,7 +605,7 @@ charged:{
     if(Ev.mag>1e-6){
       const fl=Math.min(2.2,0.4+Math.log10(1+Ev.mag)*0.4);
       v.arrow(ctx,p.px,p.py,p.px+Ev.Ex/Ev.mag*fl,p.py+Ev.Ey/Ev.mag*fl,meas);
-      v.label(ctx,`E = ${Ev.mag.toExponential(1)} В/м`,p.px+Ev.Ex/Ev.mag*fl,p.py+Ev.Ey/Ev.mag*fl,6,0,meas);
+      v.label(ctx,`E = ${числоНаСцене(Ev.mag)} В/м`,p.px+Ev.Ex/Ev.mag*fl,p.py+Ev.Ey/Ev.mag*fl,6,0,meas);
     }
     v.label(ctx,'пробу можно перетаскивать',0,-Math.max(p.R*2,10)+0.5,-56,0,ink3);
   }
@@ -697,7 +697,7 @@ capacitor:{
       const n=Math.max(3,Math.round(L*1.4));
       for(let i=0;i<n;i++){ const x=-L+ (i+0.5)*(2*L/n);
         ctx.globalAlpha=.6; v.arrow(ctx,x,half*0.85,x,-half*0.85,ink3); ctx.globalAlpha=1; }
-      v.label(ctx,`E = ${c.E.toExponential(1)} В/м`,L,0,8,0,ink3);
+      v.label(ctx,`E = ${числоНаСцене(c.E)} В/м`,L,0,8,0,ink3);
     }
     // пластины
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(5);
@@ -1543,7 +1543,7 @@ resistors:{
     else st=`R_экв = ${c.Req.toFixed(2)} Ом · I = ${(c.I*1000).toFixed(2)} мА · P = ${c.Psrc.toFixed(3)} Вт`;
     v.label(ctx,st,0,5.1,mid(st),0,col);
     if(c.status==='ok'){
-      const t=`ΣI в узле = ${c.kcl.toExponential(1)} А · независимых контуров: ${c.loops}`;
+      const t=`ΣI в узле = ${числоНаСцене(c.kcl)} А · независимых контуров: ${c.loops}`;
       v.label(ctx,t,0,5.1,mid(t),14,ink3);
     }
     const hint='ЛКМ от узла — вести провод · ПКМ — инструменты · Ctrl+Z — отменить отрезок';
