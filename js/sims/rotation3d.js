@@ -50,6 +50,13 @@ rigid3d:{
     {key:'dts',label:'Показать dφ⃗ за время Δt',unit:'с',min:0.05,max:1,step:0.05,default:0.25,если:p=>p.mode==='axis'},
     {type:'group',label:'Конечные повороты',если:p=>p.mode==='finite'},
     {key:'ang',label:'Угол каждого поворота α',unit:'°',min:1,max:90,step:1,default:90,если:p=>p.mode==='finite'},
+    /* 3.5.0: ходов не обязательно два — до сотни, в разном порядке */
+    {key:'hod',label:'Число ходов N',min:2,max:100,step:1,default:2,если:p=>p.mode==='finite'},
+    {key:'seq',label:'Порядок ходов',type:'select',default:'alt',если:p=>p.mode==='finite',
+     options:[{v:'alt',t:'A: x, y, x, y…  B: y, x, y, x…'},
+              {v:'rev',t:'Случайные x/y/z; B — те же ходы задом наперёд'},
+              {v:'shuf',t:'Случайные x/y/z; B — те же ходы вперемешку'}]},
+    {key:'tm',label:'Длительность одного хода',unit:'с',min:0.05,max:3,step:0.05,default:2.5,если:p=>p.mode==='finite'},
     {type:'group',label:'Показывать'},
     {key:'vecs',label:'Векторы ω⃗, dφ⃗, r⃗, v⃗',type:'check',default:true},
     {key:'path',label:'Окружность, которую описывает точка P',type:'check',default:true}
@@ -64,23 +71,50 @@ rigid3d:{
   init(p){ return {t:0,__stop:null}; },
   step(s,dt,p){ s.t+=dt; },
   anchors(s,p){ return [{x:0,y:0}]; },
-  /* конечные повороты: книга A — сначала x, потом y; книга B — наоборот.
-     Возвращает текущие матрицы и итоговую разницу. */
+  /* Конечные повороты. Обе книги делают ОДИН И ТОТ ЖЕ набор ходов (поровну
+     поворотов вокруг каждой оси), но в разном порядке:
+       alt  — A: x, y, x, y…;  B: y, x, y, x…  (при N = 2 — классический опыт);
+       rev  — случайная последовательность; B проходит её задом наперёд;
+       shuf — случайная последовательность; B — те же ходы вперемешку.
+     Будь конечные повороты векторами, итог от порядка бы не зависел.
+     Ходы кэшируются: при N = 100 сцена не пересчитывает сотню матриц в кадр. */
+  ходы(p){
+    const N=Math.round(p.hod||2), a=p.ang*Math.PI/180, key=[N,p.ang,p.seq].join('|');
+    if(this._ходы&&this._ходы.key===key) return this._ходы;
+    const OS=[[1,0,0],[0,1,0],[0,0,1]], ИМЯ='xyz';
+    let seed=20260930; const rnd=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
+    let a1=[], b1=[];
+    if(p.seq==='rev'||p.seq==='shuf'){
+      for(let i=0;i<N;i++) a1.push(Math.floor(rnd()*3));
+      b1=a1.slice();
+      if(p.seq==='rev') b1.reverse();
+      else for(let i=N-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); const q=b1[i]; b1[i]=b1[j]; b1[j]=q; }
+    } else for(let i=0;i<N;i++){ a1.push(i%2); b1.push(1-i%2); }
+    // матрицы после каждого хода и расхождение после каждого хода
+    const MA=[ВР3.rot([0,0,1],0)], MB=[MA[0]], разн=[0];
+    for(let i=0;i<N;i++){
+      MA.push(ВР3.mul(ВР3.rot(OS[a1[i]],a),MA[i])); MB.push(ВР3.mul(ВР3.rot(OS[b1[i]],a),MB[i]));
+      разн.push(ВР3.угол(MA[i+1],MB[i+1])); }
+    return this._ходы={key,N,a,OS,ИМЯ,A:a1,B:b1,MA,MB,разн};
+  },
   книги(p,t){
-    const a=p.ang*Math.PI/180, X=[1,0,0], Y=[0,1,0], T=2.5;          // каждый поворот — 2,5 с
-    const u=clamp(t/T,0,1), w=clamp((t-T)/T,0,1);
-    const A=ВР3.mul(ВР3.rot(Y,a*w),ВР3.rot(X,a*u));
-    const B=ВР3.mul(ВР3.rot(X,a*w),ВР3.rot(Y,a*u));
-    const Af=ВР3.mul(ВР3.rot(Y,a),ВР3.rot(X,a)), Bf=ВР3.mul(ВР3.rot(X,a),ВР3.rot(Y,a));
-    return {A,B,разница:ВР3.угол(Af,Bf),этап:t<T?1:(t<2*T?2:3)};
+    const h=this.ходы(p), T=Math.max(0.05,p.tm||2.5), k=Math.min(h.N,Math.floor(t/T)), u=k>=h.N?0:clamp(t/T-k,0,1);
+    const A=k>=h.N?h.MA[h.N]:ВР3.mul(ВР3.rot(h.OS[h.A[k]],h.a*u),h.MA[k]);
+    const B=k>=h.N?h.MB[h.N]:ВР3.mul(ВР3.rot(h.OS[h.B[k]],h.a*u),h.MB[k]);
+    return {A,B,разница:h.разн[h.N],сейчас:ВР3.угол(A,B),ход:k,N:h.N,готово:k>=h.N,
+      осьA:k<h.N?h.ИМЯ[h.A[k]]:'',осьB:k<h.N?h.ИМЯ[h.B[k]]:'',h,этап:k>=h.N?3:(k===0?1:2)};
   },
   readouts(s,p){
     if(p.mode==='finite'){
-      const k=this.книги(p,s.t), a=p.ang*Math.PI/180;
-      return [['угол каждого поворота α',p.ang,'°'],
-        ['книга A: x, потом y · книга B: y, потом x',k.этап===1?'первый поворот':k.этап===2?'второй поворот':'готово',''],
+      const k=this.книги(p,s.t), a=p.ang*Math.PI/180, м=Math.max(...k.h.разн);
+      const out=[['угол каждого поворота α',p.ang,'°'],
+        ['ходов N',k.N,''],
+        ['сейчас',k.готово?'все ходы сделаны':`ход ${k.ход+1} из ${k.N}: A — вокруг ${k.осьA}, B — вокруг ${k.осьB}`,''],
+        ['расхождение сейчас',k.сейчас*180/Math.PI,'°'],
         ['итоговые положения расходятся на',k.разница*180/Math.PI,'°'],
-        ['для сравнения α²',a*a*180/Math.PI,'° — при малых α разница ≈ α²']];
+        ['наибольшее расхождение по ходу',м*180/Math.PI,'°']];
+      if(k.N===2) out.push(['для сравнения α²',a*a*180/Math.PI,'° — при малых α разница ≈ α²']);
+      return out;
     }
     const t=s.t, w=this.ω(p,t), n=this.n(p), R=ВР3.rot(n,this.φ(p,t)), P=ВР3.ap(R,this.P0(p));
     const wv=[n[0]*w,n[1]*w,n[2]*w], v=ВР3.cross(wv,P);
@@ -104,13 +138,16 @@ rigid3d:{
     {name:'Наклонная ось: v⃗ = ω⃗ × r⃗',values:{mode:'axis',tilt:40,azim:30,w0:0.8,eps:0,rp:1}},
     {name:'Вращение по часовой: ω⃗ смотрит вниз',values:{mode:'axis',tilt:0,azim:0,w0:-0.8,eps:0,rp:1}},
     {name:'Раскрутка: ε⃗ вдоль ω⃗',values:{mode:'axis',tilt:20,azim:30,w0:0.1,eps:0.3,rp:1}},
-    {name:'Повороты на 90°: порядок важен',values:{mode:'finite',ang:90}},
-    {name:'Повороты на 10°: почти коммутируют',values:{mode:'finite',ang:10}}
+    {name:'Повороты на 90°: порядок важен',values:{mode:'finite',ang:90,hod:2,seq:'alt',tm:2.5}},
+    {name:'Повороты на 10°: почти коммутируют',values:{mode:'finite',ang:10,hod:2,tm:2.5}},
+    {name:'100 ходов по 90°, быстро',values:{mode:'finite',ang:90,hod:100,seq:'alt',tm:0.15}},
+    {name:'30 случайных ходов по 30°: задом наперёд',values:{mode:'finite',ang:30,hod:30,seq:'rev',tm:0.4}},
+    {name:'40 ходов по 5°: малые почти коммутируют',values:{mode:'finite',ang:5,hod:40,seq:'shuf',tm:0.2}}
   ],
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, w=p.mode==='finite'?6.4:4.2;
-    const scale=clamp(Math.min((W-20)/(w*PX_PER_M),(H-20)/(3.9*PX_PER_M)),0.002,30);
-    return {x:0,y:0.25,scale};
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, fin=p.mode==='finite', w=fin?6.4:4.2, h=fin?5.4:3.9;
+    const scale=clamp(Math.min((W-20)/(w*PX_PER_M),(H-20)/(h*PX_PER_M)),0.002,30);
+    return {x:0,y:fin?-0.45:0.25,scale};
   },
   /* брусок-«книга»: грани с разными цветами, чтобы положение читалось однозначно */
   брусок(ctx,v,пр,R,o,размер,цвета){
@@ -136,15 +173,34 @@ rigid3d:{
     const пр=v.p3();
     const грани=[v.c('--f-norm')||acc,'#94a3b8',meas,'#cbd5e1',ok,'#e2e8f0'];
     if(p.mode==='finite'){
-      const k=this.книги(p,s.t);
-      for(const [R,o,имя] of [[k.A,[-1.6,0,0],'A: x, потом y'],[k.B,[1.6,0,0],'B: y, потом x']]){
+      const k=this.книги(p,s.t), h=k.h, rad=180/Math.PI;
+      const строка=seq=>{ const q=seq.slice(0,6).map(i=>h.ИМЯ[i]).join(', '); return seq.length>6?q+', …':q; };
+      for(const [R,o,имя,seq,ось] of [[k.A,[-1.6,0,0],'A',h.A,k.осьA],[k.B,[1.6,0,0],'B',h.B,k.осьB]]){
         this.оси(ctx,v,пр,0.9,[o[0],o[1],-0.9]);
         this.брусок(ctx,v,пр,R,o,[0.7,0.48,0.14],грани);
-        const q=пр(o[0],o[1],1.05); v.label(ctx,имя,q[0],q[1],-40,-8,ink);
+        // ось текущего хода — красной стрелкой через центр книги
+        if(!k.готово){ const e=h.OS[h.ИМЯ.indexOf(ось)], a0=пр(o[0]-e[0]*0.95,o[1]-e[1]*0.95,o[2]-e[2]*0.95), a1=пр(o[0]+e[0]*0.95,o[1]+e[1]*0.95,o[2]+e[2]*0.95);
+          ctx.save(); ctx.lineWidth=v.lw(2.2); v.arrow(ctx,a0[0],a0[1],a1[0],a1[1],dang); ctx.restore();
+          v.label(ctx,ось,a1[0],a1[1],5,-5,dang); }
+        const q=пр(o[0],o[1],1.05); v.label(ctx,`${имя}: ${строка(seq)}`,q[0],q[1],-40,-8,ink);
       }
-      const q=пр(0,0,-1.3);
-      v.label(ctx,k.этап<3?`поворот ${k.этап} из 2…`:`итог: положения расходятся на ${(k.разница*180/Math.PI).toFixed(1)}°`,q[0],q[1],-120,12,k.этап<3?ink3:dang);
-      v.label(ctx,'конечный поворот — не вектор: сумма зависит от порядка',q[0],q[1],-160,30,ink3);
+      // статус
+      v.text(ctx,k.готово?`итог после ${k.N} ${k.N%10===1&&k.N!==11?'хода':'ходов'}: положения расходятся на ${(k.разница*rad).toFixed(1)}°`
+        :`ход ${k.ход+1} из ${k.N} · сейчас расходятся на ${(k.сейчас*rad).toFixed(1)}°`,0,-1.72,k.готово?dang:ink,11,'center',true);
+      // график: расхождение после каждого хода
+      { const gx=-3,gw=6,gy=-3.0,gh=0.85, X=i=>gx+gw*i/Math.max(1,k.N), Y=d=>gy+gh*d/Math.PI;
+        ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.6;
+        ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke(); ctx.globalAlpha=1;
+        v.text(ctx,'180°',gx-0.06,gy+gh,ink3,9,'right'); v.text(ctx,'0',gx-0.06,gy,ink3,9,'right');
+        v.text(ctx,`ход → ${k.N}`,gx+gw,gy-0.16,ink3,9,'right');
+        v.text(ctx,'расхождение после каждого хода',gx+gw,gy+gh,ink3,9,'right');
+        const до=Math.min(k.ход,k.N);
+        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
+        for(let i=0;i<=до;i++){ i?ctx.lineTo(X(i),Y(h.разн[i])):ctx.moveTo(X(i),Y(h.разн[i])); }
+        if(!k.готово) ctx.lineTo(X(k.ход+clamp(s.t/Math.max(0.05,p.tm||2.5)-k.ход,0,1)),Y(k.сейчас));
+        ctx.stroke();
+        if(k.N<=40) for(let i=0;i<=до;i++) КС.точка(ctx,v,X(i),Y(h.разн[i]),2.2,meas);
+      }
       return;
     }
     const n=this.n(p), t=s.t, φ=this.φ(p,t), w=this.ω(p,t), R=ВР3.rot(n,φ);
