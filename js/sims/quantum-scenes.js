@@ -77,6 +77,21 @@ const КС={
     строки.forEach((l,i)=>v.text(ctx,l,ax,y-i*шаг,color,px,align||'left',bold));
     return y-строки.length*шаг;
   },
+  /* растровое поле в прямоугольнике сцены (x0, y0, w, h): f(x, y) → [r, g, b, a],
+     a в 0…1. Считается в маленьком холсте и растягивается со сглаживанием —
+     так интерференционная картина рисуется за один drawImage, а не тысячами
+     прямоугольников (3.5.0). */
+  поле(ctx,x0,y0,w,h,W,H,f){
+    const c=this._пол||(this._пол=document.createElement('canvas'));
+    if(c.width!==W||c.height!==H){ c.width=W; c.height=H; this._img=null; }
+    const g=c.getContext('2d'), img=this._img||(this._img=g.createImageData(W,H)), d=img.data;
+    for(let j=0;j<H;j++){ const y=y0+(j+0.5)/H*h;
+      for(let i=0;i<W;i++){ const x=x0+(i+0.5)/W*w, q=f(x,y), o=(j*W+i)*4;
+        d[o]=q[0]; d[o+1]=q[1]; d[o+2]=q[2]; d[o+3]=Math.round(255*clamp(q[3],0,1)); } }
+    g.putImageData(img,0,0);
+    ctx.save(); ctx.imageSmoothingEnabled=true; ctx.drawImage(c,x0,y0,w,h); ctx.restore();   // строки идут снизу вверх: ось y сцены смотрит вверх
+  },
+  rgbλ(l){ const m=/rgb\((\d+),(\d+),(\d+)\)/.exec(this.цветλ(l)); return m?[+m[1],+m[2],+m[3]]:[120,90,200]; },
   точка(ctx,v,x,y,rpx,color){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,v.lw(rpx),0,7); ctx.fill(); },
   fitBox(vp,w,h,cx,cy){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;

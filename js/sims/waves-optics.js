@@ -735,7 +735,7 @@ tir:{
   /* Полуширина сердцевины на схеме нарочно мала: у настоящего волокна
      сердцевина в тысячи раз тоньше длины, и отражений там миллионы.
      Углы при этом настоящие — условен только вид сбоку. */
-  geom(p){ return {H:0.30, L:p.len}; },
+  geom(p){ return {H:0.8, L:p.len}; },
   bounces(p){
     const t=this.inside(p);
     if(t===null||!this.guided(p)) return 0;
@@ -751,11 +751,27 @@ tir:{
     {name:'Волокно связи: узкий конус приёма',values:{mode:'fiber',mat1:'core',mat2:'clad',angIn:8,len:9}},
     {name:'Волокно: угол больше приёмного — свет теряется',values:{mode:'fiber',mat1:'core',mat2:'clad',angIn:20,len:9}}
   ],
+  /* 3.5.0: выводы — пояснением под рисунком, а не подписями с пиксельными сдвигами */
+  пояснения(p){
+    const c=this.critical(p), ink=css('--ink-2'), ink3=css('--ink-3');
+    if(p.mode==='flat'){
+      if(c===null) return [['свет идёт в более плотную среду — полного отражения быть не может',ink,true]];
+      if(this.isTIR(p)) return [[`θ₁ = ${p.ang}° ≥ θпр = ${c.toFixed(1)}° — весь свет остаётся внутри`,css('--measure'),true],
+        ['преломлённого луча нет вовсе: это и есть полное внутреннее отражение',ink3]];
+      return [[`θ₁ = ${p.ang}° < θпр = ${c.toFixed(1)}° — свет делится на два луча`,ink,true],
+        [`чем ближе к пределу, тем больше уходит в отражение: сейчас ${this.reflectPct(p).toFixed(1)} %`,ink3]];
+    }
+    const acc=this.acceptance(p);
+    if(c===null) return [['оболочка плотнее сердцевины — волокно не удержит свет',css('--danger'),true]];
+    if(this.guided(p)) return [[`на стенку свет падает под ${this.wallAngle(p).toFixed(1)}° ≥ θпр = ${c.toFixed(1)}° — отражается полностью`,css('--accent'),true],
+      [`NA = √(n₁² − n₂²) = ${this.NA(p).toFixed(3)}: волокно принимает лучи в конусе ±${acc.toFixed(1)}°`,ink],
+      ['на схеме сердцевина утолщена: в настоящем волокне отражений миллионы',ink3]];
+    return [[`на стенку свет падает под ${this.wallAngle(p).toFixed(1)}° < θпр = ${c.toFixed(1)}° — часть уходит в оболочку`,css('--danger'),true],
+      [`угол входа ${p.angIn}° больше приёмного ${acc.toFixed(1)}° — свет теряется`,ink]];
+  },
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const spanX=p.mode==='fiber'? p.len+4 : 11, spanY=8;
-    const scale=clamp(Math.min((W-50)/(spanX*PX_PER_M),(H-50)/(spanY*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    if(p.mode==='fiber'){ const L=p.len; return fitСПояснением(vp,L+4.8,6.4,-1.2,0.6,this.пояснения(p)); }
+    return fitСПояснением(vp,12.4,8.8,0,0,this.пояснения(p));
   },
   /* Дуга между двумя направлениями — строим по векторам, а не через ctx.arc:
      ось Y в сцене направлена вверх, и углы холста зеркалились бы. */
@@ -782,9 +798,11 @@ tir:{
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
           sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const c=this.critical(p);
+    const c=this.critical(p), строки=this.пояснения(p);
+    v.занятьНиз(строки);
     if(p.mode==='flat') this.drawFlat(ctx,s,v,p,{acc,meas,dang,sec,ink,ink3,c});
     else this.drawFiber(ctx,s,v,p,{acc,meas,dang,sec,ink,ink3,c});
+    v.пояснение(ctx,строки);
   },
   drawFlat(ctx,s,v,p,C){
     const {acc,meas,dang,sec,ink,ink3,c}=C;
@@ -794,8 +812,8 @@ tir:{
     ctx.fillStyle=sec; ctx.globalAlpha=.10; ctx.fillRect(-6,-4.2,12,4.2); ctx.globalAlpha=1;
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
     ctx.beginPath(); ctx.moveTo(-6,0); ctx.lineTo(6,0); ctx.stroke();
-    v.label(ctx,`${this.nameOf[p.mat1]}, n₁ = ${this.n1(p).toFixed(3)}`,-5.8,0,0,18,sec);
-    v.label(ctx,`${this.nameOf[p.mat2]}, n₂ = ${this.n2(p).toFixed(3)}`,-5.8,0,0,-10,ink3);
+    v.text(ctx,`${this.nameOf[p.mat1]}, n₁ = ${this.n1(p).toFixed(3)}`,5.85,-0.35,sec,10,'right',true);
+    v.text(ctx,`${this.nameOf[p.mat2]}, n₂ = ${this.n2(p).toFixed(3)}`,-5.85,3.95,ink3,10,'left',true);
     // нормаль
     ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(4),v.lw(4)]); ctx.lineWidth=v.lw(1);
     ctx.beginPath(); ctx.moveTo(0,-3.4); ctx.lineTo(0,3.4); ctx.stroke();
@@ -814,7 +832,7 @@ tir:{
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2); ctx.globalAlpha=.95;
     ctx.beginPath(); ctx.moveTo(ix,iy); ctx.lineTo(0,0); ctx.stroke(); ctx.globalAlpha=1;
     v.arrow(ctx,ix*0.55,iy*0.55,ix*0.32,iy*0.32,dang);
-    v.label(ctx,`падающий, θ₁ = ${p.ang}°`,ix,iy,-20,-12,dang);
+    v.label(ctx,'падающий',ix,iy,-20,12,dang);
     this.arcBetween(ctx,v,0,-1,-S1,-C1,1.25,dang,`θ₁ = ${p.ang}°`);
     const tir=this.isTIR(p);
     // отражённый (всегда есть; до предела — слабый)
@@ -836,22 +854,11 @@ tir:{
       ctx.globalAlpha=clamp(1-rPct/100,0.15,1);
       ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(L*S2,L*C2); ctx.stroke(); ctx.globalAlpha=1;
       v.arrow(ctx,L*0.5*S2,L*0.5*C2,L*0.72*S2,L*0.72*C2,acc);
-      v.label(ctx,`преломлённый, θ₂ = ${r.toFixed(1)}°`,L*S2,L*C2,8,-8,acc);
+      v.label(ctx,`преломлённый: ${(100-rPct).toFixed(1)} %`,L*S2,L*C2,8,-8,acc);
       this.arcBetween(ctx,v,0,1,S2,C2,1.25,acc,`θ₂ = ${r.toFixed(1)}°`);
     }
     // точка падения
     ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,v.lw(3),0,7); ctx.fill();
-    // итог
-    if(c===null){
-      v.label(ctx,'свет идёт в более плотную среду — полного отражения быть не может',
-        -5.8,-3.7,0,0,ink3);
-    } else if(tir){
-      v.label(ctx,`θ₁ = ${p.ang}° ≥ θпр = ${c.toFixed(1)}° — весь свет остаётся внутри`,-5.8,-3.7,0,0,meas);
-      v.label(ctx,'преломлённого луча нет вовсе: это и есть полное внутреннее отражение',-5.8,-3.7,0,16,ink3);
-    } else {
-      v.label(ctx,`θ₁ = ${p.ang}° < θпр = ${c.toFixed(1)}° — свет делится на два луча`,-5.8,-3.7,0,0,ink3);
-      v.label(ctx,`чем ближе к пределу, тем больше уходит в отражение (сейчас ${rPct.toFixed(1)} %)`,-5.8,-3.7,0,16,ink3);
-    }
   },
   drawFiber(ctx,s,v,p,C){
     const {acc,meas,dang,sec,ink,ink3,c}=C;
@@ -928,7 +935,10 @@ tir:{
           const sgn=last[1]>0?1:-1;
           ctx.strokeStyle=dang; ctx.globalAlpha=.75; ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.lineWidth=v.lw(1.6);
           ctx.beginPath(); ctx.moveTo(last[0],last[1]);
-          ctx.lineTo(last[0]+1.6*Math.cos(out), last[1]+sgn*1.6*Math.sin(out));
+          /* угол out отсчитан от НОРМАЛИ к стенке (она вертикальна), а не от
+             оси волокна: до 3.5.0 здесь были перепутаны sin и cos, и почти
+             скользящий луч рисовался круто вверх */
+          ctx.lineTo(last[0]+1.6*Math.sin(out), last[1]+sgn*1.6*Math.cos(out));
           ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
           v.label(ctx,'свет ушёл наружу',last[0],last[1],14,sgn>0?-14:20,dang);
         }
@@ -941,28 +951,15 @@ tir:{
       }
     }
     // конус приёма
-    const accAng=this.acceptance(p);
+    const accAng=this.acceptance(p), ac=Math.min(accAng,75)*Math.PI/180, rc=2.0;
     ctx.strokeStyle=meas; ctx.globalAlpha=.30; ctx.lineWidth=v.lw(1.2);
     for(const sg of [1,-1]){
       ctx.beginPath(); ctx.moveTo(X0,0);
-      ctx.lineTo(X0-2.0, sg*2.0*Math.tan(accAng*Math.PI/180)); ctx.stroke();
+      ctx.lineTo(X0-rc*Math.cos(ac), sg*rc*Math.sin(ac)); ctx.stroke();
     }
     ctx.globalAlpha=1;
-    v.label(ctx,`конус приёма ±${accAng.toFixed(1)}°`,X0-2.0,-2.0*Math.tan(accAng*Math.PI/180),-4,20,meas);
+    v.label(ctx,accAng>=90?'принимает свет под любым углом (NA ≥ 1)':`конус приёма ±${accAng.toFixed(1)}°`,X0-rc*Math.cos(ac),-rc*Math.sin(ac),-4,16,meas);
 
-    // итог
-    const yb=-H-1.4;
-    if(c===null){
-      v.label(ctx,'оболочка плотнее сердцевины — волокно не удержит свет',X0,yb,0,0,dang);
-    } else if(ok){
-      v.label(ctx,`на стенку свет падает под ${this.wallAngle(p).toFixed(1)}° ≥ θпр = ${c.toFixed(1)}° — отражается полностью`,X0,yb,0,0,acc);
-      v.label(ctx,`поэтому луч идёт зигзагом и не теряется: ${this.bounces(p)} отражений на этом участке`,X0,yb,0,17,ink3);
-      v.label(ctx,`NA = √(n₁²−n₂²) = ${this.NA(p).toFixed(3)}; шире ${accAng.toFixed(1)}° волокно не принимает`,X0,yb,0,34,ink3);
-      v.label(ctx,'на схеме сердцевина утолщена: в настоящем волокне отражений миллионы',X0,yb,0,51,ink3);
-    } else {
-      v.label(ctx,`на стенку свет падает под ${this.wallAngle(p).toFixed(1)}° < θпр = ${c.toFixed(1)}° — часть уходит в оболочку`,X0,yb,0,0,dang);
-      v.label(ctx,`угол входа ${p.angIn}° больше приёмного ${accAng.toFixed(1)}° — свет теряется`,X0,yb,0,17,ink3);
-    }
   }
 },
 
@@ -995,6 +992,11 @@ bench:{
     {key:'n',  label:'Сколько линз',min:1,max:3,step:1,default:2},
     {key:'x0', label:'Положение предмета',unit:'см',min:-14,max:6,step:0.1,default:-7},
     {key:'h',  label:'Высота предмета',unit:'см',min:0.2,max:3,step:0.1,default:1},
+    /* 3.5.0: телескоп смотрит на далёкий предмет — на входе параллельный
+       пучок. До этого «телескопы» строили изображение предмета в 9 см от
+       объектива, и итоговая картинка не имела отношения к телескопу. */
+    {key:'far', label:'Предмет очень далеко (параллельный пучок)',type:'check',default:false},
+    {key:'alpha',label:'Угол, под которым виден далёкий предмет',unit:'°',min:0.5,max:8,step:0.5,default:3,если:p=>p.far},
 
     {type:'group',label:'Линзы (слева направо)'},
     {key:'x1',label:'Линза 1: положение',unit:'см',min:-12,max:12,step:0.1,default:-4},
@@ -1015,12 +1017,24 @@ bench:{
   ],
   /* Готовые схемы: меняют сразу число линз, их положения и фокусы. */
   DEMOS:{
-    single: {n:1,x0:-7, h:1,  x1:-4,f1:2},
-    loupe:  {n:1,x0:-5.4,h:1, x1:-4,f1:2},
-    micro:  {n:2,x0:-5.1,h:0.6,x1:-4,f1:1, x2:6,f2:3},
-    kepler: {n:2,x0:-13,h:1,  x1:-4,f1:6, x2:4,f2:1.4},
-    galileo:{n:2,x0:-13,h:1,  x1:-4,f1:6, x2:3.4,f2:-1.4}
+    single: {n:1,x0:-7, h:1,  x1:-4,f1:2,far:false},
+    loupe:  {n:1,x0:-5.4,h:1, x1:-4,f1:2,far:false},
+    micro:  {n:2,x0:-5.1,h:0.6,x1:-4,f1:1, x2:6,f2:3,far:false},
+    kepler: {n:2,x0:-13,h:1,  x1:-6,f1:9, x2:4,f2:1,far:true,alpha:3},
+    galileo:{n:2,x0:-13,h:1,  x1:-6,f1:9, x2:2,f2:-1,far:true,alpha:3}
   },
+  ОПИСАНИЯ:{
+    single:'одна линза: 1/a + 1/b = 1/F, увеличение m = −b/a',
+    loupe:'лупа: предмет ближе фокуса — глаз видит мнимое, прямое, увеличенное изображение',
+    micro:'микроскоп: объектив даёт действительное увеличенное изображение, окуляр рассматривает его как лупа',
+    kepler:'телескоп Кеплера: задний фокус объектива совпадает с передним фокусом окуляра — пучок выходит параллельным, картинка перевёрнута',
+    galileo:'телескоп Галилея: рассеивающий окуляр стоит перед фокусом объектива — пучок выходит параллельным, картинка прямая'
+  },
+  /* совпадает ли собранная схема с выбранным прибором (иначе описание прибора не выводим) */
+  какПрибор(p){ const D=this.DEMOS[p.demo]; if(!D) return false;
+    return Object.keys(D).every(k=>k==='alpha'||k==='x0'||k==='h'||(typeof D[k]==='number'?Math.abs(p[k]-D[k])<1e-9:p[k]===D[k])); },
+  /* угол наклона входящих лучей для далёкого предмета */
+  uIn(p){ return Math.tan((p.alpha||3)*Math.PI/180); },
   lensAt(p,i){ return {x:p['x'+i], f:p['f'+i]}; },
   lenses(p){
     const out=[];
@@ -1033,8 +1047,15 @@ bench:{
   /* Последовательное применение формулы тонкой линзы. */
   chain(p){
     const Ls=this.lenses(p);
-    let ox=p.x0, oh=p.h, mtot=1, steps=[];
-    for(const L of Ls){
+    let ox=p.x0, oh=p.h, mtot=1, steps=[], i0=0;
+    if(p.far && Ls.length){
+      /* далёкий предмет: первая линза строит изображение в своей фокальной
+         плоскости, высота −F·tgα; угловое увеличение считаем трассировкой */
+      const L=Ls[0], ih=-L.f*this.uIn(p);
+      steps.push({L,a:Infinity,b:L.f,m:NaN,ix:L.x+L.f,ih,real:L.f>0});
+      ox=L.x+L.f; oh=ih; i0=1; mtot=NaN;
+    }
+    for(const L of Ls.slice(i0)){
       const a=L.x-ox;                            // расстояние от предмета до линзы
       let b, m;
       if(Math.abs(a)<1e-9){ b=0; m=1; }          // предмет в самой линзе
@@ -1049,13 +1070,19 @@ bench:{
       mtot*= isFinite(m)?m:1;
       ox=ix; oh=ih;
     }
-    return {Ls,steps,mtot,x:ox,h:oh};
+    // угловое увеличение: луч через центр первой линзы, наклон на выходе / на входе
+    let уг=NaN;
+    if(p.far && Ls.length){ let x=Ls[0].x, y=0, u=this.uIn(p);
+      for(const L of Ls){ y+=u*(L.x-x); x=L.x; u-=y/L.f; }
+      уг=u/this.uIn(p); }
+    return {Ls,steps,mtot,x:ox,h:oh,уг};
   },
   /* Трассировка одного луча через все линзы: список изломов. */
-  trace(p,y0,u0,xEnd){
+  trace(p,y0,u0,xEnd,xStart){
     const Ls=this.lenses(p);
-    const pts=[[p.x0,y0]];
-    let x=p.x0, y=y0, u=u0;
+    const x00=xStart==null?p.x0:xStart;
+    const pts=[[x00,y0]];
+    let x=x00, y=y0, u=u0;
     for(const L of Ls){
       if(L.x<=x) continue;
       y+=u*(L.x-x); x=L.x;
@@ -1082,18 +1109,22 @@ bench:{
   },
   /* Предмет и линзы двигаются мышью прямо по скамье. */
   dragPoints(p){
-    const out=[{x:p.x0,y:p.h}];
+    const Ls=this.lenses(p);
+    const out=[p.far&&Ls.length?{x:-13,y:-this.uIn(p)*(Ls[0].x+13)}:{x:p.x0,y:p.h}];
     for(let i=1;i<=Math.round(p.n);i++) out.push({x:p['x'+i],y:0});
     return out;
   },
   dragMove(p,idx,x,y){
-    if(idx===0){ p.x0=clamp(+x.toFixed(1),-14,6); p.h=clamp(+Math.abs(y).toFixed(1),0.2,3); return; }
+    if(idx===0){
+      if(p.far){ const Ls=this.lenses(p); if(Ls.length) p.alpha=clamp(Math.round(Math.atan2(-y,Math.max(0.5,Ls[0].x-x))*180/Math.PI*2)/2,0.5,8); return; }
+      p.x0=clamp(+x.toFixed(1),-14,6); p.h=clamp(+Math.abs(y).toFixed(1),0.2,3); return; }
     p['x'+idx]=clamp(+x.toFixed(1),-12,12);
   },
   readouts(s,p){
     const c=this.chain(p);
-    const out=[['t',s.t,'с'],['линз в схеме',c.Ls.length,''],
-      ['предмет: положение',p.x0,'см'],['предмет: высота',p.h,'см']];
+    const out=[['t',s.t,'с'],['линз в схеме',c.Ls.length,'']];
+    if(p.far) out.push(['предмет','очень далеко',''],['виден под углом α',p.alpha,'°']);
+    else out.push(['предмет: положение',p.x0,'см'],['предмет: высота',p.h,'см']);
     c.steps.forEach((q,i)=>{
       const n=i+1;
       out.push([`линза ${n}: F`,q.L.f,'см']);
@@ -1102,7 +1133,8 @@ bench:{
       out.push([`      увеличение m = −b/a`,q.m,'']);
       out.push([`      изображение`,NaN,q.real?'действительное':'мнимое']);
     });
-    out.push(['ПОЛНОЕ увеличение',c.mtot,'×'],
+    if(p.far) out.push(['угловое увеличение',c.уг,'×'],['для двух линз −F₁/F₂',c.Ls.length===2?-c.Ls[0].f/c.Ls[1].f:NaN,'×']);
+    else out.push(['ПОЛНОЕ увеличение',c.mtot,'×'],
              ['по модулю',Math.abs(c.mtot),'×'],
              ['ориентация',NaN,c.mtot<0?'перевёрнутое':'прямое'],
              ['итоговое изображение: положение',c.x,'см'],
@@ -1132,16 +1164,26 @@ bench:{
        on:q=>{ const i=Math.round(q.n); q['f'+i]=-q['f'+i]; }}
     ];
   },
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-60)/(26*PX_PER_M),(H-60)/(14.2*PX_PER_M)),0.002,30);
-    return {x:0,y:-0.9,scale};
+  пояснения(p){
+    const c=this.chain(p), m=c.mtot, ink=css('--ink-2'), ink3=css('--ink-3'), out=[];
+    if(p.far){
+      const пар=Math.abs(c.steps.length?(c.steps[c.steps.length-1].b):0)>1e5||!isFinite(c.x);
+      out.push([isFinite(c.уг)?`угловое увеличение ${Math.abs(c.уг).toFixed(2)}× · картинка ${c.уг<0?'перевёрнутая':'прямая'}${c.Ls.length===2?` · −F₁/F₂ = ${(-c.Ls[0].f/c.Ls[1].f).toFixed(2)}`:''}`:'',ink,true]);
+      out.push([пар?'пучок на выходе параллельный — глаз видит далёкий предмет под бо́льшим углом':'пучок на выходе не параллельный: окуляр сдвинут с фокуса объектива',ink3]);
+    } else out.push([isFinite(m)
+      ?`полное увеличение ${Math.abs(m).toFixed(2)}× · изображение ${m<0?'перевёрнутое':'прямое'} (увеличения ступеней перемножаются)`
+      :'лучи выходят параллельным пучком — изображение в бесконечности',ink,true]);
+    if(this.какПрибор(p)) out.push([this.ОПИСАНИЯ[p.demo],css('--accent')]);
+    out.push(['линза меняет только наклон луча: u → u − y/F; изображение одной линзы — предмет для следующей',ink3]);
+    return out;
   },
+  fit(p,vp){ return fitСПояснением(vp,29,9.6,0,-0.2,this.пояснения(p)); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
           dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), ok=v.c('--ok');
     const mid=t=>-Math.round(String(t).length*3.05);
-    const c=this.chain(p), X0=-15, X1=15;
+    const c=this.chain(p), X0=-15, X1=15, строки=this.пояснения(p);
+    v.занятьНиз(строки);
 
     // ---- оптическая ось и шкала
     if(p.axis){
@@ -1163,10 +1205,14 @@ bench:{
     ctx.strokeStyle=acc; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.2);
     for(let i=0;i<nr;i++){
       const yt=(i/(nr-1)*2-1)*HL*0.86;             // точка входа на первой линзе
-      let u;
-      if(first && Math.abs(first.x-p.x0)>1e-6) u=(yt-p.h)/(first.x-p.x0);
-      else u=(i/(nr-1)-0.5)*1.1;
-      const pts=this.trace(p,p.h,u,X1);
+      let pts;
+      if(p.far && first){ const u=this.uIn(p); pts=this.trace(p,yt-u*(first.x-X0),u,X1,X0); }
+      else {
+        let u;
+        if(first && Math.abs(first.x-p.x0)>1e-6) u=(yt-p.h)/(first.x-p.x0);
+        else u=(i/(nr-1)-0.5)*1.1;
+        pts=this.trace(p,p.h,u,X1);
+      }
       ctx.beginPath();
       pts.forEach((q,j)=>j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
       ctx.stroke();
@@ -1201,8 +1247,11 @@ bench:{
     });
 
     // ---- предмет
-    v.arrow(ctx,p.x0,0,p.x0,p.h,dang);
-    v.label(ctx,'предмет',p.x0,p.h,-26,-12,dang);
+    if(p.far){ const u=this.uIn(p), q=first?-u*(first.x+13):0;
+      ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(-13,q,v.lw(4),0,7); ctx.fill();
+      v.label(ctx,`свет далёкого предмета, α = ${p.alpha}°`,-13,q,-10,-14,dang); }
+    else { v.arrow(ctx,p.x0,0,p.x0,p.h,dang);
+      v.label(ctx,'предмет',p.x0,p.h,-26,-12,dang); }
 
     // ---- промежуточные и итоговое изображения
     /* Промежуточное изображение микроскопа бывает в разы выше кадра, поэтому
@@ -1224,16 +1273,7 @@ bench:{
       v.label(ctx,t,q.ix,yv,mid(t),q.ih>=0?-12:14,col);
     });
 
-    // ---- сводка
-    const m=c.mtot;
-    const t1 = isFinite(m)
-      ? `полное увеличение ${Math.abs(m).toFixed(2)}× · ${m<0?'изображение перевёрнутое':'изображение прямое'}`
-      : 'лучи выходят параллельным пучком — изображение в бесконечности (так работает телескоп)';
-    v.label(ctx,t1,0,-5.3,mid(t1),0,ink);
-    const t2='каждая линза меняет только наклон луча: u → u − y/F. Изображение одной становится предметом для следующей.';
-    v.label(ctx,t2,0,-5.3,mid(t2),16,ink3);
-    const t3='тяните предмет и линзы прямо по скамье · ПКМ — добавить или убрать линзу';
-    v.label(ctx,t3,0,-5.3,mid(t3),32,ink3);
+    v.пояснение(ctx,строки);
   }
 }
 ,
@@ -1251,8 +1291,8 @@ lens:{
 
     {type:'group',label:'Предмет (точку можно перетаскивать в любую четверть)'},
     {key:'side',label:'Сторона от линзы',type:'select',default:'left',
-     options:[{v:'left', t:'Слева — луч идёт через F'},
-              {v:'right',t:'Справа — луч идёт через F′'}]},
+     options:[{v:'left', t:'Слева — свет идёт вправо'},
+              {v:'right',t:'Справа — свет идёт влево'}]},
     {key:'updown',label:'Относительно оси',type:'select',default:'up',
      options:[{v:'up',  t:'Выше оси'},
               {v:'down',t:'Ниже оси'}]},
@@ -1261,7 +1301,7 @@ lens:{
 
     {type:'group',label:'Показывать'},
     {key:'rays',   label:'Построение лучами',type:'check',default:true},
-    {key:'ray3',   label:'Третий луч (через передний фокус)',type:'check',default:false},
+    {key:'ray3',   label:'Третий луч (через передний фокус F)',type:'check',default:false},
     {key:'marks',  label:'Отметки F, 2F, 3F',type:'check',default:true},
     {key:'extend', label:'Продолжения лучей (для мнимого)',type:'check',default:true}
   ],
@@ -1280,9 +1320,13 @@ lens:{
     const dp=this.dPrime(p); if(!isFinite(dp)) return null;
     return {x:this.sx(p)*dp, y:this.sy(p)*this.H(p)};
   },
-  /* фокус, через который проходит преломлённый луч: он всегда с ДРУГОЙ стороны
-     от предмета. Слева стоит предмет — луч идёт через F (справа), и наоборот. */
-  focusName(p){ return p.side==='right' ? 'F′' : 'F'; },
+  /* Обозначения — как в учебниках: F — передний фокус (со стороны предмета),
+     F′ — задний (со стороны, куда уходит свет). Параллельный оси луч после
+     собирающей линзы идёт через F′. До 3.5.0 фокусы были закреплены за
+     сторонами чертежа («справа F, слева F′») — и для предмета слева луч шёл
+     «через F», вразрез с обычным обозначением. */
+  focusName(p){ return 'F′'; },
+  сторонаЗаднего(p){ return p.side==='right' ? 'слева' : 'справа'; },
   /* оптическая сила в диоптриях: D = 1/F */
   D(p){ return 1/this.F(p); },
   /* формула тонкой линзы: 1/F = 1/d + 1/d'  ⇒  d' = d·F/(d − F)
@@ -1330,7 +1374,7 @@ lens:{
       ['расстояние до предмета d',p.d,'м'],
       ['высота предмета h',p.h,'м'],
       ['четверть',0,`${p.side==='right'?'справа':'слева'} от линзы, ${p.updown==='down'?'ниже':'выше'} оси`],
-      ['преломлённый луч идёт через',0,this.focusName(p)]];
+      ['параллельный луч после линзы',p.kind==='conv'?`идёт через F′ (${this.сторонаЗаднего(p)})`:'расходится, будто вышел из F','']];
     if(isFinite(dp)){
       out.push(['расстояние до изображения d′',dp,'м'],
         ['высота изображения H',H,'м'],
@@ -1353,29 +1397,40 @@ lens:{
     {name:'В фокусе: изображения нет',values:{kind:'conv',f:1.5,d:1.5,h:1}},
     {name:'Ближе фокуса: лупа — мнимое, прямое',values:{kind:'conv',f:1.5,d:0.9,h:1}},
     {name:'Рассеивающая: всегда мнимое, уменьшенное',values:{kind:'div',f:1.5,d:3,h:1}},
-    {name:'Четверть I: слева сверху — через F',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'left',updown:'up'}},
-    {name:'Четверть II: слева снизу — через F',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'left',updown:'down'}},
-    {name:'Четверть III: справа сверху — через F′',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'right',updown:'up'}},
-    {name:'Четверть IV: справа снизу — через F′',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'right',updown:'down'}}
+    {name:'Четверть I: слева сверху',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'left',updown:'up'}},
+    {name:'Четверть II: слева снизу',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'left',updown:'down'}},
+    {name:'Четверть III: справа сверху, свет идёт влево',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'right',updown:'up'}},
+    {name:'Четверть IV: справа снизу, свет идёт влево',values:{kind:'conv',f:1.5,d:4,h:1.2,side:'right',updown:'down'}}
   ],
+  пояснения(p){
+    const dp=this.dPrime(p), g=this.gamma(p), k=this.kindOf(p), F=this.F(p);
+    const out=[[`F = ${F.toFixed(2)} м, D = 1/F = ${this.D(p).toFixed(2)} дптр`,css('--accent'),true]];
+    if(isFinite(dp)){
+      out.push([`1/d + 1/d′ = 1/F: d′ = ${dp.toFixed(2)} м;  Γ = −d′/d = ${g.toFixed(2)} (${Math.abs(g).toFixed(2)}×)`,css('--ink-2')],
+        [`изображение: ${k.text}`,k.real?css('--danger'):css('--second'),true]);
+    } else out.push(['предмет ровно в фокусе — лучи после линзы параллельны, изображения нет',css('--ink-2'),true]);
+    out.push([p.kind==='conv'
+      ?`свет идёт ${p.side==='right'?'влево':'вправо'}: параллельный оси луч после линзы проходит через задний фокус F′`
+      :`свет идёт ${p.side==='right'?'влево':'вправо'}: параллельный оси луч расходится так, будто вышел из переднего фокуса F`,css('--ink-3')]);
+    return out;
+  },
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     const dp=this.dPrime(p);
     const span=clamp(Math.max(p.d,isFinite(dp)?Math.abs(dp):0,p.f*3)*2.3, 8, 26);
-    const scale=clamp(Math.min((W-60)/(span*PX_PER_M),(H-60)/(span*0.55*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    const hy=Math.max(span*0.5, (Math.max(p.h, isFinite(this.H(p))?Math.min(Math.abs(this.H(p)),span*0.4):0)+0.8)*2);
+    return fitСПояснением(vp,span,hy,0,0,this.пояснения(p));
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const F=this.F(p), af=Math.abs(F), dp=this.dPrime(p), g=this.gamma(p), H=this.H(p);
     const conv=p.kind==='conv';
-    const span=Math.max(p.d,isFinite(dp)?Math.abs(dp):0,af*3)*1.35+1;
+    const span=Math.max(p.d,isFinite(dp)?Math.abs(dp):0,af*3)*1.35+1, строки=this.пояснения(p);
+    v.занятьНиз(строки);
 
     // главная оптическая ось
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
     ctx.beginPath(); ctx.moveTo(-span,0); ctx.lineTo(span,0); ctx.stroke();
     v.arrow(ctx,span-0.6,0,span,0,ink);
-    v.label(ctx,'главная оптическая ось',span,0,-96,-14,ink3);
 
     // линза: вертикальный отрезок со стрелками (собирающая — наружу, рассеивающая — внутрь)
     const LH=Math.max(2.2, p.h*1.6);
@@ -1385,7 +1440,6 @@ lens:{
       ctx.moveTo(-0.22,y-dir*0.28); ctx.lineTo(0,y); ctx.lineTo(0.22,y-dir*0.28); ctx.stroke(); };
     if(conv){ tip(LH,1); tip(-LH,-1); } else { tip(LH,-1); tip(-LH,1); }
     v.label(ctx,conv?'собирающая линза':'рассеивающая линза',0,LH,-40,-16,acc);
-    v.label(ctx,`F = ${F.toFixed(2)} м,  D = ${this.D(p).toFixed(2)} дптр`,0,-LH,-56,20,acc);
 
     // отметки F, 2F, 3F по обе стороны
     if(p.marks){
@@ -1394,9 +1448,10 @@ lens:{
         for(const sgn of [-1,1]){
           const x=sgn*n*af;
           ctx.beginPath(); ctx.moveTo(x,-0.22); ctx.lineTo(x,0.22); ctx.stroke();
-          // F и F′ закреплены за сторонами: справа F, слева F′
-          const lab=(n===1?'F':`${n}F`)+(sgn<0?'′':'');
-          const active=(n===1)&&((sgn>0)===(p.side!=='right'));
+          // F — со стороны предмета, F′ — со стороны, куда уходит свет
+          const заднийФ=(sgn>0)===(p.side!=='right');
+          const lab=(n===1?'F':`${n}F`)+(заднийФ?'′':'');
+          const active=(n===1)&&(заднийФ===conv);
           v.label(ctx,lab,x,0,-6,16,active?v.c('--measure'):ink3);
         }
       }
@@ -1440,12 +1495,9 @@ lens:{
         ctx.beginPath(); ctx.moveTo(0,OY); ctx.lineTo(MX(-R), MY(p.h-slope1*R)); ctx.stroke();
         ctx.setLineDash([]); ctx.globalAlpha=1;
       }
-      // подпись: через какой именно фокус пошёл луч
-      if(conv){
-        const fx=MX(af);
-        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(fx,0,v.lw(3.2),0,7); ctx.fill();
-        v.label(ctx,`луч 1 идёт через ${this.focusName(p)}`,fx,0,-30,SY>0?-12:20,meas);
-      }
+      // фокус, через который пошёл (или из которого «вышел») луч 1
+      { const fx=MX(conv?af:-af);
+        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(fx,0,v.lw(3.6),0,7); ctx.fill(); }
 
       // ЛУЧ 2: через оптический центр — не преломляется
       const slope2 = (0-p.h)/(0-(-p.d));
@@ -1458,8 +1510,11 @@ lens:{
       }
 
       // ЛУЧ 3: через ближний фокус → после линзы параллельно оси
-      if(p.ray3 && conv && Math.abs(p.d-af)>1e-6){
-        const yAtLens = p.h + (0-(-p.d))*((0-p.h)/((-af)-(-p.d)));
+      /* у собирающей — луч через передний фокус F; у рассеивающей — луч,
+         нацеленный в задний фокус за линзой: после линзы оба идут параллельно оси */
+      const xt=conv?-af:af;
+      if(p.ray3 && Math.abs(xt+p.d)>1e-6){
+        const yAtLens = p.h + p.d*((0-p.h)/(xt+p.d));
         ctx.strokeStyle=acc; ctx.globalAlpha=.85; ctx.lineWidth=v.lw(1.5);
         ctx.beginPath();
         ctx.moveTo(OX,OY); ctx.lineTo(0,MY(yAtLens)); ctx.lineTo(MX(R),MY(yAtLens)); ctx.stroke();
@@ -1484,18 +1539,7 @@ lens:{
       v.label(ctx,`d′ = ${dp.toFixed(2)} м`,IX/2,iy2,-26,SY>0?-8:16,ink3);
     }
 
-    // сводка
-    const k=this.kindOf(p);
-    const yInfo=-Math.max(2.6, p.h*1.7);
-    if(isFinite(dp)){
-      v.label(ctx,`Γ = −d′/d = ${g.toFixed(2)}   (${Math.abs(g).toFixed(2)}×)`,0,yInfo,-60,0,ink3);
-      v.label(ctx,k.text,0,yInfo,-Math.round(k.text.length*3.1),18,k.real?dang:sec);
-    } else {
-      v.label(ctx,'предмет ровно в фокусе — лучи после линзы параллельны, изображения нет',0,yInfo,-142,0,ink3);
-    }
-    v.label(ctx,`предмет ${p.side==='right'?'справа':'слева'} — преломлённый луч идёт через ${this.focusName(p)}`,
-      0,yInfo,-96,36,ink3);
-    v.label(ctx,'вершину предмета можно перетащить в любую из четырёх четвертей',0,yInfo,-108,54,ink3);
+    v.пояснение(ctx,строки);
   }
 }
 ,
@@ -1675,12 +1719,18 @@ refraction:{
     {type:'group',label:'Показывать'},
     {key:'refl',label:'Отражённый луч',type:'check',default:true},
     {key:'arcs',label:'Дуги углов и их отсчёт',type:'check',default:true},
-    {key:'norm',label:'Нормаль',type:'check',default:true}
+    {key:'norm',label:'Нормаль',type:'check',default:true},
+    {key:'fronts',label:'Волновые фронты (почему луч ломается)',type:'check',default:true}
   ],
   c:2.99792458e8,
+  /* Показатели при λ = 550 нм и дисперсия по Коши: n(λ) = n₀ + B·(1/λ² − 1/550²).
+     До 3.5.0 длина волны меняла только «длину волны в среде», а угол
+     преломления от неё не зависел — хотя именно от этого радуга и призма. */
   N:{air:1.0,water:1.333,glass:1.50,diamond:2.417},
-  n1(p){ return this.N[p.mat1]; },
-  n2(p){ return this.N[p.mat2]; },
+  B:{air:0,water:2850,glass:4000,diamond:11900},       // нм²
+  nOf(m,lam){ return this.N[m]+this.B[m]*(1/(lam*lam)-1/(550*550)); },
+  n1(p){ return this.nOf(p.mat1,p.lam||550); },
+  n2(p){ return this.nOf(p.mat2,p.lam||550); },
   /* скорость света в среде: v = c/n */
   vIn(n){ return this.c/n; },
   /* закон Снеллиуса: n₁·sinθ₁ = n₂·sinθ₂ */
@@ -1695,32 +1745,35 @@ refraction:{
     if(n1<=n2) return null;
     return Math.asin(n2/n1)*180/Math.PI;
   },
+  /* доля отражённого света по Френелю (неполяризованный свет) */
+  R(p){
+    const t2=this.theta2(p); if(t2===null) return 1;
+    const n1=this.n1(p), n2=this.n2(p), c1=Math.cos(p.ang*Math.PI/180), c2=Math.cos(t2*Math.PI/180);
+    const rs=(n1*c1-n2*c2)/(n1*c1+n2*c2), rp=(n1*c2-n2*c1)/(n1*c2+n2*c1);
+    return (rs*rs+rp*rp)/2;
+  },
   init(p){ return {t:0,ph:0,event:null,__stop:null}; },
-  step(s,dt,p){ s.t+=dt; s.ph+=dt*2; },
+  step(s,dt,p){ s.t+=dt; s.ph+=dt*0.8; },
   dragPoints(p){
     const a=p.ang*Math.PI/180, R=3.2;
     return [{x:-R*Math.sin(a), y:R*Math.cos(a)}];
   },
   dragMove(p,idx,x,y){
     /* Луч падает из левой верхней четверти; угол отсчитывается от нормали.
-       Раньше знак x игнорировался (|x|), а y зажимался снизу микрозначением:
-       правее нормали ручка «зеркалилась», а ниже границы угол намертво
-       прыгал к 89° — луч не слушался пальца. Теперь ручка честно следует
-       за курсором внутри четверти, а за её пределами угол мягко упирается
-       в 0° (за нормалью) или 89° (за границей сред). */
+       За пределами четверти угол мягко упирается в 0° или 89°. */
     const a=Math.atan2(-x, y)*180/Math.PI;      // левая верхняя четверть → 0…90°
     p.ang=clamp(Math.round(a*2)/2, 0, 89);      // шаг 0.5° — плавнее слайдера
   },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
-    const n1=this.n1(p), n2=this.n2(p), t2=this.theta2(p), cr=this.critical(p);
+    const n1=this.n1(p), n2=this.n2(p), t2=this.theta2(p), cr=this.critical(p), R=this.R(p);
     const out=[['показатель среды 1: n₁',n1,''],
       ['показатель среды 2: n₂',n2,''],
       ['скорость в среде 1: v = c/n',this.vIn(n1)/1e8,'·10⁸ м/с'],
       ['скорость в среде 2: v = c/n',this.vIn(n2)/1e8,'·10⁸ м/с'],
       ['угол падения θ₁',p.ang,'°']];
     if(t2===null){
-      out.push(['угол преломления',0,'ПОЛНОЕ ВНУТРЕННЕЕ ОТРАЖЕНИЕ'],
+      out.push(['угол преломления','полное внутреннее отражение',''],
         ['предельный угол θкр',cr!==null?cr:0,'°']);
     } else {
       out.push(['угол преломления θ₂',t2,'°'],
@@ -1728,7 +1781,8 @@ refraction:{
         ['n₂·sinθ₂',n2*Math.sin(t2*Math.PI/180),'']);
       if(cr!==null) out.push(['предельный угол θкр',cr,'°']);
     }
-    out.push(['длина волны в вакууме',p.lam,'нм'],
+    out.push(['отражается (Френель)',R*100,'%'],['проходит',(1-R)*100,'%'],
+      ['длина волны в вакууме',p.lam,'нм'],
       ['длина волны в среде 2: λ/n',p.lam/n2,'нм'],
       ['частота (не меняется)',this.c/(p.lam*1e-9)/1e12,'ТГц']);
     return out;
@@ -1739,127 +1793,83 @@ refraction:{
     {name:'Воздух → вода',values:{mat1:'air',mat2:'water',ang:50}},
     {name:'Стекло → воздух: луч отходит от нормали',values:{mat1:'glass',mat2:'air',ang:30}},
     {name:'Полное внутреннее отражение (стекло→воздух)',values:{mat1:'glass',mat2:'air',ang:60}},
-    {name:'Алмаз: маленький предельный угол — игра света',values:{mat1:'diamond',mat2:'air',ang:30}}
+    {name:'Алмаз: маленький предельный угол — игра света',values:{mat1:'diamond',mat2:'air',ang:30}},
+    {name:'Дисперсия: фиолетовый ломается сильнее красного',values:{mat1:'air',mat2:'diamond',ang:60,lam:400}},
+    {name:'Почти скользящее падение: отражается больше половины',values:{mat1:'air',mat2:'glass',ang:85}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(10*PX_PER_M),(H-70)/(8*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+  пояснения(p){
+    const n1=this.n1(p), n2=this.n2(p), a1=p.ang*Math.PI/180, t2=this.theta2(p), cr=this.critical(p), R=this.R(p);
+    const ink='--ink-2', v=n=>(this.vIn(n)/1e8).toFixed(2);
+    if(t2===null) return [
+      ['ПОЛНОЕ ВНУТРЕННЕЕ ОТРАЖЕНИЕ: свет не выходит во вторую среду',css('--danger'),true],
+      [`угол падения ${p.ang}° больше предельного ${cr.toFixed(1)}°: sinθ₂ = n₁sinθ₁/n₂ = ${(n1*Math.sin(a1)/n2).toFixed(3)} > 1`,css(ink)]];
+    const ближе=t2<p.ang-1e-9;
+    return [
+      [`n₁·sinθ₁ = ${(n1*Math.sin(a1)).toFixed(3)} = n₂·sinθ₂`,css(ink),true],
+      [p.ang<1e-9?'по нормали луч не отклоняется, хотя скорость меняется':(ближе
+        ?`луч прижался к нормали: во второй среде свет медленнее (${v(n2)} против ${v(n1)}·10⁸ м/с)`
+        :`луч отошёл от нормали: во второй среде свет быстрее (${v(n2)} против ${v(n1)}·10⁸ м/с)`),css(ink)],
+      [`отражается ${(R*100).toFixed(1)} %, проходит ${((1-R)*100).toFixed(1)} % (формулы Френеля)${cr!==null?` · предельный угол ${cr.toFixed(1)}°`:''}`,css('--ink-3')]];
   },
+  fit(p,vp){ return fitСПояснением(vp,10.4,8.4,0,0,this.пояснения(p)); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const n1=this.n1(p), n2=this.n2(p), a1=p.ang*Math.PI/180, t2=this.theta2(p), cr=this.critical(p);
-    const R=3.4;
-    // среды
-    ctx.fillStyle=sec; ctx.globalAlpha=.07; ctx.fillRect(-5,0,10,4); ctx.globalAlpha=.16; ctx.fillRect(-5,-4,10,4); ctx.globalAlpha=1;
+    const n1=this.n1(p), n2=this.n2(p), a1=p.ang*Math.PI/180, t2=this.theta2(p), cr=this.critical(p), R=this.R(p);
+    const L=3.6, S1=Math.sin(a1), C1=Math.cos(a1), строки=this.пояснения(p);
+    v.занятьНиз(строки);
+    // среды: чем больше n, тем гуще заливка
+    const гуще=n=>clamp(0.04+(n-1)*0.16,0.04,0.3);
+    ctx.fillStyle=sec; ctx.globalAlpha=гуще(n1); ctx.fillRect(-5,0,10,4); ctx.globalAlpha=гуще(n2); ctx.fillRect(-5,-4,10,4); ctx.globalAlpha=1;
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
     ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(5,0); ctx.stroke();
     const nm={air:'воздух',water:'вода',glass:'стекло',diamond:'алмаз'};
-    v.label(ctx,`${nm[p.mat1]}, n₁ = ${n1.toFixed(2)}`,-5,0,10,-16,ink3);
-    v.label(ctx,`${nm[p.mat2]}, n₂ = ${n2.toFixed(2)}`,-5,0,10,20,ink3);
-    // нормаль
+    v.text(ctx,`${nm[p.mat1]}, n₁ = ${n1.toFixed(3)}`,-4.85,3.72,ink3,10,'left',true);
+    v.text(ctx,`${nm[p.mat2]}, n₂ = ${n2.toFixed(3)}`,-4.85,-3.72,ink3,10,'left',true);
     if(p.norm){
-      ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(4),v.lw(4)]); ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(0,-3.6); ctx.lineTo(0,3.6); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,'нормаль',0,3.6,6,-4,ink3);
+      КС.пунктир(ctx,v,0,-3.9,0,3.9,ink3,.6);
+      v.text(ctx,'нормаль',0.1,3.75,ink3,9.5,'left');
     }
-    // падающий луч
-    const ix=-R*Math.sin(a1), iy=R*Math.cos(a1);
-    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2);
-    ctx.beginPath(); ctx.moveTo(ix,iy); ctx.lineTo(0,0); ctx.stroke();
-    v.arrow(ctx,ix*0.55,iy*0.55,ix*0.3,iy*0.3,dang);
-    v.label(ctx,`падающий, θ₁ = ${p.ang}°`,ix,iy,-30,-10,dang);
-    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(ix,iy,v.lw(4),0,7); ctx.fill();
-    // отражённый
+    // волновые фронты: цвет — цвет самой волны; в плотной среде они теснее (λ/n)
+    if(p.fronts){
+      const col=КС.цветλ(p.lam), Λ=0.8*p.lam/550, u=((s.ph%1)+1)%1, hw=0.3;
+      const фронт=(dx,dy,d)=>{ const x=dx*d, y=dy*d; ctx.beginPath(); ctx.moveTo(x-dy*hw,y+dx*hw); ctx.lineTo(x+dy*hw,y-dx*hw); ctx.stroke(); };
+      ctx.strokeStyle=col; ctx.lineWidth=v.lw(1.8); ctx.globalAlpha=.6;
+      for(let d=Λ/n1*(1-u)+1e-6; d<L; d+=Λ/n1) фронт(-S1,C1,d);                 // к точке падения
+      if(t2!==null){ const a2=t2*Math.PI/180; ctx.globalAlpha=.75*clamp(1-R,0.3,1);
+        for(let d=Λ/n2*u; d<L; d+=Λ/n2) фронт(Math.sin(a2),-Math.cos(a2),d); }
+      if(p.refl){ ctx.globalAlpha=.75*clamp(Math.sqrt(R),0.15,1);
+        for(let d=Λ/n1*u; d<L; d+=Λ/n1) фронт(S1,C1,d); }
+      ctx.globalAlpha=1;
+    }
+    // луч со стрелками по ходу света; толщина и яркость — доля энергии
+    const луч=(dx,dy,from,to,col,w,al)=>{ ctx.save(); ctx.globalAlpha=al; ctx.strokeStyle=col; ctx.lineWidth=v.lw(w);
+      ctx.beginPath(); ctx.moveTo(dx*from,dy*from); ctx.lineTo(dx*to,dy*to); ctx.stroke();
+      const m=(from+to)/2; v.arrow(ctx,dx*(m-0.3*Math.sign(to-from)),dy*(m-0.3*Math.sign(to-from)),dx*(m+0.25*Math.sign(to-from)),dy*(m+0.25*Math.sign(to-from)),col); ctx.restore(); };
+    луч(-S1,C1,L,0,dang,2.4,1);
+    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(-L*S1,L*C1,v.lw(5),0,7); ctx.fill();
+    v.label(ctx,'падающий',-L*S1,L*C1,-30,-12,dang);
     if(p.refl){
-      const rx=R*Math.sin(a1), ry=R*Math.cos(a1);
-      ctx.strokeStyle=meas; ctx.globalAlpha=(t2===null)?1:.5; ctx.lineWidth=v.lw(t2===null?2.2:1.6);
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(rx,ry); ctx.stroke(); ctx.globalAlpha=1;
-      v.label(ctx,t2===null?'отражённый (весь свет!)':'отражённый',rx,ry,4,-8,meas);
+      луч(S1,C1,0,L,meas,0.8+2.2*Math.sqrt(R),clamp(0.25+R,0.25,1));
+      v.label(ctx,t2===null?'отражённый: весь свет':`отражённый: ${(R*100).toFixed(1)} %`,L*S1,L*C1,-20,-12,meas);
     }
-    // преломлённый
     if(t2!==null){
-      const a2=t2*Math.PI/180, tx=R*Math.sin(a2), ty=-R*Math.cos(a2);
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(tx,ty); ctx.stroke();
-      v.arrow(ctx,tx*0.5,ty*0.5,tx*0.75,ty*0.75,acc);
-      v.label(ctx,`преломлённый, θ₂ = ${t2.toFixed(1)}°`,tx,ty,4,10,acc);
-    } else {
-      v.label(ctx,'ПОЛНОЕ ВНУТРЕННЕЕ ОТРАЖЕНИЕ: свет не выходит',0,-2.2,-104,0,dang);
-      if(cr!==null) v.label(ctx,`угол падения ${p.ang}° больше предельного ${cr.toFixed(1)}°`,0,-2.2,-104,16,ink3);
+      const a2=t2*Math.PI/180, tx=Math.sin(a2), ty=-Math.cos(a2);
+      луч(tx,ty,0,L,acc,0.8+1.8*(1-R),1);
+      v.label(ctx,`преломлённый: ${((1-R)*100).toFixed(1)} %`,L*tx,L*ty,-40,14,acc);
     }
-    /* УГЛЫ. Все углы в оптике отсчитываются от нормали, а не от поверхности,
-       поэтому рисуем дугу от вертикали до каждого луча и подписываем её. */
     if(p.arcs){
-      // дуга от нормали до луча; ang — угол от нормали, up — в верхней полуплоскости
-      /* Дугу строим ЯВНО по двум направлениям — от нормали к лучу, интерполируя
-         единичные векторы. Через ctx.arc углы зеркалились, потому что ось Y в сцене
-         направлена вверх, а холст считает углы по своей, перевёрнутой системе. */
-      const arcBetween=(ax,ay,bx,by,rad,col,txt)=>{
-        const na=Math.hypot(ax,ay)||1, nb=Math.hypot(bx,by)||1;
-        ax/=na; ay/=na; bx/=nb; by/=nb;
-        let dot=clamp(ax*bx+ay*by,-1,1);
-        const sweep=Math.acos(dot);
-        const cross=ax*by-ay*bx;                       // знак задаёт сторону обхода
-        const sgn=cross>=0?1:-1;
-        ctx.strokeStyle=col; ctx.lineWidth=v.lw(1.7); ctx.globalAlpha=.95;
-        ctx.beginPath();
-        const N=36;
-        for(let i=0;i<=N;i++){
-          const t=sweep*i/N*sgn;
-          const c=Math.cos(t), sn=Math.sin(t);
-          const x=(ax*c-ay*sn)*rad, y=(ax*sn+ay*c)*rad;
-          i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-        }
-        ctx.stroke(); ctx.globalAlpha=1;
-        // подпись на середине дуги
-        const tm=sweep/2*sgn, cm=Math.cos(tm), sm=Math.sin(tm);
-        const mx=(ax*cm-ay*sm)*rad*1.2, my=(ax*sm+ay*cm)*rad*1.2;
-        v.label(ctx,txt,mx,my,-16,4,col);
-      };
-      const S1=Math.sin(a1), C1=Math.cos(a1);
-      // падающий приходит сверху слева: дуга от нормали вверх к нему
-      arcBetween(0,1,-S1,C1,1.15,dang,`θ₁ = ${p.ang}°`);
-      // отражённый уходит вверх вправо
-      if(p.refl) arcBetween(0,1,S1,C1,1.55,meas,`θ₁ = ${p.ang}°`);
-      // преломлённый уходит вниз вправо: дуга от нормали вниз к нему
-      if(t2!==null){
-        const r2=t2*Math.PI/180;
-        arcBetween(0,-1,Math.sin(r2),-Math.cos(r2),1.15,acc,`θ₂ = ${t2.toFixed(1)}°`);
-      }
-
-      // прямое сравнение углов столбиками — сразу видно, какой больше
-      const bx=-4.6, by=-2.4, bw=1.5;
-      const bar=(lab,val,col,row)=>{
-        const yy=by-row*0.55;
-        ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1);
-        ctx.beginPath(); ctx.moveTo(bx,yy); ctx.lineTo(bx+bw,yy); ctx.stroke(); ctx.globalAlpha=1;
-        ctx.strokeStyle=col; ctx.lineWidth=v.lw(5);
-        ctx.beginPath(); ctx.moveTo(bx,yy); ctx.lineTo(bx+bw*clamp(val/90,0,1),yy); ctx.stroke();
-        v.label(ctx,`${lab} ${val.toFixed(1)}°`,bx+bw,yy,8,4,col);
-      };
-      bar('θ₁',p.ang,dang,0);
-      if(t2!==null){
-        bar('θ₂',t2,acc,1);
-        const closer=(t2<p.ang);
-        v.label(ctx, closer? 'луч прижался к нормали: среда плотнее'
-                           : 'луч отклонился от нормали: среда реже',
-                bx,by-1.15,0,4,ink3);
-      }
-      // предельный угол — если он есть
+      const arc=(ax,ay,bx,by,rad,col,txt)=>SIMS.tir.arcBetween(ctx,v,ax,ay,bx,by,rad,col,txt);
+      arc(0,1,-S1,C1,1.0,dang,`θ₁ = ${p.ang}°`);
+      if(p.refl) arc(0,1,S1,C1,1.35,meas,`θ₁′ = ${p.ang}°`);
+      if(t2!==null){ const r2=t2*Math.PI/180; arc(0,-1,Math.sin(r2),-Math.cos(r2),1.0,acc,`θ₂ = ${t2.toFixed(1)}°`); }
       if(cr!==null){
-        ctx.strokeStyle=dang; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.4);
-        const cx2=-R*Math.sin(cr*Math.PI/180), cy2=R*Math.cos(cr*Math.PI/180);
-        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(cx2,cy2); ctx.stroke();
-        ctx.setLineDash([]); ctx.globalAlpha=1;
+        const cx2=-L*Math.sin(cr*Math.PI/180), cy2=L*Math.cos(cr*Math.PI/180);
+        КС.пунктир(ctx,v,0,0,cx2,cy2,dang,.45);
         v.label(ctx,`предельный ${cr.toFixed(1)}°`,cx2,cy2,-30,-6,dang);
       }
     }
-    // сводка
-    v.label(ctx,`n₁·sinθ₁ = ${(n1*Math.sin(a1)).toFixed(3)}${t2!==null?`  =  n₂·sinθ₂ = ${(n2*Math.sin(t2*Math.PI/180)).toFixed(3)}`:''}`,0,-3.9,-90,0,ink3);
-    v.label(ctx,`скорость света в среде: v = c/n  (${(this.vIn(n2)/1e8).toFixed(2)}·10⁸ м/с)`,0,-3.9,-96,16,ink3);
-    v.label(ctx,'точку падающего луча можно перетаскивать',0,-3.9,-80,32,ink3);
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,v.lw(3),0,7); ctx.fill();
+    v.пояснение(ctx,строки);
   }
 },
 
@@ -1869,13 +1879,15 @@ plasma:{
   /* Сцена — схема: до ионосферы сотня километров, а нарисована она рядом.
      Поэтому ни осей с числами, ни надписи «сетка N м». */
   schema:true,
-  /* Время здесь ни на что не влияет: показания и графики от него не
-     зависят. Движение на сцене — иллюстрация процесса, а не его ход во
-     времени, поэтому часы, шкала времени и графики по времени скрыты. */
   timeless:true,
   params:[
     {key:'Ne',label:'Плотность электронов N',unit:'10¹¹ 1/м³',min:0.5,max:50,step:0.5,default:10},
-    {key:'f', label:'Частота волны f',unit:'МГц',min:0.5,max:30,step:0.1,default:5},
+    {key:'f', label:'Частота волны f',unit:'МГц',min:0.5,max:40,step:0.1,default:5},
+    /* 3.5.0: угол выхода луча. Раньше рисовался наклонный луч, а решение
+       «отразится или пройдёт» принималось как для вертикального. Слой —
+       однородная плазма: наклонный луч отражается полностью, если n < cos β,
+       отсюда закон секанса f < fp/sin β. */
+    {key:'beta',label:'Угол луча над горизонтом β',unit:'°',min:15,max:90,step:1,default:50},
 
     {type:'group',label:'Показывать'},
     {key:'layer',label:'Слой ионосферы',type:'check',default:true},
@@ -1894,7 +1906,10 @@ plasma:{
     const n2=1-r*r;
     return n2>0? Math.sqrt(n2) : 0;                    // n=0 ⇒ волна не проходит
   },
-  passes(p){ return p.f*1e6 > this.fp(p); },
+  β(p){ return (p.beta==null?90:p.beta)*Math.PI/180; },
+  /* максимально применимая частота для этого угла: fp/sin β */
+  muf(p){ return this.fp(p)/Math.sin(this.β(p)); },
+  passes(p){ return p.f*1e6 > this.muf(p); },
   /* фазовая скорость c/n (> c) и групповая c·n (< c); их произведение = c² */
   vphase(p){ const n=this.n(p); return n>0? this.c/n : Infinity; },
   vgroup(p){ return this.c*this.n(p); },
@@ -1906,9 +1921,11 @@ plasma:{
     const out=[['плотность электронов',p.Ne,'·10¹¹ 1/м³'],
       ['плазменная частота fp',fp,'МГц'],
       ['частота волны f',p.f,'МГц'],
+      ['угол луча над горизонтом β',p.beta==null?90:p.beta,'°'],
+      ['наибольшая отражаемая частота fp/sin β',this.muf(p)/1e6,'МГц'],
       ['показатель преломления n',n,''],
-      ['поведение',pass?1:0,pass?'проходит сквозь ионосферу':'ОТРАЖАЕТСЯ от ионосферы']];
-    if(pass){
+      ['поведение',pass?'проходит сквозь ионосферу':'ОТРАЖАЕТСЯ от ионосферы','']];
+    if(n>0){
       out.push(['фазовая скорость c/n',this.vphase(p)/1e8,'·10⁸ м/с (> c)'],
         ['групповая скорость c·n',this.vgroup(p)/1e8,'·10⁸ м/с (< c)'],
         ['произведение скоростей',this.vphase(p)*this.vgroup(p)/(this.c*this.c),'= c²']);
@@ -1917,117 +1934,76 @@ plasma:{
   },
   graphs:[],
   presets:[
-    {name:'Низкая частота — отражается (радиосвязь)',values:{Ne:10,f:2}},
-    {name:'Высокая частота — уходит в космос',values:{Ne:10,f:20}},
-    {name:'Ровно на плазменной частоте',values:{Ne:10,f:9}},
-    {name:'Плотная ионосфера днём',values:{Ne:40,f:5}}
+    {name:'Низкая частота — отражается (радиосвязь)',values:{Ne:10,f:2,beta:50}},
+    {name:'Высокая частота — уходит в космос',values:{Ne:10,f:20,beta:50}},
+    {name:'Вертикально: отражается всё ниже fp',values:{Ne:10,f:8.5,beta:90}},
+    {name:'Та же частота полого — уже отражается (закон секанса)',values:{Ne:10,f:12,beta:25}},
+    {name:'Плотная ионосфера днём',values:{Ne:40,f:5,beta:50}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+  пояснения(p){
+    const fp=this.fp(p)/1e6, muf=this.muf(p)/1e6, n=this.n(p), pass=this.passes(p), b=p.beta==null?90:p.beta;
+    return [[`f = ${p.f} МГц ${pass?'>':'<'} fp/sin β = ${fp.toFixed(2)}/sin ${b}° = ${muf.toFixed(2)} МГц — волна ${pass?'проходит':'отражается'}`,pass?css('--accent'):css('--measure'),true],
+      [n>0?`в слое n = √(1 − (fp/f)²) = ${n.toFixed(3)}; ${pass?`n > cos β = ${Math.cos(this.β(p)).toFixed(3)}, луч преломляется и уходит`:`n < cos β = ${Math.cos(this.β(p)).toFixed(3)} — полное внутреннее отражение`}`
+          :'f < fp: n² = 1 − (fp/f)² < 0, волна в плазме не распространяется вовсе',css('--ink-2')],
+      ['чем положе луч, тем выше частота, которая ещё отражается: на этом держится дальняя КВ-связь',css('--ink-3')]];
   },
+  geom(p){ const b=this.β(p), dx=2.6/Math.tan(b); return {b,dx}; },
+  fit(p,vp){ const {dx}=this.geom(p); return fitСПояснением(vp,Math.max(12,2*dx+5),8.2,0,-0.2,this.пояснения(p)); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const fp=this.fp(p)/1e6, n=this.n(p), pass=this.passes(p);
+    const fp=this.fp(p)/1e6, n=this.n(p), pass=this.passes(p), {b,dx}=this.geom(p), W=Math.max(6,dx+2.5), строки=this.пояснения(p);
+    v.занятьНиз(строки);
     // Земля снизу
-    ctx.fillStyle=ink3; ctx.globalAlpha=.25; ctx.fillRect(-6,-4,12,1.2); ctx.globalAlpha=1;
-    v.label(ctx,'Земля',-5.4,-3.4,0,0,ink3);
+    ctx.fillStyle=ink3; ctx.globalAlpha=.25; ctx.fillRect(-W,-4,2*W,1.2); ctx.globalAlpha=1;
+    v.text(ctx,'Земля',-W+0.2,-3.4,ink3,10,'left');
     // слой ионосферы
     if(p.layer){
-      ctx.fillStyle=sec; ctx.globalAlpha=.13; ctx.fillRect(-6,1.2,12,1.6); ctx.globalAlpha=1;
-      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(5),v.lw(4)]);
-      ctx.beginPath(); ctx.moveTo(-6,1.2); ctx.lineTo(6,1.2); ctx.moveTo(-6,2.8); ctx.lineTo(6,2.8); ctx.stroke();
-      ctx.setLineDash([]);
-      // свободные электроны
+      ctx.fillStyle=sec; ctx.globalAlpha=.13; ctx.fillRect(-W,1.2,2*W,1.6); ctx.globalAlpha=1;
+      КС.пунктир(ctx,v,-W,1.2,W,1.2,sec,.8); КС.пунктир(ctx,v,-W,2.8,W,2.8,sec,.8);
       ctx.fillStyle=sec;
-      for(let i=0;i<28;i++){
-        const x=-5.7+ (i*0.41)%11.4, y=1.35+ (i*0.37)%1.3;
-        ctx.beginPath(); ctx.arc(x,y,v.lw(2),0,7); ctx.fill();
-      }
-      v.label(ctx,`ионосфера: свободные электроны, fp = ${fp.toFixed(2)} МГц`,0,2.8,-100,-12,sec);
+      for(let i=0;i<Math.round(2.4*W);i++){ const x=-W+0.3+(i*0.41)%(2*W-0.6), y=1.35+(i*0.37)%1.3;
+        ctx.beginPath(); ctx.arc(x,y,v.lw(2),0,7); ctx.fill(); }
+      v.text(ctx,`ионосфера: свободные электроны, fp = ${fp.toFixed(2)} МГц`,-W+0.2,3.1,sec,10,'left',true);
     }
-    // передатчик
-    ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2.4);
-    ctx.beginPath(); ctx.moveTo(-4,-2.8); ctx.lineTo(-4,-1.4); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-4.3,-1.4); ctx.lineTo(-4,-1.9); ctx.lineTo(-3.7,-1.4); ctx.stroke();
-    v.label(ctx,'передатчик',-4,-2.8,-22,16,dang);
-    // траектория волны
+    const антенна=(x,col)=>{ ctx.strokeStyle=col; ctx.lineWidth=v.lw(2.4);
+      ctx.beginPath(); ctx.moveTo(x,-2.8); ctx.lineTo(x,-1.4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x-0.3,-1.4); ctx.lineTo(x,-1.9); ctx.lineTo(x+0.3,-1.4); ctx.stroke(); };
+    const TX=[-dx,-1.4], HIT=[0,1.2];
+    антенна(TX[0],dang); v.text(ctx,'передатчик',TX[0],-3.0,dang,10,'center');
+    // угол луча над горизонтом
+    SIMS.tir.arcBetween(ctx,v,1,0,Math.cos(b),Math.sin(b),0.9,ink3,`β = ${p.beta==null?90:p.beta}°`,TX[0],TX[1]);
     if(p.wave){
-      /* Волна рисуется как ОДНА непрерывная линия по ломаному пути:
-         от кончика антенны передатчика — до точки поворота в ионосфере — и дальше.
-         Колебание откладывается по нормали к пути, а его амплитуда гасится
-         на концах огибающей, поэтому линия точно упирается в антенну и в приёмник,
-         а не обрывается посреди воздуха. */
-      const snake=(pts,col,{tailFade=false,arrow=false}={})=>{
-        // длины звеньев и полная длина пути
-        const seg=[], N=220;
-        let total=0;
-        for(let i=1;i<pts.length;i++){
-          const L=Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
-          seg.push(L); total+=L;
-        }
-        // точка на пути по пройденной длине
-        const at=(dist)=>{
-          let d=clamp(dist,0,total);
-          for(let i=0;i<seg.length;i++){
-            if(d<=seg[i]||i===seg.length-1){
-              const t=seg[i]>1e-9? d/seg[i] : 0;
-              const x0=pts[i][0], y0=pts[i][1], x1=pts[i+1][0], y1=pts[i+1][1];
-              const ux=(x1-x0)/(seg[i]||1), uy=(y1-y0)/(seg[i]||1);
-              return {x:x0+(x1-x0)*t, y:y0+(y1-y0)*t, nx:-uy, ny:ux};
-            }
-            d-=seg[i];
-          }
-          return {x:pts[0][0],y:pts[0][1],nx:0,ny:1};
-        };
-        const A=0.20, k=2*Math.PI/1.35;
-        ctx.strokeStyle=col; ctx.lineWidth=v.lw(2.2);
-        ctx.beginPath();
-        let ex=0, ey=0, edx=0, edy=0;
-        for(let i=0;i<=N;i++){
-          const u=i/N, d=u*total, q=at(d);
-          // огибающая: 0 на старте, 1 в середине, 0 в конце (или плавное угасание в хвосте)
-          const env = tailFade ? Math.sin(Math.PI*Math.min(u,0.5))*(1-clamp((u-0.72)/0.28,0,1))
-                               : Math.sin(Math.PI*u);
-          const off=A*env*Math.sin(k*d - s.ph*3);
-          const x=q.x+q.nx*off, y=q.y+q.ny*off;
-          if(i===N-1){ edx=x; edy=y; }
-          if(i===N){ ex=x; ey=y; }
-          i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-        }
+      const snake=(pts,col,tailFade,arrow)=>{
+        const seg=[]; let total=0;
+        for(let i=1;i<pts.length;i++){ const L=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]); seg.push(L); total+=L; }
+        const at=d=>{ d=clamp(d,0,total);
+          for(let i=0;i<seg.length;i++){ if(d<=seg[i]||i===seg.length-1){ const t=seg[i]>1e-9?d/seg[i]:0,
+            x0=pts[i][0],y0=pts[i][1],x1=pts[i+1][0],y1=pts[i+1][1], ux=(x1-x0)/(seg[i]||1), uy=(y1-y0)/(seg[i]||1);
+            return {x:x0+(x1-x0)*t,y:y0+(y1-y0)*t,nx:-uy,ny:ux}; } d-=seg[i]; }
+          return {x:pts[0][0],y:pts[0][1],nx:0,ny:1}; };
+        const A=0.18, k=2*Math.PI/1.1, N=260; let ex=0,ey=0,edx=0,edy=0;
+        ctx.strokeStyle=col; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
+        for(let i=0;i<=N;i++){ const u=i/N, d=u*total, q=at(d);
+          const env=tailFade?Math.min(1,u*8)*(1-clamp((u-0.75)/0.25,0,1)):Math.min(1,u*8,(1-u)*8);
+          const off=A*env*Math.sin(k*d-s.ph*3), x=q.x+q.nx*off, y=q.y+q.ny*off;
+          if(i===N-1){ edx=x; edy=y; } if(i===N){ ex=x; ey=y; } i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
         ctx.stroke();
-        if(arrow && (Math.hypot(ex-edx,ey-edy)>1e-6)){
-          const L=Math.hypot(ex-edx,ey-edy);
-          v.arrow(ctx,ex-(ex-edx)/L*0.45,ey-(ey-edy)/L*0.45,ex,ey,col);
-        }
-      };
-      const TX=[-4,-1.4];                       // кончик антенны передатчика
-      const HIT=[0,1.2];                        // точка входа в ионосферу
+        if(arrow){ const L=Math.hypot(ex-edx,ey-edy)||1; v.arrow(ctx,ex-(ex-edx)/L*0.45,ey-(ey-edy)/L*0.45,ex,ey,col); } };
       if(pass){
-        // проходит насквозь: линия начинается на антенне и уходит вверх, угасая
-        snake([TX,HIT,[3.6,3.7]],dang,{tailFade:true,arrow:true});
-        v.label(ctx,'волна уходит в космос (спутники, космическая связь)',3.6,3.8,-160,0,acc);
-        v.label(ctx,`n = ${n.toFixed(3)} < 1`,1.6,2.4,10,0,acc);
+        // в слое луч идёт круче к горизонту: sin θ_t = cos β / n (θ — от вертикали)
+        const st=Math.cos(b)/Math.max(n,1e-6), tt=Math.asin(clamp(st,-1,1)), top=[HIT[0]+1.6*Math.tan(tt),2.8];
+        const out=[top[0]+1.3/Math.tan(b),4.1];
+        snake([TX,HIT,top,out],acc,true,true);
+        v.text(ctx,'уходит в космос',out[0]-0.2,out[1]-0.2,acc,10,'right',true);
       } else {
-        // отражается: одна линия от передатчика через точку поворота к приёмнику
-        const RX=[4,-1.6];                      // кончик антенны приёмника
-        snake([TX,HIT,RX],meas,{arrow:false});
-        // точка поворота
-        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(HIT[0],HIT[1],v.lw(3.4),0,7); ctx.fill();
-        v.label(ctx,'точка поворота',HIT[0],HIT[1],8,-8,meas);
-        v.label(ctx,'волна отражается — дальняя радиосвязь за горизонт',3.8,-1.9,-170,14,meas);
-        // приёмник: антенна начинается ровно там, где заканчивается волна
-        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(2.4);
-        ctx.beginPath(); ctx.moveTo(4,-2.8); ctx.lineTo(4,-1.6); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(3.7,-1.6); ctx.lineTo(4,-2.1); ctx.lineTo(4.3,-1.6); ctx.stroke();
-        v.label(ctx,'приёмник',4,-2.8,-20,16,meas);
+        const turn=[0,n>0?1.2:1.35], RX=[dx,-1.4];
+        snake([TX,turn,RX],meas,false,false);
+        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(turn[0],turn[1],v.lw(3.4),0,7); ctx.fill();
+        v.label(ctx,'отражение',turn[0],turn[1],8,-10,meas);
+        антенна(RX[0],meas); if(dx>1.2) v.text(ctx,'приёмник',RX[0],-3.0,meas,10,'center'); else v.text(ctx,'и приёмник',TX[0],-3.35,meas,10,'center');
       }
     }
-    v.label(ctx,`f = ${p.f} МГц ${pass?'>':'<'} fp = ${fp.toFixed(2)} МГц`,0,-3.9,-58,0,pass?acc:meas);
-    v.label(ctx,pass?'частота выше плазменной: n² = 1 − (fp/f)² > 0, волна проходит'
-                   :'частота ниже плазменной: n² < 0, волна не может распространяться и отражается',
-      0,-3.9,-150,16,ink3);
+    v.пояснение(ctx,строки);
   }
 }
 ,
@@ -2083,21 +2059,22 @@ standing:{
     {name:'Третья гармоника (n = 3)',values:{L:6,n:3,v:3,A:0.9}},
     {name:'Высокая гармоника (n = 6)',values:{L:6,n:6,v:3,A:0.9}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/((p.L+2)*PX_PER_M),(H-70)/(6*PX_PER_M)),0.002,30);
-    return {x:p.L/2,y:0,scale};
+  пояснения(p){
+    return [[`n = ${p.n}: λ = 2L/n = ${this.lam(p).toFixed(2)} м, f = nv/2L = ${this.freq(p).toFixed(2)} Гц`,css('--ink-2'),true],
+      [p.parts?'две встречные бегущие волны (тонкие линии) складываются в стоячую (толстая): узлы стоят на месте':'узлы стоят на месте — это результат сложения двух встречных волн',css('--ink-3')]];
   },
+  fit(p,vp){ return fitСПояснением(vp,p.L+2,6.6,p.L/2,0.6,this.пояснения(p),50); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const L=p.L, lam=this.lam(p);
+    const L=p.L, lam=this.lam(p), строки=this.пояснения(p);
+    v.занятьНиз(строки);
     // ось и закреплённые концы
     ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
     ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(L,0); ctx.stroke(); ctx.globalAlpha=1;
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3);
     ctx.beginPath(); ctx.moveTo(0,-1.4); ctx.lineTo(0,1.4); ctx.moveTo(L,-1.4); ctx.lineTo(L,1.4); ctx.stroke();
-    v.label(ctx,'закреплённый конец',0,-1.4,-10,20,ink3);
-    v.label(ctx,'закреплённый конец',L,-1.4,-70,20,ink3);
+    v.text(ctx,'закреплено',0,-1.62,ink3,10,'center');
+    v.text(ctx,'закреплено',L,-1.62,ink3,10,'center');
     // огибающая
     if(p.env){
       ctx.strokeStyle=sec; ctx.globalAlpha=.4; ctx.setLineDash([v.lw(5),v.lw(4)]); ctx.lineWidth=v.lw(1.2);
@@ -2119,8 +2096,8 @@ standing:{
       for(let i=0;i<=300;i++){ const x=L*i/300, y=this.yLeft(p,x,s.t); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
       ctx.globalAlpha=1;
-      v.label(ctx,'волна вправо',L,1.7,-70,0,acc);
-      v.label(ctx,'волна влево',L,1.7,-70,14,meas);
+      v.text(ctx,'— волна вправо',0,3.05,acc,10,'left',true);
+      v.text(ctx,'— волна влево',0,2.7,meas,10,'left',true);
     }
     // стоячая волна (сумма)
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2.6); ctx.beginPath();
@@ -2130,21 +2107,20 @@ standing:{
     if(p.nodes){
       ctx.fillStyle=ink;
       for(const x of this.nodePos(p)){ ctx.beginPath(); ctx.arc(x,0,v.lw(4),0,7); ctx.fill(); }
-      v.label(ctx,'узлы (не колеблются)',this.nodePos(p)[0],0,-4,-16,ink);
+      v.text(ctx,'● узлы — не колеблются',0,2.35,ink,10,'left',true);
       for(const x of this.antinodePos(p)){
         ctx.strokeStyle=sec; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
         ctx.beginPath(); ctx.moveTo(x,-p.A*1.15); ctx.lineTo(x,p.A*1.15); ctx.stroke();
         ctx.setLineDash([]); ctx.globalAlpha=1;
       }
-      v.label(ctx,'пучности (максимальный размах)',this.antinodePos(p)[0],p.A*1.15,-30,-10,sec);
+      v.text(ctx,'┆ пучности — наибольший размах',0,2.0,sec,10,'left',true);
       // разметка λ/2 между соседними узлами
       const n0=this.nodePos(p)[0], n1=this.nodePos(p)[1];
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(n0,-1.9); ctx.lineTo(n1,-1.9); ctx.stroke(); ctx.globalAlpha=1;
       v.label(ctx,`λ/2 = ${(lam/2).toFixed(2)} м`,(n0+n1)/2,-1.9,-26,16,ink3);
     }
-    v.label(ctx,`n = ${p.n},  λ = 2L/n = ${lam.toFixed(2)} м,  f = ${this.freq(p).toFixed(2)} Гц`,L/2,2.3,-104,0,ink3);
-    v.label(ctx,'узлы стоят на месте — это результат сложения двух встречных волн',L/2,2.3,-134,16,ink3);
+    v.пояснение(ctx,строки);
   }
 },
 
@@ -2210,78 +2186,69 @@ interf2:{
     {name:'Синий свет',values:{d:0.2,lam:450,Ls:2,ymm:4.5,coh:true}},
     {name:'Некогерентные источники — картина пропадает',values:{d:0.2,lam:550,Ls:2,ymm:5.5,coh:false}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(11*PX_PER_M),(H-70)/(8*PX_PER_M)),0.002,30);
-    return {x:1.2,y:0,scale};
+  пояснения(p){
+    const ym=p.ymm*1e-3, m=this.order(p,ym), near=Math.round(m);
+    const txt = !p.coh ? 'некогерентные источники: интенсивности просто складываются, полос нет'
+      : (Math.abs(m-near)<0.08 ? `разность хода — целое число длин волн ⇒ СВЕТЛАЯ полоса (m = ${near})`
+      : (Math.abs(Math.abs(m-near)-0.5)<0.08 ? 'разность хода полуцелая ⇒ ТЁМНАЯ полоса'
+      : 'разность хода нецелая — промежуточная яркость'));
+    return [[`Δ = d·sinθ = ${(this.delta(p,ym)*1e9).toFixed(0)} нм = ${m.toFixed(2)}·λ`,css('--ink-2'),true],
+      [txt,p.coh?css('--accent'):css('--ink-3')],
+      [`ширина полосы Δy = λL/d = ${(this.spacing(p)*1e3).toFixed(2)} мм · волны на схеме увеличены: настоящая λ в тысячи раз меньше d`,css('--ink-3')]];
   },
+  fit(p,vp){ return fitСПояснением(vp,11.4,7.2,1.1,0,this.пояснения(p)); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const S1={x:-3.4,y:0.55}, S2={x:-3.4,y:-0.55}, SCR=4.2;
+    const S1={x:-3.4,y:0.55}, S2={x:-3.4,y:-0.55}, SCR=4.2, строки=this.пояснения(p), RGB=КС.rgbλ(p.lam), col=`rgb(${RGB})`;
+    v.занятьНиз(строки);
+    /* Волновое поле двух источников (3.5.0): мгновенная сумма двух круговых
+       волн. Где гребень встречает гребень — ярко, где гребень впадину —
+       темно; тёмные «лучи» между источниками и экраном — это узловые линии,
+       они и приходят на экран тёмными полосами. У некогерентных источников
+       фазы пляшут независимо, и узловые линии не стоят на месте. */
+    if(p.field){
+      const λs=0.55*p.lam/550, k=2*Math.PI/λs, w=s.ph*2.2, w2=p.coh?w:w*1.37+Math.sin(s.ph*3.1)*4;
+      КС.поле(ctx,S1.x,-3,SCR-S1.x,6,150,118,(x,y)=>{
+        const r1=Math.hypot(x-S1.x,y-S1.y), r2=Math.hypot(x-S2.x,y-S2.y);
+        const e=Math.cos(k*r1-w)+Math.cos(k*r2-w2), I=e*e/4;
+        return [RGB[0],RGB[1],RGB[2],0.72*I];
+      });
+    }
     // источники
     ctx.fillStyle=dang;
     for(const S of [S1,S2]){ ctx.beginPath(); ctx.arc(S.x,S.y,0.14,0,7); ctx.fill(); }
-    v.label(ctx,'источник 1',S1.x,S1.y,-56,-6,dang);
-    v.label(ctx,'источник 2',S2.x,S2.y,-56,10,dang);
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
-    ctx.beginPath(); ctx.moveTo(S1.x,S1.y); ctx.lineTo(S2.x,S2.y); ctx.stroke(); ctx.globalAlpha=1;
-    v.label(ctx,`d = ${p.d} мм`,S1.x,0,-46,0,ink3);
-    // круговые фронты (принцип Гюйгенса: каждый источник даёт сферические волны)
-    if(p.field){
-      const step=0.42;
-      for(const S of [S1,S2]){
-        ctx.strokeStyle=p.coh?acc:ink3; ctx.globalAlpha=.28; ctx.lineWidth=v.lw(1);
-        for(let k=1;k<=18;k++){
-          const r=k*step + (p.coh? (s.ph*0.1)%step : (S===S1?(s.ph*0.1)%step:(s.ph*0.083)%step));
-          ctx.beginPath(); ctx.arc(S.x,S.y,r,-Math.PI/2.1,Math.PI/2.1); ctx.stroke();
-        }
-        ctx.globalAlpha=1;
-      }
-    }
+    v.text(ctx,'S₁',S1.x-0.25,S1.y,dang,11,'right',true);
+    v.text(ctx,'S₂',S2.x-0.25,S2.y,dang,11,'right',true);
+    v.text(ctx,`d = ${p.d} мм`,S1.x-0.25,-1.25,ink3,10,'center');
     // экран
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3);
     ctx.beginPath(); ctx.moveTo(SCR,-3); ctx.lineTo(SCR,3); ctx.stroke();
-    v.label(ctx,`экран (L = ${p.Ls} м)`,SCR,3,-30,-12,ink3);
-    // картина на экране: яркость полос
-    const ys=3, N=160;
+    v.text(ctx,`экран, L = ${p.Ls} м`,SCR,-3.3,ink3,10,'center');
+    // картина на экране: цвет — цвет света, яркость — интенсивность
+    const ys=3, N=180;
     for(let i=0;i<N;i++){
-      const yy=-ys+2*ys*i/N;
-      const ymeters=(yy/0.28)*1e-3;
-      const I=this.I(p,ymeters)/4;
-      ctx.globalAlpha=clamp(I,0,1);
-      ctx.fillStyle=dang;
-      ctx.fillRect(SCR+0.06, yy, 0.3, 2*ys/N*1.2);
-      ctx.globalAlpha=1;
+      const yy=-ys+2*ys*i/N, I=this.I(p,(yy/0.28)*1e-3)/4;
+      ctx.globalAlpha=clamp(I,0,1); ctx.fillStyle=col;
+      ctx.fillRect(SCR+0.06, yy, 0.34, 2*ys/N*1.2);
     }
-    // график интенсивности
+    ctx.globalAlpha=1;
     if(p.plot){
       ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
       for(let i=0;i<=300;i++){
-        const yy=-ys+2*ys*i/300;
-        const ymeters=(yy/0.28)*1e-3;
-        const I=this.I(p,ymeters);
-        const xx=SCR+0.5+I*0.42;
+        const yy=-ys+2*ys*i/300, I=this.I(p,(yy/0.28)*1e-3), xx=SCR+0.55+I*0.42;
         i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);
       }
       ctx.stroke();
-      v.label(ctx,'I(y)',SCR+1.9,ys,-8,-8,meas);
+      v.text(ctx,'I(y)',SCR+1.55,ys+0.25,meas,10,'center',true);
     }
-    // лучи к точке наблюдения и разность хода
-    const yObs=p.ymm*0.28;
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6);
+    // лучи к точке наблюдения
+    const yObs=clamp(p.ymm*0.28,-ys,ys);
+    ctx.strokeStyle=ink; ctx.globalAlpha=.8; ctx.lineWidth=v.lw(1.4);
     for(const S of [S1,S2]){ ctx.beginPath(); ctx.moveTo(S.x,S.y); ctx.lineTo(SCR,yObs); ctx.stroke(); }
-    ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(SCR,yObs,v.lw(4),0,7); ctx.fill();
-    const ym=p.ymm*1e-3, m=this.order(p,ym);
-    v.label(ctx,`точка y = ${p.ymm} мм`,SCR,yObs,-72,-10,meas);
-    // сводка
-    v.label(ctx,`Δ = d·sinθ = ${(this.delta(p,ym)*1e9).toFixed(0)} нм = ${m.toFixed(2)}·λ`,0.4,-3.4,-70,0,ink3);
-    const near=Math.round(m);
-    const txt = !p.coh ? 'некогерентные источники: интенсивности просто складываются, полос нет'
-      : (Math.abs(m-near)<0.08 ? `разность хода целое число длин волн ⇒ СВЕТЛАЯ полоса (m = ${near})`
-      : (Math.abs(Math.abs(m-near)-0.5)<0.08 ? 'разность хода полуцелая ⇒ ТЁМНАЯ полоса'
-      : 'промежуточная яркость'));
-    v.label(ctx,txt,0.4,-3.4,-Math.round(txt.length*3),16,p.coh?acc:ink3);
-    v.label(ctx,`ширина полосы Δy = λL/d = ${(this.spacing(p)*1e3).toFixed(2)} мм`,0.4,-3.4,-84,32,ink3);
+    ctx.globalAlpha=1;
+    ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(SCR,yObs,v.lw(4.5),0,7); ctx.fill();
+    v.label(ctx,`y = ${p.ymm} мм`,SCR,yObs,-72,-10,meas);
+    v.пояснение(ctx,строки);
   }
 },
 
@@ -2339,8 +2306,8 @@ grating:{
     for(let m=-8;m<=8;m++){ if(m===0) continue; const s=m*lam/a; if(Math.abs(s)<=1) out.push({m,th:Math.asin(s)}); }
     return out;
   },
-  init(p){ return {t:0,event:null,__stop:null}; },
-  step(s,dt,p){ s.t+=dt; },
+  init(p){ return {t:0,ph:0,event:null,__stop:null}; },
+  step(s,dt,p){ s.t+=dt; s.ph=(s.ph||0)+dt; },
   anchors(s,p){ return [{x:0,y:0}]; },
   readouts(s,p){
     if(p.mode==='grating'){
@@ -2371,106 +2338,76 @@ grating:{
     {name:'Дифракция на широкой щели',values:{mode:'slit',a:6,lam:550}},
     {name:'Узкая щель — свет расходится широко',values:{mode:'slit',a:1.2,lam:550}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+  пояснения(p){
+    const ink=css('--ink-2'), ink3=css('--ink-3');
+    if(p.mode==='grating'){
+      const ms=this.maxAngles(p), m1=ms.find(q=>q.m===1);
+      return [[`d·sinθ = mλ — главные максимумы${m1?`; первый порядок под углом ${(m1.th*180/Math.PI).toFixed(1)}°`:''}`,ink,true],
+        [`при N = ${p.N} они в ${p.N}² = ${p.N*p.N} раз ярче одной щели и в ${p.N} раз уже; между ними ${p.N-2} слабых побочных`,ink3],
+        ['красный свет отклоняется сильнее синего — решётка раскладывает свет в спектр',ink3]];
+    }
+    const m1=this.minAngles(p).find(q=>q.m===1);
+    return [[`a·sinθ = mλ — это условие МИНИМУМОВ${m1?`; первый под углом ${(m1.th*180/Math.PI).toFixed(1)}°`:': минимумов нет, свет расходится во все стороны'}`,ink,true],
+      ['чем уже щель, тем шире центральный максимум: каждая точка щели — источник вторичной волны (Гюйгенс)',ink3]];
   },
+  fit(p,vp){ return fitСПояснением(vp,12.4,7.4,0.1,0.1,this.пояснения(p)); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const X0=-5, XS=-2.2, XSCR=4.6, HH=3.2;
-
-    // падающая плоская волна
+    const X0=-5.6, XS=-2.6, XSCR=4.2, HH=3.2, строки=this.пояснения(p), RGB=КС.rgbλ(p.lam), col=`rgb(${RGB})`;
+    v.занятьНиз(строки);
+    // источники вторичных волн: щели решётки или точки внутри одной щели
+    let src=[];
+    if(p.mode==='grating'){ const N=p.N, span=Math.min(2.6,(N-1)*0.2)/1, step=N>1?(2*span)/(N-1):0;
+      for(let i=0;i<N;i++) src.push(N>1?-span+i*step:0); }
+    else { const half=clamp(p.a*0.16,0.15,1.4); for(let i=0;i<12;i++) src.push(-half+2*half*(i+0.5)/12); }
+    // волновое поле за преградой (схема: λ увеличена) и плоская волна перед ней
     if(p.scheme){
-      ctx.strokeStyle=dang; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.2);
-      for(let x=X0;x<XS-0.3;x+=0.45){ ctx.beginPath(); ctx.moveTo(x,-HH*0.8); ctx.lineTo(x,HH*0.8); ctx.stroke(); }
-      ctx.globalAlpha=1;
-      v.arrow(ctx,X0+0.3,HH*0.95,X0+1.1,HH*0.95,dang);
-      v.label(ctx,'плоская волна',X0,HH,10,-8,dang);
+      const λs=0.5*p.lam/550, k=2*Math.PI/λs, w=s.ph*4.4, n=src.length;
+      КС.поле(ctx,XS,-HH,XSCR-XS,2*HH,140,130,(x,y)=>{
+        let re=0, im=0; for(const ys of src){ const r=Math.hypot(x-XS,y-ys), f=k*r-w; re+=Math.cos(f); im+=Math.sin(f); }
+        const e=re/n; return [RGB[0],RGB[1],RGB[2],0.8*e*e]; });
+      КС.поле(ctx,X0,-HH,XS-X0,2*HH,40,8,(x,y)=>{ const e=Math.cos(2*Math.PI/λs*(x-XS)-w); return [RGB[0],RGB[1],RGB[2],0.7*e*e]; });
+      v.arrow(ctx,X0+0.2,HH+0.25,X0+1.2,HH+0.25,dang);
+      v.text(ctx,'плоская волна',X0+1.35,HH+0.25,dang,10,'left');
     }
-
     // преграда со щелями
     ctx.fillStyle=ink;
     if(p.mode==='grating'){
-      const N=p.N, span=Math.min(2.6, N*0.22), step=N>1? (2*span)/(N-1) : 0;
-      const slits=[];
-      for(let i=0;i<N;i++){ const y=(N>1? -span+i*step : 0); slits.push(y); }
-      // сама преграда
       let prev=-HH;
-      for(const y of slits){
-        ctx.fillRect(XS-0.07, prev, 0.14, (y-0.07)-prev);
-        prev=y+0.07;
-      }
-      ctx.fillRect(XS-0.07, prev, 0.14, HH-prev);
-      // вторичные волны из каждой щели (принцип Гюйгенса)
-      ctx.strokeStyle=acc; ctx.globalAlpha=.22; ctx.lineWidth=v.lw(1);
-      for(const y of slits){ for(let k=1;k<=7;k++){
-        ctx.beginPath(); ctx.arc(XS,y,k*0.36,-Math.PI/2.3,Math.PI/2.3); ctx.stroke(); } }
-      ctx.globalAlpha=1;
-      v.label(ctx,`${N} щелей, период d = ${p.d} мкм`,XS,HH,-40,-12,ink3);
+      for(const y of src){ ctx.fillRect(XS-0.07,prev,0.14,(y-0.06)-prev); prev=y+0.06; }
+      ctx.fillRect(XS-0.07,prev,0.14,HH-prev);
+      v.text(ctx,`${p.N} щелей, d = ${p.d} мкм`,XS,-HH-0.3,ink3,10,'center');
     } else {
       const half=clamp(p.a*0.16,0.15,1.4);
-      ctx.fillRect(XS-0.07,-HH,0.14,HH-half);
-      ctx.fillRect(XS-0.07,half,0.14,HH-half);
-      // вторичные источники по ширине щели
-      ctx.strokeStyle=acc; ctx.globalAlpha=.22; ctx.lineWidth=v.lw(1);
-      for(let i=0;i<6;i++){ const y=-half+2*half*(i+0.5)/6;
-        for(let k=1;k<=6;k++){ ctx.beginPath(); ctx.arc(XS,y,k*0.4,-Math.PI/2.3,Math.PI/2.3); ctx.stroke(); } }
-      ctx.globalAlpha=1;
-      v.label(ctx,`щель шириной a = ${p.a} мкм`,XS,half,10,-10,ink3);
-      v.label(ctx,'каждая точка щели — источник вторичной волны (Гюйгенс)',XS,-HH,-20,20,ink3);
+      ctx.fillRect(XS-0.07,-HH,0.14,HH-half); ctx.fillRect(XS-0.07,half,0.14,HH-half);
+      v.text(ctx,`щель a = ${p.a} мкм`,XS,-HH-0.3,ink3,10,'center');
     }
-
     // экран и картина
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(3);
     ctx.beginPath(); ctx.moveTo(XSCR,-HH); ctx.lineTo(XSCR,HH); ctx.stroke();
-    const thMax=Math.PI/2.6;
-    const yOf=th=>Math.tan(th)*2.6;
-    // яркость
-    const NB=200;
-    for(let i=0;i<NB;i++){
-      const th=-thMax+2*thMax*i/NB;
-      const y=yOf(th); if(Math.abs(y)>HH) continue;
-      const I=this.I(p,th);
-      ctx.globalAlpha=clamp(I,0,1); ctx.fillStyle=dang;
-      ctx.fillRect(XSCR+0.06,y-0.03,0.3,0.09);
-      ctx.globalAlpha=1;
+    const thMax=Math.atan(HH/2.6), yOf=th=>Math.tan(th)*2.6;
+    for(let i=0;i<220;i++){
+      const th=-thMax+2*thMax*i/220, y=yOf(th), I=this.I(p,th);
+      ctx.globalAlpha=clamp(Math.sqrt(I),0,1); ctx.fillStyle=col;
+      ctx.fillRect(XSCR+0.06,y-0.02,0.34,2*HH/220*1.3);
     }
-    // кривая интенсивности
+    ctx.globalAlpha=1;
     ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath();
-    let started=false;
-    for(let i=0;i<=400;i++){
-      const th=-thMax+2*thMax*i/400, y=yOf(th);
-      if(Math.abs(y)>HH){ started=false; continue; }
-      const xx=XSCR+0.5+this.I(p,th)*1.5;
-      if(!started){ ctx.moveTo(xx,y); started=true; } else ctx.lineTo(xx,y);
-    }
+    for(let i=0;i<=500;i++){ const th=-thMax+2*thMax*i/500, y=yOf(th), xx=XSCR+0.55+this.I(p,th)*1.5; i?ctx.lineTo(xx,y):ctx.moveTo(xx,y); }
     ctx.stroke();
-    v.label(ctx,'I(θ)',XSCR+2.1,HH*0.9,-8,0,meas);
-
-    // отметки максимумов / минимумов
+    v.text(ctx,'I(θ)',XSCR+1.3,HH+0.25,meas,10,'center',true);
+    // отметки: максимумы решётки / минимумы щели; подписи — только пока не слипаются
     if(p.marks){
-      if(p.mode==='grating'){
-        for(const q of this.maxAngles(p)){
-          const y=yOf(q.th); if(Math.abs(y)>HH) continue;
-          ctx.strokeStyle=sec; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
-          ctx.beginPath(); ctx.moveTo(XS,0); ctx.lineTo(XSCR,y); ctx.stroke();
-          ctx.setLineDash([]); ctx.globalAlpha=1;
-          v.label(ctx,`m=${q.m}`,XSCR,y,-26,-4,sec);
-        }
-      } else {
-        for(const q of this.minAngles(p)){
-          const y=yOf(q.th); if(Math.abs(y)>HH) continue;
-          ctx.fillStyle=ink3; ctx.beginPath(); ctx.arc(XSCR+0.06,y,v.lw(2.5),0,7); ctx.fill();
-          v.label(ctx,`мин m=${q.m}`,XSCR,y,-40,-4,ink3);
-        }
+      const qs=p.mode==='grating'?this.maxAngles(p):this.minAngles(p), px=ppm();
+      let последний=-1e9;
+      for(const q of qs.slice().sort((a,b)=>yOf(a.th)-yOf(b.th))){
+        const y=yOf(q.th); if(Math.abs(y)>HH) continue;
+        if(p.mode==='grating'){ КС.пунктир(ctx,v,XS,0,XSCR,y,sec,.45); }
+        ctx.fillStyle=p.mode==='grating'?sec:ink3; ctx.beginPath(); ctx.arc(XSCR,y,v.lw(2.6),0,7); ctx.fill();
+        if((y-последний)*px>13 && Math.abs(q.m)<=6){ v.text(ctx,p.mode==='grating'?`m=${q.m}`:`мин ${q.m}`,XSCR-0.15,y,p.mode==='grating'?sec:ink3,9.5,'right'); последний=y; }
       }
     }
-    // сводка
-    const txt = p.mode==='grating'
-      ? `d·sinθ = mλ — главные максимумы; при N = ${p.N} они в ${p.N}² = ${p.N*p.N} раз ярче и в ${p.N} раз уже`
-      : `a·sinθ = mλ — минимумы; чем уже щель, тем шире центральный максимум`;
-    v.label(ctx,txt,0,-HH-0.5,-Math.round(txt.length*3),0,ink3);
+    v.пояснение(ctx,строки);
   }
 }
 

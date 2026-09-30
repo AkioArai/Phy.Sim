@@ -322,6 +322,48 @@ const VIEW={
      на период), амплитуда постоянна, хвост плавно гаснет, у головы стрелка,
      под линией — мягкий ореол того же цвета.
      o: {len, lam, amp, phase, color, lw, alpha} в метрах сцены. */
+  /* ---- Пояснение под рисунком (3.5.0) ----
+     Строки выводов («θ₁ < θпр — свет делится на два луча», «Γ = −d′/d…»)
+     раньше стояли пиксельными сдвигами от точки сцены и в узком окне
+     наезжали друг на друга и на рисунок. Теперь это блок в ЭКРАННЫХ
+     координатах у нижнего края кадра: строки переносятся по ширине кадра, а
+     fit сцены заранее отнимает его высоту (fitСПояснением).
+     строки: [[текст, цвет, жирно], …]; пустые пропускаются. */
+  _мера:null,
+  разбитьПояснение(строки,W){
+    const m=this._мера||(this._мера=document.createElement('canvas').getContext('2d'));
+    const k=this.textK||1, px=10.5*k, out=[];
+    for(const q of строки||[]){ if(!q||!q[0]) continue; const [t,col,bold]=q;
+      m.font=(bold?'600 ':'')+sceneFont(px); let cur='';
+      for(const w of String(t).split(' ')){ const tt=cur?cur+' '+w:w;
+        if(cur && m.measureText(безВекторов(tt)).width>W){ out.push({t:cur,col,bold}); cur=w; } else cur=tt; }
+      if(cur) out.push({t:cur,col,bold}); }
+    return {строки:out,px,lh:Math.round(px*1.42)};
+  },
+  высотаПояснения(строки,W){
+    const r=this.разбитьПояснение(строки,Math.max(120,(W||CW)-32));
+    return r.строки.length? r.строки.length*r.lh+14 : 0;
+  },
+  /* зовётся в начале draw: место пояснения занято заранее, и подписи сцены
+     (VIEW.label) обходят его, а не ложатся под плашку */
+  занятьНиз(строки){
+    if(сценаПолоска()) return;
+    const r=this.разбитьПояснение(строки,Math.max(120,CW-32)); if(!r.строки.length) return;
+    const h=r.строки.length*r.lh+10; this._lbl.push({x:0,y:CH-h-4,w:CW,h:h+4});
+  },
+  пояснение(ctx,строки){
+    if(сценаПолоска()) return 0;
+    const r=this.разбитьПояснение(строки,Math.max(120,CW-32)); if(!r.строки.length) return 0;
+    const h=r.строки.length*r.lh+10, y0=CH-h-4;
+    ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.globalAlpha=.86; ctx.fillStyle=css('--canvas')||'#fff'; ctx.fillRect(0,y0,CW,h+4); ctx.globalAlpha=1;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    r.строки.forEach((q,i)=>{ ctx.font=(q.bold?'600 ':'')+sceneFont(r.px); ctx.fillStyle=q.col||css('--ink-2');
+      текстСВекторами(ctx,q.t,CW/2,y0+5+r.lh*(i+0.5)); });
+    ctx.restore();
+    this._txt.push({x:0,y:y0,w:CW,h});
+    return h;
+  },
   photon(ctx,x,y,dir,o){
     o=o||{}; const len=o.len||1, lam=Math.max(o.lam||0.3,1e-3), A=o.amp==null?0.1:o.amp, ph=o.phase||0;
     const ux=Math.cos(dir), uy=Math.sin(dir), N=Math.max(24,Math.ceil(len/lam*22));
@@ -594,6 +636,13 @@ const SCENE_FONTS={mono:'ui-monospace,monospace',sans:'system-ui,sans-serif',ser
 function sceneFont(px){
   const f=SCENE_FONTS[prefGet('sceneFont')]||SCENE_FONTS.mono;
   return (px||prefGet('labelSize')||11)+'px '+f;
+}
+/* fit с местом под пояснением: рисунок w×h (центр cx, cy) вписывается в кадр
+   над блоком строк, который сцена выведет VIEW.пояснение (3.5.0). */
+function fitСПояснением(vp,w,h,cx,cy,строки,поля){
+  const W=(vp&&vp.W)||460, H=(vp&&vp.H)||320, hp=VIEW.высотаПояснения(строки,W), m=поля==null?24:поля;
+  const scale=clamp(Math.min((W-m)/(w*PX_PER_M),(H-hp-m)/(h*PX_PER_M)),0.002,30);
+  return {x:cx||0, y:(cy||0)-(hp/2)/(PX_PER_M*scale), scale};
 }
 /* Число для подписи на сцене: 8,43 · 1,7·10⁴ · 3,2·10⁻⁶ — без «8.4e+0» (3.4.0) */
 function числоНаСцене(v,знаков){
@@ -1011,7 +1060,7 @@ function этоЕдиница(u){
 function показание(v,u){
   if(typeof v==='number' && (v===0||v===1||isNaN(v)) && typeof u==='string' && u && !этоЕдиница(u))
     return {txt:true, v:u, u:''};
-  if(typeof v==='string') return {txt:true, v:v, u:u||''};
+  if(typeof v==='string') return v===''?{txt:true, v:u||'', u:''}:{txt:true, v:v, u:u||''};
   // целые (номер уровня, число электронов, заряд Z) — без «.00»
   const цел=Number.isInteger(v) && Math.abs(v)<1e4;
   return {txt:false, v:цел?String(v):fmt(v), u:u||''};
