@@ -1600,15 +1600,19 @@ radpressure:{
     {name:'Ближе к источнику — сильнее давление',values:{surf:'mirror',P:1000,r:1.5,A:2}},
     {name:'Солнечный парус: большая площадь',values:{surf:'mirror',P:5000,r:3,A:20}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const span=Math.max(p.r*1.9,8);
-    const scale=clamp(Math.min((W-70)/(span*PX_PER_M),(H-70)/(span*0.62*PX_PER_M)),0.002,30);
-    return {x:p.r/2,y:0,scale};
+  пояснения(p){
+    const I=this.I(p), out=[[`I = P/4πr² = ${I.toFixed(2)} Вт/м² · давление ${(this.pressure(p)*1e6).toFixed(3)} мкПа`,css('--ink-2'),true]];
+    if(p.surf==='radio') out.push(['по свету зеркальная лопасть получает вдвое больший импульс, чем чёрная',css('--second')],
+      ['но настоящая вертушка Крукса крутится наоборот: остаточный газ толкает нагретую чёрную сторону сильнее света',css('--ink-3')]);
+    else out.push([p.surf==='mirror'?'зеркало разворачивает импульс фотонов: p = 2I/c — вдвое больше, чем у чёрной мишени'
+      :'чёрная мишень поглощает импульс фотонов: p = I/c',css('--ink-3')]);
+    return out;
   },
+  fit(p,vp){ const span=Math.max(p.r*1.9,8); return fitСПояснением(vp,span,span*0.62,p.r/2,0,this.пояснения(p),50); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const I=this.I(p), F=this.force(p);
+    const I=this.I(p), F=this.force(p), строки=this.пояснения(p);
+    v.занятьНиз(строки);
     // источник
     ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(0,0,0.3,0,7); ctx.fill();
     ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1.4);
@@ -1629,7 +1633,6 @@ radpressure:{
       v.label(ctx,'чёрная: импульс ×1',p.r,-hh,10,10,ink);
       // вращение
       v.arrow(ctx,p.r+0.5,hh*0.6,p.r+0.5,hh*0.2,acc);
-      v.label(ctx,'зеркальная сторона получает вдвое больший импульс',p.r,0,-100,hh*20+30,ink3);
     } else {
       const mirror=p.surf==='mirror';
       ctx.fillStyle=mirror?sec:ink;
@@ -1676,12 +1679,6 @@ radpressure:{
           ctx.beginPath(); ctx.arc(xm+(xe-xm)*t, y+(ye-y)*t, v.lw(2.8),0,7); ctx.fill();
         }
       }
-      if(anyRefl){
-        v.label(ctx,'отражённые лучи уносят импульс назад',xs+0.2,-hh-0.35,0,16,sec);
-        v.label(ctx,'поэтому зеркало получает вдвое больший импульс',xs+0.2,-hh-0.35,0,32,ink3);
-      } else {
-        v.label(ctx,'свет поглощается: отражённых лучей нет',xs+0.2,-hh-0.35,0,16,ink3);
-      }
     }
     // сила давления
     if(p.force){
@@ -1689,10 +1686,7 @@ radpressure:{
       v.arrow(ctx,p.r+0.2,0,p.r+0.2+fl,0,acc);
       v.label(ctx,`F = ${(F*1e6).toFixed(3)} мкН`,p.r+0.2+fl,0,6,-6,acc);
     }
-    // сводка
-    const yb=-Math.max(hh+1.2,2.4);
-    v.label(ctx,`I = P/4πr² = ${I.toFixed(2)} Вт/м²,   давление = ${(this.pressure(p)*1e6).toFixed(3)} мкПа`,p.r/2,yb,-120,0,ink3);
-    v.label(ctx,'импульс излучения p = U/c; при отражении он передаётся вдвое',p.r/2,yb,-116,16,ink3);
+    v.пояснение(ctx,строки);
   }
 },
 
@@ -2096,8 +2090,8 @@ standing:{
       for(let i=0;i<=300;i++){ const x=L*i/300, y=this.yLeft(p,x,s.t); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
       ctx.globalAlpha=1;
-      v.text(ctx,'— волна вправо',0,3.05,acc,10,'left',true);
-      v.text(ctx,'— волна влево',0,2.7,meas,10,'left',true);
+      v.text(ctx,'— волна вправо',0,1.75+42/ppm(),acc,10,'left',true);
+      v.text(ctx,'— волна влево',0,1.75+28/ppm(),meas,10,'left',true);
     }
     // стоячая волна (сумма)
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2.6); ctx.beginPath();
@@ -2107,13 +2101,13 @@ standing:{
     if(p.nodes){
       ctx.fillStyle=ink;
       for(const x of this.nodePos(p)){ ctx.beginPath(); ctx.arc(x,0,v.lw(4),0,7); ctx.fill(); }
-      v.text(ctx,'● узлы — не колеблются',0,2.35,ink,10,'left',true);
+      v.text(ctx,'● узлы — не колеблются',0,1.75+14/ppm(),ink,10,'left',true);
       for(const x of this.antinodePos(p)){
         ctx.strokeStyle=sec; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
         ctx.beginPath(); ctx.moveTo(x,-p.A*1.15); ctx.lineTo(x,p.A*1.15); ctx.stroke();
         ctx.setLineDash([]); ctx.globalAlpha=1;
       }
-      v.text(ctx,'┆ пучности — наибольший размах',0,2.0,sec,10,'left',true);
+      v.text(ctx,'┆ пучности — наибольший размах',0,1.75,sec,10,'left',true);
       // разметка λ/2 между соседними узлами
       const n0=this.nodePos(p)[0], n1=this.nodePos(p)[1];
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
