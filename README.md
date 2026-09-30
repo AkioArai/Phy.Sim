@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-3.3.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-3.3.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-3.3.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-3.3.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-3.4.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-3.4.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-3.4.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-3.4.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -106,9 +106,31 @@ KaTeX and its fonts ship inside the repository.
 | **100** self-checks | three questions per topic, answers hidden until you have tried |
 | **147** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
-| **79** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
+| **80** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 3.4: scenes that stay readable
+
+- **Vector arrows are drawn, not left to the font.** Labels such as F⃗, v⃗ = ω⃗ × r⃗ or dφ⃗ used a
+  combining arrow that most fonts put beside the letter or drop altogether. The arrow is now drawn
+  over the letter everywhere: on the scene, in the readouts, in parameter names and presets.
+- **Five scenes rebuilt as panels.** Quarks (with a live picture of confinement: pull a quark and the
+  gluon tube snaps into a new quark–antiquark pair), radioactive decay (the particle flies out, freshly
+  decayed nuclei flash), neutron beta decay, the nucleus with a map of stability, and band theory.
+  Their labels were pixel offsets from one point and piled up in a narrow window; now every caption
+  lives inside its own frame, long lines wrap, and text shrinks a little with the picture.
+- **The picture avoids the panels.** "Fit to view" used to know only about the readouts panel. It now
+  finds the largest free rectangle between all floating panels — readouts, energy, PV diagram,
+  distribution — so the heat-engine cylinder no longer sits under the PV diagram. The force legend
+  picks a free corner.
+- **A compact readouts panel.** It shows the first six rows (4, 6, 10 or all, in Settings) with
+  "▾ N more". Words that old scenes stored as units ("0.00 the particle should not pass") are now
+  shown as words; whole numbers have no ".00"; scene numbers read 1.7·10⁴, not 1.7e+4.
+- **Fixes.** Bohr, Pauli, Compton, the wave packet, the particle in a box, the X-ray tube, binding
+  energy, micro- and macrostates, the heat engines, heating curves, the rigid-body scene and the
+  wave had overlapping captions; the spring's wall was outside the frame; the Carnot scene did not fit
+  at all in a narrow window. Four formulas in the notes had a raw "<" that broke their rendering.
 
 ### New in 3.3: 3D that is right-handed, a laser you can follow
 

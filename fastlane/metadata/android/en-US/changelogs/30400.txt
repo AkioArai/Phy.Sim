@@ -1,0 +1,4 @@
+3.4.0 — scenes that stay readable.
+• Vector arrows drawn over the letter everywhere: scene, readouts, parameters.
+• Quarks, decay, beta decay, the nucleus and band theory rebuilt; captions no longer overlap.
+• The picture fits around all panels; a compact readouts panel; numbers like 1.7·10⁴.

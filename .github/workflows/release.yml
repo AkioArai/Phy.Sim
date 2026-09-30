@@ -148,6 +148,18 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 3.4.0 — scenes that stay readable
+
+          **Vector arrows drawn properly** over the letter everywhere — on the scene, in readouts,
+          parameters and presets.
+
+          **Five scenes rebuilt as panels:** quarks (with live confinement), radioactive decay, neutron
+          beta decay, the nucleus with a stability map, band theory. Captions stay inside their frames.
+
+          **The picture avoids every floating panel**, the force legend picks a free corner, the readouts
+          panel is compact, words are shown as words and numbers as 1.7·10⁴. Overlapping captions fixed in
+          a dozen scenes.
+
           ## 3.3.0 — right-handed 3D, a laser you can follow
 
           **3D where it helps.** Minkowski's diagram in 2+1 dimensions with a real light cone and two

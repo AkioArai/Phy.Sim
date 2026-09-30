@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="3.3.0">
+<meta name="physim-build" content="3.4.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -1516,7 +1516,7 @@ table.ref tr:last-child td{border-bottom:0}
   font-family:var(--mono);line-height:1.5}
 .ro-l{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ro-v{color:var(--ink);font-variant-numeric:tabular-nums}
-.ro-u{color:var(--ink-3);min-width:2.2em}
+.ro-u{color:var(--ink-3);min-width:2.2em;max-width:9em;overflow-wrap:anywhere;line-height:1.25}
 .ro-more{display:block;color:var(--ink-3);opacity:.8}
 
 /* ==================================================================
@@ -4829,9 +4829,10 @@ conical:{
   fit(p,vp){
     const K=this.kin(p);
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const spanX=Math.max(K.R*2.6,2), spanY=Math.max(K.h*1.9,2);
+    // по вертикали — с запасом под стрелку mg ниже груза
+    const spanX=Math.max(K.R*2.6,2), spanY=Math.max(K.h*2.5,2.6);
     const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
-    return {x:0,y:-K.h/2,scale};
+    return {x:0,y:-K.h*0.72,scale};
   },
   draw(ctx,s,v,p){
     const r=this.pos(s,p), K=r.K, PZ=this.PZ;
@@ -7694,9 +7695,12 @@ spring:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const spanX=Math.max(p.A*3.2,4.5), spanY=spanX*H/W;
+    /* в кадр — от стены до крайнего положения груза (до 3.4.0 стена при
+       A ≥ 1,6 м оставалась за левым краем и пружина висела в воздухе) */
+    const wall=-Math.max(p.A*2,2.5), x0=wall-0.5, x1=p.A+1.5;
+    const spanX=x1-x0, spanY=4.4;
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    return {x:(x0+x1)/2,y:0.2,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
@@ -8609,7 +8613,7 @@ micro:{
 
     // ---- макросостояние крупно над ящиком
     v.text(ctx,`макросостояние: слева ${n}, справа ${N-n}`,Lx/2,Ly+st*1.9,ink,11,'center',true);
-    v.text(ctx,`микросостояний у него W = C(${N},${n}) = ${this.W(N,n).toExponential(3)}`,Lx/2,Ly+st*0.8,ink3,10,'center');
+    v.text(ctx,`микросостояний у него W = C(${N},${n}) = ${числоНаСцене(this.W(N,n),4)}`,Lx/2,Ly+st*0.8,ink3,10,'center');
     if(n===N) v.text(ctx,'✔ все слева — исходное состояние вернулось!',Lx/2,Ly+st*3,ok,11,'center',true);
 
     // ---- гистограмма весов W(n): «гора» с острым пиком у макросистемы
@@ -8650,7 +8654,7 @@ micro:{
 
     // ---- вывод главы: одна строка, ради которой всё и затевалось
     const tr=this.tReturn(p), yr=tr/3.156e7;
-    const when = yr>1e6 ? `${yr.toExponential(1)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
+    const when = yr>1e6 ? `${числоНаСцене(yr)} лет` : (tr>90? `${(tr/60).toFixed(1)} мин` : `${tr.toFixed(1)} с`);
     const y=КС.абзац(ctx,v,`вероятность «все слева» = 2^−${N}; среднее время возврата ≈ ${when}`,-0.4,(p.bars?-st*5.8-2.6:-st*2.5),Lx+0.8,ink3,10,'center');
     КС.абзац(ctx,v, N<=12 ? 'микросистема: возвраты случаются — необратимости нет'
                        : 'макросистема: возврат не запрещён, но не наступит никогда — это и есть II начало',-0.4,y,Lx+0.8,N<=12?ok:meas,10,'center',true);
@@ -8784,8 +8788,10 @@ thermo:{
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-80)/(6*PX_PER_M),(H-80)/(8*PX_PER_M)),0.002,30);
-    return {x:0,y:0,scale};
+    // цилиндр (−2,8…1,4) с подписями справа и снизу; поля — узкие, чтобы
+    // рисунок помещался и в свободный угол между панелями (3.4.0)
+    const scale=clamp(Math.min((W-36)/(6.4*PX_PER_M),(H-36)/(8.4*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.3,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
@@ -8919,7 +8925,13 @@ carnot:{
     {name:'Низкий КПД: T₁=400, T₂=360',values:{T1:400,T2:360,n:1,Va:8,ratio:1.6,gamma:1.5,cycles:0,tStop:0}},
     {name:'Один полный цикл',values:{T1:500,T2:350,n:1,Va:8,ratio:1.6,gamma:1.5,cycles:1,tStop:0}}
   ],
-  fit(p,vp){ return {x:0,y:0,scale:1}; },       // сцена рисует резервуары; PV — в панели
+  /* До 3.4.0 масштаб был постоянным (1) — в узком окне холодильник уходил
+     за нижний край. Теперь вписываем цилиндр с резервуарами целиком. */
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-36)/(6.4*PX_PER_M),(H-36)/(9.6*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.4,scale};
+  },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const st=this.stateAt(p,s.f), seg=Math.floor(((s.f%4)+4)%4);
@@ -8934,11 +8946,11 @@ carnot:{
       // нагреватель снизу (красный), когда контакт на изотерме T1 (seg 0)
       ctx.fillStyle=dang; ctx.globalAlpha=seg===0?0.5:0.15;
       ctx.fillRect(cx-0.3,cyTop+cyH+0.15,cw+0.6,0.5); ctx.globalAlpha=1;
-      v.label(ctx,`нагреватель T₁ = ${p.T1} K`,cx+cw/2,cyTop+cyH+0.65,-50,10,seg===0?dang:ink3);
+      v.text(ctx,`нагреватель T₁ = ${p.T1} K`,cx+cw/2,cyTop+cyH+0.65+9/ppm(),seg===0?dang:ink3,10,'center',seg===0);
       // холодильник сверху (синий), контакт на изотерме T2 (seg 2)
       ctx.fillStyle=sec; ctx.globalAlpha=seg===2?0.5:0.15;
       ctx.fillRect(cx-0.3,cyTop-0.9,cw+0.6,0.5); ctx.globalAlpha=1;
-      v.label(ctx,`холодильник T₂ = ${p.T2} K`,cx+cw/2,cyTop-0.9,-50,-4,seg===2?sec:ink3);
+      v.text(ctx,`холодильник T₂ = ${p.T2} K`,cx+cw/2,cyTop-1.4-10/ppm(),seg===2?sec:ink3,10,'center',seg===2);
     }
     // цилиндр
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.5);
@@ -8947,8 +8959,8 @@ carnot:{
     ctx.fillStyle=sec; ctx.fillRect(cx,pistonY-0.22,cw,0.22);
     ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.5); ctx.beginPath(); ctx.moveTo(cx+cw/2,pistonY-0.22); ctx.lineTo(cx+cw/2,cyTop-1.4); ctx.stroke();
     const phase=['A→B изотерм. расширение','B→C адиабат. расширение','C→D изотерм. сжатие','D→A адиабат. сжатие'][seg];
-    v.label(ctx,phase,cx+cw/2,cyTop,-46,-30,ink3);
-    v.label(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw/2,pistonY,cw*20+6,0,ink3);
+    v.text(ctx,phase,cx+cw+0.3,cyTop+cyH-12/ppm(),ink,10,'left',true);
+    v.text(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw+0.3,pistonY,ink3,10,'left');
   }
 }
 
@@ -9053,8 +9065,8 @@ calorimetry:{
   anchors(s,p){ return [{x:0,y:0}]; },
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const scale=clamp(Math.min((W-70)/(12*PX_PER_M),(H-70)/(9*PX_PER_M)),1e-7,30);
-    return {x:0,y:0.2,scale};
+    const scale=clamp(Math.min((W-50)/(11.2*PX_PER_M),(H-50)/(8.8*PX_PER_M)),1e-7,30);
+    return {x:0,y:-0.4,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
@@ -9070,13 +9082,13 @@ calorimetry:{
     ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y0); ctx.moveTo(x0,y0); ctx.lineTo(x0,y1); ctx.stroke();
     ctx.globalAlpha=1;
     v.label(ctx,'T, °C',x0,y1,-4,-8,ink3);
-    v.label(ctx,'подведённая теплота Q',x1,y0,-90,16,ink3);
+    v.text(ctx,'Q →',x1,y0-10/ppm(),ink3,10,'right');
     // опорные температуры
     for(const [T,lab,col] of [[S.Tm,`плавление ${S.Tm} °C`,sec],[S.Tb,`кипение ${S.Tb} °C`,dang]]){
       ctx.strokeStyle=col; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(x0,Y(T)); ctx.lineTo(x1,Y(T)); ctx.stroke();
       ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,lab,x0,Y(T),4,-6,col);
+      v.text(ctx,lab,x1,Y(T)+10/ppm(),col,10,'right',true);
     }
     // сама ломаная: наклон — нагрев, полка — переход
     ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
@@ -9086,8 +9098,9 @@ calorimetry:{
     // подписи этапов
     for(const g of stg){
       const xm=(X(g.Q0)+X(g.Q1))/2, flat=Math.abs(g.T1-g.T0)<1e-9;
-      if(X(g.Q1)-X(g.Q0)<0.5) continue;
-      v.label(ctx,g.kind,xm,Y((g.T0+g.T1)/2),-24,flat?-10:14,flat?meas:ink3);
+      // полки уже подписаны у пунктиров «плавление/кипение» — подписываем только наклоны
+      if(flat || X(g.Q1)-X(g.Q0)<0.5) continue;
+      v.label(ctx,g.kind,xm,Y((g.T0+g.T1)/2),6,12,ink3);
     }
     // текущая точка
     const cx=X(s.Q), cy=Y(cur.T);
@@ -9097,8 +9110,9 @@ calorimetry:{
     ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(cx,cy,v.lw(4.5),0,7); ctx.fill();
     v.label(ctx,`${cur.T.toFixed(1)} °C`,cx,cy,8,-8,dang);
     // ---- полоса подведённой теплоты ----
+    let низ=y0-14/ppm();
     if(p.bar){
-      const by=-2.5, bh=0.42;
+      const by=-2.5-10/ppm(), bh=0.42;
       ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.2);
       ctx.strokeRect(x0,by,x1-x0,bh);
       const cols=[sec,meas,acc,dang,ink3];
@@ -9109,13 +9123,13 @@ calorimetry:{
       });
       ctx.fillStyle=dang; ctx.globalAlpha=.55;
       ctx.fillRect(x0,by,cx-x0,bh); ctx.globalAlpha=1;
-      v.label(ctx,`подведено ${(s.Q/1000).toFixed(1)} кДж из ${(Qt/1000).toFixed(1)} кДж`,x0,by,0,-8,ink3);
-      v.label(ctx,`ширина участка = сколько теплоты он «съедает»`,x0,by,0,bh*20+14,ink3);
+      const k=1/ppm();
+      низ=КС.абзац(ctx,v,`подведено Q = ${(s.Q/1000).toFixed(1)} из ${(Qt/1000).toFixed(1)} кДж; ширина участка — сколько теплоты он «съедает»`,x0,by-11*k,x1-x0,ink3,9.5);
     }
-    // вывод
-    v.label(ctx,`${S.name}, ${p.m} кг: сейчас — ${cur.kind}`,x0,-3.4,0,0,acc);
-    v.label(ctx,'на полке вся теплота идёт на разрыв связей, а не на нагрев — термометр стоит',
-      x0,-3.4,0,16,ink3);
+    // вывод — строками в пикселях под полосой: при любом масштабе не наезжают
+    { const k=1/ppm(), yb=низ-6*k;
+      v.text(ctx,`${S.name}, ${p.m} кг: сейчас — ${cur.kind}`,x0,yb,acc,10,'left',true);
+      КС.абзац(ctx,v,'на полке вся теплота идёт на разрыв связей, а не на нагрев — термометр стоит',x0,yb-15*k,x1-x0,ink3,10); }
   }
 }
 ,
@@ -9975,7 +9989,7 @@ charged:{
     if(Ev.mag>1e-6){
       const fl=Math.min(2.2,0.4+Math.log10(1+Ev.mag)*0.4);
       v.arrow(ctx,p.px,p.py,p.px+Ev.Ex/Ev.mag*fl,p.py+Ev.Ey/Ev.mag*fl,meas);
-      v.label(ctx,`E = ${Ev.mag.toExponential(1)} В/м`,p.px+Ev.Ex/Ev.mag*fl,p.py+Ev.Ey/Ev.mag*fl,6,0,meas);
+      v.label(ctx,`E = ${числоНаСцене(Ev.mag)} В/м`,p.px+Ev.Ex/Ev.mag*fl,p.py+Ev.Ey/Ev.mag*fl,6,0,meas);
     }
     v.label(ctx,'пробу можно перетаскивать',0,-Math.max(p.R*2,10)+0.5,-56,0,ink3);
   }
@@ -10067,7 +10081,7 @@ capacitor:{
       const n=Math.max(3,Math.round(L*1.4));
       for(let i=0;i<n;i++){ const x=-L+ (i+0.5)*(2*L/n);
         ctx.globalAlpha=.6; v.arrow(ctx,x,half*0.85,x,-half*0.85,ink3); ctx.globalAlpha=1; }
-      v.label(ctx,`E = ${c.E.toExponential(1)} В/м`,L,0,8,0,ink3);
+      v.label(ctx,`E = ${числоНаСцене(c.E)} В/м`,L,0,8,0,ink3);
     }
     // пластины
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(5);
@@ -10913,7 +10927,7 @@ resistors:{
     else st=`R_экв = ${c.Req.toFixed(2)} Ом · I = ${(c.I*1000).toFixed(2)} мА · P = ${c.Psrc.toFixed(3)} Вт`;
     v.label(ctx,st,0,5.1,mid(st),0,col);
     if(c.status==='ok'){
-      const t=`ΣI в узле = ${c.kcl.toExponential(1)} А · независимых контуров: ${c.loops}`;
+      const t=`ΣI в узле = ${числоНаСцене(c.kcl)} А · независимых контуров: ${c.loops}`;
       v.label(ctx,t,0,5.1,mid(t),14,ink3);
     }
     const hint='ЛКМ от узла — вести провод · ПКМ — инструменты · Ctrl+Z — отменить отрезок';
@@ -16942,7 +16956,7 @@ debroglie:{
       if(L>0.03){ for(let i=0;i<=200;i++){ const x=gx+0.35+4.1*i/200, y=y0+0.3+0.18*Math.sin(2*Math.PI*(x-gx)/L-s.t*6); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } }
       else { ctx.moveTo(gx+0.35,y0+0.3); ctx.lineTo(gx+4.45,y0+0.3); }
       ctx.stroke();
-      v.text(ctx,L>0.03?`λ = ${lam.toFixed(4)} нм`:`λ ≈ ${lam.toExponential(1)} нм — в ${(1/r).toExponential(0)} раз меньше d`,gx+0.2,gy+0.2,dang,10,'left');
+      v.text(ctx,L>0.03?`λ = ${lam.toFixed(4)} нм`:`λ ≈ ${числоНаСцене(lam)} нм — в ${числоНаСцене(1/r,1)} раз меньше d`,gx+0.2,gy+0.2,dang,10,'left');
     }
     // пояснение внизу
     const [t1,t2]=vis?['каждый электрон — одна точка,','а вместе точки ложатся полосами: d·sin θ = mλ']
@@ -16950,7 +16964,7 @@ debroglie:{
           :['одно пятно: волна шарика несоизмеримо мала,','волновые свойства не видны']);
     v.text(ctx,t1,0,-YS-0.75,ink,11,'center',true);
     v.text(ctx,t2,0,-YS-1.15,ink,11,'center',true);
-    v.text(ctx,`λ = h/p = ${lam<1e-6?lam.toExponential(2):lam.toFixed(4)} нм,  p = ${this.p(p).toExponential(2)} кг·м/с`,0,-YS-1.6,ink3,10);
+    v.text(ctx,`λ = h/p = ${lam<1e-6?числоНаСцене(lam,3):lam.toFixed(4)} нм,  p = ${числоНаСцене(this.p(p),3)} кг·м/с`,0,-YS-1.6,ink3,10);
   }
 },
 
@@ -17255,7 +17269,7 @@ box:{
         ctx.beginPath(); ctx.moveTo(gx+0.2,y); ctx.lineTo(gx+(on?1.2:0.9),y); ctx.stroke(); ctx.globalAlpha=1;
         if(k<=2||on||k===top) v.text(ctx,`n=${k}`,gx+1.3,y,on?dang:ink3,9,'left',on); }
       v.text(ctx,'Eₙ ∝ n²',gx+gw/2,gy+0.22,ink3,10);
-      v.text(ctx,`${this.E(p,n)<0.01?this.E(p,n).toExponential(2):this.E(p,n).toFixed(3)} эВ`,gx+gw-0.12,gy+gh-0.28,dang,9,'right');
+      v.text(ctx,`${this.E(p,n)<0.01?числоНаСцене(this.E(p,n),3):this.E(p,n).toFixed(3)} эВ`,gx+gw-0.12,gy+gh-0.28,dang,9,'right');
     }
   }
 },
@@ -18072,7 +18086,7 @@ nucleus:{
       v.text(ctx,`● протонов Z = ${Z}`,bx+0.3,by+2.05,dang,10,'left',true);
       v.text(ctx,`● нейтронов N = ${N}`,bx+0.3,by+1.7,meas,10,'left',true);
       v.text(ctx,`R = R₀·∛A = ${this.R(p).toFixed(2)} фм`,bx+0.3,by+1.3,ink,10,'left');
-      КС.абзац(ctx,v,`плотность ${this.density(p).toExponential(2)} кг/м³ — одна у всех ядер: нуклоны уложены плотно, как в капле`,bx+0.3,by+0.85,bw-0.6,ink3,9.5);
+      КС.абзац(ctx,v,`плотность ${числоНаСцене(this.density(p),3)} кг/м³ — одна у всех ядер: нуклоны уложены плотно, как в капле`,bx+0.3,by+0.85,bw-0.6,ink3,9.5);
     }
     // ---- 2. карта стабильности N–Z
     if(p.map){
@@ -18646,7 +18660,7 @@ forces:{
       const lf=Math.log10(F); if(lf<LF0||lf>LF1) continue;
       ctx.fillStyle=COL[k]; ctx.beginPath(); ctx.arc(X(lr),Y(lf),v.lw(4),0,7); ctx.fill();
     }
-    const rt = r<1e-12 ? `${(r*1e15).toPrecision(3)} фм` : `${r.toExponential(1)} м`;
+    const rt = r<1e-12 ? `${(r*1e15).toPrecision(3)} фм` : `${числоНаСцене(r)} м`;
     v.text(ctx,`r = ${rt}`,X(lr),gy+gh+0.22,meas,10,'center',true);
 
     /* Расстановка сил — в ПРАВОМ ВЕРХНЕМ углу самого графика: кривые падают
@@ -18655,7 +18669,7 @@ forces:{
     const lx=gx+gw-0.15, ly=gy+gh-0.35;
     v.text(ctx,'здесь по убыванию:',lx,ly,ink3,9.5,'right');
     rows.forEach((q,i)=>{
-      const t=`${i+1}. ${this.INFO[q.k].name} ${q.F>1e-99?q.F.toExponential(1):'≈ 0'} Н`;
+      const t=`${i+1}. ${this.INFO[q.k].name} ${q.F>1e-99?числоНаСцене(q.F):'≈ 0'} Н`;
       v.text(ctx,t,lx,ly-0.34*(i+1),COL[q.k],9.5,'right',true);
     });
 
@@ -34977,7 +34991,19 @@ function легендаСил(ctx){
   ctx.font=sceneFont(Math.max(9,(+prefGet('labelSize')||11)-1)); ctx.textBaseline='middle';
   const строки=F.сил.map(f=>({цвет:f.color, текст:f.имя?`${f.label} — ${f.имя}`:f.label}));
   const w=Math.max(px+70, ...строки.map(r=>ctx.measureText(r.текст).width+22))+14;
-  const h=строки.length*15+28, x=10, y=CH-h-10;
+  const h=строки.length*15+28;
+  /* Угол выбираем свободный (3.4.0): левый нижний, если там нет подписей
+     сцены, иначе правый нижний (над подписью «сетка»). Раньше легенда
+     всегда ложилась влево вниз — поверх пояснений архимедовой силы и ракеты. */
+  const занято=[...VIEW._lbl,...VIEW._txt], наложение=(x,y)=>занято.reduce((a,r)=>{
+    const ox=Math.min(x+w,r.x+r.w)-Math.max(x,r.x), oy=Math.min(y+h,r.y+r.h)-Math.max(y,r.y);
+    return a+(ox>0&&oy>0?ox*oy:0); },0);
+  let x=10, y=CH-h-10, лучш=Infinity;
+  for(let dy=0; dy<=36; dy+=12){                           // чуть выше, если внизу подписи: на сам рисунок не залезаем
+    for(const [cx,cy] of [[10,CH-h-10-dy],[CW-w-10,CH-h-30-dy]]){
+      if(cx<0||cy<0) continue; const q=наложение(cx,cy);
+      if(q<лучш-1){ x=cx; y=cy; лучш=q; } }
+    if(лучш<1) break; }
   ctx.globalAlpha=.92; ctx.fillStyle=css('--chrome')||'#fff';
   ctx.fillRect(x,y,w,h); ctx.globalAlpha=1;
   ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,w-1,h-1);
@@ -35506,7 +35532,7 @@ const VIEW={
        2) если она перекрыла уже нарисованную, её сдвигаем по вертикали до
           свободного места (несколько попыток вверх/вниз).
      Список занятых прямоугольников обнуляется каждый кадр (labelFrame). */
-  _lbl:[],
+  _lbl:[], _txt:[],
   /* Память раскладки. Без неё каждый кадр решался с нуля: стоило сцене
      сдвинуться на пиксель, как подпись перескакивала на соседний ряд и тут же
      обратно — на панорамировании это выглядело как дрожь. Теперь для каждой
@@ -35521,7 +35547,7 @@ const VIEW={
     this._halo = prefGet('labelHalo')===false ? null
       : (prefGet('bgStyle')==='dark' ? '#161821' : (css('--canvas')||'#fff'));
     this._fbd=null;
-    this._lbl.length=0; this._lblSeq=0; this._lblFrame++;
+    this._lbl.length=0; this._txt.length=0; this._lblSeq=0; this._lblFrame++;
     if(this._lblFrame%600===0){                      // изредка чистим память
       for(const [k,m] of this._lblMem) if(this._lblFrame-m.f>600) this._lblMem.delete(k);
     }
@@ -35604,6 +35630,9 @@ const VIEW={
     ctx.font=(bold?'600 ':'')+sceneFont((px||(+prefGet('labelSize')||11))*this.textK);
     ctx.textAlign=align||'center'; ctx.textBaseline='middle';
     ctx.fillStyle=color||css('--ink-2'); текстСВекторами(ctx,String(text),sx,sy);
+    // место надписи запоминаем: по нему легенда сил выбирает свободный угол
+    if(this._txt.length<400){ const w=ctx.measureText(безВекторов(text)).width, al=ctx.textAlign, h=(px||11)*1.3;
+      this._txt.push({x:al==='center'?sx-w/2:(al==='right'?sx-w:sx),y:sy-h/2,w,h}); }
     ctx.restore();
   },
   /* ---- Диаграмма свободного тела (рис. 4-10 у Орира) ----
@@ -35953,6 +35982,16 @@ const SCENE_FONTS={mono:'ui-monospace,monospace',sans:'system-ui,sans-serif',ser
 function sceneFont(px){
   const f=SCENE_FONTS[prefGet('sceneFont')]||SCENE_FONTS.mono;
   return (px||prefGet('labelSize')||11)+'px '+f;
+}
+/* Число для подписи на сцене: 8,43 · 1,7·10⁴ · 3,2·10⁻⁶ — без «8.4e+0» (3.4.0) */
+function числоНаСцене(v,знаков){
+  if(!isFinite(v)) return '—';
+  const a=Math.abs(v), d=знаков==null?2:знаков;
+  if(a===0) return '0';
+  if(a>=1e4||a<1e-2){ const e=Math.floor(Math.log10(a)), m=v/Math.pow(10,e);
+    const ст=String(e).replace(/-/,'⁻').replace(/\d/g,c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'[c]);
+    return `${(+m.toFixed(Math.max(1,d-1))).toString()}·10${ст}`; }
+  return String(+v.toFixed(a>=100?Math.min(d,1):d));
 }
 const fmt=v=>{
   if(!isFinite(v)) return '—';
@@ -42971,7 +43010,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '3.3.0';
+window.PHYSIM_BUILD = '3.4.0';
 window.PHYSIM_READY = true;
 </script>
 </body>
