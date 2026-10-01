@@ -1,0 +1,4 @@
+3.5.0 — room for the scene on a phone, optics redone.
+• One-row transport with a "⋯" card; sideways the bar no longer covers the scene.
+• Optics: wavefronts and dispersion, F and F′ as in textbooks, telescopes, Young and grating wave fields, secant law.
+• Finite rotations: up to 100 moves.

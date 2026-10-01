@@ -148,6 +148,17 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 3.5.0 — room for the scene on a phone, optics redone
+
+          **Phone:** one-row transport with a "⋯" card; sideways the bar no longer covers the scene;
+          readouts as cards; the strip above the notes shows the moving bodies.
+
+          **Optics:** wavefronts and dispersion in refraction, Fresnel brightness, F and F′ as in
+          textbooks, telescopes on a distant object, wave fields in Young's experiment and the grating,
+          the secant law in the ionosphere, captions under every picture.
+
+          **Finite rotations:** up to 100 moves in three orders, with the drift after every move.
+
           ## 3.4.0 — scenes that stay readable
 
           **Vector arrows drawn properly** over the letter everywhere — on the scene, in readouts,

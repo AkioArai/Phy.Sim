@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="3.4.0">
+<meta name="physim-build" content="3.5.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -2779,6 +2779,14 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 }
 /* полоса 88 px над конспектом — «окно» в сцену: плавающие панели в ней только мешают */
 #cwrap.strip .fpanel{display:none!important}
+/* карточка «ещё» — аккуратная сетка 4×2 у правого края, а не полоса во всю ширину */
+[data-ui="mobile"] #m2more.open{display:grid;grid-template-columns:repeat(4,46px);gap:6px;width:auto}
+[data-ui="mobile"] #m2more .mb-sep{display:none}
+[data-ui="mobile"] #m2more .mb-btn{width:46px;height:46px}
+[data-ui="mobile"] #m2more #mb-zoom{grid-column:span 2;width:auto;height:46px;text-align:center}
+/* словесное показание («слева от линзы, выше оси») — мельче и в две строки */
+[data-ui="mobile"] .msheet-ro .sr-v.sr-txt{font-size:12.5px;white-space:normal;line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:inherit}
 </style>
 </head>
 <body>
@@ -35817,14 +35825,14 @@ const VIEW={
      (VIEW.label) обходят его, а не ложатся под плашку */
   занятьНиз(строки){
     if(сценаПолоска()) return;
-    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const поле=(typeof isNarrow==='function'&&isNarrow())?78:16;
     const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return;
     const h=r.строки.length*r.lh+10; this._lbl.push({x:0,y:CH-h-4,w:CW,h:h+4});
   },
   пояснение(ctx,строки){
     if(сценаПолоска()) return 0;
     /* на телефоне справа внизу висит круглая кнопка инструментов — обходим её */
-    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const поле=(typeof isNarrow==='function'&&isNarrow())?78:16;
     const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return 0;
     const h=r.строки.length*r.lh+10, y0=CH-h-4;
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -40839,7 +40847,7 @@ function renderSheetReadouts(){
   if(!a||!a.def.readouts){ box.innerHTML=''; return; }
   box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>{ const q=показание(v,u);
     return `<div class="sr"><span class="sr-l">${векторыHTML(esc(l))}${q.u?', '+esc(q.u):''}</span>` +
-    `<span class="sr-v">${esc(q.v)}</span></div>`; }).join('');
+    `<span class="sr-v${q.txt?' sr-txt':''}">${esc(q.v)}</span></div>`; }).join('');
 }
 /* Ручка листа: тянут — меняется положение, короткий тап — следующее. */
 (function листРучка(){
@@ -43173,7 +43181,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '3.4.0';
+window.PHYSIM_BUILD = '3.5.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

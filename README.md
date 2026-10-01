@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-3.4.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-3.4.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-3.4.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-3.4.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-3.5.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-3.5.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-3.5.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-3.5.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -93,7 +93,7 @@ KaTeX and its fonts ship inside the repository.
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
 | **40** topics in **8** sections | each one opens with what to try, then five points to remember; the full notes are one click below, collapsed |
-| **103** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
+| **106** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
 | **161** points to remember | the five sentences per topic you would want on an exam morning |
 | **97** derivations, **382** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
 | **calculator with units** | 72 км/ч в м/с, (2,5 ± 0,1) м / (3,0 ± 0,2) с, h c / (500 нм) в эВ — every number carries its dimension, adding metres to seconds is refused, uncertainty propagates |
@@ -109,6 +109,29 @@ KaTeX and its fonts ship inside the repository.
 | **80** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 3.5: a phone layout that leaves room for the scene, optics redone
+
+- **Phone.** The bottom of the sheet is one row now — play, reset, undo and speed — and the rarely
+  used buttons (zoom, fit, redo, menu, settings) live in a "⋯" card above it. On a phone held
+  sideways the transport bar used to stand up as a column across the whole screen and hide the
+  scene; now transport and the timeline share one row. Readouts are cards with two-line labels.
+  The 88-pixel strip above the notes shows a window onto the moving bodies instead of a random
+  crop with piled-up captions.
+- **Optics, reviewed end to end.** Refraction shows wavefronts in the colour of the light, bunching
+  up in the denser medium; the refractive index now depends on wavelength (violet bends more than
+  red), and reflected and transmitted rays are as bright as the Fresnel formulas say. Total internal
+  reflection: the ray escaping a fibre was drawn at the wrong angle. Lens: F is the front focus and
+  F′ the back one, as in textbooks, and the third ray works for a diverging lens too. Optical bench:
+  telescopes look at a distant object, with the angular magnification −F₁/F₂. Young's experiment and
+  the grating show the wave field itself — bright and dark beams — and fringes in the colour of the
+  light. The ionosphere scene has the angle of the beam and the secant law f < fp/sin β. Every optics
+  scene puts its conclusions in a caption under the picture instead of over it. In the notes:
+  the secant law, Fresnel losses, the half-wave in thin films; refraction problems no longer treat
+  diamond as glass.
+- **Finite rotations, many of them.** Up to 100 moves, in three orders (alternating, a random sequence
+  and its reverse, a random shuffle), with a plot of how far the two books have drifted after each
+  move. At 90° the drift goes 0 → 120° → 120° → 0 and both books are back home after six moves.
 
 ### New in 3.4: scenes that stay readable
 
@@ -498,7 +521,7 @@ data all did nothing there.
 
 ### Every simulation checked against the textbook
 
-`npm run physics` is a separate harness: **625 checks** that take a simulation's
+`npm run physics` is a separate harness: **627 checks** that take a simulation's
 readouts and compare them with a number computed from the closed-form solution,
 written out independently of the simulation's own code. Parameters are deliberately
 un-round (a wrong coefficient hides behind a nice number), the reference constants
@@ -668,7 +691,7 @@ email, put on a flash drive, or open by double-clicking.
 ```
 index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
-tests/physics.mjs     625 checks of readouts against closed-form solutions
+tests/physics.mjs     627 checks of readouts against closed-form solutions
 tests/answers.mjs     all 430 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
 tests/calc.mjs        the calculator, and every course formula solved both ways

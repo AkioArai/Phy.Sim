@@ -1595,6 +1595,29 @@ async function сторож(b) {
         т.вектор && т.показания && т.числа && т.мимо && т.панельные && т.кегль, т);
     }
 
+    /* ============ 3.5.0 ============ */
+    /* Конечные повороты — до ста ходов; оптика: дисперсия, Френель, закон
+       секанса, F′ — задний фокус, телескоп на далёкий предмет; пояснение
+       под рисунком не налезает на сцену. */
+    {
+      const т = await p.evaluate(async () => {
+        const R = SIMS.rigid3d, h = R.ходы({ hod:100, ang:90, seq:'alt' });
+        const ходы = h.N === 100 && h.MA.length === 101 && Math.abs(R.ходы({ hod:6, ang:90, seq:'alt' }).разн[6]) < 1e-9;
+        const Rf = SIMS.refraction, фиол = Rf.theta2({ mat1:'air', mat2:'glass', ang:50, lam:400 }), красн = Rf.theta2({ mat1:'air', mat2:'glass', ang:50, lam:700 });
+        const дисперсия = фиол < красн && Math.abs(Rf.n2({ mat2:'glass', lam:550 }) - 1.5) < 1e-12;
+        const френель = Math.abs(Rf.R({ mat1:'air', mat2:'glass', ang:0, lam:550 }) - 0.04) < 1e-9;
+        const P = SIMS.plasma, секанс = !P.passes({ Ne:10, f:12, beta:25 }) && P.passes({ Ne:10, f:12, beta:90 });
+        const фокус = SIMS.lens.focusName({ side:'right' }) === 'F′';
+        const B = SIMS.bench, кеп = B.chain(Object.assign({ demo:'kepler', n:2 }, B.DEMOS.kepler));
+        const телескоп = Math.abs(кеп.уг + 9) < 1e-9 && !isFinite(кеп.x);
+        openSim('lens'); restart(A()); fitView(); drawAll();
+        const плашка = VIEW._txt.some(r => r.w === CW && r.y > CH * 0.5);
+        return { ходы, дисперсия, френель, секанс, фокус, телескоп, плашка };
+      });
+      ok('3.5: сто ходов поворотов, дисперсия, Френель, закон секанса, F′, телескоп Кеплера ×9, пояснение под рисунком',
+        Object.values(т).every(Boolean), т);
+    }
+
     /* Декоративных градиентов больше нет: шапка темы, главная, кнопки */
     {
       const град = await p.evaluate(() => {
@@ -1706,6 +1729,35 @@ async function сторож(b) {
       out.док = getComputedStyle(document.querySelector('#mb-tools')).display !== 'none';
       return out;
     });
+    /* Дно листа (3.5.0): одна строка, редкие кнопки — в карточке «ещё»,
+       которая видна поверх листа. Боком строка не встаёт столбиком. */
+    const дно = await m.p.evaluate(async () => {
+      const жди = t => new Promise(r => setTimeout(r, t || 300));
+      openSim('lens'); openSimMobile(); setDetent('peek'); await жди(500);
+      const m2 = document.querySelector('#mbar2').getBoundingClientRect();
+      m2ещё(true); await жди();
+      const k = document.querySelector('#m2more').getBoundingClientRect();
+      const сверху = (document.elementFromPoint(k.left + k.width / 2, k.top + 12) || document.body).closest('#m2more') !== null;
+      m2ещё(false);
+      return { высота: Math.round(m2.height), сверху, карта: Math.round(k.height) };
+    });
+    ok('дно листа в одну строку, карточка «ещё» поверх листа', дно.высота < 64 && дно.сверху && дно.карта > 60, дно);
+    {
+      const бок = await b.newPage({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true,
+        userAgent: 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36' });
+      await бок.route('**cdnjs.cloudflare.com**', r => r.abort());
+      await бок.goto(url); await бок.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {});
+      await бок.waitForTimeout(600);
+      const r = await бок.evaluate(async () => {
+        закрытьГлавную(); openTopic('mech.dyn'); openSim('newton2'); openSimMobile(); setDetent('peek');
+        await new Promise(z => setTimeout(z, 600));
+        const m2 = document.querySelector('#mbar2').getBoundingClientRect(), c = document.querySelector('#cwrap').getBoundingClientRect();
+        return { ui: document.documentElement.dataset.ui, док: Math.round(m2.height), сцена: Math.round(c.height) };
+      });
+      await бок.close();
+      ok('телефон боком: транспорт строкой, сцене остаётся место', r.ui === 'mobile' && r.док < 64 && r.сцена > 150, r);
+    }
+
     /* Конспект на телефоне. Правила листа прятали `#content` в положении
        «край» — а это положение по умолчанию и единственное, когда симуляция
        закрыта. Читать на телефоне было нечего, при том что текст исправно
