@@ -2642,3 +2642,11 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 }
 /* полоса 88 px над конспектом — «окно» в сцену: плавающие панели в ней только мешают */
 #cwrap.strip .fpanel{display:none!important}
+/* карточка «ещё» — аккуратная сетка 4×2 у правого края, а не полоса во всю ширину */
+[data-ui="mobile"] #m2more.open{display:grid;grid-template-columns:repeat(4,46px);gap:6px;width:auto}
+[data-ui="mobile"] #m2more .mb-sep{display:none}
+[data-ui="mobile"] #m2more .mb-btn{width:46px;height:46px}
+[data-ui="mobile"] #m2more #mb-zoom{grid-column:span 2;width:auto;height:46px;text-align:center}
+/* словесное показание («слева от линзы, выше оси») — мельче и в две строки */
+[data-ui="mobile"] .msheet-ro .sr-v.sr-txt{font-size:12.5px;white-space:normal;line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:inherit}

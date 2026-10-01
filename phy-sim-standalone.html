@@ -2728,6 +2728,57 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 #cwrap.narrow .histobox .hbars{height:70px}
 /* на узкой сцене строки под PV-графиком — те же числа, что в показателях: прячем */
 #cwrap.narrow .pvbox .pvrow{display:none}
+
+/* ======================= ТЕЛЕФОН, 3.5.0 =======================
+   Дно листа — одна строка; редкие кнопки — в карточке «ещё» над ней.
+   Раньше в альбомной ориентации правило «вторая панель в один ряд»
+   перебивалось более поздним display:block, ряды получали display:contents,
+   и кнопки вставали столбиком во всю высоту экрана поверх сцены. Теперь
+   раскладка одна для обеих ориентаций и стоит в конце файла. */
+[data-ui="mobile"] .mbar2.show{display:block}
+[data-ui="mobile"] .mbar2 .m2row{display:flex;align-items:center;gap:2px;width:100%}
+[data-ui="mobile"] .mbar2 .m2row+.m2row{margin:0;padding:0;border:0}
+#m2more{display:none}
+[data-ui="mobile"] #m2more.open{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;
+  position:fixed;z-index:135;right:8px;bottom:calc(var(--foot,56px) + var(--vvbottom,0px) + 8px);
+  max-width:calc(100vw - 16px);padding:8px;border:1px solid var(--line);border-radius:16px;
+  background:var(--chrome);box-shadow:var(--shadow-lg);animation:m2pop .16s ease-out}
+@keyframes m2pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+[data-ui="mobile"] #m2more .mb-btn{flex:0 0 44px;width:44px;height:44px;border-radius:10px}
+[data-ui="mobile"] #m2more .m2val{flex:0 0 64px}
+[data-ui="mobile"] #m2more .mb-sep{width:1px;height:22px;background:var(--line);margin:0 4px;align-self:center}
+[data-ui="mobile"] #m2more #mb-back2,[data-ui="mobile"] #m2more .m2fps{display:none}
+[data-ui="mobile"].home-on #m2more{display:none}
+[data-ui="mobile"] .mbar2 #mb-back2,[data-ui="mobile"] .m2fps{display:none}
+[data-ui="mobile"] .mbar2 #mb-more2[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent)}
+[data-ui="mobile"] .mbar2 .mb-btn{height:40px}
+[data-ui="mobile"] .mbar2 .mbplay.m2play{flex:0 0 46px;width:46px;height:40px;border-radius:12px}
+@media (orientation:landscape){
+  [data-ui="mobile"] .mbar2.show{display:block}
+  [data-ui="mobile"] .mbar2 .m2row{display:flex}
+  [data-ui="mobile"] .mbar2 .mb-btn{height:34px}
+  [data-ui="mobile"] .mbar2 .mbplay.m2play{height:34px}
+}
+
+/* Строка показаний листа — карточки: подпись в две строки, число крупно,
+   край подсказывает, что строку можно листать. */
+[data-ui="mobile"] .msheet-ro{scroll-snap-type:x proximity;
+  -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+[data-ui="mobile"] .msheet-ro .sr{scroll-snap-align:start;background:var(--panel-2);border-radius:10px;
+  padding:5px 10px 6px;min-width:78px;max-width:140px}
+[data-ui="mobile"] .msheet-ro .sr-l{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;line-height:1.2}
+[data-ui="mobile"] .msheet-ro{flex:0 0 66px;gap:8px}
+/* Телефон боком: высоты мало — транспорт и перемотка встают в одну строку. */
+@media (orientation:landscape){
+  [data-ui="mobile"] .mbar2.show{right:50%;border-right:1px solid var(--divider)}
+  [data-ui="mobile"] #m2more.open{right:auto;left:8px;max-width:calc(50vw - 16px)}
+  [data-ui="mobile"] .timeline{left:50%!important;height:var(--foot,40px)!important}
+  [data-ui="mobile"] .msheet-ro{flex-basis:58px}
+  [data-ui="mobile"] .msheet-ro .sr{padding:3px 9px 4px}
+}
+/* полоса 88 px над конспектом — «окно» в сцену: плавающие панели в ней только мешают */
+#cwrap.strip .fpanel{display:none!important}
 </style>
 </head>
 <body>
@@ -2999,38 +3050,43 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
            в нижней панели компьютера: отмена/повтор, сброс, время, масштаб,
            вписать, настройки, помощь и меню симуляции. Поля скорости и
            масштаба редактируемые, как на компьютере. -->
+      <!-- ============ ТЕЛЕФОН: дно листа (3.5.0) ============
+           Одна строка вместо двух: пуск, сброс, отмена и скорость — то, что
+           нажимают постоянно. Масштаб, вписывание, повтор, меню и настройки
+           ушли в карточку «ещё» над строкой: они нужны редко, а строка
+           масштаба отнимала у сцены полсотни пикселей. -->
       <div class="mbar2" id="mbar2">
         <div class="m2row">
-          <!-- Пуск/стоп продублирован здесь: без него приходилось прыгать
-               между рядами ради самой частой кнопки. -->
           <button class="mbplay m2play" id="mb-play2" title="Пуск / стоп">
             <svg viewBox="0 0 24 24" id="ic-mbplay2"><path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/></svg>
             <svg viewBox="0 0 24 24" id="ic-mbpause2" style="display:none"><path d="M8 4v16M16 4v16" stroke-width="2.4"/></svg></button>
-          <button class="iconbtn mb-btn" id="mb-undo" title="Отменить последнее действие">
-            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
-          <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
-            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h3"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-reset" title="Сбросить симуляцию">
             <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-undo" title="Отменить последнее действие">
+            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-3"/></svg></button>
           <span class="mb-sep"></span>
           <button class="iconbtn mb-btn" id="mb-slow" title="Медленнее"><svg viewBox="0 0 24 24"><path d="M11 5 5 12l6 7M19 5l-6 7 6 7"/></svg></button>
           <input class="m2val" id="mb-speed" value="1×" title="Скорость времени (можно вписать своё)" inputmode="decimal">
           <button class="iconbtn mb-btn" id="mb-fast" title="Быстрее"><svg viewBox="0 0 24 24"><path d="m13 5 6 7-6 7M5 5l6 7-6 7"/></svg></button>
           <span class="mb-sep"></span>
-          <button class="iconbtn mb-btn" id="mb-back2" title="Вернуть основную панель">
-            <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-more2" title="Ещё: масштаб, вписать, повтор, меню, настройки" aria-expanded="false">
+            <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>
         </div>
-        <div class="m2row">
+        <div class="m2row m2more">
           <button class="iconbtn mb-btn" id="mb-zout" title="Отдалить"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
           <input class="m2val" id="mb-zoom" value="100%" title="Масштаб (можно вписать своё)" inputmode="decimal">
           <button class="iconbtn mb-btn" id="mb-zin" title="Приблизить"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-fit" title="Вписать сцену">
             <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
           <span class="mb-sep"></span>
+          <button class="iconbtn mb-btn" id="mb-redo" title="Параметры вперёд">
+            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h3"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-menu" title="Меню симуляции: запись, снимки, пресеты">
             <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 4v5h6"/></svg></button>
           <button class="iconbtn mb-btn" id="mb-settings" title="Настройки">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+          <button class="iconbtn mb-btn" id="mb-back2" title="Вернуть основную панель">
+            <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
           <div class="m2fps" id="mb-fps">—</div>
         </div>
       </div>
@@ -14228,15 +14284,19 @@ radpressure:{
     {name:'Ближе к источнику — сильнее давление',values:{surf:'mirror',P:1000,r:1.5,A:2}},
     {name:'Солнечный парус: большая площадь',values:{surf:'mirror',P:5000,r:3,A:20}}
   ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const span=Math.max(p.r*1.9,8);
-    const scale=clamp(Math.min((W-70)/(span*PX_PER_M),(H-70)/(span*0.62*PX_PER_M)),0.002,30);
-    return {x:p.r/2,y:0,scale};
+  пояснения(p){
+    const I=this.I(p), out=[[`I = P/4πr² = ${I.toFixed(2)} Вт/м² · давление ${(this.pressure(p)*1e6).toFixed(3)} мкПа`,css('--ink-2'),true]];
+    if(p.surf==='radio') out.push(['по свету зеркальная лопасть получает вдвое больший импульс, чем чёрная',css('--second')],
+      ['но настоящая вертушка Крукса крутится наоборот: остаточный газ толкает нагретую чёрную сторону сильнее света',css('--ink-3')]);
+    else out.push([p.surf==='mirror'?'зеркало разворачивает импульс фотонов: p = 2I/c — вдвое больше, чем у чёрной мишени'
+      :'чёрная мишень поглощает импульс фотонов: p = I/c',css('--ink-3')]);
+    return out;
   },
+  fit(p,vp){ const span=Math.max(p.r*1.9,8); return fitСПояснением(vp,span,span*0.62,p.r/2,0,this.пояснения(p),50); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const I=this.I(p), F=this.force(p);
+    const I=this.I(p), F=this.force(p), строки=this.пояснения(p);
+    v.занятьНиз(строки);
     // источник
     ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(0,0,0.3,0,7); ctx.fill();
     ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1.4);
@@ -14257,7 +14317,6 @@ radpressure:{
       v.label(ctx,'чёрная: импульс ×1',p.r,-hh,10,10,ink);
       // вращение
       v.arrow(ctx,p.r+0.5,hh*0.6,p.r+0.5,hh*0.2,acc);
-      v.label(ctx,'зеркальная сторона получает вдвое больший импульс',p.r,0,-100,hh*20+30,ink3);
     } else {
       const mirror=p.surf==='mirror';
       ctx.fillStyle=mirror?sec:ink;
@@ -14304,12 +14363,6 @@ radpressure:{
           ctx.beginPath(); ctx.arc(xm+(xe-xm)*t, y+(ye-y)*t, v.lw(2.8),0,7); ctx.fill();
         }
       }
-      if(anyRefl){
-        v.label(ctx,'отражённые лучи уносят импульс назад',xs+0.2,-hh-0.35,0,16,sec);
-        v.label(ctx,'поэтому зеркало получает вдвое больший импульс',xs+0.2,-hh-0.35,0,32,ink3);
-      } else {
-        v.label(ctx,'свет поглощается: отражённых лучей нет',xs+0.2,-hh-0.35,0,16,ink3);
-      }
     }
     // сила давления
     if(p.force){
@@ -14317,10 +14370,7 @@ radpressure:{
       v.arrow(ctx,p.r+0.2,0,p.r+0.2+fl,0,acc);
       v.label(ctx,`F = ${(F*1e6).toFixed(3)} мкН`,p.r+0.2+fl,0,6,-6,acc);
     }
-    // сводка
-    const yb=-Math.max(hh+1.2,2.4);
-    v.label(ctx,`I = P/4πr² = ${I.toFixed(2)} Вт/м²,   давление = ${(this.pressure(p)*1e6).toFixed(3)} мкПа`,p.r/2,yb,-120,0,ink3);
-    v.label(ctx,'импульс излучения p = U/c; при отражении он передаётся вдвое',p.r/2,yb,-116,16,ink3);
+    v.пояснение(ctx,строки);
   }
 },
 
@@ -14724,8 +14774,8 @@ standing:{
       for(let i=0;i<=300;i++){ const x=L*i/300, y=this.yLeft(p,x,s.t); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
       ctx.globalAlpha=1;
-      v.text(ctx,'— волна вправо',0,3.05,acc,10,'left',true);
-      v.text(ctx,'— волна влево',0,2.7,meas,10,'left',true);
+      v.text(ctx,'— волна вправо',0,1.75+42/ppm(),acc,10,'left',true);
+      v.text(ctx,'— волна влево',0,1.75+28/ppm(),meas,10,'left',true);
     }
     // стоячая волна (сумма)
     ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2.6); ctx.beginPath();
@@ -14735,13 +14785,13 @@ standing:{
     if(p.nodes){
       ctx.fillStyle=ink;
       for(const x of this.nodePos(p)){ ctx.beginPath(); ctx.arc(x,0,v.lw(4),0,7); ctx.fill(); }
-      v.text(ctx,'● узлы — не колеблются',0,2.35,ink,10,'left',true);
+      v.text(ctx,'● узлы — не колеблются',0,1.75+14/ppm(),ink,10,'left',true);
       for(const x of this.antinodePos(p)){
         ctx.strokeStyle=sec; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1);
         ctx.beginPath(); ctx.moveTo(x,-p.A*1.15); ctx.lineTo(x,p.A*1.15); ctx.stroke();
         ctx.setLineDash([]); ctx.globalAlpha=1;
       }
-      v.text(ctx,'┆ пучности — наибольший размах',0,2.0,sec,10,'left',true);
+      v.text(ctx,'┆ пучности — наибольший размах',0,1.75,sec,10,'left',true);
       // разметка λ/2 между соседними узлами
       const n0=this.nodePos(p)[0], n1=this.nodePos(p)[1];
       ctx.strokeStyle=ink3; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1);
@@ -27572,11 +27622,11 @@ const T_matter={
 
     {level:3, sim:'plasma', unit:'МГц',
      statement:`Во сколько раз нужно увеличить концентрацию электронов, чтобы слой начал
-       <strong>отражать</strong> волну текущей частоты $f$? Если он её уже отражает,
-       ответьте «события нет».`,
-     hint:'Отражение начинается при $f_p=f$, а $f_p\\propto\\sqrt{N}$.',
-     answer:p=>{ const fp=8.98*Math.sqrt(p.Ne*1e11), f=p.f*1e6;
-       if(fp>=f) return NaN; return Math.pow(f/fp,2); }},
+       <strong>отражать</strong> волну текущей частоты $f$, идущую под текущим углом $\\beta$ к горизонту?
+       Если он её уже отражает, ответьте «события нет».`,
+     hint:'Наклонный луч отражается при $f_p=f\\sin\\beta$ (закон секанса), а $f_p\\propto\\sqrt{N}$.',
+     answer:p=>{ const fp=8.98*Math.sqrt(p.Ne*1e11), f=p.f*1e6, sb=Math.sin((p.beta==null?90:p.beta)*Math.PI/180);
+       if(fp>=f*sb) return NaN; return Math.pow(f*sb/fp,2); }},
 
     {level:4, sim:'plasma', unit:'м/с',
      statement:`Чему равна <strong>групповая</strong> скорость волны в плазме — та, с которой
@@ -27588,7 +27638,7 @@ const T_matter={
 
     {level:5, sim:'plasma', unit:'10¹¹ м⁻³',
      statement:`Какой должна быть концентрация электронов в ионосфере, чтобы она отражала
-       волны с частотой $f$, но пропускала вдвое более высокие? Ответ — пороговая
+       <em>вертикально</em> посланные волны с частотой $f$, но пропускала вдвое более высокие? Ответ — пороговая
        концентрация в тех же единицах, в которых $N_e$ задан в параметрах.`,
      hint:'Пороговое условие — равенство плазменной частоты и частоты волны.',
      answer:p=>Math.pow(p.f*1e6/8.98,2)/1e11}
@@ -27607,7 +27657,7 @@ const T_interf={
   explore:[
     {sim:'interf2', do:`Сблизьте источники`, see:`полосы на экране станут шире — они обратны расстоянию между щелями`},
     {sim:'interf2', do:`Выключите когерентность`, see:`картина смажется в ровное пятно`},
-    {sim:'standing', do:`Подберите частоту под гармонику`, see:`узлы встанут на место и перестанут бежать`},
+    {sim:'standing', do:`Переберите номер гармоники $n$ и включите «две встречные волны»`, see:`узлов всегда $n+1$, между соседними — ровно $\\lambda/2$; бегущие волны движутся, а их сумма стоит на месте`},
   ],
   theory:`
   <p>До сих пор мы имели дело с одним источником волн. Теперь посмотрим, что будет, если источников несколько.
@@ -27685,10 +27735,12 @@ const T_interf={
   <h3 class="sub">Тонкие плёнки</h3>
   <p>Разноцветные разводы на мыльном пузыре и на бензиновой луже — тоже интерференция. Свет отражается
   дважды: от верхней и от нижней поверхности плёнки, и два отражённых луча складываются с разностью хода
-  примерно $2nh$, где $h$ — толщина. Для одних длин волн получается максимум, для других — минимум,
+  примерно $2nh$, где $h$ — толщина, плюс ещё полволны: отражение от более плотной среды (воздух → вода)
+  переворачивает фазу, а от менее плотной — нет. Для одних длин волн получается максимум, для других — минимум,
   и белый свет окрашивается.</p>
   <p>Толщина плёнки меняется от места к месту, поэтому цвет плывёт; а перед самым разрывом мыльная плёнка
-  становится чёрной сверху — там она много тоньше длины волны, и отражения гасят друг друга полностью.
+  становится чёрной сверху — там она много тоньше длины волны, разность хода сводится к одним этим полволнам,
+  и отражения гасят друг друга полностью.
   На этом же явлении основано <strong>просветление оптики</strong>: тонкий слой на линзе подбирают так,
   чтобы отражения гасились, и объектив пропускал больше света. Характерный сиреневый отблеск хорошего
   объектива — это как раз то, что просветление не сумело погасить.</p>`,
@@ -35455,10 +35507,17 @@ function resize(){
   const r=$('#cwrap').getBoundingClientRect();
   DPR=S.settings.quality==='low'?1:Math.min(devicePixelRatio||1,S.settings.quality==='high'?2:1.5);
   const cap=+S.settings.dprCap||0; if(cap>0) DPR=Math.min(DPR,cap);   // жёсткий предел чёткости из настроек
+  const былаПолоска=CH>0&&CH<140, былоCH=CH;          // 140 — порог ПОЛОСКА (объявлен ниже)
   CW=r.width; CH=r.height;
+  /* Телефон (3.5.0): сцена вошла в полосу над конспектом или вышла из неё —
+     вписываем заново. Иначе в полосе 88 px оставался вид, рассчитанный на
+     полный экран, и виден был случайный обрезок рисунка. */
+  if(typeof isNarrow==='function' && isNarrow() && A() && былоCH>0 && (былаПолоска!==(CH>0&&CH<140)))
+    requestAnimationFrame(()=>{ if(typeof fitView==='function') fitView(); });
   /* узкая сцена (3.4.0): плавающие панели ужимаются, чтобы не ложиться друг
      на друга — см. #cwrap.narrow в стилях */
   $('#cwrap').classList.toggle('narrow', CW>0 && CW<660);
+  $('#cwrap').classList.toggle('strip', CH>0 && CH<140);        // полоса над конспектом: панели прячем
   for(const c of [scene,overlay]){ c.width=Math.max(1,CW*DPR); c.height=Math.max(1,CH*DPR); }
   for(const c of gcanvas){ const b=c.getBoundingClientRect();
     c.width=Math.max(1,b.width*DPR); c.height=Math.max(1,b.height*DPR); }
@@ -35571,7 +35630,10 @@ const VIEW={
     }
   },
   label(ctx,text,wx,wy,dx=0,dy=0,color){
-    if(S.settings.nums===false || сценаПолоска()){     // режим «без чисел» / сцена-полоска
+    /* В полосе над конспектом (88 px) подписи превращались в кашу поверх
+       рисунка — там это взгляд на тела, а не прибор (3.5.0). */
+    if(сценаПолоска()) return;
+    if(S.settings.nums===false){                     // режим «без чисел»
       text=String(text).replace(/=\s*[-+]?[\d.,]+(?:e[-+]?\d+)?\s*[^\s,;]*/gi,'')
                        .replace(/\s{2,}/g,' ').trim();
       if(!text) return;
@@ -35643,6 +35705,7 @@ const VIEW={
      чтобы не налезать друг на друга; для содержимого клеток таблицы это
      вредно: символ уезжает в соседнюю клетку. align — 'center' | 'left' | 'right'. */
   text(ctx,text,wx,wy,color,px,align,bold){
+    if(сценаПолоска()) return;
     const [sx,sy]=toScreen(wx,wy);
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.font=(bold?'600 ':'')+sceneFont((px||(+prefGet('labelSize')||11))*this.textK);
@@ -35754,12 +35817,15 @@ const VIEW={
      (VIEW.label) обходят его, а не ложатся под плашку */
   занятьНиз(строки){
     if(сценаПолоска()) return;
-    const r=this.разбитьПояснение(строки,Math.max(120,CW-32)); if(!r.строки.length) return;
+    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return;
     const h=r.строки.length*r.lh+10; this._lbl.push({x:0,y:CH-h-4,w:CW,h:h+4});
   },
   пояснение(ctx,строки){
     if(сценаПолоска()) return 0;
-    const r=this.разбитьПояснение(строки,Math.max(120,CW-32)); if(!r.строки.length) return 0;
+    /* на телефоне справа внизу висит круглая кнопка инструментов — обходим её */
+    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return 0;
     const h=r.строки.length*r.lh+10, y0=CH-h-4;
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.globalAlpha=.86; ctx.fillStyle=css('--canvas')||'#fff'; ctx.fillRect(0,y0,CW,h+4); ctx.globalAlpha=1;
@@ -38721,6 +38787,16 @@ const zoom=f=>{ const a=A(); if(!a) return; a.view.scale=clamp(a.view.scale*f,ZM
    тепловой машины уходил под PV-диаграмму справа. Если свободное место
    слишком мало (мельче половины кадра), панели просто лежат поверх. */
 function видВКадре(def,params){
+  /* Полоса над конспектом (телефон, 88 px, 3.5.0): вписать всю сцену в неё —
+     значит сделать тела точками. Берём обычный масштаб, как у сцены
+     нормальной высоты, и центрируем полосу на телах (anchors) — видно
+     «окно» в самое интересное место. */
+  if(CH>0 && CH<140 && typeof isNarrow==='function' && isNarrow()){
+    const g=def.fit(params,{W:CW,H:Math.max(CH,CW*0.62)}), a=A();
+    let ys=[]; try{ if(def.anchors&&a) ys=(def.anchors(a.state,params)||[]).map(q=>q.y).filter(isFinite); }catch(_){}
+    const yc=ys.length?(Math.min(...ys)+Math.max(...ys))/2:g.y;
+    return Object.assign({},g,{y:yc});
+  }
   const f=def.fit(params,{W:CW,H:CH});
   const wr=document.querySelector('#cwrap'); if(!wr) return f;
   const w=wr.getBoundingClientRect(), преп=[];
@@ -40698,9 +40774,13 @@ function setSheetTab(t){
      оставил лист развёрнутым, не схлопываем. */
   const надо = t==='params' ? 'half' : 'full';
   const сейчас=detent();
-  if(сейчас==='peek' || (надо==='full' && сейчас==='half')) setDetent(надо,true);
+  const сменили = сейчас==='peek' || (надо==='full' && сейчас==='half');
+  if(сменили) setDetent(надо,true);
   syncSheet();
-  requestAnimationFrame(()=>{ resize(); syncBottomInset(); });
+  /* Коробка сцены поменялась — вписываем заново (3.5.0). Раньше в полосе над
+     конспектом оставался старый вид, рассчитанный на весь экран, и в 88 px
+     попадал случайный обрезок: пара подписей без рисунка. */
+  requestAnimationFrame(()=>{ resize(); if(сменили) fitView(); syncBottomInset(); });
 }
 function syncSheet(){
   /* В компьютерной раскладке листа нет — и его инлайновых display тоже не
@@ -40742,8 +40822,11 @@ function syncSheet(){
   const полный = d==='full';
   const h=(!полный && m2&&m2.classList.contains('show'))?m2.offsetHeight:0;
   const ht=(!полный && тл&&!тл.classList.contains('hidden'))?тл.offsetHeight:0;
-  document.documentElement.style.setProperty('--mbar2h',h+'px');
-  document.documentElement.style.setProperty('--foot',(h+ht)+'px');
+  /* В альбомной ориентации перемотка стоит в одной строке с транспортом
+     (3.5.0) — тогда высоты не складываются. */
+  const водну = h&&ht && innerWidth>innerHeight;
+  document.documentElement.style.setProperty('--mbar2h',(водну?0:h)+'px');
+  document.documentElement.style.setProperty('--foot',(водну?Math.max(h,ht):h+ht)+'px');
   const sh=$('#simhead-h'); void sh;
   const шапка=document.querySelector('.simhead');
   if(шапка) document.documentElement.style.setProperty('--simhead-h',(шапка.offsetHeight||36)+'px');
@@ -40788,6 +40871,19 @@ $$('#mb-fwd').onclick=()=>$('#tl-next').click();
 $$('#mb-params').onclick=()=>mSheet();
 $$('#mb-more').onclick=()=>mbarRow(true);
 $$('#mb-back2').onclick=()=>mbarRow(false);
+/* Карточка «ещё» над дном листа (3.5.0): открывается кнопкой «⋯», закрывается
+   ею же или касанием мимо. Масштаб внутри можно жать много раз подряд —
+   поэтому кнопки карточки её не закрывают, кроме меню и настроек. */
+/* Карточка живёт прямо в <body>: панель сцены — свой слой (z-index 70), и
+   всё, что внутри неё, оказывалось под листом показаний, как высоко ни ставь. */
+(function(){ const m=document.querySelector('#mbar2 .m2more'); if(m){ m.id='m2more'; document.body.appendChild(m); } })();
+function m2ещё(open){ const m=$('#m2more'), b=$('#mb-more2'); if(!m||!b) return;
+  const now=open===undefined?!m.classList.contains('open'):!!open;
+  m.classList.toggle('open',now); b.setAttribute('aria-expanded',String(now)); }
+$$('#mb-more2').onclick=e=>{ e.stopPropagation(); m2ещё(); };
+document.addEventListener('pointerdown',e=>{ const m=$('#m2more');
+  if(m&&m.classList.contains('open')&&!e.target.closest('#m2more')&&!e.target.closest('#mb-more2')) m2ещё(false); },true);
+for(const id of ['#mb-menu','#mb-settings']){ const el=$(id); if(el) el.addEventListener('click',()=>m2ещё(false)); }
 $$('#mb-reset').onclick=()=>$('#btn-reset').click();
 $$('#mb-zin').onclick=()=>$('#btn-zin').click();
 $$('#mb-zout').onclick=()=>$('#btn-zout').click();

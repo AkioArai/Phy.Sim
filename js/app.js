@@ -359,14 +359,14 @@ const VIEW={
      (VIEW.label) обходят его, а не ложатся под плашку */
   занятьНиз(строки){
     if(сценаПолоска()) return;
-    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const поле=(typeof isNarrow==='function'&&isNarrow())?78:16;
     const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return;
     const h=r.строки.length*r.lh+10; this._lbl.push({x:0,y:CH-h-4,w:CW,h:h+4});
   },
   пояснение(ctx,строки){
     if(сценаПолоска()) return 0;
     /* на телефоне справа внизу висит круглая кнопка инструментов — обходим её */
-    const поле=(typeof isNarrow==='function'&&isNarrow())?64:16;
+    const поле=(typeof isNarrow==='function'&&isNarrow())?78:16;
     const r=this.разбитьПояснение(строки,Math.max(120,CW-2*поле)); if(!r.строки.length) return 0;
     const h=r.строки.length*r.lh+10, y0=CH-h-4;
     ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -5381,7 +5381,7 @@ function renderSheetReadouts(){
   if(!a||!a.def.readouts){ box.innerHTML=''; return; }
   box.innerHTML=a.def.readouts(a.state,a.params).map(([l,v,u])=>{ const q=показание(v,u);
     return `<div class="sr"><span class="sr-l">${векторыHTML(esc(l))}${q.u?', '+esc(q.u):''}</span>` +
-    `<span class="sr-v">${esc(q.v)}</span></div>`; }).join('');
+    `<span class="sr-v${q.txt?' sr-txt':''}">${esc(q.v)}</span></div>`; }).join('');
 }
 /* Ручка листа: тянут — меняется положение, короткий тап — следующее. */
 (function листРучка(){
