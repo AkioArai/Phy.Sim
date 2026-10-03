@@ -803,7 +803,7 @@ async function сторож(b) {
     });
     ok('меню сцены разложено по вкладкам',
         menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
-        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 6 && menu.обычная.ещё.includes('Мой путь')
+        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 8 && menu.обычная.ещё.includes('Мой путь') && menu.обычная.ещё.includes('Урок по слайдам')
         && menu.всего > menu.обычная.сцена.length, menu.обычная);
     ok('конструктор получает свою вкладку и открывает её сразу',
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
@@ -1071,7 +1071,7 @@ async function сторож(b) {
     await p.waitForTimeout(150);
     const площадь = await разбор();
     ok('касание графика x(t): наклон сверен с v(t)',
-      /Коснитесь графика/.test(подсказка) && /Касательная в момент/.test(касательная) &&
+      подсказка.trim() === '' && /Касательная в момент/.test(касательная) &&
       /Наклон графика «x\(t\)»: [\d,−-]+ м\/с\. График «v\(t\)» в этот же момент: [\d,−-]+ м\/с — совпадает/.test(касательная), { подсказка, касательная });
     ok('протяжка по графику v(t): площадь сверена с изменением x(t)',
       /Площадь под графиком «v\(t\)»: [\d,−-]+ м\. Изменение величины «x\(t\)» за это время: [\d,−-]+ м — совпадает/.test(площадь), площадь);
@@ -1095,7 +1095,8 @@ async function сторож(b) {
     });
     ok('ЭДС = −dΦ/dt: наклон берётся с минусом', /взятый с минусом: [\d,−-]*[1-9]/.test(ленц) && /совпадает/.test(ленц), ленц);
     const сброс = await p.evaluate(() => { restart(A()); drawGraphs(); return document.querySelector('#g-an').innerText; });
-    ok('сброс симуляции снимает разбор', /Коснитесь графика/.test(сброс), сброс);
+    // 5.0.0: без разбора блок пуст и не занимает места — подсказки-абзаца больше нет
+    ok('сброс симуляции снимает разбор', сброс.trim() === '', сброс);
 
     /* ============ 2.0.0 ============ */
     /* «Второй закон»: число тел задаёт n, поля bodies там нет. Группа
@@ -1268,12 +1269,12 @@ async function сторож(b) {
       await new Promise(r => setTimeout(r, 120));
       const ch = document.querySelector('.chead');
       return { деревоЦвет: sec && sec.classList.contains('sx') && !!sec.querySelector('.sec-ic'),
-        цвет: getComputedStyle(ch).getPropertyValue('--sec').trim(), значок: !!document.querySelector('#t-ic svg'),
+        цвет: getComputedStyle(ch).getPropertyValue('--sec').trim(), безЧипов: !document.querySelector('#t-ic, .chead .tm-chip'),
         сводка: document.querySelector('#t-meta').textContent.replace(/\s+/g, ' ').trim(),
         чтение: document.querySelector('#readbar i').style.transform, наверх: !document.querySelector('.to-top').classList.contains('hidden') };
     });
-    ok('раздел в цвете: значок в дереве и шапке, сводка темы, полоса чтения и «наверх»',
-      раздел.деревоЦвет && раздел.цвет === '#ea580c' && раздел.значок && /мин/.test(раздел.сводка) && /15 задач/.test(раздел.сводка) &&
+    ok('раздел в цвете: значок в дереве, в шапке только время чтения (5.0), полоса чтения и «наверх»',
+      раздел.деревоЦвет && раздел.цвет === '#ea580c' && раздел.безЧипов && /^· \d+ мин$/.test(раздел.сводка) &&
       /scaleX\(0\.[1-9]/.test(раздел.чтение) && раздел.наверх, раздел);
 
     /* Главный экран: при запуске, разделы открывают первую неосвоенную тему */
@@ -1284,16 +1285,16 @@ async function сторож(b) {
       await hp.goto(url); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm-sec').length,
         цвета: [...document.querySelectorAll('#home .hm-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
-        поиск: !!document.querySelector('#hm-search'), вопрос: !!document.querySelector('#home .hm-q') }));
+        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home canvas[data-mini]').length }));
       await hp.click('#home .hm-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
       const тема = await hp.evaluate(() => ({ тема: S.topic.id, скрыта: !главнаяОткрыта() }));
       await hp.click('#btn-home'); await hp.waitForTimeout(200);
-      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm-cont') || {}).textContent || '' }));
+      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm5-h') || {}).textContent || '' }));
       await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
       await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
       ok('главный экран: 7 разделов в своих цветах, раздел ведёт в тему, «Главная» возвращает, настройка «сразу тема»',
-        главная.видна && главная.разделов === 7 && new Set(главная.цвета).size === 7 && главная.поиск && главная.вопрос &&
+        главная.видна && главная.разделов === 7 && new Set(главная.цвета).size === 7 && главная.поиск && главная.миниатюр === 7 &&
         тема.тема === 'op.matter' && тема.скрыта && снова.видна && /Взаимодействие излучения/.test(снова.продолжить) &&
         !безГлавной.видна && безГлавной.тема === 'op.matter' && hErrs.length === 0, { главная, тема, снова, безГлавной, hErrs });
 
@@ -1630,33 +1631,41 @@ async function сторож(b) {
       ok('декоративных градиентов нет', Object.values(град).every(x => !/gradient/.test(x)), град);
     }
 
-    /* ============ 4.0.0 ============ */
-    /* Чернильная панель и знак; главная: витрина, задача дня ведёт к своей
-       задаче, дневник; словарь размечает первое упоминание и открывает
-       карточку; урок собирается из темы и листается клавишами; «сначала
-       предскажите» прячет результат опыта. */
+    /* ============ 5.0.0 ============ */
+    /* Чернильная панель и знак; свои шрифты загружены; на главной живое поле
+       и миниатюры, задача дня ведёт к своей задаче; в шапке темы нет чипов;
+       чтения вслух и режима прогноза больше нет; термины по умолчанию не
+       подчёркнуты, по настройке — подчёркнуты и открывают карточку; урок
+       собирается из темы и листается клавишами. */
     {
       const т = await p.evaluate(async () => {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {};
         const бар = getComputedStyle(document.querySelector('.topbar')).backgroundColor;
         r.панель = document.documentElement.dataset.bar === 'ink' && /rgb\(14, 17, 24\)/.test(бар) && !!document.querySelector('#tbrand');
+        await document.fonts.ready;
+        r.шрифты = document.fonts.check('700 20px "Inter Tight"') && document.fonts.check('16px Inter') && document.fonts.check('12px "JetBrains Mono"');
         открытьГлавную(); await жди(400);
-        r.витрина = !!document.querySelector('#hm-cv') && document.querySelector('#hm-cv').width > 0;
-        r.дневник = document.querySelectorAll('.hm4-heat .dy').length === 140;
-        ДНЕВНИК.добавить(3); r.минуты = (LS.get('activity', {})[ДНЕВНИК.день()] || 0) >= 3;
+        const cv = document.querySelector('#hm-cv');
+        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home canvas[data-mini]').length === 7;
+        r.безЛишнего = !document.querySelector('#home .hm-q, #home .hm-tools, #home .hm4-heat, #home .hm-foot');
         const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
         кн.click(); await жди(700);
         const цель = document.querySelector(`#pane .problem[data-i="${зд.i}"]`);
         r.задача = S.topic.id === зд.т && S.tab === 'problems' && !!цель && цель.classList.contains('flash');
+        r.ушло = typeof читатьВслух === 'undefined' && typeof подключитьПрогноз === 'undefined' && !PREFS.some(x => x.key === 'predict') &&
+          !document.querySelector('.t-acts, .m-acts, .statusbar .brand, .simhead-lbl') && !document.querySelector('#pane .pr-lead');
         openTopic('mech.dyn'); await жди(200);
+        r.тихо = !document.querySelector('#pane .gl');
+        S.settings.glossary = true; renderPane(); await жди(50);
         const gl = document.querySelectorAll('#pane .gl'), имена = Array.from(gl).map(g => ГЛОССАРИЙ[+g.dataset.g].т);
         r.термины = gl.length >= 5 && new Set(имена).size === имена.length && !document.querySelector('#pane .katex .gl, #pane h2 .gl, #pane button .gl');
         gl[0].click(); await жди(100);
         const pop = document.querySelector('#glpop');
         r.карточка = !!pop && !pop.classList.contains('hidden') && pop.textContent.includes(ГЛОССАРИЙ[+gl[0].dataset.g].т);
-        закрытьТермин();
-        r.палитра = cmdkSource && (document.querySelector('#cmdk-inp').value = 'импульс', cmdkSource().some(x => x.k === 'Термин' && x.t === 'Импульс'));
+        закрытьТермин(); S.settings.glossary = false; renderPane();
+        document.querySelector('#cmdk-inp').value = 'импульс';
+        r.палитра = cmdkSource().some(x => x.k === 'Термин' && x.t === 'Импульс');
         начатьУрок(); await жди(150);
         const n = УРОК.слайды.length;
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -1665,15 +1674,9 @@ async function сторож(b) {
           document.querySelector('#lesson .ls-n').textContent.trim() === `3 / ${n}` && document.querySelector('#simpane').getBoundingClientRect().width > 200;
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         r.выход = !УРОК.вкл && getComputedStyle(document.querySelector('#pane')).display !== 'none';
-        S.settings.predict = true; renderPane();
-        const li = document.querySelector('#pane .ex-list li');
-        r.прогноз = li.classList.contains('predict') && getComputedStyle(li.querySelector('.exl-see')).display === 'none';
-        li.querySelector('.exl-rev').click();
-        r.прогноз = r.прогноз && getComputedStyle(li.querySelector('.exl-see')).display !== 'none';
-        S.settings.predict = false; renderPane();
         return r;
       });
-      ok('4.0: чернильная панель, витрина и дневник, задача дня ведёт к задаче, словарь и карточка термина, урок клавишами, «сначала предскажите»',
+      ok('5.0: панель, шрифты, живое поле и миниатюры, задача дня, лишнее убрано, термины по настройке, урок клавишами',
         Object.values(т).every(Boolean), т);
     }
 
@@ -1937,7 +1940,9 @@ async function сторож(b) {
     const урокТел = await m.p.evaluate(async () => {
       const жди = ms => new Promise(r => setTimeout(r, ms));
       openTopic('op.optics'); await жди(200);
-      const кнопки = !!document.querySelector('#pane .m-acts [data-a="lesson"]');
+      setSheetTab('notes'); await жди(100);
+      const кнопки = !!document.querySelector('#mi-lesson') && getComputedStyle(document.querySelector('#msheet-ro')).display === 'none' &&
+        getComputedStyle(document.querySelector('#m-calc')).display === 'none' && getComputedStyle(document.querySelector('#m-search')).display !== 'none';
       начатьУрок(); await жди(200);
       const el = document.querySelector('#lesson'), b = el.getBoundingClientRect();
       const x = innerWidth / 2, y = innerHeight / 2, сверху = document.elementFromPoint(x, y);
@@ -1951,7 +1956,7 @@ async function сторож(b) {
         поверх, свайп: УРОК.i === до + 1 };
       закончитьУрок(); return r;
     });
-    ok('телефон: урок во весь экран поверх листа, свайп листает, кнопки урока в конспекте', Object.values(урокТел).every(x => x === true), урокТел);
+    ok('телефон: урок из меню во весь экран поверх листа, свайп листает; в шапке поиск вместо вычислителя, показания только у параметров', Object.values(урокТел).every(x => x === true), урокТел);
 
     await m.p.close();
 

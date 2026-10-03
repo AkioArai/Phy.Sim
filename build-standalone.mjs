@@ -112,7 +112,9 @@ for (const f of ['js/topics.js', 'js/ops.js']) {
   checkSingleBackslash(read(f));
 }
 const bundle = JS_FILES.map((f) => read(f)).join('\n;\n').replace(/<\/script>/gi, '<\\/script>');
-const css = read('css/style.css');
+/* Свои шрифты (5.0.0) — туда же, в base64: в одном файле папки vendor/fonts нет. */
+const css = read('css/style.css').replace(/url\(\.\.\/vendor\/fonts\/([A-Za-z0-9_\-]+\.woff2)\)/g,
+  (_, f) => `url(data:font/woff2;base64,${readFileSync(join(root,'vendor/fonts',f)).toString('base64')})`);
 
 let html = read('index.html');
 /* replace() ВАЖНО: заменяем через функцию, а не строку — у строки-замены

@@ -1,0 +1,6 @@
+5.0.0 — a clean sheet.
+• New look with bundled Inter and Inter Tight fonts.
+• Home screen with a live electric field and a live picture for every section.
+• Topics without boxes and chips — just text, formulas and the model.
+• A lighter phone layout: fewer buttons, readouts only with the parameters.
+• Removed clutter: reading aloud, activity diary, extra captions.

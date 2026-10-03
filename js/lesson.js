@@ -71,7 +71,6 @@ function начатьУрок(){
   if(typeof закрытьПриём==='function') закрытьПриём();
   if(typeof закрытьТермин==='function') закрытьТермин();
   document.documentElement.dataset.lesson='on';
-  остановитьЧтение();
   слайдУрока(0);
   setTimeout(()=>dispatchEvent(new Event('resize')),30);
 }
@@ -123,93 +122,3 @@ addEventListener('keydown',e=>{
   addEventListener('touchend',e=>{ if(x0===null) return; const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0; x0=null;
     if(Math.abs(dx)>60&&Math.abs(dx)>1.5*Math.abs(dy)) слайдУрока(УРОК.i+(dx<0?1:-1)); },{passive:true});
 })();
-
-/* ===================== «СНАЧАЛА ПРЕДСКАЖИТЕ» (4.0.0) =====================
-   Опыт, результат которого написан рядом, ничего не проверяет: глаз
-   прочитал ответ раньше, чем рука подвинула ползунок. С включённой
-   настройкой результат в «Покрутите сами» скрыт, пока вы не сделаете
-   прогноз. Ничего не засчитывается и не хранится — это для головы. */
-function подключитьПрогноз(pane){
-  if(typeof prefGet!=='function'||!prefGet('predict')) return;
-  pane.querySelectorAll('.explore .ex-list li').forEach(li=>{
-    if(li.querySelector('.exl-rev')) return;
-    li.classList.add('predict');
-    const b=document.createElement('button'); b.className='exl-rev';
-    b.textContent='Мой прогноз готов — показать';
-    b.onclick=()=>{ li.classList.remove('predict'); b.remove(); };
-    li.appendChild(b);
-  });
-}
-
-/* ===================== ЧТЕНИЕ ВСЛУХ (4.0.0) =====================
-   Встроенный синтезатор речи браузера, русский голос, если он есть.
-   Формулы не проговариваются (синтезатор читает TeX как кашу) — на их месте
-   короткая пауза со словом «формула». Читается то, что сейчас в конспекте,
-   абзац за абзацем; уже прочитанный абзац подсвечивается. */
-const ЧТЕНИЕ={вкл:false,очередь:[],узел:null};
-function чтениеДоступно(){ return typeof speechSynthesis!=='undefined'&&typeof SpeechSynthesisUtterance!=='undefined'; }
-function текстДляЧтения(el){
-  const c=el.cloneNode(true);
-  c.querySelectorAll('.katex-display').forEach(k=>k.replaceWith(document.createTextNode(' Формула. ')));
-  c.querySelectorAll('.katex').forEach(k=>k.replaceWith(document.createTextNode(' формула ')));
-  c.querySelectorAll('button,.op-chip,.f-kind,.exl-rev').forEach(k=>k.remove());
-  return c.textContent.replace(/\s+/g,' ').trim();
-}
-function читатьВслух(){
-  if(!чтениеДоступно()){ toast('Этот браузер не умеет читать вслух'); return; }
-  if(ЧТЕНИЕ.вкл){ остановитьЧтение(); return; }
-  const корень=УРОК.вкл?document.querySelector('#lesson .ls-slide'):document.querySelector('#pane article');
-  if(!корень){ toast('Откройте конспект темы — читать пока нечего'); return; }
-  // в конспекте раскрываем подробный разбор: читать то, чего не видно, странно
-  const дет=корень.querySelector('details.deep'); if(дет) дет.open=true;
-  const блоки=Array.from(корень.querySelectorAll('h1,h2,h3,p,li,.why>div:last-child,.note,.qa-q,.pf-row,.ls-q'))
-    .filter(b=>!b.closest('.qa-a,.ex-body,.deriv')&&!b.querySelector('p,li')&&b.offsetParent!==null);
-  ЧТЕНИЕ.очередь=блоки.map(b=>({b,т:текстДляЧтения(b)})).filter(x=>x.т.length>1);
-  if(!ЧТЕНИЕ.очередь.length){ toast('Здесь нечего читать вслух'); return; }
-  ЧТЕНИЕ.вкл=true; кнопкаЧтения(); speechSynthesis.cancel(); следующийАбзац();
-}
-function голосРу(){
-  const г=speechSynthesis.getVoices();
-  return г.find(v=>/^ru/i.test(v.lang)&&/google|natural|милена|milena/i.test(v.name))||г.find(v=>/^ru/i.test(v.lang))||null;
-}
-function следующийАбзац(){
-  if(ЧТЕНИЕ.узел) ЧТЕНИЕ.узел.classList.remove('reading-now');
-  const x=ЧТЕНИЕ.очередь.shift();
-  if(!ЧТЕНИЕ.вкл||!x){ остановитьЧтение(); return; }
-  ЧТЕНИЕ.узел=x.b; x.b.classList.add('reading-now');
-  try{ x.b.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){}
-  const u=new SpeechSynthesisUtterance(x.т); u.lang='ru-RU';
-  const г=голосРу(); if(г) u.voice=г;
-  u.rate=1; u.onend=следующийАбзац; u.onerror=()=>{ if(ЧТЕНИЕ.вкл) следующийАбзац(); };
-  speechSynthesis.speak(u);
-}
-function остановитьЧтение(){
-  ЧТЕНИЕ.вкл=false; ЧТЕНИЕ.очередь=[];
-  if(ЧТЕНИЕ.узел){ ЧТЕНИЕ.узел.classList.remove('reading-now'); ЧТЕНИЕ.узел=null; }
-  if(чтениеДоступно()) try{ speechSynthesis.cancel(); }catch(_){}
-  кнопкаЧтения();
-}
-function кнопкаЧтения(){
-  const b=document.getElementById('t-speak'); if(!b) return;
-  b.classList.toggle('on',ЧТЕНИЕ.вкл); b.title=ЧТЕНИЕ.вкл?'Остановить чтение':'Прочитать конспект вслух';
-}
-/* кнопки в шапке темы: «Урок» и «Вслух» */
-function подключитьДействияТемы(){
-  const ch=document.querySelector('#content .chead'); if(!ch||document.getElementById('t-acts')) return;
-  const d=document.createElement('div'); d.className='t-acts'; d.id='t-acts';
-  d.innerHTML=`<button class="tact" id="t-lesson" title="Режим урока: тема слайдами рядом со сценой"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg><span>Урок</span></button>
-    ${чтениеДоступно()?`<button class="tact" id="t-speak" title="Прочитать конспект вслух"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Вслух</span></button>`:''}`;
-  ch.appendChild(d);
-  d.querySelector('#t-lesson').onclick=()=>начатьУрок();
-  const sp=d.querySelector('#t-speak'); if(sp) sp.onclick=()=>читатьВслух();
-}
-/* На телефоне шапка темы скрыта под листом — те же две кнопки ставим
-   первой строкой конспекта. */
-function кнопкиВКонспект(pane){
-  const a=pane&&pane.querySelector('article'); if(!a||a.querySelector('.m-acts')) return;
-  const d=document.createElement('div'); d.className='m-acts';
-  d.innerHTML=`<button class="tact" data-a="lesson"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg><span>Урок по слайдам</span></button>`
-    +(чтениеДоступно()?`<button class="tact" data-a="speak"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg><span>Слушать</span></button>`:'');
-  a.insertBefore(d,a.firstChild);
-  d.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ if(b.dataset.a==='lesson') начатьУрок(); else читатьВслух(); });
-}

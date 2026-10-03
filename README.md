@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-4.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-4.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-4.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-4.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-5.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-5.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-5.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-5.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -105,32 +105,31 @@ KaTeX and its fonts ship inside the repository.
 | **157** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
 | **100** self-checks | three questions per topic, answers hidden until you have tried |
 | **147** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
-| **91** glossary terms | the first mention in the notes is underlined: hover or tap for a two-line definition and the topic where it is introduced |
+| **91** glossary terms | short definitions, in search and in the *More* menu; optionally the first mention in the notes is underlined |
 | **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
-| **85** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
+| **84** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
 
-### New in 4.0: a new design, and tools for learning
+### New in 5.0: a clean sheet
 
-- **A stricter look.** A dark ink top bar with the logo, bold headings, firm cards, one calm
-  violet accent; the sidebar sits on its own tone and the current topic stands out as a card.
-  Prefer the old light bar? *Settings → Appearance → Top bar*.
-- **A new home screen.** A live scene that cycles through Kepler's second law, two-source
-  interference and a damped oscillator with its phase portrait — click it to open that simulation.
-  Next to it: *continue*, a **problem of the day** picked from the topics you are ready for, and
-  an **activity diary**: a 20-week map of the days you studied, minutes this week, problems solved
-  this month. No streaks, no badges — facts, kept on this device only.
-- **Glossary.** 91 terms. The first mention of each in the notes is underlined with dots; hover or
-  tap for the definition and a link to the topic that introduces it. The whole glossary is a
-  searchable list, and every term is in the command palette.
-- **Lesson mode.** Any topic as slides: key points, the theory split by subheadings, experiments,
-  formulas, pitfalls and questions with hidden answers — in large type, with the live scene left
-  in place beside it. Arrows, space and Esc on a keyboard, a swipe on a phone.
-- **Predict first.** With this option on, the outcome of each "try this" experiment stays hidden
-  until you have made your guess.
-- **Read aloud.** The notes are read paragraph by paragraph by the system voice, formulas skipped,
-  the current paragraph highlighted.
+The biggest redesign so far — and most of it is taking things away.
+
+- **Own typefaces, offline.** Inter for text, Inter Tight for headings, JetBrains Mono for
+  numbers — bundled with the app, no network needed.
+- **A home screen that moves.** A full-width live electric field: four charges drift and a
+  thousand particles flow along their field lines. One line of text over it — the topic you
+  stopped at, or where to start — and the search. Each section has its own small live picture:
+  a throw, gas in a box, a dipole, a wave, a lens, a light cone, an orbital.
+- **Quieter topics.** No boxes around the introduction, the experiments or the formulas; the
+  only tinted block is *Key points*. The header is the title and one line: section, topic
+  number, reading time.
+- **Less on the phone.** Five buttons in the top bar instead of seven; readouts only on the
+  *Parameters* tab; flat tabs.
+- **Removed:** reading aloud, "predict first", the lesson and read-aloud buttons over the notes,
+  the activity diary, the question-of-the-day and tools blocks on the home screen, repeated
+  "Phy.Sim" labels, explanatory captions nobody needed. Lesson mode and the glossary stay — in
+  the *More* menu and in search; underlining glossary terms is now an opt-in setting.
 
 ### New in 3.5: a phone layout that leaves room for the scene, optics redone
 

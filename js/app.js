@@ -1358,8 +1358,7 @@ function обновитьРазбор(a){
   let html;
   if(!ан||!H.length||(ан.t1<H[0].t-1e-9)){
     анализ=null;
-    html=`<span class="g-hint">Коснитесь графика — касательная: её наклон и есть производная.
-      Проведите по графику — площадь под кривой: это интеграл.</span>`;
+    html='';
   } else {
     // шум счёта вроде 7·10⁻¹⁶ при нулевом наклоне показываем нулём: мерилом
     // служит размах самого графика, а не абсолютный порог
@@ -1725,7 +1724,6 @@ function renderTree(q=''){
 /* ============================= ОТКРЫТИЕ ТЕМЫ ============================ */
 function openTopic(id){
   const t=ALL.find(x=>x.id===id); if(!t) return;
-  if(typeof остановитьЧтение==='function'&&ЧТЕНИЕ.вкл) остановитьЧтение();
   if(typeof закончитьУрок==='function'&&УРОК.вкл&&УРОК.тема!==id) закончитьУрок();
   S.topic=t; S.tab='notes';
   LS.set('lastTopic',t.id);
@@ -2462,9 +2460,6 @@ function renderPane(){
     const order=[...new Set(t.problems.map(p=>p.sim||''))];
     const nSolved=t.problems.filter(p=>S.solved[идЗадачи(t,p)]).length;
     pane.innerHTML=`
-      <p class="pr-lead">Условия привязаны к симуляции: ответ пересчитывается под текущие параметры,
-      поэтому у соседа он другой. Допуск 1,5 %. Первая задача в каждой группе — на знакомство
-      с моделью, пятая — олимпиадного уровня.</p>
       <div class="pr-prog"><div class="pp-bar"><i style="width:${Math.round(100*nSolved/t.problems.length)}%"></i></div>
         <span class="pp-txt">решено ${nSolved} из ${t.problems.length}</span>
         ${nSolved?'<button class="pp-reset">сбросить</button>':''}</div>
@@ -2566,8 +2561,6 @@ function renderPane(){
   typeset(pane);
   if(S.tab==='notes'){
     if(typeof разметитьТермины==='function') try{ разметитьТермины(pane.querySelector('article'),t.id); }catch(_){}
-    if(typeof подключитьПрогноз==='function') подключитьПрогноз(pane);
-    if(typeof кнопкиВКонспект==='function') кнопкиВКонспект(pane);
   }
 }
 function typeset(el){
@@ -4291,7 +4284,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true,
   // 4.0.0
-  bar:'ink',glossary:true,predict:false};
+  bar:'ink',glossary:false};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -4450,10 +4443,8 @@ const PREFS=[
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
 
-  {cat:'behav',key:'glossary',type:'toggle',def:true,
+  {cat:'behav',key:'glossary',type:'toggle',def:false,
    name:'Термины в конспекте',desc:'Первое упоминание понятия подчёркнуто пунктиром: наведите или нажмите — откроется короткое определение и ссылка на тему, где оно вводится (4.0.0).'},
-  {cat:'behav',key:'predict',type:'toggle',def:false,
-   name:'Сначала предсказать',desc:'В блоке «Покрутите сами» результат опыта скрыт, пока вы не сделаете прогноз и не нажмёте «Показать». Так опыт проверяет вашу интуицию, а не просто иллюстрирует текст (4.0.0).'},
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
   {cat:'behav',key:'headerTuck',type:'toggle',def:true,
@@ -5366,6 +5357,8 @@ function syncSheet(){
   }
   document.documentElement.style.removeProperty('--sheet');
   const t=sheetTab(), d=detent();
+  // по вкладке листа CSS прячет строку показаний там, где читают (5.0.0)
+  document.documentElement.dataset.sheettab=t;
   for(const b of document.querySelectorAll('#msheet-tabs button'))
     b.classList.toggle('on', b.dataset.sheet===t);
   const пара=d!=='peek' && t==='params';
@@ -5564,6 +5557,9 @@ function applySettings(){
   const ШРИФТЫ={sans:'var(--sans)',humanist:'"Segoe UI","Noto Sans","Open Sans","Helvetica Neue",Arial,sans-serif',
     readable:'Verdana,"DejaVu Sans","Tahoma",sans-serif',serif:'Georgia,"Noto Serif","Times New Roman",serif',mono:'var(--mono)'};
   root.style.setProperty('--ui-font',ШРИФТЫ[prefGet('uiFont')]||ШРИФТЫ.sans);
+  // заголовки (5.0.0): плотный Inter Tight — только при основном шрифте; выбрал
+  // читатель другой — заголовки идут тем же, чтобы страница не стала пёстрой
+  root.style.setProperty('--head',(prefGet('uiFont')||'sans')==='sans'?'"Inter Tight",var(--sans)':'var(--ui-font)');
   root.style.setProperty('--read-w',({narrow:'620px',norm:'760px',wide:'960px',full:'none'})[prefGet('readW')]||'760px');
   // та же ширина числом — для расчёта полей (none в calc() не годится)
   root.style.setProperty('--read-wc',({narrow:'620px',norm:'760px',wide:'960px',full:'100%'})[prefGet('readW')]||'760px');
@@ -5987,11 +5983,10 @@ function resetPanels(){
    Единая строка поиска по темам, симуляциям, настройкам и действиям — как в
    Obsidian и VS Code. «>» в начале запроса оставляет только команды. */
 const CMDS=[
-  {k:'Навигация',t:'Главная: продолжить, разделы, вопрос дня',run:()=>открытьГлавную()},
+  {k:'Навигация',t:'Главная',run:()=>открытьГлавную()},
   {k:'Вид',t:'Режим чтения: только текст',run:()=>режимЧтения()},
   {k:'Словарь',t:'Словарь терминов: определения с поиском',run:()=>открытьСловарь()},
   {k:'Урок',t:'Режим урока: тема слайдами рядом со сценой',run:()=>начатьУрок()},
-  {k:'Вид',t:'Прочитать конспект вслух',run:()=>читатьВслух()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
   {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
@@ -7682,7 +7677,10 @@ document.addEventListener('keydown',e=>{
 },true);
 $$('#btn-calc').onclick=()=>вычислительОткрыт()?закрытьВычислитель():открытьВычислитель();
 $$('#m-calc').onclick=()=>открытьВычислитель();
+{ const мп=document.getElementById('m-search'); if(мп) мп.onclick=()=>cmdkOpen(); }
 $$('#mi-calc').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьВычислитель(); };
+{ const у=document.getElementById('mi-lesson'); if(у) у.onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); if(isNarrow()) setSheetTab('notes'); начатьУрок(); }; }
+{ const сл=document.getElementById('mi-gloss'); if(сл) сл.onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьСловарь(); }; }
 
 /* ================================= СТАРТ ===============================
    Стоит последним, после всех объявлений. Раньше он был в середине файла, и
@@ -7702,7 +7700,6 @@ function запуск(){
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
   if(typeof подключитьТермины==='function') try{ подключитьТермины(); }catch(e){ console.error('словарь',e); }
-  if(typeof подключитьДействияТемы==='function') try{ подключитьДействияТемы(); }catch(e){ console.error('урок',e); }
   if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
   if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
@@ -7739,5 +7736,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '4.0.0';
+window.PHYSIM_BUILD = '5.0.0';
 window.PHYSIM_READY = true;

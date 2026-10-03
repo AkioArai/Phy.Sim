@@ -148,6 +148,17 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 5.0.0 — a clean sheet
+
+          **The biggest redesign so far, and mostly by taking things away.** Bundled Inter,
+          Inter Tight and JetBrains Mono; a home screen with a full-width live electric field and a
+          small live picture for every section; topics without boxes and chips; a lighter phone
+          layout with five top-bar buttons and readouts only where parameters are set.
+
+          **Removed:** reading aloud, "predict first", the activity diary, the question-of-the-day
+          and tools blocks, repeated labels and captions. Lesson mode and the glossary moved to the
+          *More* menu and search.
+
           ## 4.0.0 — a new design and tools for learning
 
           **New look:** a dark ink top bar with the logo, bold headings, firm cards and a calmer palette;

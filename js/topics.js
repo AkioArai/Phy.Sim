@@ -656,7 +656,7 @@ const T_2d={
 };
 
 const T_intro={
-  id:'intro', ch:'', title:'Введение: как устроен Phy.Sim',
+  id:'intro', ch:'', title:'Как устроено пособие',
   theory:`
   <p>Здесь я вкратце объясню не введение в физику, а введение в само приложение: изначально этот проект
   делался для моих учеников.</p>
@@ -10766,7 +10766,7 @@ const T_spin={
 
 /* Разделы и темы — строго по оглавлению Дж. Орира «Физика» (т. 1–2, 1981) */
 const SECTIONS=[
- {id:'intro', title:'Phy.Sim', topics:[ T_intro ]},
+ {id:'intro', title:'Начало', topics:[ T_intro ]},
  {id:'mech', title:'Механика', topics:[
    T_1d,
    T_2d,

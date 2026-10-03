@@ -98,7 +98,8 @@ function полосаТемы(t){
   const box=document.getElementById('t-path'); if(!box) return;
   if(!естьПуть()||!(t.problems||[]).length){ box.innerHTML=''; box.classList.add('hidden'); return; }
   const сост=состояниеПути(), x=сост.темы[t.id];
-  if(!x){ box.innerHTML=''; box.classList.add('hidden'); return; }
+  // 5.0.0: у нетронутой темы полоса «не начата · 0 %» ничего не сообщает
+  if(!x||x.статус==='new'){ box.innerHTML=''; box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
   const бл=(x.статус==='stuck'||x.статус==='new'||x.статус==='work')?УЧ.блокеры(сост,ALL,t.id).slice(0,3):[];
   const срок=x.статус==='done'&&x.срок?` · повторить ${когда(x.срок)}`:'';

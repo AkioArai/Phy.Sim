@@ -41,26 +41,19 @@ function словВТеме(t){
     (t.mistakes||[]).map(m=>m.wrong+' '+m.right+' '+(m.why||'')).join(' ')].join(' ');
   return текст.replace(/<[^>]+>/g,' ').replace(/\$[^$]*\$/g,' x ').split(/\s+/).filter(Boolean).length;
 }
+/* 5.0.0: шапка — только название и одна тихая строка под ним: раздел,
+   номер темы и время чтения. Чипы со счётчиками формул, выводов и задач
+   убраны: эти числа видны во вкладках и в самом тексте, а над заголовком
+   они были шумом. */
 function шапкаТемы(t){
   const ch=document.querySelector('.chead'); if(!ch) return;
   const sec=разделТемы(t);
   ch.classList.add('sx'); ch.setAttribute('style',стильРаздела(sec));
-  let ic=document.getElementById('t-ic');
-  if(!ic){ ic=document.createElement('span'); ic.id='t-ic'; ic.className='t-ic'; const h=document.getElementById('t-title'); if(h) h.before(ic); }
-  ic.innerHTML=значокРаздела(sec);
+  const старый=document.getElementById('t-ic'); if(старый) старый.remove();
   let meta=document.getElementById('t-meta');
-  if(!meta){ meta=document.createElement('div'); meta.id='t-meta'; meta.className='t-meta'; const sub=document.getElementById('t-sub'); if(sub) sub.after(meta); }
-  if(t.kind==='recap'||!(t.theory||(t.formulas||[]).length)){ meta.innerHTML=''; return; }
-  const мин=Math.max(1,Math.round(словВТеме(t)/170));
-  const симуляций=new Set([...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)).size;
-  const выводов=(t.derivations||[]).length;
-  const чип=(ic2,текст,подсказка)=>`<span class="tm-chip" title="${подсказка}"><svg viewBox="0 0 24 24">${ic2}</svg>${текст}</span>`;
-  meta.innerHTML=
-    чип('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',`~${мин} мин`,'Примерно столько читать тему целиком')+
-    ((t.formulas||[]).length?чип('<path d="M5 5h8M5 5l6 7-6 7h9"/>',plural(t.formulas.length,'формула','формулы','формул'),'Ключевые формулы темы'):'')+
-    (выводов?чип('<path d="M4 6h10M4 12h7M4 18h12"/><path d="m17 9 3 3-3 3"/>',plural(выводов,'вывод','вывода','выводов'),'Пошаговые выводы'):'')+
-    ((t.problems||[]).length?чип('<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',plural(t.problems.length,'задача','задачи','задач'),'Задачи с пересчётом под параметры'):'')+
-    (симуляций?чип('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="m10 8.5 4.5 2.5-4.5 2.5z"/>',plural(симуляций,'симуляция','симуляции','симуляций'),'Живые модели этой темы'):'');
+  if(!meta){ meta=document.createElement('span'); meta.id='t-meta'; meta.className='t-meta'; const sub=document.getElementById('t-sub'); if(sub) sub.appendChild(meta); }
+  if(t.kind==='recap'||!(t.theory||(t.formulas||[]).length)){ meta.textContent=''; return; }
+  meta.textContent=` · ${Math.max(1,Math.round(словВТеме(t)/170))} мин`;
 }
 
 /* ---------------- полоса чтения и «наверх» ---------------- */
@@ -148,62 +141,6 @@ function закрытьГлавную(){
   обновитьНав();
   requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
 }
-function вопросДня(){
-  if(typeof УЧ==='undefined') return null;
-  const д=Math.floor(Date.now()/864e5);
-  return УЧ.ВОПРОСЫ[(д*7)%УЧ.ВОПРОСЫ.length];
-}
-/* ---------------- дневник занятий (4.0.0) ----------------
-   Минуты, проведённые в пособии, по дням: минута засчитывается, если окно
-   видно и за последние полторы минуты было хоть одно действие. Плюс
-   попытки решения из журнала ученика. Это факты, а не очки: ни серий, ни
-   значков — см. learn.js, мотивацию здесь не подогревают. Хранится только
-   на этом устройстве. */
-const ДНЕВНИК={
-  ключ:'activity',
-  день(t){ const d=new Date(t||Date.now()); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); },
-  данные(){ const x=LS.get(this.ключ,{}); return x&&typeof x==='object'?x:{}; },
-  добавить(мин){ const x=this.данные(), k=this.день(); x[k]=(x[k]||0)+мин;
-    // храним год, не больше
-    const ключи=Object.keys(x).sort(); while(ключи.length>400) delete x[ключи.shift()];
-    LS.set(this.ключ,x); },
-  /* попытки решений по дням — из журнала ученика */
-  попытки(){ const по={}; try{ const ж=журнал();
-      for(const id in ж.задачи) for(const п of ж.задачи[id].п||[]){ const k=this.день(п[0]); по[k]=(по[k]||0)+1; }
-      for(const id in ж.вопросы){ const k=this.день(ж.вопросы[id][0]); по[k]=(по[k]||0)+1; }
-    }catch(_){} return по; },
-  решено(дней){ let n=0; const с=Date.now()-дней*864e5; try{ const ж=журнал();
-      for(const id in ж.задачи){ const р=ж.задачи[id].решена; if(р&&р>=с) n++; } }catch(_){} return n; },
-  запустить(){
-    if(this._т) return;
-    let последнее=Date.now();
-    for(const ev of ['pointerdown','keydown','wheel','touchstart']) addEventListener(ev,()=>{ последнее=Date.now(); },{passive:true,capture:true});
-    this._т=setInterval(()=>{ if(document.visibilityState==='visible'&&Date.now()-последнее<90000) this.добавить(1); },60000);
-  }
-};
-function дневникHTML(){
-  const мин=ДНЕВНИК.данные(), поп=ДНЕВНИК.попытки(), НЕД=20;
-  const сегодня=new Date(); сегодня.setHours(12,0,0,0);
-  // сетка начинается с понедельника НЕД недель назад
-  const сдвиг=(сегодня.getDay()+6)%7, начало=new Date(сегодня.getTime()-(сдвиг+7*(НЕД-1))*864e5);
-  let клетки='', за7=0, дней30=0;
-  const МЕС=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-  for(let w=0;w<НЕД;w++) for(let d=0;d<7;d++){
-    const t=new Date(начало.getTime()+(w*7+d)*864e5), k=ДНЕВНИК.день(t), m=мин[k]||0, p=поп[k]||0;
-    const будущее=t>сегодня, вес=m+4*p, ур=будущее?-1:(вес===0?0:вес<10?1:вес<25?2:вес<50?3:4);
-    const назад=(сегодня-t)/864e5;
-    if(назад<7&&назад>=0) за7+=m;
-    if(назад<30&&назад>=0&&вес>0) дней30++;
-    клетки+=`<i class="dy l${ур}" style="grid-column:${w+1};grid-row:${d+1}" title="${t.getDate()} ${МЕС[t.getMonth()]}: ${m} мин${p?`, ${p} ${plural(p,'попытка','попытки','попыток').replace(/^\d+\s/,'')} решения`:''}"></i>`;
-  }
-  return `<section class="hm-card hm4-diary"><div class="hm4-dh"><span class="hm-k">Дневник занятий</span>
-      <span class="hm-s">последние 20 недель · хранится только на этом устройстве</span></div>
-    <div class="hm4-dbody"><div class="hm4-heat" role="img" aria-label="Карта занятий по дням">${клетки}</div>
-      <dl class="hm4-dstat"><div><dt>${за7}</dt><dd>минут за 7 дней</dd></div>
-        <div><dt>${дней30}</dt><dd>${plural(дней30,'день','дня','дней').replace(/^\d+\s/,'')} с занятиями из 30</dd></div>
-        <div><dt>${ДНЕВНИК.решено(30)}</dt><dd>задач решено за 30 дней</dd></div></dl></div></section>`;
-}
-
 /* ---------------- задача дня (4.0.0) ----------------
    Одна задача в день — из тем, к которым вы готовы («фронт» модели ученика),
    а если путь не начат — из всего курса. Решается в своей теме: условие
@@ -228,66 +165,113 @@ function открытьЗадачу(тема,i){
     const inp=el.querySelector('input'); if(inp&&!(typeof isNarrow==='function'&&isNarrow())) setTimeout(()=>inp.focus({preventScroll:true}),400); },160);
 }
 
-/* ---------------- витрина: живая сцена на главной (4.0.0) ----------------
-   Три коротких сюжета по кругу — орбита, интерференция, маятник. Это не
-   картинка: они считаются на лету и открывают свою симуляцию по клику. */
-const ВИТРИНА=[
-  {sim:'orbit', тема:'mech.grav', имя:'Орбита — второй закон Кеплера'},
-  {sim:'interf2', тема:'op.interf', имя:'Интерференция двух источников'},
-  {sim:'damped', тема:'mech.osc', имя:'Затухающие колебания и фазовый портрет'}
-];
-function витрина(cv){
+/* ---------------- поле: живая шапка главной (5.0.0) ----------------
+   Четыре заряда медленно ходят по фигурам Лиссажу, а тысяча пылинок течёт
+   вдоль их электрического поля и оставляет след. Это не заставка: картина —
+   настоящие силовые линии, в каждый момент свои. Без анимации (настройка
+   «движение» не «полное») рисуется один застывший кадр. */
+function полеГлавной(cv){
   if(!cv||cv._живёт) return; cv._живёт=true;
-  const ctx=cv.getContext('2d'); let t0=performance.now(), след=[];
+  const ctx=cv.getContext('2d'), dpr=Math.min(devicePixelRatio||1,2);
   const цв=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const кадр=now=>{
-    if(!document.body.contains(cv)||!главнаяОткрыта()){ cv._живёт=false; return; }
-    const спокойно=document.documentElement.dataset.motion!=='full';
-    const W=cv.clientWidth, H=cv.clientHeight, dpr=Math.min(devicePixelRatio||1,2);
-    if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
-    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-    const t=Math.max(0,(now-t0)/1000), номер=Math.floor(t/7)%ВИТРИНА.length, u=(t%7)/7, a=Math.min(1,u*6,(1-u)*6);
-    cv.dataset.i=номер;
-    const ак=цв('--bar-accent')||'#9a8cff', бел=цв('--bar-ink')||'#fff', тус=цв('--bar-ink-2')||'#999', тт=спокойно?2.2:t;
-    ctx.globalAlpha=a;
-    if(номер===0){
-      // эллипс Кеплера: решаем уравнение Кеплера, след — заметённые площади
-      const cx=W*0.5, cy=H*0.5, A=Math.min(W*0.4,H*0.62), e=0.6, B=A*Math.sqrt(1-e*e), фок=cx+A*e;
-      ctx.strokeStyle=тус; ctx.lineWidth=1; ctx.setLineDash([3,4]); ctx.beginPath(); ctx.ellipse(cx,cy,A,B,0,0,7); ctx.stroke(); ctx.setLineDash([]);
-      const M=тт*1.3; let E=M; for(let k=0;k<8;k++) E=M+e*Math.sin(E);
-      const px=cx+A*Math.cos(E), py=cy-B*Math.sin(E);
-      for(let k=0;k<3;k++){ const M0=M-0.35-k*2.1, M1=M0+0.35; ctx.fillStyle=ак; ctx.globalAlpha=a*0.22; ctx.beginPath(); ctx.moveTo(фок,cy);
-        for(let j=0;j<=12;j++){ let EE=M0+(M1-M0)*j/12; const MM=EE; for(let q=0;q<8;q++) EE=MM+e*Math.sin(EE); ctx.lineTo(cx+A*Math.cos(EE),cy-B*Math.sin(EE)); }
-        ctx.closePath(); ctx.fill(); }
-      ctx.globalAlpha=a; ctx.fillStyle='#f5b13d'; ctx.beginPath(); ctx.arc(фок,cy,7,0,7); ctx.fill();
-      ctx.fillStyle=бел; ctx.beginPath(); ctx.arc(px,py,4.5,0,7); ctx.fill();
-      ctx.strokeStyle=ак; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(фок,cy); ctx.lineTo(px,py); ctx.stroke();
-    } else if(номер===1){
-      const S1=[W*0.12,H*0.4], S2=[W*0.12,H*0.6], k=0.21, img=ctx.createImageData(Math.ceil(W/3),Math.ceil(H/3)), d=img.data;
-      const rgb=(ак.match(/[0-9a-f]{2}/gi)||['7a','6a','f0']).map(h=>parseInt(h,16));
-      for(let j=0;j<img.height;j++) for(let i=0;i<img.width;i++){ const x=i*3, y=j*3;
-        const e=Math.cos(k*Math.hypot(x-S1[0],y-S1[1])-тт*5)+Math.cos(k*Math.hypot(x-S2[0],y-S2[1])-тт*5), o=(j*img.width+i)*4;
-        d[o]=rgb[0]; d[o+1]=rgb[1]; d[o+2]=rgb[2]; d[o+3]=Math.round(255*a*0.85*e*e/4*(x>S1[0]?1:0)); }
-      const c2=витрина._c||(витрина._c=document.createElement('canvas')); c2.width=img.width; c2.height=img.height; c2.getContext('2d').putImageData(img,0,0);
-      ctx.imageSmoothingEnabled=true; ctx.drawImage(c2,0,0,W,H);
-      ctx.fillStyle=бел; for(const S of [S1,S2]){ ctx.beginPath(); ctx.arc(S[0],S[1],4,0,7); ctx.fill(); }
-    } else {
-      // затухающий осциллятор и его фазовый портрет — спираль к началу
-      const γ=0.35, ω=3, x=th=>Math.exp(-γ*th)*Math.cos(ω*th), v=th=>-Math.exp(-γ*th)*(γ*Math.cos(ω*th)+ω*Math.sin(ω*th))/ω;
-      const τ=(тт%7), cx=W*0.3, cy=H*0.5, R=Math.min(W*0.22,H*0.38), Lx=W*0.62, Ly=H*0.5;
-      ctx.strokeStyle=тус; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx-R-8,cy); ctx.lineTo(cx+R+8,cy); ctx.moveTo(cx,cy-R-8); ctx.lineTo(cx,cy+R+8); ctx.stroke();
-      ctx.strokeStyle=ак; ctx.lineWidth=1.8; ctx.beginPath();
-      for(let s2=0;s2<=τ;s2+=0.02){ const X=cx+R*x(s2), Y=cy-R*v(s2); s2?ctx.lineTo(X,Y):ctx.moveTo(X,Y); } ctx.stroke();
-      ctx.fillStyle=бел; ctx.beginPath(); ctx.arc(cx+R*x(τ),cy-R*v(τ),4,0,7); ctx.fill();
-      // пружина с грузом
-      const gx=Lx+R*0.9*x(τ); ctx.strokeStyle=тус; ctx.lineWidth=1.4; ctx.beginPath(); ctx.moveTo(Lx-R*1.1,Ly);
-      for(let j=1;j<=14;j++){ const xx=Lx-R*1.1+(gx-12-(Lx-R*1.1))*j/14; ctx.lineTo(xx,Ly+(j%2?-7:7)); } ctx.lineTo(gx-12,Ly); ctx.stroke();
-      ctx.fillStyle=ак; ctx.fillRect(gx-12,Ly-12,24,24);
-      ctx.fillStyle=тус; ctx.fillRect(Lx-R*1.1-3,Ly-20,3,40);
+  let W=0,H=0,P=[],t=0,кадров=0;
+  const заряды=()=>{ const k=Math.min(W,H);
+    return [[0.30,0.45,1,0.9,0.6],[0.70,0.55,-1,0.7,1.1],[0.52,0.28,1,1.3,0.8],[0.45,0.75,-1,1.1,0.5]].map(([x,y,q,a,b],i)=>
+      ({x:W*x+Math.sin(t*0.13*a+i)*k*0.09, y:H*y+Math.cos(t*0.11*b+i*2)*k*0.08, q})); };
+  const новая=()=>({x:Math.random()*W,y:Math.random()*H,ж:40+Math.random()*160});
+  const размер=()=>{ const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h) return false;
+    if(w!==W||h!==H){ W=w; H=h; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle=цв('--bar')||'#0e1118'; ctx.fillRect(0,0,W,H);
+      const n=Math.round(Math.min(1100,W*H/700)); P=[]; for(let i=0;i<n;i++) P.push(новая()); }
+    return true; };
+  const шаг=()=>{
+    const Q=заряды(), ак=цв('--bar-accent')||'#9a8cff', фон=цв('--bar')||'#0e1118';
+    ctx.globalAlpha=0.075; ctx.fillStyle=фон; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
+    ctx.lineWidth=1.1; ctx.lineCap='round';
+    for(const p of P){
+      let ex=0,ey=0,ф=0;
+      for(const c of Q){ const dx=p.x-c.x, dy=p.y-c.y, r2=dx*dx+dy*dy+90, r=Math.sqrt(r2);
+        ex+=c.q*dx/(r2*r); ey+=c.q*dy/(r2*r); ф+=c.q/r; }
+      const e=Math.hypot(ex,ey)||1, x0=p.x, y0=p.y;
+      p.x+=ex/e*1.5; p.y+=ey/e*1.5; p.ж--;
+      ctx.strokeStyle=ф>0?ак:'#5fd0ff'; ctx.globalAlpha=Math.min(0.85,0.25+Math.abs(ф)*40);
+      ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(p.x,p.y); ctx.stroke();
+      let сток=false; for(const c of Q) if(c.q<0&&Math.hypot(p.x-c.x,p.y-c.y)<6) сток=true;
+      if(p.ж<0||сток||p.x<-4||p.y<-4||p.x>W+4||p.y>H+4) Object.assign(p,новая());
     }
     ctx.globalAlpha=1;
-    const cap=cv.parentElement&&cv.parentElement.querySelector('.hm4-cap b'); if(cap&&cap.textContent!==ВИТРИНА[номер].имя) cap.textContent=ВИТРИНА[номер].имя;
-    if(спокойно) setTimeout(()=>requestAnimationFrame(кадр),900); else requestAnimationFrame(кадр);
+    for(const c of Q){ ctx.fillStyle=c.q>0?ак:'#5fd0ff'; ctx.beginPath(); ctx.arc(c.x,c.y,3.2,0,7); ctx.fill();
+      ctx.strokeStyle=ctx.fillStyle; ctx.globalAlpha=0.35; ctx.beginPath(); ctx.arc(c.x,c.y,9,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+  };
+  const цикл=()=>{
+    if(!document.body.contains(cv)||!главнаяОткрыта()){ cv._живёт=false; return; }
+    if(document.visibilityState==='visible'&&размер()){
+      if(document.documentElement.dataset.motion==='full'){ t+=1/60; шаг(); }
+      else if(кадров<160){ for(let i=0;i<160;i++){ шаг(); кадров++; } }
+    }
+    requestAnimationFrame(цикл);
+  };
+  requestAnimationFrame(цикл);
+}
+
+/* ---------------- миниатюры разделов (5.0.0) ----------------
+   У каждого раздела — своя маленькая живая картинка вместо списка тем:
+   бросок, газ в сосуде, диполь, волна, линза, световой конус, атом. Рисуются
+   в цвете раздела; без анимации — один кадр. */
+const МИНИ={
+  mech(c,w,h,t,к){ const g=0.9, v=1.25, x0=w*0.12, y0=h*0.82, T=(t*0.5)%2.4;
+    c.strokeStyle=к; c.globalAlpha=0.35; c.setLineDash([3,4]); c.beginPath();
+    for(let s=0;s<=2.4;s+=0.05){ const x=x0+s*w*0.31, y=y0-(v*s-g*s*s/2)*h*0.6; s?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.setLineDash([]);
+    c.globalAlpha=1; const x=x0+T*w*0.31, y=y0-(v*T-g*T*T/2)*h*0.6;
+    c.fillStyle=к; c.beginPath(); c.arc(x,y,5,0,7); c.fill();
+    c.lineWidth=1.6; c.beginPath(); c.moveTo(x,y); c.lineTo(x+16,y-(v-g*T)*18); c.stroke();
+    c.globalAlpha=0.5; c.beginPath(); c.moveTo(w*0.08,y0+5); c.lineTo(w*0.92,y0+5); c.stroke(); },
+  thermo(c,w,h,t,к){ c.strokeStyle=к; c.globalAlpha=0.45; c.lineWidth=1.5; c.strokeRect(w*0.2,h*0.15,w*0.6,h*0.7); c.globalAlpha=1; c.fillStyle=к;
+    for(let i=0;i<22;i++){ const a=i*2.39996, sx=Math.sin(a*3.1)*0.5+0.5, sy=Math.cos(a*1.7)*0.5+0.5, vx=0.07+0.05*((i*7)%5)/5, vy=0.06+0.05*((i*3)%5)/5;
+      const ox=Math.abs(((sx+vx*t*3)%2+2)%2-1), oy=Math.abs(((sy+vy*t*3)%2+2)%2-1);
+      c.beginPath(); c.arc(w*0.22+ox*w*0.56,h*0.17+oy*h*0.66,2.4,0,7); c.fill(); } },
+  electro(c,w,h,t,к){ const A=[w*0.32,h*0.5], B=[w*0.68,h*0.5]; c.strokeStyle=к; c.lineWidth=1.2;
+    for(let k=-3;k<=3;k++){ if(!k) continue; const s=k*0.32; c.globalAlpha=0.55-Math.abs(k)*0.1; c.beginPath();
+      for(let u=0;u<=1;u+=0.02){ const x=A[0]+(B[0]-A[0])*u, y=h*0.5-Math.sin(Math.PI*u)*s*h*0.5; u?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); }
+    c.globalAlpha=1; const u=(t*0.25)%1; c.fillStyle=к; c.beginPath(); c.arc(A[0]+(B[0]-A[0])*u,h*0.5-Math.sin(Math.PI*u)*0.32*h*0.5,2.5,0,7); c.fill();
+    for(const [p,зн] of [[A,'+'],[B,'−']]){ c.beginPath(); c.arc(p[0],p[1],9,0,7); c.fill(); c.fillStyle='#fff'; c.font='700 12px Inter,sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(зн,p[0],p[1]+0.5); c.fillStyle=к; } },
+  em(c,w,h,t,к){ c.lineWidth=1.8; for(const [фаза,a,al] of [[0,0.3,1],[0,0.16,0.4]]){ c.strokeStyle=к; c.globalAlpha=al; c.beginPath();
+      for(let x=0;x<=w;x+=3){ const y=h*0.5-Math.sin(x/w*Math.PI*4-t*2.2+фаза)*h*a*(al<1?0.6:1); x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); }
+    c.globalAlpha=0.3; c.lineWidth=1; c.beginPath(); c.moveTo(0,h*0.5); c.lineTo(w,h*0.5); c.stroke(); c.globalAlpha=1; },
+  optics(c,w,h,t,к){ const cx=w*0.45, F=w*0.24; c.strokeStyle=к; c.lineWidth=1.6; c.globalAlpha=0.55; c.beginPath(); c.ellipse(cx,h*0.5,5,h*0.36,0,0,7); c.stroke();
+    c.globalAlpha=1; for(const y of [-0.24,-0.12,0,0.12,0.24]){ const y0=h*0.5+y*h, k=(Math.sin(t*1.5)+1)/2*0.15+0.85;
+      c.beginPath(); c.moveTo(w*0.05,y0); c.lineTo(cx,y0); c.lineTo(cx+F*k,h*0.5); c.lineTo(cx+F*k+(cx+F*k-cx)*0.7,h*0.5-(y0-h*0.5)*0.7); c.stroke(); }
+    c.fillStyle=к; c.beginPath(); c.arc(cx+F*((Math.sin(t*1.5)+1)/2*0.15+0.85),h*0.5,3,0,7); c.fill(); },
+  rel(c,w,h,t,к){ const cx=w*0.5, cy=h*0.88, s=h*0.78; c.strokeStyle=к; c.globalAlpha=0.35; c.fillStyle=к;
+    c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx-s,cy-s); c.lineTo(cx+s,cy-s); c.closePath(); c.globalAlpha=0.12; c.fill(); c.globalAlpha=0.5; c.stroke();
+    c.globalAlpha=1; c.lineWidth=1.8; c.beginPath(); for(let u=0;u<=1;u+=0.02){ const y=cy-u*s, x=cx+Math.sin(u*3)*s*0.22; u?c.lineTo(x,y):c.moveTo(x,y); } c.stroke();
+    const u=(t*0.2)%1; c.beginPath(); c.arc(cx+Math.sin(u*3)*s*0.22,cy-u*s,4,0,7); c.fill(); },
+  quantum(c,w,h,t,к){ const cx=w*0.5, cy=h*0.5, R=h*0.2; let z=7;
+    const rnd=()=>(z=(z*16807)%2147483647)/2147483647, ug=t*0.25;
+    // облако 2p: плотность ~ r²·e^(−r)·cos²θ, ось медленно поворачивается
+    c.fillStyle=к;
+    for(let i=0;i<520;i++){ let r=0,th=0;
+      for(let k=0;k<12;k++){ r=rnd()*6; th=rnd()*Math.PI*2; const p=r*r*Math.exp(-r)*Math.cos(th)**2/0.55; if(rnd()<p) break; }
+      const x=r*Math.cos(th+ug)*R*0.62, y=r*Math.sin(th+ug)*R*0.62*0.62;
+      c.globalAlpha=0.55; c.fillRect(cx+x-0.9,cy+y-0.9,1.8,1.8); }
+    c.globalAlpha=1; c.beginPath(); c.arc(cx,cy,3,0,7); c.fill(); }
+};
+function миниатюры(h){
+  const тёмная=document.documentElement.dataset.theme==='dark';
+  const все=Array.from(h.querySelectorAll('canvas[data-mini]'));
+  const t0=performance.now();
+  const кадр=now=>{
+    if(!главнаяОткрыта()||!все.length||!document.body.contains(все[0])) return;
+    const полно=document.documentElement.dataset.motion==='full', t=полно?(now-t0)/1000:1.6;
+    for(const cv of все){
+      const w=cv.clientWidth, hh=cv.clientHeight; if(!w||!hh) continue;
+      const dpr=Math.min(devicePixelRatio||1,2);
+      if(cv.width!==Math.round(w*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(hh*dpr); }
+      const c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,hh);
+      const sec=SECTIONS.find(x=>x.id===cv.dataset.mini), в=видРаздела(sec);
+      c.save(); try{ (МИНИ[cv.dataset.mini]||МИНИ.quantum)(c,w,hh,t,тёмная?в.т:в.с); }catch(_){} c.restore();
+    }
+    if(полно) requestAnimationFrame(кадр);
   };
   requestAnimationFrame(кадр);
 }
@@ -298,95 +282,44 @@ function рисоватьГлавную(h){
   const темыРаздела=sec=>sec.topics.filter(t=>t.kind!=='recap'&&t.id!=='intro');
   const освоено=sec=>сост?темыРаздела(sec).filter(t=>сост.темы[t.id]&&(сост.темы[t.id].статус==='done'||сост.темы[t.id].статус==='due')).length:0;
   const симРаздела=sec=>new Set([].concat(...sec.topics.map(t=>[...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)))).size;
-  const полоса=(доля)=>`<span class="hm-bar"><i style="width:${Math.round(доля*100)}%"></i></span>`;
-  const кольцо=(доля)=>{ const L=2*Math.PI*15; return `<svg class="hm4-ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15"/><circle class="v" cx="18" cy="18" r="15" stroke-dasharray="${(L*доля).toFixed(1)} ${L.toFixed(1)}"/></svg>`; };
-  const всеТемы=ALL.filter(t=>t.kind!=='recap'&&t.id!=='intro');
-  const сумма=k=>ALL.reduce((a,t)=>a+((t[k]||[]).length),0);
-  /* продолжить */
-  let продолжить;
-  if(тП){
-    const x=сост&&сост.темы[тП.id], sec=разделТемы(тП);
-    продолжить=`<button class="hm-card hm-cont sx" style="${стильРаздела(sec)}" data-topic="${тП.id}">
-      <span class="hm-k">Продолжить</span>
-      <span class="hm-cont-t">${значокРаздела(sec,'hm-ic')}<b>${esc(тП.title)}</b></span>
-      <span class="hm-s">${esc(sec?sec.title:'')}${x?` · освоение ${Math.round(x.освоение*100)} %`:''}</span>
-      ${x?полоса(x.освоение):''}<span class="hm4-go">Открыть тему →</span></button>`;
-  } else {
-    продолжить=`<button class="hm-card hm-cont" data-topic="intro">
-      <span class="hm-k">С чего начать</span><span class="hm-cont-t"><b>Как устроено пособие</b></span>
-      <span class="hm-s">Пять минут о том, где что лежит: конспект, модель, задачи, «Мой путь».</span><span class="hm4-go">Начать →</span></button>`;
-  }
-  /* задача дня */
+  const первая=ALL.find(t=>t.id==='mech.1d')||ALL[1];
+  const продолжить=тП
+    ? `<p class="hm5-k">Вы остановились на</p><h1 class="hm5-h">${esc(тП.title)}</h1>
+       <div class="hm5-act"><button class="btn primary hm5-go" data-topic="${тП.id}">Продолжить</button>
+         <button class="hm5-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Найти тему или формулу</span><kbd>Ctrl P</kbd></button></div>`
+    : `<h1 class="hm5-h">Физика, которую видно</h1>
+       <div class="hm5-act"><button class="btn primary hm5-go" data-topic="${первая.id}">Начать с механики</button>
+         <button class="hm5-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Найти тему или формулу</span><kbd>Ctrl P</kbd></button></div>`;
   const зд=задачаДня(сост);
-  const задача=зд?`<div class="hm-card hm4-task"><span class="hm-k">Задача дня</span>
-      <span class="hm-s">${esc(зд.t.title)} · ${'●'.repeat(зд.pr.level||1)}${'○'.repeat(5-(зд.pr.level||1))}${S.solved&&S.solved[идЗадачи(зд.t,зд.pr)]?' · <b class="ok">решена</b>':''}</span>
+  const задача=зд?`<div class="hm-card hm5-task"><span class="hm5-l">Задача дня · ${esc(зд.t.title)}</span>
       <div class="hm4-stmt">${зд.pr.statement}</div>
-      <div class="hm-act"><button class="btn primary" id="hm-task-go" data-t="${зд.t.id}" data-i="${зд.i}">Решить</button>${зд.pr.sim&&SIMS[зд.pr.sim]?`<span class="hm-s">в симуляции «${esc(shortSimTitle?shortSimTitle(SIMS[зд.pr.sim].title,30):SIMS[зд.pr.sim].title)}»</span>`:''}</div></div>`:'';
-  /* мой путь сегодня */
-  let сегодня='';
+      <button class="btn primary" id="hm-task-go" data-t="${зд.t.id}" data-i="${зд.i}">Решить</button></div>`:'';
+  let путь='';
   if(сост){
     const ж=журнал(), рем=УЧ.навыкиКРемонту(ж), пусто=!Object.keys(ж.задачи).length&&!ж.диагн;
-    const фронт=сост.фронт[0]&&ALL.find(t=>t.id===сост.фронт[0]);
-    сегодня=`<div class="hm-card hm-today"><span class="hm-k">Мой путь сегодня</span>
-      ${пусто?`<p class="hm-s">Пройдите диагностику — 12 задач по всему курсу, и приложение подскажет, с какой темы начать.</p>
-        <div class="hm-act"><button class="btn primary" data-path="diag">Пройти диагностику</button><button class="btn" data-path="map">Карта тем</button></div>`
-      :`<ul class="hm-list">
-          <li><b>${сост.повторить.length}</b> ${plural(сост.повторить.length,'тема','темы','тем').replace(/^\d+\s/,'')} повторить</li>
-          <li><b>${рем.length}</b> ${plural(рем.length,'навык','навыка','навыков').replace(/^\d+\s/,'')} починить</li>
-          ${фронт?`<li>дальше: <b>${esc(фронт.title)}</b></li>`:''}
-        </ul><div class="hm-act"><button class="btn primary" data-path="today">Открыть «Мой путь»</button></div>`}</div>`;
+    путь=пусто
+      ? `<button class="hm-card hm5-path" data-path="diag"><span class="hm5-l">Мой путь</span>
+          <b>Диагностика за 10 минут</b><span class="hm-s">12 задач по курсу — и станет ясно, с какой темы начать</span></button>`
+      : `<button class="hm-card hm5-path" data-path="today"><span class="hm5-l">Мой путь</span>
+          <b>${сост.повторить.length} ${plural(сост.повторить.length,'тема','темы','тем').replace(/^\d+\s/,'')} повторить · ${рем.length} ${plural(рем.length,'навык','навыка','навыков').replace(/^\d+\s/,'')} починить</b>
+          <span class="hm-s">Открыть план на сегодня</span></button>`;
   }
-  const q=вопросДня();
-  h.innerHTML=`<div class="hm hm4">
-    <header class="hm-hero hm4-hero">
-      <div class="hm4-l">
-        <div class="hm4-eye">Phy.Sim · курс физики</div>
-        <h1 class="hm4-h">Физика, которую <em>можно покрутить</em> руками</h1>
-        <p class="hm-lead">Конспект, живая модель и задачи с пересчётом под ваши параметры — в одном окне. Работает без сети, ничего не отправляет.</p>
-        <button class="hm-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <span>Тема, формула, термин или команда…</span><kbd>Ctrl+P</kbd></button>
-        <dl class="hm4-stats">
-          <div><dt>${Object.keys(SIMS).length}</dt><dd>живых моделей</dd></div>
-          <div><dt>${всеТемы.length}</dt><dd>тем</dd></div>
-          <div><dt>${сумма('problems')}</dt><dd>задач</dd></div>
-          <div><dt>${сумма('derivations')}</dt><dd>выводов</dd></div>
-          <div><dt>${typeof ГЛОССАРИЙ!=='undefined'?ГЛОССАРИЙ.length:сумма('formulas')}</dt><dd>${typeof ГЛОССАРИЙ!=='undefined'?'терминов':'формул'}</dd></div>
-        </dl>
-      </div>
-      <button class="hm4-show" id="hm-show" title="Открыть эту симуляцию"><canvas id="hm-cv"></canvas>
-        <span class="hm4-cap"><i>сейчас на сцене</i><b>${ВИТРИНА[0].имя}</b></span></button>
-    </header>
-    <div class="hm4-grid">${продолжить}${задача}${сегодня}</div>
-    ${дневникHTML()}
+  h.innerHTML=`<div class="hm hm5">
+    <header class="hm-hero hm5-hero"><canvas id="hm-cv" aria-hidden="true"></canvas><div class="hm5-in">${продолжить}</div></header>
+    <div class="hm5-row">${задача}${путь}</div>
     <h2 class="hm-h">Разделы</h2>
-    <div class="hm-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
+    <div class="hm-secs hm5-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
       const темы=темыРаздела(sec), n=освоено(sec);
       return `<button class="hm-sec sx${sec.hard?' hard':''}" style="${стильРаздела(sec)}" data-sec="${sec.id}">
-        <span class="hm-sec-ic">${значокРаздела(sec,'hm-ic')}</span>
-        <span class="hm-sec-t">${esc(sec.title)}${sec.hard?'<small>повышенной сложности</small>':''}</span>
-        <span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'симуляция','симуляции','симуляций')}</span>
-        <span class="hm-sec-ts">${темы.slice(0,4).map(t=>`<i>${esc(t.title)}</i>`).join('')}${темы.length>4?`<i>+${темы.length-4}</i>`:''}</span>
-        ${сост?`<span class="hm-sec-p">${кольцо(темы.length?n/темы.length:0)}<span>освоено ${n} из ${темы.length}</span></span>`:''}
+        <canvas class="hm5-mini" data-mini="${sec.id}" aria-hidden="true"></canvas>
+        <span class="hm-sec-t">${esc(sec.title)}</span>
+        <span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'модель','модели','моделей')}</span>
+        ${n?`<span class="hm-bar"><i style="width:${Math.round(100*n/темы.length)}%"></i></span>`:''}
       </button>`; }).join('')}</div>
-    <div class="hm-row">
-      ${q?`<div class="hm-card hm-q"><span class="hm-k">Вопрос дня</span><b>${esc(q.вопрос)}</b>
-        <span class="hm-s">${esc(ALL.find(t=>t.id===q.тема).title)} · ${esc(SIMS[q.sim].title)}</span>
-        <div class="hm-act"><button class="btn primary" id="hm-q-go">Посмотреть в симуляции</button><button class="btn" data-path="ask">Все ${УЧ.ВОПРОСЫ.length} вопросов</button></div></div>`:''}
-      <div class="hm-card hm-tools"><span class="hm-k">Инструменты</span><div class="hm-tgrid">
-        <button data-tool="calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01"/></svg>Вычислитель</button>
-        <button data-path="map"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8 7.2 15.6 8M7 8.3l2.2 7.4M16.6 10l-4.7 6.3"/></svg>Карта тем</button>
-        <button data-tool="gloss"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>Словарь терминов</button>
-        <button data-tool="lesson"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg>Режим урока</button>
-        <button data-tool="ref"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z"/><path d="M8 8h7M8 12h7"/></svg>Справочник</button>
-        <button data-tool="prefs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Настройки</button>
-      </div></div>
-    </div>
-    <p class="hm-foot">Всё, что вы решаете и настраиваете, остаётся на этом устройстве.</p>
   </div>`;
   h.querySelectorAll('[data-topic]').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.topic); закрытьГлавную(); });
   h.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{
     const sec=SECTIONS.find(s=>s.id===b.dataset.sec);
-    // с первой неосвоенной темы раздела — туда и имеет смысл идти
     const темы=темыРаздела(sec);
     const t=(сост&&темы.find(x=>сост.темы[x.id]&&сост.темы[x.id].статус!=='done'&&сост.темы[x.id].статус!=='due'))||темы[0];
     if(S.open&&!S.open.includes(sec.id)){ S.open.push(sec.id); LS.set('open',S.open); }
@@ -394,24 +327,13 @@ function рисоватьГлавную(h){
   });
   h.querySelectorAll('[data-path]').forEach(b=>b.onclick=()=>открытьПуть(b.dataset.path));
   const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
-  const qg=h.querySelector('#hm-q-go');
-  if(qg) qg.onclick=()=>{ openTopic(q.тема); openSim(q.sim); закрытьГлавную(); if(isNarrow()) openSimMobile(); };
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
-  const cv=h.querySelector('#hm-cv'); витрина(cv);
-  const sh=h.querySelector('#hm-show'); if(sh) sh.onclick=()=>{ const в=ВИТРИНА[+(cv.dataset.i||0)];
-    openTopic(в.тема); openSim(в.sim); закрытьГлавную(); if(isNarrow()) openSimMobile(); };
-  h.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{
-    const т=b.dataset.tool;
-    if(т==='calc') открытьВычислитель();
-    else if(т==='ref') openPrefs('ref');
-    else if(т==='gloss'){ if(typeof открытьСловарь==='function') открытьСловарь(); }
-    else if(т==='lesson'){ if(typeof начатьУрок==='function'){ const id=LS.get('lastTopic',null); if(id&&id!=='intro') openTopic(id); закрытьГлавную(); начатьУрок(); } }
-    else openPrefs('quick');
-  });
+  полеГлавной(h.querySelector('#hm-cv'));
+  миниатюры(h);
 }
 function подключитьГлавную(){
-  собратьГлавную(); ДНЕВНИК.запустить();
+  собратьГлавную();
   const b=document.getElementById('btn-home'); if(b) b.onclick=()=>главнаяОткрыта()?закрытьГлавную():открытьГлавную();
   const лого=document.getElementById('tbrand'); if(лого) лого.onclick=()=>открытьГлавную();
   const m=document.getElementById('m-home'); if(m) m.onclick=()=>открытьГлавную();
