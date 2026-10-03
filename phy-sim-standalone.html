@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="3.5.0">
+<meta name="physim-build" content="4.0.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -2787,6 +2787,288 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 /* словесное показание («слева от линзы, выше оси») — мельче и в две строки */
 [data-ui="mobile"] .msheet-ro .sr-v.sr-txt{font-size:12.5px;white-space:normal;line-height:1.25;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:inherit}
+
+/* ===================================================================
+   ДИЗАЙН 4.0 — «СТРОГИЙ И СИЛЬНЫЙ»
+   Отзыв к 2.2 был «слишком детский», поэтому сила здесь не в цвете и не в
+   скруглениях, а в контрасте и иерархии: тёмная «чернильная» полоса
+   управления над светлой страницей, крупные плотные заголовки, тонкие
+   волосяные линии, один уверенный акцент. Ничего не подпрыгивает.
+   Слой стоит в конце файла и переопределяет прежние правила; палитры
+   (бумага, мята, северная…) по-прежнему перекрашивают основу.
+   =================================================================== */
+[data-palette="std"]{
+  --bg:#f3f4f7; --panel:#ffffff; --panel-2:#eef0f4; --line:#d8dbe2; --line-soft:#e7e9ee;
+  --ink:#0d1017; --ink-2:#465061; --ink-3:#5f6878;
+  --ground:#eceef3; --well:#f6f7f9; --chrome:#ffffff; --rail:#f8f9fb; --canvas:#fbfcfd;
+  --grid:#e0e4ea; --grid-major:#c8ced8; --divider:#0d101726;
+  --accent:#5b48e8; --accent-soft:#5b48e81a; --accent-300:#4532c9; --accent-700:#7a6af0; --accent-800:#dcd8fc; --f-app:#5b48e8;
+}
+[data-palette="std"][data-theme="dark"]{
+  --bg:#0c0e13; --panel:#14171f; --panel-2:#1b1f2a; --line:#2a2f3c; --line-soft:#1f2430;
+  --ink:#eceef4; --ink-2:#b3b9c9; --ink-3:#8b92a6;
+  --ground:#0a0c11; --well:#10131a; --chrome:#161a23; --rail:#11141b; --canvas:#0b0d12;
+  --grid:#1a1e29; --grid-major:#262b38; --divider:#eceef426;
+  --accent:#8e83ff; --accent-soft:#8e83ff2e; --accent-300:#cbc6ff; --accent-700:#5b48e8; --accent-800:#2e2970; --f-app:#a79bff;
+}
+:root{
+  --bar:#0e1118; --bar-2:#1a1e28; --bar-ink:#e9ecf3; --bar-ink-2:#9aa2b5; --bar-line:#ffffff14; --bar-accent:#9a8cff;
+  --radius-lg:calc(var(--radius) + 3px);
+  --display:var(--ui-font,var(--sans));
+  --sh-1:0 1px 0 #0d10170a,0 1px 2px #0d10170d;
+}
+[data-palette="sepia"]{--bar:#2a2318;--bar-2:#3a3124;--bar-ink:#f6efe1;--bar-ink-2:#c9bca3}
+[data-palette="mint"]{--bar:#10201a;--bar-2:#1b2f27;--bar-ink:#e9f4ef;--bar-ink-2:#a2bdb0}
+[data-palette="nord"]{--bar:#171c25;--bar-2:#232a36;--bar-ink:#e6ebf2;--bar-ink-2:#9aa6b8}
+[data-palette="oled"]{--bar:#000;--bar-2:#121217;--bar-ink:#f0f0f4;--bar-ink-2:#9898a8}
+[data-palette="contrast"]{--bar:#000;--bar-2:#222;--bar-ink:#fff;--bar-ink-2:#d0d0d0}
+[data-theme="dark"]{--bar:#07080c;--bar-2:#161a23}
+
+/* ---------- чернильная верхняя панель ---------- */
+[data-bar="ink"] .topbar{background:var(--bar);border-bottom:1px solid var(--bar);color:var(--bar-ink);height:46px}
+[data-bar="ink"] .topbar .iconbtn{color:var(--bar-ink-2)}
+[data-bar="ink"] .topbar .iconbtn:hover{background:var(--bar-2);color:var(--bar-ink)}
+[data-bar="ink"] .topbar .iconbtn.on,[data-bar="ink"] .topbar .iconbtn[aria-pressed="true"]{
+  background:var(--bar-2);color:var(--bar-ink);border-color:transparent;box-shadow:inset 0 -2px 0 var(--accent-700)}
+[data-bar="ink"] .topbar .sep{background:var(--bar-line)}
+[data-bar="ink"] .tnav{background:transparent;padding:0;gap:0}
+[data-bar="ink"] .tnav .tbtn{height:46px;border-radius:0;color:var(--bar-ink-2);padding:0 14px;position:relative}
+[data-bar="ink"] .tnav .tbtn:hover{background:var(--bar-2);color:var(--bar-ink)}
+[data-bar="ink"] .tnav .tbtn.cur,[data-bar="ink"].path-on .tbtn#btn-path{background:transparent;color:#fff;box-shadow:none;font-weight:600}
+[data-bar="ink"] .tnav .tbtn.cur::after,[data-bar="ink"].path-on .tbtn#btn-path::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:3px;
+  border-radius:3px 3px 0 0;background:var(--accent-700)}
+[data-bar="ink"] .tsearch{background:var(--bar-2);border-color:transparent;color:var(--bar-ink-2)}
+[data-bar="ink"] .tsearch:hover{border-color:var(--bar-line);color:var(--bar-ink)}
+[data-bar="ink"] .tsearch kbd{background:transparent;border-color:var(--bar-line);color:var(--bar-ink-2)}
+[data-bar="ink"] .topbar .badge{box-shadow:0 0 0 2px var(--bar)}
+/* знак */
+.tbrand{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 6px;border-radius:var(--radius);
+  font-weight:750;font-size:14.5px;letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
+.tbrand svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.5}
+.tbrand svg circle{fill:var(--accent)}
+.tbrand i{font-style:normal;color:var(--accent)}
+.tbrand:hover{background:var(--panel-2)}
+[data-bar="ink"] .tbrand{color:#fff}
+[data-bar="ink"] .tbrand svg{stroke:var(--accent-700)} [data-bar="ink"] .tbrand svg circle{fill:var(--accent-700)}
+[data-bar="ink"] .tbrand i{color:var(--accent-700)}
+[data-bar="ink"] .tbrand:hover{background:var(--bar-2)}
+[data-theme="dark"] .tbrand svg,[data-theme="dark"] .tbrand i{stroke:var(--accent);color:var(--accent)}
+@media (max-width:1100px){.tbrand span{display:none}}
+
+/* ---------- шапка темы: заголовок как в журнале ---------- */
+.chead h1{font-family:var(--display);font-size:2.05em;font-weight:780;letter-spacing:-.028em;line-height:1.12}
+.chead .sub{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;margin-top:7px}
+.t-ic{color:var(--sec,var(--accent));margin-bottom:10px}
+.t-ic svg{width:22px;height:22px}
+.tm-chip{border-color:var(--line-soft);background:var(--panel);font-size:11.5px}
+.tabs{border-bottom-color:var(--line-soft)}
+.tabs button{font-size:13.5px;font-weight:550;color:var(--ink-3);padding:11px 16px}
+.tabs button.on{color:var(--ink)}
+.tabs button::after{height:3px;border-radius:3px 3px 0 0;left:16px;right:16px}
+
+/* ---------- конспект: плотная типографика ---------- */
+article h3.sub,article h3{font-family:var(--display);font-weight:720;letter-spacing:-.018em}
+h2.sect{font-size:.7em;letter-spacing:.14em;color:var(--ink-2);font-weight:650}
+.why,.keybox,.callout{background:var(--well);box-shadow:inset 0 0 0 1px var(--line-soft)}
+.why{box-shadow:inset 3px 0 0 var(--accent),inset 0 0 0 1px var(--line-soft)}
+.callout{box-shadow:inset 3px 0 0 var(--measure),inset 0 0 0 1px var(--line-soft)}
+.explore,.qa,.problem,.formula,.deriv{box-shadow:var(--sh-1)}
+
+/* ---------- боковая панель ---------- */
+.sidebar{background:var(--rail)}
+.topic-item{border-radius:var(--radius)}
+.topic-item.active{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:inset 3px 0 0 var(--accent),0 0 0 1px var(--line-soft)}
+.sec>.hd{font-weight:650;letter-spacing:-.005em}
+
+/* ---------- кнопки ---------- */
+.btn{font-weight:550;border-radius:var(--radius);border-color:var(--line);background:var(--panel);color:var(--ink)}
+.btn:hover{border-color:var(--ink-3);color:var(--ink);background:var(--panel)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{filter:none;background:var(--accent-300);border-color:var(--accent-300);color:#fff}
+[data-theme="dark"] .btn.primary{color:#0b0d12;background:var(--accent);border-color:var(--accent)}
+[data-theme="dark"] .btn.primary:hover{background:var(--accent-300);border-color:var(--accent-300);color:#0b0d12}
+
+/* ---------- нижняя строка состояния ---------- */
+.statusbar{background:var(--rail);border-top-color:var(--line-soft)}
+
+/* ---------- фокус клавиатурой — заметный, но аккуратный ---------- */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- телефон: та же чернильная шапка ---------- */
+[data-ui="mobile"][data-bar="ink"] .mtop{background:var(--bar);color:var(--bar-ink);border-bottom-color:var(--bar)}
+[data-ui="mobile"][data-bar="ink"] .mtop .iconbtn{color:var(--bar-ink-2)}
+[data-ui="mobile"][data-bar="ink"] .mtop .iconbtn.on{background:var(--bar-2);color:var(--bar-ink)}
+
+/* ---------- 4.0: главная ----------
+   Чернильная шапка в цвет верхней панели — продолжение её, а не отдельная
+   «баннерная» плашка. Живая сцена справа, цифры курса снизу. */
+.hm4 .hm4-hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px;align-items:stretch;
+  background:var(--bar);color:var(--bar-ink);border:0;border-radius:var(--radius-lg);padding:30px 30px 26px;margin-bottom:18px}
+.hm4-eye{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--bar-ink-2)}
+.hm4-h{font-family:var(--display,inherit);font-size:34px;font-size:clamp(26px,3.3vw,40px);line-height:1.08;font-weight:780;letter-spacing:-.03em;margin:10px 0 12px;color:var(--bar-ink)}
+.hm4-h em{font-style:normal;color:var(--bar-accent,#9a8cff)}
+.hm4 .hm4-hero .hm-lead{color:var(--bar-ink-2);margin:0 0 18px;max-width:560px}
+.hm4 .hm4-hero .hm-search{background:var(--bar-2);border:1px solid var(--bar-line);color:var(--bar-ink-2);max-width:520px}
+.hm4 .hm4-hero .hm-search:hover{border-color:var(--accent-700);box-shadow:none;color:var(--bar-ink)}
+.hm4 .hm4-hero .hm-search kbd{background:transparent;border-color:var(--bar-line);color:var(--bar-ink-2)}
+.hm4-stats{display:flex;flex-wrap:wrap;gap:0;margin:22px 0 0;border-top:1px solid var(--bar-line);padding-top:14px}
+.hm4-stats div{padding:0 18px 0 0;margin-right:18px;border-right:1px solid var(--bar-line)}
+.hm4-stats div:last-child{border-right:0;margin-right:0}
+.hm4-stats dt{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--bar-ink);letter-spacing:-.02em}
+.hm4-stats dd{font-size:11.5px;color:var(--bar-ink-2);margin:0}
+.hm4-show{position:relative;display:block;min-height:250px;border:1px solid var(--bar-line);border-radius:var(--radius);background:var(--bar-2);
+  padding:0;cursor:pointer;overflow:hidden;color:inherit;text-align:left}
+.hm4-show:hover{border-color:var(--accent-700)}
+.hm4-show canvas{position:absolute;left:0;top:0;width:100%;height:100%}
+.hm4-cap{position:absolute;left:12px;bottom:10px;right:12px;display:flex;flex-direction:column;gap:1px;pointer-events:none}
+.hm4-cap i{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--bar-ink-2)}
+.hm4-cap b{font-size:13px;font-weight:600;color:var(--bar-ink)}
+.hm4-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px}
+.hm4 .hm-card{position:relative;background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh-1,none)}
+.hm4-go{margin-top:auto;padding-top:8px;font-size:12.5px;font-weight:600;color:var(--accent)}
+.hm4-task .hm4-stmt{font-size:14px;line-height:1.55;color:var(--ink);display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.hm4-task .ok{color:var(--good,#1a8f4c)}
+/* дневник: тепловая карта по дням, без серий и наград */
+.hm4-diary{width:100%;margin-bottom:6px}
+.hm4-dh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+.hm4-dbody{display:flex;flex-wrap:wrap;align-items:center;gap:18px 30px;width:100%;margin-top:6px}
+.hm4-heat{display:grid;grid-template-columns:repeat(20,12px);grid-template-rows:repeat(7,12px);gap:3px}
+.hm4-heat .dy{display:block;border-radius:2px;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line-soft)}
+.hm4-heat .l-1{background:transparent;box-shadow:none}
+.hm4-heat .l1{background:var(--accent-soft);background:color-mix(in srgb,var(--accent) 25%,var(--panel-2));box-shadow:none}
+.hm4-heat .l2{background:var(--accent-soft);background:color-mix(in srgb,var(--accent) 50%,var(--panel-2));box-shadow:none}
+.hm4-heat .l3{background:var(--accent-soft);background:color-mix(in srgb,var(--accent) 75%,var(--panel-2));box-shadow:none}
+.hm4-heat .l4{background:var(--accent);box-shadow:none}
+.hm4-dstat{display:flex;flex-wrap:wrap;gap:12px 28px;margin:0}
+.hm4-dstat dt{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--ink);letter-spacing:-.02em}
+.hm4-dstat dd{margin:0;font-size:12px;color:var(--ink-3);max-width:140px}
+/* разделы: строгая карточка, полоса цвета раздела слева, кольцо освоения */
+.hm4 .hm-sec{background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh-1,none)}
+.hm4 .hm-sec::before{top:0;bottom:0;left:0;right:auto;width:3px;height:auto;background:var(--sec);opacity:1}
+.hm4 .hm-sec:hover{border-color:var(--sec);background:var(--panel)}
+.hm4 .hm-sec-t{font-size:16px;font-weight:720;letter-spacing:-.01em}
+.hm4 .hm-sec-ic .hm-ic{stroke:var(--sec,var(--ink-2))}
+.hm4 .hm-sec-p{flex-direction:row;align-items:center;gap:8px}
+.hm4-ring{width:26px;height:26px;transform:rotate(-90deg);flex:0 0 auto}
+.hm4-ring circle{fill:none;stroke:var(--panel-2);stroke-width:4}
+.hm4-ring circle.v{stroke:var(--sec,var(--accent))}
+.hm4 .hm-h{font-family:var(--display,inherit);text-transform:none;letter-spacing:-.015em;font-size:20px;font-weight:760;color:var(--ink);margin:26px 2px 12px}
+.problem.flash{outline:2px solid var(--accent);outline-offset:3px;transition:outline-color .6s}
+[data-ui="mobile"] .hm4 .hm4-hero{grid-template-columns:1fr;padding:20px 16px 18px;gap:16px}
+[data-ui="mobile"] .hm4-show{min-height:180px}
+[data-ui="mobile"] .hm4-stats div{padding-right:12px;margin-right:12px}
+[data-ui="mobile"] .hm4-stats dt{font-size:18px}
+[data-ui="mobile"] .hm4-heat{grid-template-columns:repeat(20,11px);grid-template-rows:repeat(7,11px)}
+@media (max-width:820px){.hm4 .hm4-hero{grid-template-columns:1fr}}
+
+/* ---------- 4.0: словарь терминов ---------- */
+.gl{border-bottom:1px dashed var(--accent);cursor:help;border-radius:0}
+.gl:hover,.gl:focus-visible{background:var(--accent-soft);outline:none}
+[data-ui="mobile"] .gl{cursor:pointer}
+.glpop{position:fixed;z-index:400;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:var(--radius-lg);
+  box-shadow:0 12px 32px -8px rgba(10,14,25,.28);padding:12px 14px 10px;font-size:13.5px;line-height:1.55}
+.glpop.hidden{display:none}
+.glpop.sheet{left:12px;right:12px;bottom:12px;top:auto;width:auto!important}
+.glp-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.glp-h b{flex:1;font-size:14.5px;font-weight:720}
+.glp-x{border:0;background:none;color:var(--ink-3);font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+.glp-d{color:var(--ink-2)}
+.glp-f{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-3)}
+.glp-f button{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-weight:600;cursor:pointer}
+.glp-f button:hover{text-decoration:underline}
+.gl-modal{position:fixed;top:0;left:0;right:0;bottom:0;z-index:380;background:rgba(8,10,16,.5);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px 16px}
+.gl-modal.hidden{display:none}
+.glm-box{width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.glm-h{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bar);color:var(--bar-ink)}
+.glm-h h2{font-size:17px;font-weight:760;letter-spacing:-.01em;margin:0;flex:0 0 auto}
+.glm-q{flex:1;min-width:0;padding:8px 11px;border-radius:var(--radius);border:1px solid var(--bar-line);background:var(--bar-2);color:var(--bar-ink);font:inherit;font-size:13.5px}
+.glm-q:focus{outline:none;border-color:var(--accent-700)}
+.glm-x{border:0;background:none;color:var(--bar-ink-2);font-size:24px;line-height:1;cursor:pointer}
+.glm-list{overflow-y:auto;padding:8px 18px 18px}
+.glm-list h3{font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);margin:16px 0 6px}
+.glm-list dl{margin:0}
+.glm-it{display:grid;grid-template-columns:200px 1fr;gap:2px 16px;padding:9px 0;border-top:1px solid var(--line-soft)}
+.glm-it dt{font-weight:700;font-size:14px;color:var(--ink)}
+.glm-it dd{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.glm-go{grid-column:2;justify-self:start;border:0;background:none;padding:0;font:inherit;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer}
+.glm-empty{color:var(--ink-3);padding:20px 0}
+[data-ui="mobile"] .gl-modal{padding:0}
+[data-ui="mobile"] .glm-box{max-height:none;height:100%;border-radius:0;border:0}
+[data-ui="mobile"] .glm-it{grid-template-columns:1fr}
+[data-ui="mobile"] .glm-go{grid-column:1}
+
+/* ---------- 4.0: действия темы — урок и чтение вслух ---------- */
+.t-acts{position:absolute;right:34px;bottom:6px;display:flex;gap:4px;z-index:2}
+.content.wide .t-acts{right:12vw}
+.tact{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);
+  background:none;color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.tact svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tact:hover{color:var(--ink);background:var(--panel-2)}
+.tact.on{color:var(--accent);border-color:var(--accent)}
+[data-ui="mobile"] .t-acts{right:10px;bottom:4px}
+[data-ui="mobile"] .tact span{display:none}
+[data-ui="mobile"] .tact{padding:0 8px}
+.reading-now{background:var(--accent-soft);box-shadow:-6px 0 0 var(--accent-soft),6px 0 0 var(--accent-soft);border-radius:2px}
+
+/* ---------- 4.0: «сначала предскажите» ---------- */
+.ex-list li.predict .exl-see{display:none}
+.exl-rev{display:inline-block;margin-top:6px;padding:4px 10px;border:1px dashed var(--accent);border-radius:var(--radius);background:none;
+  color:var(--accent);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.exl-rev:hover{background:var(--accent-soft)}
+
+/* ---------- 4.0: режим урока ----------
+   Шапка темы и конспект уступают место слайду; список тем и панель
+   инструментов прячутся, сцена справа остаётся живой. */
+.lesson{display:none}
+[data-lesson="on"] #content>.chead,[data-lesson="on"] #content>.pane{display:none}
+[data-lesson="on"][data-ui="desktop"] .sidebar,[data-lesson="on"][data-ui="desktop"] .rail{display:none}
+[data-lesson="on"] .lesson{display:flex;flex-direction:column;flex:1;min-height:0;background:var(--panel)}
+.ls-top{display:flex;align-items:center;gap:14px;padding:12px 28px;border-bottom:1px solid var(--line-soft)}
+.ls-n{font-family:var(--mono);font-size:12px;color:var(--ink-3);min-width:52px}
+.ls-bar{flex:1;height:3px;background:var(--panel-2);border-radius:2px;overflow:hidden}
+.ls-bar i{display:block;height:100%;background:var(--accent);transition:width var(--t3) var(--ease)}
+.ls-slide{flex:1;overflow-y:auto;padding:34px 48px 24px;font-size:19px;line-height:1.6;color:var(--ink)}
+.ls-slide p{margin:0 0 .8em}
+.ls-h{font-size:30px;font-weight:780;letter-spacing:-.025em;line-height:1.15;margin:0 0 22px}
+.ls-eye{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:8vh}
+.ls-title{font-size:48px;font-size:clamp(34px,4.4vw,56px);font-weight:800;letter-spacing:-.035em;line-height:1.04;margin:12px 0 22px}
+.ls-why{font-size:20px;color:var(--ink-2);max-width:40em;border-left:3px solid var(--accent);padding-left:18px}
+.ls-key{padding-left:1.1em;display:flex;flex-direction:column;gap:12px}
+.ls-key li::marker{color:var(--accent)}
+.ls-lead{color:var(--ink-3);font-size:16px}
+.ls-exp{padding-left:1.2em;display:flex;flex-direction:column;gap:16px}
+.ls-exp .exl-do{display:block;font-weight:600}
+.ls-exp .exl-see{display:none;color:var(--ink-2)}
+.ls-exp li.shown .exl-see{display:block}
+.ls-exp .btn{margin-top:6px;font-size:13px}
+.ls-f{padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.ls-f .katex-display{font-size:1.15em}
+.ls-fn{font-size:15px;color:var(--ink-2)}
+.ls-pf{margin-bottom:16px;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.ls-pf>div{padding:10px 14px;font-size:17px}
+.ls-pf>div span{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;margin-bottom:2px}
+.ls-pf .bad{background:var(--panel-2)}
+.ls-pf .bad span{color:var(--danger,#c33)}
+.ls-pf .good span{color:var(--good,#1a8f4c)}
+.ls-q{font-size:24px;font-weight:650;line-height:1.4;margin-bottom:18px}
+.ls-a{display:none;margin-top:16px;padding:14px 18px;border-left:3px solid var(--accent);background:var(--panel-2)}
+.ls-slide .shown .ls-a,.ls-vopros.shown .ls-a{display:block}
+.ls-end{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.ls-nav{display:flex;align-items:center;gap:12px;padding:12px 28px;border-top:1px solid var(--line-soft)}
+.ls-hint{flex:1;text-align:center;font-size:12px;color:var(--ink-3);font-family:var(--mono)}
+.ls-nav .btn{min-width:120px}
+[data-ui="mobile"][data-lesson="on"] .lesson{position:fixed;top:0;left:0;right:0;bottom:0;z-index:950}
+[data-ui="mobile"] .ls-slide{padding:20px 18px;font-size:17px}
+[data-ui="mobile"] .ls-h{font-size:23px}
+[data-ui="mobile"] .ls-top,[data-ui="mobile"] .ls-nav{padding:10px 14px}
+[data-ui="mobile"] .ls-hint{visibility:hidden}
+[data-ui="mobile"] .hm4-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 0}
+[data-ui="mobile"] .hm4-stats div{border-right:0;margin-right:0}
+.m-acts{display:none}
+[data-ui="mobile"] .m-acts{display:flex;gap:6px;margin:0 0 12px}
+[data-ui="mobile"] .m-acts .tact{border-color:var(--line);flex:1;justify-content:center}
+[data-ui="mobile"] .m-acts .tact span{display:inline}
+[data-theme="dark"] .hm4 .hm4-hero{box-shadow:inset 0 0 0 1px var(--line)}
 </style>
 </head>
 <body>
@@ -2794,6 +3076,8 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
   <div class="topbar">
     <button class="iconbtn" id="btn-rail" title="Скрыть/открыть панель тем (Tab)" aria-pressed="true">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+    <!-- 4.0.0: знак и имя — клик ведёт на главную -->
+    <button class="tbrand" id="tbrand" title="Phy.Sim — на главную"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(120 12 12)"/></svg><span>Phy<i>.</i>Sim</span></button>
     <div class="sep"></div>
     <!-- 2.2.0: навигация словами, а не значками — три места, где можно быть -->
     <nav class="tnav" aria-label="Разделы приложения">
@@ -34760,6 +35044,145 @@ function вопросДня(){
   const д=Math.floor(Date.now()/864e5);
   return УЧ.ВОПРОСЫ[(д*7)%УЧ.ВОПРОСЫ.length];
 }
+/* ---------------- дневник занятий (4.0.0) ----------------
+   Минуты, проведённые в пособии, по дням: минута засчитывается, если окно
+   видно и за последние полторы минуты было хоть одно действие. Плюс
+   попытки решения из журнала ученика. Это факты, а не очки: ни серий, ни
+   значков — см. learn.js, мотивацию здесь не подогревают. Хранится только
+   на этом устройстве. */
+const ДНЕВНИК={
+  ключ:'activity',
+  день(t){ const d=new Date(t||Date.now()); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); },
+  данные(){ const x=LS.get(this.ключ,{}); return x&&typeof x==='object'?x:{}; },
+  добавить(мин){ const x=this.данные(), k=this.день(); x[k]=(x[k]||0)+мин;
+    // храним год, не больше
+    const ключи=Object.keys(x).sort(); while(ключи.length>400) delete x[ключи.shift()];
+    LS.set(this.ключ,x); },
+  /* попытки решений по дням — из журнала ученика */
+  попытки(){ const по={}; try{ const ж=журнал();
+      for(const id in ж.задачи) for(const п of ж.задачи[id].п||[]){ const k=this.день(п[0]); по[k]=(по[k]||0)+1; }
+      for(const id in ж.вопросы){ const k=this.день(ж.вопросы[id][0]); по[k]=(по[k]||0)+1; }
+    }catch(_){} return по; },
+  решено(дней){ let n=0; const с=Date.now()-дней*864e5; try{ const ж=журнал();
+      for(const id in ж.задачи){ const р=ж.задачи[id].решена; if(р&&р>=с) n++; } }catch(_){} return n; },
+  запустить(){
+    if(this._т) return;
+    let последнее=Date.now();
+    for(const ev of ['pointerdown','keydown','wheel','touchstart']) addEventListener(ev,()=>{ последнее=Date.now(); },{passive:true,capture:true});
+    this._т=setInterval(()=>{ if(document.visibilityState==='visible'&&Date.now()-последнее<90000) this.добавить(1); },60000);
+  }
+};
+function дневникHTML(){
+  const мин=ДНЕВНИК.данные(), поп=ДНЕВНИК.попытки(), НЕД=20;
+  const сегодня=new Date(); сегодня.setHours(12,0,0,0);
+  // сетка начинается с понедельника НЕД недель назад
+  const сдвиг=(сегодня.getDay()+6)%7, начало=new Date(сегодня.getTime()-(сдвиг+7*(НЕД-1))*864e5);
+  let клетки='', за7=0, дней30=0;
+  const МЕС=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  for(let w=0;w<НЕД;w++) for(let d=0;d<7;d++){
+    const t=new Date(начало.getTime()+(w*7+d)*864e5), k=ДНЕВНИК.день(t), m=мин[k]||0, p=поп[k]||0;
+    const будущее=t>сегодня, вес=m+4*p, ур=будущее?-1:(вес===0?0:вес<10?1:вес<25?2:вес<50?3:4);
+    const назад=(сегодня-t)/864e5;
+    if(назад<7&&назад>=0) за7+=m;
+    if(назад<30&&назад>=0&&вес>0) дней30++;
+    клетки+=`<i class="dy l${ур}" style="grid-column:${w+1};grid-row:${d+1}" title="${t.getDate()} ${МЕС[t.getMonth()]}: ${m} мин${p?`, ${p} ${plural(p,'попытка','попытки','попыток').replace(/^\d+\s/,'')} решения`:''}"></i>`;
+  }
+  return `<section class="hm-card hm4-diary"><div class="hm4-dh"><span class="hm-k">Дневник занятий</span>
+      <span class="hm-s">последние 20 недель · хранится только на этом устройстве</span></div>
+    <div class="hm4-dbody"><div class="hm4-heat" role="img" aria-label="Карта занятий по дням">${клетки}</div>
+      <dl class="hm4-dstat"><div><dt>${за7}</dt><dd>минут за 7 дней</dd></div>
+        <div><dt>${дней30}</dt><dd>${plural(дней30,'день','дня','дней').replace(/^\d+\s/,'')} с занятиями из 30</dd></div>
+        <div><dt>${ДНЕВНИК.решено(30)}</dt><dd>задач решено за 30 дней</dd></div></dl></div></section>`;
+}
+
+/* ---------------- задача дня (4.0.0) ----------------
+   Одна задача в день — из тем, к которым вы готовы («фронт» модели ученика),
+   а если путь не начат — из всего курса. Решается в своей теме: условие
+   привязано к параметрам симуляции. */
+function задачаДня(сост){
+  const д=Math.floor(Date.now()/864e5);
+  let темы=ALL.filter(t=>t.kind!=='recap'&&t.id!=='intro'&&(t.problems||[]).length);
+  const фронт=сост&&сост.фронт?темы.filter(t=>сост.фронт.includes(t.id)):[];
+  if(фронт.length) темы=фронт;
+  if(!темы.length) return null;
+  const t=темы[(д*31)%темы.length];
+  const лёгкие=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.level||1)<=3);
+  const x=(лёгкие.length?лёгкие:t.problems.map((p,i)=>({p,i})))[(д*17)%(лёгкие.length||t.problems.length)];
+  return {t,pr:x.p,i:x.i};
+}
+function открытьЗадачу(тема,i){
+  openTopic(тема); закрытьГлавную();
+  const b=document.querySelector('#tabs button[data-tab="problems"]'); if(b) b.click();
+  setTimeout(()=>{ const el=document.querySelector(`#pane .problem[data-i="${i}"]`); if(!el) return;
+    try{ el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){ el.scrollIntoView(); }
+    el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),2200);
+    const inp=el.querySelector('input'); if(inp&&!(typeof isNarrow==='function'&&isNarrow())) setTimeout(()=>inp.focus({preventScroll:true}),400); },160);
+}
+
+/* ---------------- витрина: живая сцена на главной (4.0.0) ----------------
+   Три коротких сюжета по кругу — орбита, интерференция, маятник. Это не
+   картинка: они считаются на лету и открывают свою симуляцию по клику. */
+const ВИТРИНА=[
+  {sim:'orbit', тема:'mech.grav', имя:'Орбита — второй закон Кеплера'},
+  {sim:'interf2', тема:'op.interf', имя:'Интерференция двух источников'},
+  {sim:'damped', тема:'mech.osc', имя:'Затухающие колебания и фазовый портрет'}
+];
+function витрина(cv){
+  if(!cv||cv._живёт) return; cv._живёт=true;
+  const ctx=cv.getContext('2d'); let t0=performance.now(), след=[];
+  const цв=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const кадр=now=>{
+    if(!document.body.contains(cv)||!главнаяОткрыта()){ cv._живёт=false; return; }
+    const спокойно=document.documentElement.dataset.motion!=='full';
+    const W=cv.clientWidth, H=cv.clientHeight, dpr=Math.min(devicePixelRatio||1,2);
+    if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+    const t=Math.max(0,(now-t0)/1000), номер=Math.floor(t/7)%ВИТРИНА.length, u=(t%7)/7, a=Math.min(1,u*6,(1-u)*6);
+    cv.dataset.i=номер;
+    const ак=цв('--bar-accent')||'#9a8cff', бел=цв('--bar-ink')||'#fff', тус=цв('--bar-ink-2')||'#999', тт=спокойно?2.2:t;
+    ctx.globalAlpha=a;
+    if(номер===0){
+      // эллипс Кеплера: решаем уравнение Кеплера, след — заметённые площади
+      const cx=W*0.5, cy=H*0.5, A=Math.min(W*0.4,H*0.62), e=0.6, B=A*Math.sqrt(1-e*e), фок=cx+A*e;
+      ctx.strokeStyle=тус; ctx.lineWidth=1; ctx.setLineDash([3,4]); ctx.beginPath(); ctx.ellipse(cx,cy,A,B,0,0,7); ctx.stroke(); ctx.setLineDash([]);
+      const M=тт*1.3; let E=M; for(let k=0;k<8;k++) E=M+e*Math.sin(E);
+      const px=cx+A*Math.cos(E), py=cy-B*Math.sin(E);
+      for(let k=0;k<3;k++){ const M0=M-0.35-k*2.1, M1=M0+0.35; ctx.fillStyle=ак; ctx.globalAlpha=a*0.22; ctx.beginPath(); ctx.moveTo(фок,cy);
+        for(let j=0;j<=12;j++){ let EE=M0+(M1-M0)*j/12; const MM=EE; for(let q=0;q<8;q++) EE=MM+e*Math.sin(EE); ctx.lineTo(cx+A*Math.cos(EE),cy-B*Math.sin(EE)); }
+        ctx.closePath(); ctx.fill(); }
+      ctx.globalAlpha=a; ctx.fillStyle='#f5b13d'; ctx.beginPath(); ctx.arc(фок,cy,7,0,7); ctx.fill();
+      ctx.fillStyle=бел; ctx.beginPath(); ctx.arc(px,py,4.5,0,7); ctx.fill();
+      ctx.strokeStyle=ак; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(фок,cy); ctx.lineTo(px,py); ctx.stroke();
+    } else if(номер===1){
+      const S1=[W*0.12,H*0.4], S2=[W*0.12,H*0.6], k=0.21, img=ctx.createImageData(Math.ceil(W/3),Math.ceil(H/3)), d=img.data;
+      const rgb=(ак.match(/[0-9a-f]{2}/gi)||['7a','6a','f0']).map(h=>parseInt(h,16));
+      for(let j=0;j<img.height;j++) for(let i=0;i<img.width;i++){ const x=i*3, y=j*3;
+        const e=Math.cos(k*Math.hypot(x-S1[0],y-S1[1])-тт*5)+Math.cos(k*Math.hypot(x-S2[0],y-S2[1])-тт*5), o=(j*img.width+i)*4;
+        d[o]=rgb[0]; d[o+1]=rgb[1]; d[o+2]=rgb[2]; d[o+3]=Math.round(255*a*0.85*e*e/4*(x>S1[0]?1:0)); }
+      const c2=витрина._c||(витрина._c=document.createElement('canvas')); c2.width=img.width; c2.height=img.height; c2.getContext('2d').putImageData(img,0,0);
+      ctx.imageSmoothingEnabled=true; ctx.drawImage(c2,0,0,W,H);
+      ctx.fillStyle=бел; for(const S of [S1,S2]){ ctx.beginPath(); ctx.arc(S[0],S[1],4,0,7); ctx.fill(); }
+    } else {
+      // затухающий осциллятор и его фазовый портрет — спираль к началу
+      const γ=0.35, ω=3, x=th=>Math.exp(-γ*th)*Math.cos(ω*th), v=th=>-Math.exp(-γ*th)*(γ*Math.cos(ω*th)+ω*Math.sin(ω*th))/ω;
+      const τ=(тт%7), cx=W*0.3, cy=H*0.5, R=Math.min(W*0.22,H*0.38), Lx=W*0.62, Ly=H*0.5;
+      ctx.strokeStyle=тус; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx-R-8,cy); ctx.lineTo(cx+R+8,cy); ctx.moveTo(cx,cy-R-8); ctx.lineTo(cx,cy+R+8); ctx.stroke();
+      ctx.strokeStyle=ак; ctx.lineWidth=1.8; ctx.beginPath();
+      for(let s2=0;s2<=τ;s2+=0.02){ const X=cx+R*x(s2), Y=cy-R*v(s2); s2?ctx.lineTo(X,Y):ctx.moveTo(X,Y); } ctx.stroke();
+      ctx.fillStyle=бел; ctx.beginPath(); ctx.arc(cx+R*x(τ),cy-R*v(τ),4,0,7); ctx.fill();
+      // пружина с грузом
+      const gx=Lx+R*0.9*x(τ); ctx.strokeStyle=тус; ctx.lineWidth=1.4; ctx.beginPath(); ctx.moveTo(Lx-R*1.1,Ly);
+      for(let j=1;j<=14;j++){ const xx=Lx-R*1.1+(gx-12-(Lx-R*1.1))*j/14; ctx.lineTo(xx,Ly+(j%2?-7:7)); } ctx.lineTo(gx-12,Ly); ctx.stroke();
+      ctx.fillStyle=ак; ctx.fillRect(gx-12,Ly-12,24,24);
+      ctx.fillStyle=тус; ctx.fillRect(Lx-R*1.1-3,Ly-20,3,40);
+    }
+    ctx.globalAlpha=1;
+    const cap=cv.parentElement&&cv.parentElement.querySelector('.hm4-cap b'); if(cap&&cap.textContent!==ВИТРИНА[номер].имя) cap.textContent=ВИТРИНА[номер].имя;
+    if(спокойно) setTimeout(()=>requestAnimationFrame(кадр),900); else requestAnimationFrame(кадр);
+  };
+  requestAnimationFrame(кадр);
+}
+
 function рисоватьГлавную(h){
   const сост=(typeof естьПуть==='function'&&естьПуть())?состояниеПути():null;
   const посл=LS.get('lastTopic',null), тП=посл&&посл!=='intro'?ALL.find(t=>t.id===посл):null;
@@ -34767,6 +35190,9 @@ function рисоватьГлавную(h){
   const освоено=sec=>сост?темыРаздела(sec).filter(t=>сост.темы[t.id]&&(сост.темы[t.id].статус==='done'||сост.темы[t.id].статус==='due')).length:0;
   const симРаздела=sec=>new Set([].concat(...sec.topics.map(t=>[...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)))).size;
   const полоса=(доля)=>`<span class="hm-bar"><i style="width:${Math.round(доля*100)}%"></i></span>`;
+  const кольцо=(доля)=>{ const L=2*Math.PI*15; return `<svg class="hm4-ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15"/><circle class="v" cx="18" cy="18" r="15" stroke-dasharray="${(L*доля).toFixed(1)} ${L.toFixed(1)}"/></svg>`; };
+  const всеТемы=ALL.filter(t=>t.kind!=='recap'&&t.id!=='intro');
+  const сумма=k=>ALL.reduce((a,t)=>a+((t[k]||[]).length),0);
   /* продолжить */
   let продолжить;
   if(тП){
@@ -34775,12 +35201,18 @@ function рисоватьГлавную(h){
       <span class="hm-k">Продолжить</span>
       <span class="hm-cont-t">${значокРаздела(sec,'hm-ic')}<b>${esc(тП.title)}</b></span>
       <span class="hm-s">${esc(sec?sec.title:'')}${x?` · освоение ${Math.round(x.освоение*100)} %`:''}</span>
-      ${x?полоса(x.освоение):''}</button>`;
+      ${x?полоса(x.освоение):''}<span class="hm4-go">Открыть тему →</span></button>`;
   } else {
     продолжить=`<button class="hm-card hm-cont" data-topic="intro">
       <span class="hm-k">С чего начать</span><span class="hm-cont-t"><b>Как устроено пособие</b></span>
-      <span class="hm-s">Пять минут о том, где что лежит: конспект, модель, задачи, «Мой путь».</span></button>`;
+      <span class="hm-s">Пять минут о том, где что лежит: конспект, модель, задачи, «Мой путь».</span><span class="hm4-go">Начать →</span></button>`;
   }
+  /* задача дня */
+  const зд=задачаДня(сост);
+  const задача=зд?`<div class="hm-card hm4-task"><span class="hm-k">Задача дня</span>
+      <span class="hm-s">${esc(зд.t.title)} · ${'●'.repeat(зд.pr.level||1)}${'○'.repeat(5-(зд.pr.level||1))}${S.solved&&S.solved[идЗадачи(зд.t,зд.pr)]?' · <b class="ok">решена</b>':''}</span>
+      <div class="hm4-stmt">${зд.pr.statement}</div>
+      <div class="hm-act"><button class="btn primary" id="hm-task-go" data-t="${зд.t.id}" data-i="${зд.i}">Решить</button>${зд.pr.sim&&SIMS[зд.pr.sim]?`<span class="hm-s">в симуляции «${esc(shortSimTitle?shortSimTitle(SIMS[зд.pr.sim].title,30):SIMS[зд.pr.sim].title)}»</span>`:''}</div></div>`:'';
   /* мой путь сегодня */
   let сегодня='';
   if(сост){
@@ -34796,14 +35228,27 @@ function рисоватьГлавную(h){
         </ul><div class="hm-act"><button class="btn primary" data-path="today">Открыть «Мой путь»</button></div>`}</div>`;
   }
   const q=вопросДня();
-  h.innerHTML=`<div class="hm">
-    <header class="hm-hero">
-      <div class="hm-brand">Phy<span>.</span>Sim</div>
-      <p class="hm-lead">Курс физики, который можно покрутить руками: ${Object.keys(SIMS).length} живых моделей, ${ALL.filter(t=>t.kind!=='recap'&&t.id!=='intro').length} тем, задачи с пересчётом под ваши параметры.</p>
-      <button class="hm-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <span>Найти тему, формулу, симуляцию или команду…</span><kbd>Ctrl+P</kbd></button>
+  h.innerHTML=`<div class="hm hm4">
+    <header class="hm-hero hm4-hero">
+      <div class="hm4-l">
+        <div class="hm4-eye">Phy.Sim · курс физики</div>
+        <h1 class="hm4-h">Физика, которую <em>можно покрутить</em> руками</h1>
+        <p class="hm-lead">Конспект, живая модель и задачи с пересчётом под ваши параметры — в одном окне. Работает без сети, ничего не отправляет.</p>
+        <button class="hm-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span>Тема, формула, термин или команда…</span><kbd>Ctrl+P</kbd></button>
+        <dl class="hm4-stats">
+          <div><dt>${Object.keys(SIMS).length}</dt><dd>живых моделей</dd></div>
+          <div><dt>${всеТемы.length}</dt><dd>тем</dd></div>
+          <div><dt>${сумма('problems')}</dt><dd>задач</dd></div>
+          <div><dt>${сумма('derivations')}</dt><dd>выводов</dd></div>
+          <div><dt>${typeof ГЛОССАРИЙ!=='undefined'?ГЛОССАРИЙ.length:сумма('formulas')}</dt><dd>${typeof ГЛОССАРИЙ!=='undefined'?'терминов':'формул'}</dd></div>
+        </dl>
+      </div>
+      <button class="hm4-show" id="hm-show" title="Открыть эту симуляцию"><canvas id="hm-cv"></canvas>
+        <span class="hm4-cap"><i>сейчас на сцене</i><b>${ВИТРИНА[0].имя}</b></span></button>
     </header>
-    <div class="hm-row">${продолжить}${сегодня}</div>
+    <div class="hm4-grid">${продолжить}${задача}${сегодня}</div>
+    ${дневникHTML()}
     <h2 class="hm-h">Разделы</h2>
     <div class="hm-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
       const темы=темыРаздела(sec), n=освоено(sec);
@@ -34812,15 +35257,17 @@ function рисоватьГлавную(h){
         <span class="hm-sec-t">${esc(sec.title)}${sec.hard?'<small>повышенной сложности</small>':''}</span>
         <span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'симуляция','симуляции','симуляций')}</span>
         <span class="hm-sec-ts">${темы.slice(0,4).map(t=>`<i>${esc(t.title)}</i>`).join('')}${темы.length>4?`<i>+${темы.length-4}</i>`:''}</span>
-        ${сост?`<span class="hm-sec-p">${полоса(темы.length?n/темы.length:0)}<span>освоено ${n} из ${темы.length}</span></span>`:''}
+        ${сост?`<span class="hm-sec-p">${кольцо(темы.length?n/темы.length:0)}<span>освоено ${n} из ${темы.length}</span></span>`:''}
       </button>`; }).join('')}</div>
     <div class="hm-row">
       ${q?`<div class="hm-card hm-q"><span class="hm-k">Вопрос дня</span><b>${esc(q.вопрос)}</b>
         <span class="hm-s">${esc(ALL.find(t=>t.id===q.тема).title)} · ${esc(SIMS[q.sim].title)}</span>
-        <div class="hm-act"><button class="btn primary" id="hm-q-go">Посмотреть в симуляции</button><button class="btn" data-path="ask">Все 40 вопросов</button></div></div>`:''}
+        <div class="hm-act"><button class="btn primary" id="hm-q-go">Посмотреть в симуляции</button><button class="btn" data-path="ask">Все ${УЧ.ВОПРОСЫ.length} вопросов</button></div></div>`:''}
       <div class="hm-card hm-tools"><span class="hm-k">Инструменты</span><div class="hm-tgrid">
         <button data-tool="calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01"/></svg>Вычислитель</button>
         <button data-path="map"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8 7.2 15.6 8M7 8.3l2.2 7.4M16.6 10l-4.7 6.3"/></svg>Карта тем</button>
+        <button data-tool="gloss"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>Словарь терминов</button>
+        <button data-tool="lesson"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg>Режим урока</button>
         <button data-tool="ref"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z"/><path d="M8 8h7M8 12h7"/></svg>Справочник</button>
         <button data-tool="prefs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Настройки</button>
       </div></div>
@@ -34840,16 +35287,24 @@ function рисоватьГлавную(h){
   const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
   const qg=h.querySelector('#hm-q-go');
   if(qg) qg.onclick=()=>{ openTopic(q.тема); openSim(q.sim); закрытьГлавную(); if(isNarrow()) openSimMobile(); };
+  const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
+  const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
+  const cv=h.querySelector('#hm-cv'); витрина(cv);
+  const sh=h.querySelector('#hm-show'); if(sh) sh.onclick=()=>{ const в=ВИТРИНА[+(cv.dataset.i||0)];
+    openTopic(в.тема); openSim(в.sim); закрытьГлавную(); if(isNarrow()) openSimMobile(); };
   h.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{
     const т=b.dataset.tool;
     if(т==='calc') открытьВычислитель();
     else if(т==='ref') openPrefs('ref');
+    else if(т==='gloss'){ if(typeof открытьСловарь==='function') открытьСловарь(); }
+    else if(т==='lesson'){ if(typeof начатьУрок==='function'){ const id=LS.get('lastTopic',null); if(id&&id!=='intro') openTopic(id); закрытьГлавную(); начатьУрок(); } }
     else openPrefs('quick');
   });
 }
 function подключитьГлавную(){
-  собратьГлавную();
+  собратьГлавную(); ДНЕВНИК.запустить();
   const b=document.getElementById('btn-home'); if(b) b.onclick=()=>главнаяОткрыта()?закрытьГлавную():открытьГлавную();
+  const лого=document.getElementById('tbrand'); if(лого) лого.onclick=()=>открытьГлавную();
   const m=document.getElementById('m-home'); if(m) m.onclick=()=>открытьГлавную();
   const d=document.querySelector('.drawer-foot .brand'); if(d){ d.style.cursor='pointer'; d.onclick=()=>открытьГлавную(); }
   // кнопки, открывающие список тем или сцену, уводят с главной
@@ -34897,6 +35352,466 @@ function режимЧтения(вкл){
   document.documentElement.classList.toggle('reading',!!чтение);
   const btn=document.getElementById('btn-reading'); if(btn) btn.classList.toggle('on',!!чтение);
   requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
+}
+
+;
+/* ===================== СЛОВАРЬ ТЕРМИНОВ (4.0.0) =====================
+   Короткие определения основных понятий курса. В конспекте первое
+   упоминание термина подчёркивается пунктиром: наведите или нажмите —
+   откроется карточка с определением и ссылкой на тему, где понятие вводится.
+   Одна строка — одно понятие:
+     т — термин, как в заголовке карточки;
+     к — основы слова для поиска в тексте (начало слова, без окончания;
+         пробел внутри — несколько слов подряд);
+     о — определение (можно с $TeX$);
+     тема — где понятие вводится.
+   Основы подобраны так, чтобы не цеплять чужие слова: «сил» поймал бы
+   «сильный», поэтому у силы основа «сила/силы/силу/…» перечислена явно. */
+const ГЛОССАРИЙ=[
+  // механика
+  {т:'Материальная точка',к:['материальн[а-яё]* точк'],о:'Тело, размерами которого в данной задаче можно пренебречь: всё его движение описывается движением одной точки.',тема:'mech.1d'},
+  {т:'Система отсчёта',к:['систем[а-яё]* отсч[её]т'],о:'Тело отсчёта, связанная с ним система координат и часы. Без неё слова «покоится» и «движется» не имеют смысла.',тема:'mech.1d'},
+  {т:'Перемещение',к:['перемещени'],о:'Вектор $\\vec s$ из начального положения в конечное. В отличие от пути, зависит только от начала и конца движения.',тема:'mech.1d'},
+  {т:'Скорость',к:['скорост'],о:'Быстрота изменения положения: $\\vec v=\\dfrac{d\\vec r}{dt}$. Вектор, направлен по касательной к траектории.',тема:'mech.1d'},
+  {т:'Ускорение',к:['ускорени'],о:'Быстрота изменения скорости: $\\vec a=\\dfrac{d\\vec v}{dt}$. Меняется и при изменении модуля скорости, и при повороте её направления.',тема:'mech.1d'},
+  {т:'Траектория',к:['траектори'],о:'Линия, которую описывает точка при движении. Её форма зависит от системы отсчёта.',тема:'mech.2d'},
+  {т:'Центростремительное ускорение',к:['центростремительн'],о:'Ускорение при движении по окружности, направленное к центру: $a=\\dfrac{v^2}{R}=\\omega^2R$. Отвечает за поворот скорости, а не за её модуль.',тема:'mech.2d'},
+  {т:'Инерциальная система отсчёта',к:['инерциальн'],о:'Система отсчёта, в которой тело без внешних воздействий движется равномерно и прямолинейно (первый закон Ньютона).',тема:'mech.dyn'},
+  {т:'Сила',к:['сила\\b','силы\\b','силу\\b','силой\\b','силе\\b','сил\\b'],о:'Мера воздействия одного тела на другое, вектор. Сумма сил равна $m\\vec a$ — второй закон Ньютона.',тема:'mech.dyn'},
+  {т:'Масса',к:['масс[аыуеоэ]\\b','массой','массам'],о:'Мера инертности тела: чем она больше, тем меньше ускорение при той же силе. Она же определяет силу тяготения.',тема:'mech.dyn'},
+  {т:'Импульс',к:['импульс'],о:'Произведение массы на скорость: $\\vec p=m\\vec v$. В замкнутой системе суммарный импульс сохраняется.',тема:'mech.dyn'},
+  {т:'Сила трения',к:['трени'],о:'Сила, препятствующая скольжению соприкасающихся тел. Трение скольжения $F=\\mu N$; трение покоя меняется от нуля до $\\mu N$.',тема:'mech.dyn'},
+  {т:'Вес',к:['вес\\b','веса\\b','весом\\b'],о:'Сила, с которой тело давит на опору или растягивает подвес. Не путать с силой тяжести: в лифте с ускорением вес меняется, а сила тяжести — нет.',тема:'mech.dyn'},
+  {т:'Невесомость',к:['невесомост'],о:'Состояние, в котором вес равен нулю: опора и тело движутся с одним и тем же ускорением свободного падения.',тема:'mech.dyn'},
+  {т:'Закон всемирного тяготения',к:['всемирного тяготени','тяготени'],о:'Две точечные массы притягиваются с силой $F=G\\dfrac{m_1m_2}{r^2}$.',тема:'mech.grav'},
+  {т:'Первая космическая скорость',к:['перв[а-яё]* космическ'],о:'Скорость кругового движения у поверхности планеты: $v_1=\\sqrt{gR}$, у Земли около 7,9 км/с.',тема:'mech.grav'},
+  {т:'Работа',к:['работ[аыуе]\\b','работой'],о:'Мера передачи энергии силой: $A=Fs\\cos\\alpha$. Сила, перпендикулярная перемещению, работы не совершает.',тема:'mech.work'},
+  {т:'Мощность',к:['мощност'],о:'Работа в единицу времени: $P=\\dfrac{A}{t}=Fv$. Измеряется в ваттах.',тема:'mech.work'},
+  {т:'Кинетическая энергия',к:['кинетическ[а-яё]* энерги'],о:'Энергия движения: $E_k=\\dfrac{mv^2}{2}$. Её изменение равно работе всех сил.',тема:'mech.work'},
+  {т:'Потенциальная энергия',к:['потенциальн[а-яё]* энерги'],о:'Энергия взаимного положения тел, определённая для консервативных сил: $mgh$ у поверхности Земли, $\\dfrac{kx^2}{2}$ у пружины.',тема:'mech.energy'},
+  {т:'Консервативная сила',к:['консервативн'],о:'Сила, работа которой не зависит от формы пути, а только от начала и конца. Для таких сил вводится потенциальная энергия.',тема:'mech.energy'},
+  {т:'Момент силы',к:['момент[а-яё]* сил'],о:'Вращательное действие силы: $M=Fd$, где $d$ — плечо, расстояние от оси до линии действия силы.',тема:'mech.rot'},
+  {т:'Момент инерции',к:['момент[а-яё]* инерци'],о:'Мера инертности при вращении: $I=\\sum m_ir_i^2$. Зависит не только от массы, но и от того, как далеко она от оси.',тема:'mech.rot'},
+  {т:'Момент импульса',к:['момент[а-яё]* импульс'],о:'Вращательный аналог импульса: $L=I\\omega$. Сохраняется, если суммарный момент внешних сил равен нулю.',тема:'mech.rot'},
+  {т:'Гармонические колебания',к:['гармоническ'],о:'Колебания по закону синуса: $x=A\\cos(\\omega t+\\varphi)$. Возникают, когда возвращающая сила пропорциональна смещению.',тема:'mech.osc'},
+  {т:'Период',к:['период'],о:'Время одного полного колебания или оборота, $T=\\dfrac{2\\pi}{\\omega}$.',тема:'mech.osc'},
+  {т:'Резонанс',к:['резонанс'],о:'Резкий рост амплитуды вынужденных колебаний, когда частота внешней силы близка к собственной частоте системы.',тема:'mech.osc'},
+  {т:'Амплитуда',к:['амплитуд'],о:'Наибольшее отклонение колеблющейся величины от положения равновесия.',тема:'mech.osc'},
+  // молекулярная физика и термодинамика
+  {т:'Идеальный газ',к:['идеальн[а-яё]* газ'],о:'Модель газа, молекулы которого — точки, взаимодействующие только при упругих столкновениях. Подчиняется уравнению $pV=\\nu RT$.',тема:'th.kinetic'},
+  {т:'Давление',к:['давлени'],о:'Сила на единицу площади, $p=\\dfrac{F}{S}$. В газе — результат ударов молекул о стенки.',тема:'th.kinetic'},
+  {т:'Температура',к:['температур'],о:'Мера средней кинетической энергии хаотического движения молекул: $\\bar E=\\tfrac32kT$. Абсолютная шкала — в кельвинах.',тема:'th.kinetic'},
+  {т:'Количество вещества',к:['количеств[а-яё]* веществ'],о:'Число частиц в молях: $\\nu=\\dfrac{N}{N_A}$, один моль — $6{,}02\\cdot10^{23}$ частиц.',тема:'th.kinetic'},
+  {т:'Внутренняя энергия',к:['внутренн[а-яё]* энерги'],о:'Суммарная энергия хаотического движения и взаимодействия частиц тела. У идеального одноатомного газа $U=\\tfrac32\\nu RT$.',тема:'th.thermo'},
+  {т:'Количество теплоты',к:['количеств[а-яё]* теплот'],о:'Энергия, переданная телу без совершения работы — теплообменом.',тема:'th.thermo'},
+  {т:'Адиабатный процесс',к:['адиабат'],о:'Процесс без теплообмена с окружением: $Q=0$, вся работа газа идёт за счёт его внутренней энергии.',тема:'th.thermo'},
+  {т:'Изотермический процесс',к:['изотерм'],о:'Процесс при постоянной температуре: для идеального газа $pV=\\text{const}$, а внутренняя энергия не меняется.',тема:'th.thermo'},
+  {т:'Теплоёмкость',к:['теплоёмкост','теплоемкост'],о:'Количество теплоты, нужное для нагрева тела на один кельвин. Зависит от процесса: при постоянном давлении больше, чем при постоянном объёме.',тема:'th.thermo'},
+  {т:'КПД',к:['кпд'],о:'Доля полученной энергии, ушедшая в полезную работу: $\\eta=\\dfrac{A}{Q_1}$. Для тепловой машины не больше $1-\\dfrac{T_2}{T_1}$.',тема:'th.second'},
+  {т:'Энтропия',к:['энтропи'],о:'Мера числа микросостояний, отвечающих данному макросостоянию. В изолированной системе не убывает — это и есть второе начало.',тема:'th.second'},
+  // электричество и магнетизм
+  {т:'Электрический заряд',к:['заряд'],о:'Свойство частиц участвовать в электромагнитном взаимодействии. Сохраняется и квантуется: кратен $e=1{,}6\\cdot10^{-19}$ Кл.',тема:'el.force'},
+  {т:'Закон Кулона',к:['закон[а-яё]* кулон'],о:'Сила между точечными зарядами: $F=k\\dfrac{|q_1q_2|}{r^2}$. Единица заряда, кулон, названа тем же именем.',тема:'el.force'},
+  {т:'Напряжённость поля',к:['напряжённост','напряженност'],о:'Сила, действующая на единичный положительный заряд: $\\vec E=\\dfrac{\\vec F}{q}$.',тема:'el.statics'},
+  {т:'Потенциал',к:['потенциал[аоуе]?\\b','потенциалов'],о:'Энергия единичного положительного заряда в данной точке поля, $\\varphi=\\dfrac{W}{q}$. Разность потенциалов — это напряжение.',тема:'el.statics'},
+  {т:'Конденсатор',к:['конденсатор'],о:'Две проводящие обкладки, разделённые диэлектриком; накапливает заряд. Ёмкость $C=\\dfrac{q}{U}$.',тема:'el.statics'},
+  {т:'Диэлектрик',к:['диэлектрик'],о:'Вещество, почти не проводящее ток: свободных зарядов в нём нет, во внешнем поле он лишь поляризуется.',тема:'el.statics'},
+  {т:'Электрический ток',к:['ток[аеу]?\\b','током\\b'],о:'Направленное движение зарядов. Сила тока — заряд через сечение в единицу времени, $I=\\dfrac{q}{t}$.',тема:'el.current'},
+  {т:'Напряжение',к:['напряжени'],о:'Работа поля по переносу единичного заряда между двумя точками, $U=\\dfrac{A}{q}$. Измеряется в вольтах.',тема:'el.current'},
+  {т:'Сопротивление',к:['сопротивлени'],о:'Свойство проводника препятствовать току: $R=\\dfrac{U}{I}$ (закон Ома), для провода $R=\\rho\\dfrac{l}{S}$.',тема:'el.current'},
+  {т:'ЭДС',к:['эдс'],о:'Работа сторонних сил по переносу единичного заряда по замкнутой цепи. Для источника $\\mathcal E=I(R+r)$.',тема:'el.current'},
+  {т:'Магнитное поле',к:['магнитн[а-яё]* пол'],о:'Поле, действующее на движущиеся заряды и токи. Описывается вектором индукции $\\vec B$.',тема:'em.fields'},
+  {т:'Сила Лоренца',к:['сил[а-яё]* лоренц'],о:'Сила, с которой магнитное поле действует на движущийся заряд: $F=qvB\\sin\\alpha$. Работы не совершает — только поворачивает скорость.',тема:'em.fields'},
+  {т:'Сила Ампера',к:['сил[а-яё]* ампер'],о:'Сила, действующая на проводник с током в магнитном поле: $F=IBl\\sin\\alpha$.',тема:'em.fields'},
+  {т:'Магнитный поток',к:['магнитн[а-яё]* пото'],о:'Поток вектора индукции через площадку: $\\Phi=BS\\cos\\alpha$.',тема:'em.induction'},
+  {т:'Электромагнитная индукция',к:['электромагнитн[а-яё]* индукци','явлени[а-яё]* индукци'],о:'Возникновение ЭДС в контуре при изменении магнитного потока через него: $\\mathcal E=-\\dfrac{d\\Phi}{dt}$.',тема:'em.induction'},
+  {т:'Индуктивность',к:['индуктивност'],о:'Коэффициент между током и его собственным магнитным потоком, $\\Phi=LI$. Чем она больше, тем сильнее катушка сопротивляется изменению тока.',тема:'em.induction'},
+  {т:'Электромагнитная волна',к:['электромагнитн[а-яё]* волн'],о:'Распространяющиеся в пространстве колебания электрического и магнитного полей. В вакууме идут со скоростью света $c$.',тема:'em.radiation'},
+  {т:'Реактивное сопротивление',к:['реактивн'],о:'Сопротивление катушки ($X_L=\\omega L$) и конденсатора ($X_C=\\dfrac1{\\omega C}$) переменному току: энергию они не рассеивают, а запасают и возвращают.',тема:'em.ac'},
+  {т:'Действующее значение',к:['действующ[а-яё]* значени'],о:'Постоянный ток, дающий то же тепло, что и данный переменный: $I_\\text{д}=\\dfrac{I_0}{\\sqrt2}$ для синусоиды.',тема:'em.ac'},
+  // оптика и волны
+  {т:'Длина волны',к:['длин[а-яё]* волн'],о:'Расстояние, на котором фаза волны повторяется: $\\lambda=vT=\\dfrac{v}{\\nu}$.',тема:'em.radiation'},
+  {т:'Показатель преломления',к:['показател[а-яё]* преломлени'],о:'Во сколько раз свет в среде медленнее, чем в вакууме: $n=\\dfrac{c}{v}$.',тема:'op.optics'},
+  {т:'Полное внутреннее отражение',к:['полн[а-яё]* внутренн[а-яё]* отражени'],о:'При переходе в оптически менее плотную среду под углом больше предельного, $\\sin\\alpha_0=\\dfrac{n_2}{n_1}$, свет целиком отражается.',тема:'op.optics'},
+  {т:'Фокус',к:['фокус'],о:'Точка, где после линзы или зеркала собираются лучи, шедшие параллельно оптической оси. Расстояние до неё — фокусное.',тема:'op.optics'},
+  {т:'Дисперсия',к:['дисперси'],о:'Зависимость показателя преломления от длины волны. Из-за неё призма раскладывает белый свет в спектр.',тема:'op.matter'},
+  {т:'Интерференция',к:['интерференци'],о:'Сложение когерентных волн, при котором в одних местах они усиливают, а в других гасят друг друга.',тема:'op.interf'},
+  {т:'Когерентность',к:['когерентн'],о:'Согласованность волн: постоянная разность фаз. Только когерентные волны дают устойчивую интерференционную картину.',тема:'op.interf'},
+  {т:'Дифракция',к:['дифракци'],о:'Огибание волной препятствий и отклонение от прямолинейного распространения; заметна, когда препятствие сравнимо с длиной волны.',тема:'op.interf'},
+  {т:'Дифракционная решётка',к:['дифракционн[а-яё]* решётк','дифракционн[а-яё]* решетк'],о:'Много параллельных щелей с периодом $d$. Максимумы там, где $d\\sin\\varphi=k\\lambda$.',тема:'op.interf'},
+  {т:'Поляризация',к:['поляризаци'],о:'Упорядоченность направления колебаний электрического поля в волне. Бывает у поперечных волн — значит, свет поперечен.',тема:'op.matter'},
+  // теория относительности
+  {т:'Замедление времени',к:['замедлени[а-яё]* времен'],о:'Движущиеся часы идут медленнее: $\\Delta t=\\gamma\\,\\Delta t_0$, где $\\gamma=\\dfrac1{\\sqrt{1-v^2/c^2}}$.',тема:'rel.sr'},
+  {т:'Лоренцево сокращение',к:['сокращени[а-яё]* длин','лоренцев'],о:'Длина движущегося тела вдоль скорости меньше собственной: $l=\\dfrac{l_0}{\\gamma}$.',тема:'rel.sr'},
+  {т:'Энергия покоя',к:['энерги[а-яё]* поко'],о:'Энергия тела в его собственной системе отсчёта: $E_0=mc^2$.',тема:'rel.sr'},
+  // квантовая физика
+  {т:'Фотон',к:['фотон'],о:'Квант электромагнитного излучения. Энергия $E=h\\nu$, импульс $p=\\dfrac{h}{\\lambda}$, масса покоя равна нулю.',тема:'q.wave'},
+  {т:'Фотоэффект',к:['фотоэффект'],о:'Вырывание электронов светом. Энергия электрона зависит от частоты, а не от яркости: $h\\nu=A+E_k$.',тема:'q.wave'},
+  {т:'Работа выхода',к:['работ[а-яё]* выход'],о:'Наименьшая энергия, нужная, чтобы вырвать электрон из металла.',тема:'q.wave'},
+  {т:'Волна де Бройля',к:['де бройл'],о:'Волна, сопоставленная любой частице: $\\lambda=\\dfrac{h}{p}$. Проявляется в дифракции электронов.',тема:'q.wave'},
+  {т:'Волновая функция',к:['волнов[а-яё]* функци'],о:'Амплитуда вероятности $\\psi$: $|\\psi|^2$ — плотность вероятности найти частицу в данном месте.',тема:'q.qm'},
+  {т:'Соотношение неопределённостей',к:['неопределённост','неопределенност'],о:'Координату и импульс нельзя одновременно знать точно: $\\Delta x\\,\\Delta p\\ge\\dfrac{\\hbar}{2}$.',тема:'q.qm'},
+  {т:'Туннельный эффект',к:['туннел'],о:'Прохождение частицы сквозь барьер выше её энергии — невозможное классически, но с ненулевой вероятностью в квантовой механике.',тема:'q.qm'},
+  {т:'Энергетический уровень',к:['энергетическ[а-яё]* уров','уровн[а-яё]* энерги'],о:'Одно из разрешённых значений энергии связанной системы. Переход между уровнями сопровождается излучением или поглощением кванта.',тема:'q.hydrogen'},
+  {т:'Орбиталь',к:['орбитал'],о:'Состояние электрона в атоме, задаваемое волновой функцией; облако $|\\psi|^2$ показывает, где электрон бывает чаще.',тема:'q.hydrogen'},
+  {т:'Спин',к:['спин[аоуеы]?\\b','спином','спинов'],о:'Собственный момент импульса частицы, не связанный с движением в пространстве. У электрона проекция равна $\\pm\\hbar/2$.',тема:'q.spin'},
+  {т:'Принцип Паули',к:['паули'],о:'Два одинаковых фермиона (например, электрона) не могут находиться в одном квантовом состоянии.',тема:'q.atomic'},
+  {т:'Запрещённая зона',к:['запрещённ[а-яё]* зон','запрещенн[а-яё]* зон'],о:'Интервал энергий между валентной зоной и зоной проводимости, где нет разрешённых состояний. Широкая — у диэлектриков, узкая — у полупроводников.',тема:'q.condensed'},
+  {т:'Полупроводник',к:['полупроводник'],о:'Вещество с узкой запрещённой зоной: проводимость резко растёт при нагреве, освещении и примесях.',тема:'q.condensed'},
+  {т:'Вынужденное излучение',к:['вынужденн[а-яё]* излучени'],о:'Испускание фотона возбуждённым атомом под действием такого же фотона; новый фотон — точная копия. На нём работает лазер.',тема:'q.laser'},
+  {т:'Инверсная населённость',к:['инверс'],о:'Состояние, при котором на верхнем уровне атомов больше, чем на нижнем; без неё вынужденное излучение не усиливает свет.',тема:'q.laser'},
+  {т:'Энергия связи',к:['энерги[а-яё]* связи'],о:'Энергия, нужная, чтобы разобрать ядро на отдельные нуклоны: $E_\\text{св}=\\Delta m\\,c^2$, где $\\Delta m$ — дефект масс.',тема:'q.nuclear'},
+  {т:'Период полураспада',к:['период[а-яё]* полураспад','полураспад'],о:'Время, за которое распадается половина радиоактивных ядер: $N=N_0\\cdot2^{-t/T}$.',тема:'q.nuclear'},
+  {т:'Изотоп',к:['изотоп'],о:'Атомы одного элемента с разным числом нейтронов в ядре: химически одинаковы, по массе и устойчивости различаются.',тема:'q.nuclear'},
+  {т:'Античастица',к:['античастиц'],о:'Частица с той же массой и противоположными зарядами. Встреча с частицей ведёт к аннигиляции.',тема:'q.particles'},
+  {т:'Кварк',к:['кварк'],о:'Фундаментальная частица, из которой состоят протоны, нейтроны и другие адроны. По отдельности не наблюдается.',тема:'q.particles'}
+];
+
+/* ---------------- поиск в тексте ----------------
+   Регулярные выражения строим один раз. Граница слова — вручную: \b в JS
+   не знает кириллицы, поэтому «сила\b» сработал бы и внутри «силами». */
+const _БУКВА='a-zа-яё0-9';
+let _глРе=null;
+function глРегулярки(){
+  if(_глРе) return _глРе;
+  _глРе=ГЛОССАРИЙ.map(g=>new RegExp('(^|[^'+_БУКВА+'])((?:'+g.к.map(k=>k.replace(/\\b/g,'(?![' + _БУКВА + '])').replace(/ /g,'\\s+')).join('|')+')[а-яё]*)','i'));
+  return _глРе;
+}
+/* Узлы, внутри которых термины не размечаем: формулы, заголовки, кнопки,
+   ссылки и сама разметка словаря. */
+const _ГЛ_НЕЛЬЗЯ='.katex,.katex-display,a,button,h1,h2,h3,h4,summary,code,kbd,.gl,.formula,.deriv,input,textarea,.exl-see';
+function глоссарийВключён(){ return typeof prefGet!=='function'||prefGet('glossary')!==false; }
+/* Первое упоминание каждого термина в корне помечаем <span class="gl">.
+   Не больше одной метки на термин: подчёркнутый через слово текст читать
+   тяжелее, чем без подчёркиваний вовсе. */
+function разметитьТермины(root,темаИд){
+  if(!root||!глоссарийВключён()) return;
+  const ре=глРегулярки(), было=new Set();
+  const обход=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode(n){
+    if(!n.nodeValue||n.nodeValue.length<3) return NodeFilter.FILTER_REJECT;
+    const p=n.parentElement; if(!p||p.closest(_ГЛ_НЕЛЬЗЯ)) return NodeFilter.FILTER_REJECT;
+    return NodeFilter.FILTER_ACCEPT; }});
+  const узлы=[]; let n; while((n=обход.nextNode())) узлы.push(n);
+  for(const узел of узлы){
+    let текст=узел.nodeValue, лучший=null;
+    for(let i=0;i<ре.length;i++){
+      if(было.has(i)) continue;
+      const m=ре[i].exec(текст); if(!m) continue;
+      const нач=m.index+m[1].length;
+      if(!лучший||нач<лучший.нач||(нач===лучший.нач&&m[2].length>лучший.дл)) лучший={i,нач,дл:m[2].length};
+    }
+    if(!лучший) continue;
+    было.add(лучший.i);
+    const после=узел.splitText(лучший.нач); после.splitText(лучший.дл);
+    const sp=document.createElement('span'); sp.className='gl'; sp.dataset.g=лучший.i; sp.tabIndex=0;
+    sp.setAttribute('role','button'); sp.textContent=после.nodeValue;
+    после.parentNode.replaceChild(sp,после);
+    // хвост узла — новый текстовый узел; в нём могут быть другие термины
+    const хвост=sp.nextSibling; if(хвост&&хвост.nodeType===3) узлы.splice(узлы.indexOf(узел)+1,0,хвост);
+  }
+}
+
+/* ---------------- карточка термина ---------------- */
+let _глЯкорь=null, _глТаймер=0;
+function карточкаТермина(i,якорь){
+  const g=ГЛОССАРИЙ[i]; if(!g) return;
+  let c=document.getElementById('glpop');
+  if(!c){ c=document.createElement('div'); c.id='glpop'; c.className='glpop hidden'; c.setAttribute('role','dialog');
+    document.body.appendChild(c);
+    c.addEventListener('pointerenter',()=>clearTimeout(_глТаймер));
+    c.addEventListener('pointerleave',e=>{ if(e.pointerType==='mouse') _глТаймер=setTimeout(закрытьТермин,250); }); }
+  const t=ALL.find(x=>x.id===g.тема), здесь=S.topic&&S.topic.id===g.тема;
+  c.innerHTML=`<div class="glp-h"><b>${esc(g.т)}</b><button class="glp-x" aria-label="Закрыть">×</button></div>
+    <div class="glp-d">${g.о}</div>
+    <div class="glp-f">${t&&!здесь?`<button class="glp-go">Тема: ${esc(t.title)} →</button>`:t?'<span>вводится в этой теме</span>':''}
+      <button class="glp-all">Весь словарь</button></div>`;
+  c.classList.remove('hidden'); typeset(c);
+  _глЯкорь=якорь||null;
+  const r=якорь?якорь.getBoundingClientRect():null, w=Math.min(340,innerWidth-24);
+  c.style.width=w+'px';
+  if(!r||isNarrow()){ c.classList.add('sheet'); c.style.left=c.style.top=''; }
+  else { c.classList.remove('sheet');
+    const h=c.offsetHeight; let x=Math.min(Math.max(12,r.left+r.width/2-w/2),innerWidth-w-12), y=r.bottom+8;
+    if(y+h>innerHeight-12) y=Math.max(12,r.top-h-8);
+    c.style.left=x+'px'; c.style.top=y+'px'; }
+  c.querySelector('.glp-x').onclick=закрытьТермин;
+  const go=c.querySelector('.glp-go'); if(go) go.onclick=()=>{ закрытьТермин(); openTopic(g.тема); };
+  c.querySelector('.glp-all').onclick=()=>{ закрытьТермин(); открытьСловарь(g.т); };
+}
+function закрытьТермин(){ const c=document.getElementById('glpop'); if(c) c.classList.add('hidden'); _глЯкорь=null; }
+function подключитьТермины(){
+  const внутри=e=>e.target&&e.target.closest&&e.target.closest('.gl');
+  document.addEventListener('click',e=>{
+    const g=внутри(e);
+    if(g){ e.preventDefault(); карточкаТермина(+g.dataset.g,g); return; }
+    const c=document.getElementById('glpop');
+    if(c&&!c.classList.contains('hidden')&&!c.contains(e.target)) закрытьТермин();
+  });
+  document.addEventListener('keydown',e=>{
+    const g=внутри(e);
+    if(g&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); карточкаТермина(+g.dataset.g,g); }
+    else if(e.key==='Escape') закрытьТермин();
+  });
+  // на компьютере — по наведению, с небольшой задержкой, чтобы не мигало при проводке мышью
+  document.addEventListener('pointerover',e=>{
+    if(e.pointerType!=='mouse') return; const g=внутри(e); if(!g) return;
+    clearTimeout(_глТаймер); _глТаймер=setTimeout(()=>карточкаТермина(+g.dataset.g,g),320);
+  });
+  document.addEventListener('pointerout',e=>{
+    if(e.pointerType!=='mouse'||!внутри(e)) return;
+    clearTimeout(_глТаймер); _глТаймер=setTimeout(()=>{ const c=document.getElementById('glpop'); if(c&&!c.matches(':hover')) закрытьТермин(); },300);
+  });
+  addEventListener('scroll',()=>{ if(_глЯкорь&&!isNarrow()) закрытьТермин(); },true);
+}
+
+/* ---------------- весь словарь ---------------- */
+function открытьСловарь(фокус){
+  let m=document.getElementById('glossary');
+  if(!m){ m=document.createElement('div'); m.id='glossary'; m.className='gl-modal hidden'; m.setAttribute('role','dialog');
+    m.setAttribute('aria-label','Словарь терминов');
+    m.innerHTML=`<div class="glm-box"><div class="glm-h"><h2>Словарь терминов</h2>
+      <input type="search" class="glm-q" placeholder="Найти термин…" autocomplete="off">
+      <button class="glm-x" aria-label="Закрыть">×</button></div><div class="glm-list"></div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click',e=>{ if(e.target===m) m.classList.add('hidden'); });
+    m.querySelector('.glm-x').onclick=()=>m.classList.add('hidden');
+    m.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagation(); m.classList.add('hidden'); } });
+    m.querySelector('.glm-q').oninput=()=>рисоватьСловарь(m);
+  }
+  const q=m.querySelector('.glm-q'); q.value=фокус||'';
+  m.classList.remove('hidden'); рисоватьСловарь(m);
+  setTimeout(()=>{ if(!isNarrow()) q.focus(); },30);
+}
+function рисоватьСловарь(m){
+  const s=m.querySelector('.glm-q').value.trim().toLowerCase();
+  const по=SECTIONS.filter(x=>x.id!=='intro').map(sec=>({sec,
+    г:ГЛОССАРИЙ.map((g,i)=>({g,i})).filter(x=>sec.topics.some(t=>t.id===x.g.тема)&&
+      (!s||x.g.т.toLowerCase().includes(s)||x.g.о.toLowerCase().includes(s)))
+      .sort((a,b)=>a.g.т.localeCompare(b.g.т,'ru'))})).filter(x=>x.г.length);
+  const box=m.querySelector('.glm-list');
+  box.innerHTML=по.length?по.map(x=>`<section><h3>${esc(x.sec.title)}</h3><dl>${x.г.map(({g,i})=>
+    `<div class="glm-it" data-i="${i}"><dt>${esc(g.т)}</dt><dd>${g.о}</dd>
+      <button class="glm-go" data-t="${g.тема}">${esc((ALL.find(t=>t.id===g.тема)||{}).title||'')} →</button></div>`).join('')}</dl></section>`).join('')
+    :'<p class="glm-empty">Такого термина в словаре нет. Попробуйте поиск по курсу: Ctrl+P.</p>';
+  box.querySelectorAll('.glm-go').forEach(b=>b.onclick=()=>{ m.classList.add('hidden'); openTopic(b.dataset.t); if(typeof закрытьГлавную==='function') закрытьГлавную(); });
+  typeset(box);
+}
+
+;
+/* ===================== РЕЖИМ УРОКА (4.0.0) =====================
+   Тема как презентация: конспект разрезан на слайды по подзаголовкам,
+   крупный текст слева, живая сцена справа остаётся на месте. Учителю — для
+   проектора, ученику — чтобы пройти тему по шагам, не утонув в длинной
+   странице. Слайды собираются из тех же полей темы, что и конспект, поэтому
+   отдельно их писать не нужно.
+   Клавиши: → / пробел / PgDn — дальше, ← / PgUp — назад, Home / End, Esc — выход. */
+const УРОК={слайды:[],i:0,вкл:false};
+const _УРОК_ДЛИНА=900;   // знаков на слайде, дальше режем по абзацам
+
+function слайдыТемы(t){
+  const сл=[];
+  const sec=SECTIONS.find(s=>s.topics.some(x=>x.id===t.id));
+  сл.push({вид:'титул',html:`<div class="ls-eye">${esc(sec?sec.title:'')}${t.ch?` · глава ${esc(t.ch)}`:''}</div>
+    <h1 class="ls-title">${esc(t.title)}</h1>${t.why?`<div class="ls-why">${t.why}</div>`:''}`});
+  if(t.key&&t.key.length) сл.push({вид:'главное',h:'Главное',html:`<ul class="ls-key">${t.key.map(k=>`<li>${k}</li>`).join('')}</ul>`});
+  // подробный разбор — по подзаголовкам h3; кусок без заголовка в начале — «Введение»
+  if(t.theory){
+    const d=document.createElement('div'); d.innerHTML=t.theory;
+    let тек={h:'Введение',узлы:[]}; const куски=[тек];
+    for(const n of Array.from(d.childNodes)){
+      if(n.nodeType===1&&/^H[34]$/.test(n.tagName)){ тек={h:n.textContent.trim(),узлы:[]}; куски.push(тек); }
+      else if(n.nodeType===1||(n.nodeType===3&&n.nodeValue.trim())) тек.узлы.push(n);
+    }
+    for(const к of куски){
+      if(!к.узлы.length) continue;
+      // длинный кусок режем по абзацам, чтобы влез в слайд без прокрутки
+      let порция=[], длина=0, часть=0;
+      const сдать=()=>{ if(!порция.length) return;
+        сл.push({вид:'текст',h:к.h+(часть?' (продолжение)':''),html:порция.map(n=>n.nodeType===1?n.outerHTML:`<p>${n.nodeValue}</p>`).join('')});
+        порция=[]; длина=0; часть++; };
+      for(const n of к.узлы){
+        const L=(n.textContent||'').length;
+        if(длина&&длина+L>_УРОК_ДЛИНА) сдать();
+        порция.push(n); длина+=L;
+      }
+      сдать();
+    }
+  }
+  const опыт=(t.explore||[]).find(e=>e.sim&&SIMS[e.sim]);
+  if(t.explore&&t.explore.length) сл.push({вид:'опыт',h:'Покрутите сами',sim:опыт&&опыт.sim,
+    html:`<p class="ls-lead">Сначала скажите, что произойдёт, — потом проверьте на модели справа.</p>
+      <ol class="ls-exp">${t.explore.map(e=>`<li><span class="exl-do">${e.do}</span><span class="exl-see">${e.see}</span>
+        <button class="btn ls-rev">Показать, что будет</button></li>`).join('')}</ol>`});
+  const ф=t.formulas||[];
+  for(let k=0;k<ф.length;k+=3) сл.push({вид:'формулы',h:'Основные формулы'+(k?' (продолжение)':''),sim:ф[k].sim,
+    html:ф.slice(k,k+3).map(f=>`<div class="ls-f"><div>$$${f.tex}$$</div>${f.note?`<div class="ls-fn">${f.note}</div>`:''}</div>`).join('')});
+  if(t.mistakes&&t.mistakes.length) сл.push({вид:'ошибки',h:'Типичные ошибки',
+    html:t.mistakes.slice(0,3).map(m=>`<div class="ls-pf"><div class="bad"><span>так думают</span>${m.wrong}</div><div class="good"><span>на самом деле</span>${m.right}</div></div>`).join('')});
+  for(const q of (t.checks||[]).slice(0,4)) сл.push({вид:'вопрос',h:'Проверьте себя',
+    html:`<div class="ls-q">${q.q}</div><button class="btn primary ls-rev">Показать ответ</button><div class="ls-a">${q.a}</div>`});
+  сл.push({вид:'конец',h:'Тема пройдена',html:`<p class="ls-lead">Закрепить — задачами: ответ в них пересчитывается под параметры модели.</p>
+    <div class="ls-end">${(t.problems||[]).length?`<button class="btn primary" data-ls="problems">Перейти к задачам · ${t.problems.length}</button>`:''}
+      <button class="btn" data-ls="exit">Выйти из урока</button></div>`});
+  return сл;
+}
+
+function начатьУрок(){
+  const t=S.topic;
+  if(!t||t.kind==='recap'||t.id==='intro'){ toast('Откройте тему — урок собирается из её конспекта'); return; }
+  УРОК.слайды=слайдыТемы(t); УРОК.i=0; УРОК.вкл=true; УРОК.тема=t.id;
+  let el=document.getElementById('lesson');
+  if(!el){ el=document.createElement('div'); el.id='lesson'; el.className='lesson';
+    el.setAttribute('role','region'); el.setAttribute('aria-label','Урок'); el.setAttribute('aria-live','polite');
+  }
+  // на телефоне урок — поверх всего, и лист снизу не должен его перекрывать:
+  // внутри #content у фиксированного слоя свой контекст наложения
+  const родитель=isNarrow()?document.body:document.getElementById('content');
+  if(el.parentNode!==родитель) родитель.appendChild(el);
+  // карточки поверх конспекта уроку только мешают
+  if(typeof закрытьПриём==='function') закрытьПриём();
+  if(typeof закрытьТермин==='function') закрытьТермин();
+  document.documentElement.dataset.lesson='on';
+  остановитьЧтение();
+  слайдУрока(0);
+  setTimeout(()=>dispatchEvent(new Event('resize')),30);
+}
+function закончитьУрок(){
+  if(!УРОК.вкл) return;
+  УРОК.вкл=false; delete document.documentElement.dataset.lesson;
+  const el=document.getElementById('lesson'); if(el) el.innerHTML='';
+  setTimeout(()=>dispatchEvent(new Event('resize')),30);
+}
+function слайдУрока(i){
+  const сл=УРОК.слайды, el=document.getElementById('lesson'); if(!el||!сл.length) return;
+  i=Math.max(0,Math.min(сл.length-1,i)); УРОК.i=i;
+  const s=сл[i];
+  el.innerHTML=`<div class="ls-top"><span class="ls-n">${i+1} / ${сл.length}</span>
+      <div class="ls-bar"><i style="width:${Math.round(100*(i+1)/сл.length)}%"></i></div>
+      <button class="iconbtn ls-x" title="Выйти из урока (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <article class="ls-slide ls-${s.вид}">${s.h?`<h2 class="ls-h">${esc(s.h)}</h2>`:''}${s.html}</article>
+    <div class="ls-nav"><button class="btn ls-prev"${i?'':' disabled'}>← Назад</button>
+      <span class="ls-hint">← → или пробел</span>
+      <button class="btn primary ls-next"${i<сл.length-1?'':' disabled'}>Дальше →</button></div>`;
+  const art=el.querySelector('.ls-slide');
+  typeset(art);
+  if(typeof разметитьТермины==='function') try{ разметитьТермины(art,УРОК.тема); }catch(_){}
+  el.querySelector('.ls-x').onclick=закончитьУрок;
+  el.querySelector('.ls-prev').onclick=()=>слайдУрока(УРОК.i-1);
+  el.querySelector('.ls-next').onclick=()=>слайдУрока(УРОК.i+1);
+  el.querySelectorAll('.ls-rev').forEach(b=>b.onclick=()=>{ b.parentElement.classList.add('shown'); b.remove(); });
+  el.querySelectorAll('[data-ls]').forEach(b=>b.onclick=()=>{
+    const что=b.dataset.ls; закончитьУрок();
+    if(что==='problems'){ const tb=document.querySelector('#tabs button[data-tab="problems"]'); if(tb) tb.click(); } });
+  // слайд с опытом или формулами своей модели — открываем её на сцене
+  if(s.sim&&SIMS[s.sim]&&(!S.sim||S.sim.id!==s.sim)) try{ openSim(s.sim); }catch(_){}
+  art.scrollTop=0;
+}
+addEventListener('keydown',e=>{
+  if(!УРОК.вкл) return;
+  const цель=e.target; if(цель&&(цель.tagName==='INPUT'||цель.tagName==='TEXTAREA'||цель.isContentEditable)) return;
+  const к=e.key; let ход=0;
+  if(к==='ArrowRight'||к==='PageDown'||(к===' '&&!e.shiftKey)) ход=1;
+  else if(к==='ArrowLeft'||к==='PageUp'||(к===' '&&e.shiftKey)) ход=-1;
+  else if(к==='Home'){ e.preventDefault(); e.stopPropagation(); слайдУрока(0); return; }
+  else if(к==='End'){ e.preventDefault(); e.stopPropagation(); слайдУрока(УРОК.слайды.length-1); return; }
+  else if(к==='Escape'){ e.preventDefault(); e.stopPropagation(); закончитьУрок(); return; }
+  if(ход){ e.preventDefault(); e.stopPropagation(); слайдУрока(УРОК.i+ход); }
+},true);
+// свайп по слайду на телефоне
+(function(){ let x0=null,y0=0;
+  addEventListener('touchstart',e=>{ if(!УРОК.вкл||!e.target.closest||!e.target.closest('#lesson')) return; x0=e.touches[0].clientX; y0=e.touches[0].clientY; },{passive:true});
+  addEventListener('touchend',e=>{ if(x0===null) return; const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0; x0=null;
+    if(Math.abs(dx)>60&&Math.abs(dx)>1.5*Math.abs(dy)) слайдУрока(УРОК.i+(dx<0?1:-1)); },{passive:true});
+})();
+
+/* ===================== «СНАЧАЛА ПРЕДСКАЖИТЕ» (4.0.0) =====================
+   Опыт, результат которого написан рядом, ничего не проверяет: глаз
+   прочитал ответ раньше, чем рука подвинула ползунок. С включённой
+   настройкой результат в «Покрутите сами» скрыт, пока вы не сделаете
+   прогноз. Ничего не засчитывается и не хранится — это для головы. */
+function подключитьПрогноз(pane){
+  if(typeof prefGet!=='function'||!prefGet('predict')) return;
+  pane.querySelectorAll('.explore .ex-list li').forEach(li=>{
+    if(li.querySelector('.exl-rev')) return;
+    li.classList.add('predict');
+    const b=document.createElement('button'); b.className='exl-rev';
+    b.textContent='Мой прогноз готов — показать';
+    b.onclick=()=>{ li.classList.remove('predict'); b.remove(); };
+    li.appendChild(b);
+  });
+}
+
+/* ===================== ЧТЕНИЕ ВСЛУХ (4.0.0) =====================
+   Встроенный синтезатор речи браузера, русский голос, если он есть.
+   Формулы не проговариваются (синтезатор читает TeX как кашу) — на их месте
+   короткая пауза со словом «формула». Читается то, что сейчас в конспекте,
+   абзац за абзацем; уже прочитанный абзац подсвечивается. */
+const ЧТЕНИЕ={вкл:false,очередь:[],узел:null};
+function чтениеДоступно(){ return typeof speechSynthesis!=='undefined'&&typeof SpeechSynthesisUtterance!=='undefined'; }
+function текстДляЧтения(el){
+  const c=el.cloneNode(true);
+  c.querySelectorAll('.katex-display').forEach(k=>k.replaceWith(document.createTextNode(' Формула. ')));
+  c.querySelectorAll('.katex').forEach(k=>k.replaceWith(document.createTextNode(' формула ')));
+  c.querySelectorAll('button,.op-chip,.f-kind,.exl-rev').forEach(k=>k.remove());
+  return c.textContent.replace(/\s+/g,' ').trim();
+}
+function читатьВслух(){
+  if(!чтениеДоступно()){ toast('Этот браузер не умеет читать вслух'); return; }
+  if(ЧТЕНИЕ.вкл){ остановитьЧтение(); return; }
+  const корень=УРОК.вкл?document.querySelector('#lesson .ls-slide'):document.querySelector('#pane article');
+  if(!корень){ toast('Откройте конспект темы — читать пока нечего'); return; }
+  // в конспекте раскрываем подробный разбор: читать то, чего не видно, странно
+  const дет=корень.querySelector('details.deep'); if(дет) дет.open=true;
+  const блоки=Array.from(корень.querySelectorAll('h1,h2,h3,p,li,.why>div:last-child,.note,.qa-q,.pf-row,.ls-q'))
+    .filter(b=>!b.closest('.qa-a,.ex-body,.deriv')&&!b.querySelector('p,li')&&b.offsetParent!==null);
+  ЧТЕНИЕ.очередь=блоки.map(b=>({b,т:текстДляЧтения(b)})).filter(x=>x.т.length>1);
+  if(!ЧТЕНИЕ.очередь.length){ toast('Здесь нечего читать вслух'); return; }
+  ЧТЕНИЕ.вкл=true; кнопкаЧтения(); speechSynthesis.cancel(); следующийАбзац();
+}
+function голосРу(){
+  const г=speechSynthesis.getVoices();
+  return г.find(v=>/^ru/i.test(v.lang)&&/google|natural|милена|milena/i.test(v.name))||г.find(v=>/^ru/i.test(v.lang))||null;
+}
+function следующийАбзац(){
+  if(ЧТЕНИЕ.узел) ЧТЕНИЕ.узел.classList.remove('reading-now');
+  const x=ЧТЕНИЕ.очередь.shift();
+  if(!ЧТЕНИЕ.вкл||!x){ остановитьЧтение(); return; }
+  ЧТЕНИЕ.узел=x.b; x.b.classList.add('reading-now');
+  try{ x.b.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){}
+  const u=new SpeechSynthesisUtterance(x.т); u.lang='ru-RU';
+  const г=голосРу(); if(г) u.voice=г;
+  u.rate=1; u.onend=следующийАбзац; u.onerror=()=>{ if(ЧТЕНИЕ.вкл) следующийАбзац(); };
+  speechSynthesis.speak(u);
+}
+function остановитьЧтение(){
+  ЧТЕНИЕ.вкл=false; ЧТЕНИЕ.очередь=[];
+  if(ЧТЕНИЕ.узел){ ЧТЕНИЕ.узел.classList.remove('reading-now'); ЧТЕНИЕ.узел=null; }
+  if(чтениеДоступно()) try{ speechSynthesis.cancel(); }catch(_){}
+  кнопкаЧтения();
+}
+function кнопкаЧтения(){
+  const b=document.getElementById('t-speak'); if(!b) return;
+  b.classList.toggle('on',ЧТЕНИЕ.вкл); b.title=ЧТЕНИЕ.вкл?'Остановить чтение':'Прочитать конспект вслух';
+}
+/* кнопки в шапке темы: «Урок» и «Вслух» */
+function подключитьДействияТемы(){
+  const ch=document.querySelector('#content .chead'); if(!ch||document.getElementById('t-acts')) return;
+  const d=document.createElement('div'); d.className='t-acts'; d.id='t-acts';
+  d.innerHTML=`<button class="tact" id="t-lesson" title="Режим урока: тема слайдами рядом со сценой"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg><span>Урок</span></button>
+    ${чтениеДоступно()?`<button class="tact" id="t-speak" title="Прочитать конспект вслух"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Вслух</span></button>`:''}`;
+  ch.appendChild(d);
+  d.querySelector('#t-lesson').onclick=()=>начатьУрок();
+  const sp=d.querySelector('#t-speak'); if(sp) sp.onclick=()=>читатьВслух();
+}
+/* На телефоне шапка темы скрыта под листом — те же две кнопки ставим
+   первой строкой конспекта. */
+function кнопкиВКонспект(pane){
+  const a=pane&&pane.querySelector('article'); if(!a||a.querySelector('.m-acts')) return;
+  const d=document.createElement('div'); d.className='m-acts';
+  d.innerHTML=`<button class="tact" data-a="lesson"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg><span>Урок по слайдам</span></button>`
+    +(чтениеДоступно()?`<button class="tact" data-a="speak"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg><span>Слушать</span></button>`:'');
+  a.insertBefore(d,a.firstChild);
+  d.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ if(b.dataset.a==='lesson') начатьУрок(); else читатьВслух(); });
 }
 
 ;
@@ -37191,6 +38106,8 @@ function renderTree(q=''){
 /* ============================= ОТКРЫТИЕ ТЕМЫ ============================ */
 function openTopic(id){
   const t=ALL.find(x=>x.id===id); if(!t) return;
+  if(typeof остановитьЧтение==='function'&&ЧТЕНИЕ.вкл) остановитьЧтение();
+  if(typeof закончитьУрок==='function'&&УРОК.вкл&&УРОК.тема!==id) закончитьУрок();
   S.topic=t; S.tab='notes';
   LS.set('lastTopic',t.id);
   // список недавних тем — для быстрого возврата через палитру
@@ -38028,6 +38945,11 @@ function renderPane(){
     }
   }
   typeset(pane);
+  if(S.tab==='notes'){
+    if(typeof разметитьТермины==='function') try{ разметитьТермины(pane.querySelector('article'),t.id); }catch(_){}
+    if(typeof подключитьПрогноз==='function') подключитьПрогноз(pane);
+    if(typeof кнопкиВКонспект==='function') кнопкиВКонспект(pane);
+  }
 }
 function typeset(el){
   if(!window.renderMathInElement) return;
@@ -39746,9 +40668,11 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,hudRows:6,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
-  palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
+  palette:'std',accentCustom:'#5b48e8',radius:6,uiFont:'sans',readW:'norm',lineH:1.65,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
-  startScreen:'home',headerTuck:true};
+  startScreen:'home',headerTuck:true,
+  // 4.0.0
+  bar:'ink',glossary:true,predict:false};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -39757,12 +40681,15 @@ const PREFS=[
    name:'Акцентный цвет',desc:'Цвет выделения, активных кнопок и первого ряда на графиках.',
    options:[['violet','Фиолетовый'],['blue','Синий'],['teal','Бирюзовый'],['amber','Янтарный'],['rose','Красный'],
             ['green','Зелёный'],['indigo','Индиго'],['orange','Оранжевый'],['pink','Розовый'],['graphite','Графит'],['custom','Свой цвет']]},
-  {cat:'look',key:'accentCustom',type:'color',def:'#5d5294',
+  {cat:'look',key:'accentCustom',type:'color',def:'#5b48e8',
    name:'Свой акцентный цвет',desc:'Любой цвет — оттенки для текста, заливок и границ приложение подберёт само. Действует, когда выше выбран «Свой цвет».'},
   {cat:'look',key:'palette',type:'select',def:'std',
    name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага» — тёплая, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
    options:[['std','Обычная'],['sepia','Бумага'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
-  {cat:'look',key:'radius',type:'range',def:5,min:0,max:14,step:1,unit:' px',
+  {cat:'look',key:'bar',type:'select',def:'ink',
+   name:'Верхняя панель',desc:'«Чернильная» — тёмная полоса с логотипом, отделяет управление от содержания (4.0.0). «Светлая» — как до 4.0, в цвет страницы.',
+   options:[['ink','Чернильная'],['light','Светлая']]},
+  {cat:'look',key:'radius',type:'range',def:6,min:0,max:14,step:1,unit:' px',
    name:'Скругление углов',desc:'От строгих прямых углов до мягких «таблеток». Меняет кнопки, карточки, поля и панели.'},
   {cat:'look',key:'uiFont',type:'select',def:'sans',
    name:'Шрифт интерфейса',desc:'Шрифты берутся из системы — ничего не скачивается. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
@@ -39904,6 +40831,10 @@ const PREFS=[
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
 
+  {cat:'behav',key:'glossary',type:'toggle',def:true,
+   name:'Термины в конспекте',desc:'Первое упоминание понятия подчёркнуто пунктиром: наведите или нажмите — откроется короткое определение и ссылка на тему, где оно вводится (4.0.0).'},
+  {cat:'behav',key:'predict',type:'toggle',def:false,
+   name:'Сначала предсказать',desc:'В блоке «Покрутите сами» результат опыта скрыт, пока вы не сделаете прогноз и не нажмёте «Показать». Так опыт проверяет вашу интуицию, а не просто иллюстрирует текст (4.0.0).'},
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
   {cat:'behav',key:'headerTuck',type:'toggle',def:true,
@@ -40190,16 +41121,16 @@ function renderPrefs(){
    текста — кнопками. Ниже — профили: готовые наборы («Проектор», «Чтение»)
    и свои, которые можно сохранить и передать другому кодом. */
 const ТЕМЫ_ОФОРМЛЕНИЯ=[
-  {id:'light', имя:'Светлая',  theme:'light',palette:'std',     c:['#f6f7f8','#ffffff','#171a1f','#5d5294']},
-  {id:'dark',  имя:'Тёмная',   theme:'dark', palette:'std',     c:['#161826','#232532','#e9e9ed','#9184d9']},
-  {id:'auto',  имя:'Как в системе',theme:'auto',palette:'std',  c:['#f6f7f8','#232532','#171a1f','#5d5294']},
+  {id:'light', имя:'Светлая',  theme:'light',palette:'std',     c:['#f3f4f7','#ffffff','#0d1017','#5b48e8']},
+  {id:'dark',  имя:'Тёмная',   theme:'dark', palette:'std',     c:['#0c0e13','#14171f','#e9ecf3','#8e83ff']},
+  {id:'auto',  имя:'Как в системе',theme:'auto',palette:'std',  c:['#f3f4f7','#14171f','#0d1017','#5b48e8']},
   {id:'sepia', имя:'Бумага',   theme:'light',palette:'sepia',   c:['#f3eee3','#fbf8f0','#2a2318','#8a5a2b']},
   {id:'mint',  имя:'Мята',     theme:'light',palette:'mint',    c:['#eef4f1','#fbfdfc','#14211b','#0d9488']},
   {id:'nord',  имя:'Северная', theme:'dark', palette:'nord',    c:['#1f2530','#262e3b','#e6ebf2','#88c0d0']},
   {id:'oled',  имя:'Полночь',  theme:'dark', palette:'oled',    c:['#000000','#0a0a0d','#f0f0f4','#9184d9']},
   {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']}
 ];
-const АКЦЕНТЫ={violet:'#7c5cff',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
+const АКЦЕНТЫ={violet:'#5b48e8',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
   green:'#16a34a',indigo:'#4f46e5',orange:'#ea580c',pink:'#db2777',graphite:'#475569'};
 const ГОТОВЫЕ_ПРОФИЛИ=[
   {имя:'Проектор',что:'крупный текст, толстые линии, контраст',
@@ -41020,6 +41951,7 @@ function applySettings(){
   root.style.setProperty('--lh',String(prefGet('lineH')||1.65));
   root.dataset.shadows=prefGet('shadows')||'soft';
   root.dataset.btnstyle=prefGet('btnStyle')||'fill';
+  root.dataset.bar=prefGet('bar')==='light'?'light':'ink';
   const движ=prefGet('motion');
   root.dataset.motion = движ==='auto' ? (matchMedia('(prefers-reduced-motion: reduce)').matches?'calm':'full') : (движ||'full');
   root.dataset.ripple = prefGet('ripple')===false ? '0' : '1';
@@ -41438,6 +42370,9 @@ function resetPanels(){
 const CMDS=[
   {k:'Навигация',t:'Главная: продолжить, разделы, вопрос дня',run:()=>открытьГлавную()},
   {k:'Вид',t:'Режим чтения: только текст',run:()=>режимЧтения()},
+  {k:'Словарь',t:'Словарь терминов: определения с поиском',run:()=>открытьСловарь()},
+  {k:'Урок',t:'Режим урока: тема слайдами рядом со сценой',run:()=>начатьУрок()},
+  {k:'Вид',t:'Прочитать конспект вслух',run:()=>читатьВслух()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
   {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
@@ -41531,6 +42466,8 @@ function cmdkSource(){
     if(естьПриёмы()) for(const id of Object.keys(ПРИЁМЫ))
       list.push({k:'Приём',t:ПРИЁМЫ[id].имя,hint:'приём вывода',
                  sub:ПРИЁМЫ[id].что.replace(/\$[^$]*\$/g,' '),run:()=>открытьПриём(id,null,null)});
+    if(typeof ГЛОССАРИЙ!=='undefined') ГЛОССАРИЙ.forEach((g,i)=>
+      list.push({k:'Термин',t:g.т,hint:'определение',sub:g.о.replace(/\$[^$]*\$/g,' '),run:()=>карточкаТермина(i,null)}));
     for(const pr of PREFS)
       list.push({k:'Настройка',t:pr.name,hint:(PREF_CATS.find(c=>c.id===pr.cat)||{}).name||'',
                  sub:pr.desc,run:()=>openPrefs(pr.cat)});
@@ -43145,6 +44082,8 @@ function запуск(){
   if(typeof подключитьПуть==='function') try{ подключитьПуть(); }catch(e){ console.error('Мой путь не подключился',e); }
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
+  if(typeof подключитьТермины==='function') try{ подключитьТермины(); }catch(e){ console.error('словарь',e); }
+  if(typeof подключитьДействияТемы==='function') try{ подключитьДействияТемы(); }catch(e){ console.error('урок',e); }
   if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
   if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
@@ -43181,7 +44120,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '3.5.0';
+window.PHYSIM_BUILD = '4.0.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

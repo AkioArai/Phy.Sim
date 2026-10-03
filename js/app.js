@@ -1725,6 +1725,8 @@ function renderTree(q=''){
 /* ============================= ОТКРЫТИЕ ТЕМЫ ============================ */
 function openTopic(id){
   const t=ALL.find(x=>x.id===id); if(!t) return;
+  if(typeof остановитьЧтение==='function'&&ЧТЕНИЕ.вкл) остановитьЧтение();
+  if(typeof закончитьУрок==='function'&&УРОК.вкл&&УРОК.тема!==id) закончитьУрок();
   S.topic=t; S.tab='notes';
   LS.set('lastTopic',t.id);
   // список недавних тем — для быстрого возврата через палитру
@@ -2562,6 +2564,11 @@ function renderPane(){
     }
   }
   typeset(pane);
+  if(S.tab==='notes'){
+    if(typeof разметитьТермины==='function') try{ разметитьТермины(pane.querySelector('article'),t.id); }catch(_){}
+    if(typeof подключитьПрогноз==='function') подключитьПрогноз(pane);
+    if(typeof кнопкиВКонспект==='function') кнопкиВКонспект(pane);
+  }
 }
 function typeset(el){
   if(!window.renderMathInElement) return;
@@ -4280,9 +4287,11 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,hudRows:6,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
   panelAlpha:93,railSide:'left',
   // 2.0.0: персонализация
-  palette:'std',accentCustom:'#5d5294',radius:5,uiFont:'sans',readW:'norm',lineH:1.65,
+  palette:'std',accentCustom:'#5b48e8',radius:6,uiFont:'sans',readW:'norm',lineH:1.65,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
-  startScreen:'home',headerTuck:true};
+  startScreen:'home',headerTuck:true,
+  // 4.0.0
+  bar:'ink',glossary:true,predict:false};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -4291,12 +4300,15 @@ const PREFS=[
    name:'Акцентный цвет',desc:'Цвет выделения, активных кнопок и первого ряда на графиках.',
    options:[['violet','Фиолетовый'],['blue','Синий'],['teal','Бирюзовый'],['amber','Янтарный'],['rose','Красный'],
             ['green','Зелёный'],['indigo','Индиго'],['orange','Оранжевый'],['pink','Розовый'],['graphite','Графит'],['custom','Свой цвет']]},
-  {cat:'look',key:'accentCustom',type:'color',def:'#5d5294',
+  {cat:'look',key:'accentCustom',type:'color',def:'#5b48e8',
    name:'Свой акцентный цвет',desc:'Любой цвет — оттенки для текста, заливок и границ приложение подберёт само. Действует, когда выше выбран «Свой цвет».'},
   {cat:'look',key:'palette',type:'select',def:'std',
    name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага» — тёплая, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
    options:[['std','Обычная'],['sepia','Бумага'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
-  {cat:'look',key:'radius',type:'range',def:5,min:0,max:14,step:1,unit:' px',
+  {cat:'look',key:'bar',type:'select',def:'ink',
+   name:'Верхняя панель',desc:'«Чернильная» — тёмная полоса с логотипом, отделяет управление от содержания (4.0.0). «Светлая» — как до 4.0, в цвет страницы.',
+   options:[['ink','Чернильная'],['light','Светлая']]},
+  {cat:'look',key:'radius',type:'range',def:6,min:0,max:14,step:1,unit:' px',
    name:'Скругление углов',desc:'От строгих прямых углов до мягких «таблеток». Меняет кнопки, карточки, поля и панели.'},
   {cat:'look',key:'uiFont',type:'select',def:'sans',
    name:'Шрифт интерфейса',desc:'Шрифты берутся из системы — ничего не скачивается. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
@@ -4438,6 +4450,10 @@ const PREFS=[
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
 
+  {cat:'behav',key:'glossary',type:'toggle',def:true,
+   name:'Термины в конспекте',desc:'Первое упоминание понятия подчёркнуто пунктиром: наведите или нажмите — откроется короткое определение и ссылка на тему, где оно вводится (4.0.0).'},
+  {cat:'behav',key:'predict',type:'toggle',def:false,
+   name:'Сначала предсказать',desc:'В блоке «Покрутите сами» результат опыта скрыт, пока вы не сделаете прогноз и не нажмёте «Показать». Так опыт проверяет вашу интуицию, а не просто иллюстрирует текст (4.0.0).'},
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
   {cat:'behav',key:'headerTuck',type:'toggle',def:true,
@@ -4724,16 +4740,16 @@ function renderPrefs(){
    текста — кнопками. Ниже — профили: готовые наборы («Проектор», «Чтение»)
    и свои, которые можно сохранить и передать другому кодом. */
 const ТЕМЫ_ОФОРМЛЕНИЯ=[
-  {id:'light', имя:'Светлая',  theme:'light',palette:'std',     c:['#f6f7f8','#ffffff','#171a1f','#5d5294']},
-  {id:'dark',  имя:'Тёмная',   theme:'dark', palette:'std',     c:['#161826','#232532','#e9e9ed','#9184d9']},
-  {id:'auto',  имя:'Как в системе',theme:'auto',palette:'std',  c:['#f6f7f8','#232532','#171a1f','#5d5294']},
+  {id:'light', имя:'Светлая',  theme:'light',palette:'std',     c:['#f3f4f7','#ffffff','#0d1017','#5b48e8']},
+  {id:'dark',  имя:'Тёмная',   theme:'dark', palette:'std',     c:['#0c0e13','#14171f','#e9ecf3','#8e83ff']},
+  {id:'auto',  имя:'Как в системе',theme:'auto',palette:'std',  c:['#f3f4f7','#14171f','#0d1017','#5b48e8']},
   {id:'sepia', имя:'Бумага',   theme:'light',palette:'sepia',   c:['#f3eee3','#fbf8f0','#2a2318','#8a5a2b']},
   {id:'mint',  имя:'Мята',     theme:'light',palette:'mint',    c:['#eef4f1','#fbfdfc','#14211b','#0d9488']},
   {id:'nord',  имя:'Северная', theme:'dark', palette:'nord',    c:['#1f2530','#262e3b','#e6ebf2','#88c0d0']},
   {id:'oled',  имя:'Полночь',  theme:'dark', palette:'oled',    c:['#000000','#0a0a0d','#f0f0f4','#9184d9']},
   {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']}
 ];
-const АКЦЕНТЫ={violet:'#7c5cff',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
+const АКЦЕНТЫ={violet:'#5b48e8',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
   green:'#16a34a',indigo:'#4f46e5',orange:'#ea580c',pink:'#db2777',graphite:'#475569'};
 const ГОТОВЫЕ_ПРОФИЛИ=[
   {имя:'Проектор',что:'крупный текст, толстые линии, контраст',
@@ -5554,6 +5570,7 @@ function applySettings(){
   root.style.setProperty('--lh',String(prefGet('lineH')||1.65));
   root.dataset.shadows=prefGet('shadows')||'soft';
   root.dataset.btnstyle=prefGet('btnStyle')||'fill';
+  root.dataset.bar=prefGet('bar')==='light'?'light':'ink';
   const движ=prefGet('motion');
   root.dataset.motion = движ==='auto' ? (matchMedia('(prefers-reduced-motion: reduce)').matches?'calm':'full') : (движ||'full');
   root.dataset.ripple = prefGet('ripple')===false ? '0' : '1';
@@ -5972,6 +5989,9 @@ function resetPanels(){
 const CMDS=[
   {k:'Навигация',t:'Главная: продолжить, разделы, вопрос дня',run:()=>открытьГлавную()},
   {k:'Вид',t:'Режим чтения: только текст',run:()=>режимЧтения()},
+  {k:'Словарь',t:'Словарь терминов: определения с поиском',run:()=>открытьСловарь()},
+  {k:'Урок',t:'Режим урока: тема слайдами рядом со сценой',run:()=>начатьУрок()},
+  {k:'Вид',t:'Прочитать конспект вслух',run:()=>читатьВслух()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
   {k:'Мой путь',t:'Диагностика по всему курсу',run:()=>открытьПуть('diag')},
@@ -6065,6 +6085,8 @@ function cmdkSource(){
     if(естьПриёмы()) for(const id of Object.keys(ПРИЁМЫ))
       list.push({k:'Приём',t:ПРИЁМЫ[id].имя,hint:'приём вывода',
                  sub:ПРИЁМЫ[id].что.replace(/\$[^$]*\$/g,' '),run:()=>открытьПриём(id,null,null)});
+    if(typeof ГЛОССАРИЙ!=='undefined') ГЛОССАРИЙ.forEach((g,i)=>
+      list.push({k:'Термин',t:g.т,hint:'определение',sub:g.о.replace(/\$[^$]*\$/g,' '),run:()=>карточкаТермина(i,null)}));
     for(const pr of PREFS)
       list.push({k:'Настройка',t:pr.name,hint:(PREF_CATS.find(c=>c.id===pr.cat)||{}).name||'',
                  sub:pr.desc,run:()=>openPrefs(pr.cat)});
@@ -7679,6 +7701,8 @@ function запуск(){
   if(typeof подключитьПуть==='function') try{ подключитьПуть(); }catch(e){ console.error('Мой путь не подключился',e); }
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
+  if(typeof подключитьТермины==='function') try{ подключитьТермины(); }catch(e){ console.error('словарь',e); }
+  if(typeof подключитьДействияТемы==='function') try{ подключитьДействияТемы(); }catch(e){ console.error('урок',e); }
   if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
   if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
@@ -7715,5 +7739,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '3.5.0';
+window.PHYSIM_BUILD = '4.0.0';
 window.PHYSIM_READY = true;

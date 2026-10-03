@@ -1,0 +1,6 @@
+4.0.0 — a new design and tools for learning.
+• Strict new look: dark top bar, bold type, clear cards.
+• New home: live scene, problem of the day, activity diary.
+• Glossary: 91 terms, tap a dotted word for its definition.
+• Lesson mode: a topic as slides beside the live scene.
+• "Predict first" for experiments; read the notes aloud.

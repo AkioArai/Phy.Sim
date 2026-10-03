@@ -148,6 +148,24 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 4.0.0 — a new design and tools for learning
+
+          **New look:** a dark ink top bar with the logo, bold headings, firm cards and a calmer palette;
+          the old light bar is one switch away in the settings.
+
+          **New home:** a live scene that cycles through Kepler's orbit, interference and a damped
+          oscillator; a problem of the day from the topics you are ready for; an activity diary with
+          a 20-week map of the days you studied. No streaks, no badges.
+
+          **Glossary:** 91 terms. The first mention in the notes is underlined — hover or tap for the
+          definition and the topic where it is introduced; the whole glossary is searchable.
+
+          **Lesson mode:** a topic as slides — key points, theory by subheadings, experiments, formulas,
+          pitfalls and questions — with the live scene beside it. Arrows, space, Esc; swipe on a phone.
+
+          **Predict first:** an option hides the outcome of each experiment until you have made a guess.
+          **Read aloud:** the notes are read paragraph by paragraph by the system voice.
+
           ## 3.5.0 — room for the scene on a phone, optics redone
 
           **Phone:** one-row transport with a "⋯" card; sideways the bar no longer covers the scene;

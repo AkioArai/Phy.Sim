@@ -1630,6 +1630,53 @@ async function сторож(b) {
       ok('декоративных градиентов нет', Object.values(град).every(x => !/gradient/.test(x)), град);
     }
 
+    /* ============ 4.0.0 ============ */
+    /* Чернильная панель и знак; главная: витрина, задача дня ведёт к своей
+       задаче, дневник; словарь размечает первое упоминание и открывает
+       карточку; урок собирается из темы и листается клавишами; «сначала
+       предскажите» прячет результат опыта. */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {};
+        const бар = getComputedStyle(document.querySelector('.topbar')).backgroundColor;
+        r.панель = document.documentElement.dataset.bar === 'ink' && /rgb\(14, 17, 24\)/.test(бар) && !!document.querySelector('#tbrand');
+        открытьГлавную(); await жди(400);
+        r.витрина = !!document.querySelector('#hm-cv') && document.querySelector('#hm-cv').width > 0;
+        r.дневник = document.querySelectorAll('.hm4-heat .dy').length === 140;
+        ДНЕВНИК.добавить(3); r.минуты = (LS.get('activity', {})[ДНЕВНИК.день()] || 0) >= 3;
+        const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
+        кн.click(); await жди(700);
+        const цель = document.querySelector(`#pane .problem[data-i="${зд.i}"]`);
+        r.задача = S.topic.id === зд.т && S.tab === 'problems' && !!цель && цель.classList.contains('flash');
+        openTopic('mech.dyn'); await жди(200);
+        const gl = document.querySelectorAll('#pane .gl'), имена = Array.from(gl).map(g => ГЛОССАРИЙ[+g.dataset.g].т);
+        r.термины = gl.length >= 5 && new Set(имена).size === имена.length && !document.querySelector('#pane .katex .gl, #pane h2 .gl, #pane button .gl');
+        gl[0].click(); await жди(100);
+        const pop = document.querySelector('#glpop');
+        r.карточка = !!pop && !pop.classList.contains('hidden') && pop.textContent.includes(ГЛОССАРИЙ[+gl[0].dataset.g].т);
+        закрытьТермин();
+        r.палитра = cmdkSource && (document.querySelector('#cmdk-inp').value = 'импульс', cmdkSource().some(x => x.k === 'Термин' && x.t === 'Импульс'));
+        начатьУрок(); await жди(150);
+        const n = УРОК.слайды.length;
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        r.урок = n > 8 && УРОК.i === 2 && getComputedStyle(document.querySelector('#pane')).display === 'none' &&
+          document.querySelector('#lesson .ls-n').textContent.trim() === `3 / ${n}` && document.querySelector('#simpane').getBoundingClientRect().width > 200;
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        r.выход = !УРОК.вкл && getComputedStyle(document.querySelector('#pane')).display !== 'none';
+        S.settings.predict = true; renderPane();
+        const li = document.querySelector('#pane .ex-list li');
+        r.прогноз = li.classList.contains('predict') && getComputedStyle(li.querySelector('.exl-see')).display === 'none';
+        li.querySelector('.exl-rev').click();
+        r.прогноз = r.прогноз && getComputedStyle(li.querySelector('.exl-see')).display !== 'none';
+        S.settings.predict = false; renderPane();
+        return r;
+      });
+      ok('4.0: чернильная панель, витрина и дневник, задача дня ведёт к задаче, словарь и карточка термина, урок клавишами, «сначала предскажите»',
+        Object.values(т).every(Boolean), т);
+    }
+
     await p.close();
 
     // --- телефон ---
@@ -1884,6 +1931,27 @@ async function сторож(b) {
     ok('на телефоне карточка приёма — нижний лист поверх панелей',
       приёмТел.лист && приёмТел.отступСнизу === 0 && приёмТел.воВсюШирину &&
       приёмТел.поверх && приёмТел.высота <= приёмТел.экран * 0.8, приёмТел);
+
+    /* 4.0.0 на телефоне: урок — поверх листа во весь экран, свайп листает;
+       кнопки урока и чтения — первой строкой конспекта */
+    const урокТел = await m.p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      openTopic('op.optics'); await жди(200);
+      const кнопки = !!document.querySelector('#pane .m-acts [data-a="lesson"]');
+      начатьУрок(); await жди(200);
+      const el = document.querySelector('#lesson'), b = el.getBoundingClientRect();
+      const x = innerWidth / 2, y = innerHeight / 2, сверху = document.elementFromPoint(x, y);
+      // до свайпа: он перерисует слайд, и найденный узел выпадет из документа
+      const поверх = el.contains(сверху);
+      const до = УРОК.i;
+      const t = (type, cx) => el.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), type === 'touchstart'
+        ? { touches: [{ clientX: cx, clientY: y }] } : { changedTouches: [{ clientX: cx, clientY: y }] }));
+      t('touchstart', 300); t('touchend', 120);
+      const r = { кнопки, весь: Math.round(b.width) === innerWidth && Math.round(b.height) >= innerHeight - 2,
+        поверх, свайп: УРОК.i === до + 1 };
+      закончитьУрок(); return r;
+    });
+    ok('телефон: урок во весь экран поверх листа, свайп листает, кнопки урока в конспекте', Object.values(урокТел).every(x => x === true), урокТел);
 
     await m.p.close();
 
