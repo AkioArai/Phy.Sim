@@ -2765,6 +2765,17 @@ function renderParams(){
       },{passive:false});
       d.querySelector('.dec').onclick=()=>put(+inp.value-p.step);
       d.querySelector('.inc').onclick=()=>put(+inp.value+p.step);
+      /* На телефоне под полем — ползунок во всю ширину (5.1.0): крошечные
+         «−» и «+» годятся для одного шага, а не для пути от 10 до 80. Пока
+         палец тянет, сцена пересчитывается; в историю — один раз, по отпуску. */
+      if(isNarrow()&&isFinite(p.min)&&isFinite(p.max)&&p.max>p.min){
+        const rng=document.createElement('input');
+        rng.type='range'; rng.className='p-rng'; rng.min=p.min; rng.max=p.max; rng.step=p.step; rng.value=a.params[p.key];
+        rng.oninput=()=>{ const v=+rng.value; inp.value=v; a.params[p.key]=v; try{ restart(a); }catch(_){}
+          if(typeof тронуть==='function') тронуть(2); };
+        rng.onchange=()=>put(+rng.value);
+        d.classList.add('has-rng'); d.append(rng);
+      }
       // средняя кнопка по строке параметра — вернуть значение по умолчанию
       d.addEventListener('auxclick',e=>{ if(e.button===1){ e.preventDefault(); put(p.default); toast(p.label+': по умолчанию'); } });
       d.title=`допустимый диапазон: ${p.min} … ${p.max}\nможно вписать выражение (2*9.8), стрелки и колесо меняют шагами, средняя кнопка — сброс`;
@@ -2784,6 +2795,7 @@ function renderParams(){
     тело.append(d);
   }
   applyParamFilter();
+  if(typeof обновитьПульт==='function') обновитьПульт();
 }
 /* Счётчик на заголовке: сколько полей внутри и сколько из них уведено от
    исходного значения. Без него свёрнутая группа прячет правки молча. */
@@ -2845,6 +2857,7 @@ function commit(key,val){
   a.params[key]=val;
   restart(a); fitView();
   pushUndo(a);
+  if(typeof обновитьПульт==='function') обновитьПульт();
   // поменялось, какие группы нужны (число тел, режим опыта) — перестраиваем
   // панель, но курсор оставляем в том же поле: человек мог ещё печатать
   if(было!==видимостьПараметров(a)){
@@ -4284,7 +4297,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true,
   // 4.0.0
-  bar:'ink',glossary:false};
+  bar:'ink',glossary:false,haptics:true};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -4445,6 +4458,8 @@ const PREFS=[
 
   {cat:'behav',key:'glossary',type:'toggle',def:false,
    name:'Термины в конспекте',desc:'Первое упоминание понятия подчёркнуто пунктиром: наведите или нажмите — откроется короткое определение и ссылка на тему, где оно вводится (4.0.0).'},
+  {cat:'behav',key:'haptics',type:'toggle',def:true,
+   name:'Вибро-отклик пульта',desc:'На телефоне шкала параметра отзывается коротким толчком на каждом делении и чуть сильнее — на краю диапазона (5.1.0).'},
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
   {cat:'behav',key:'headerTuck',type:'toggle',def:true,
@@ -5359,6 +5374,7 @@ function syncSheet(){
   const t=sheetTab(), d=detent();
   // по вкладке листа CSS прячет строку показаний там, где читают (5.0.0)
   document.documentElement.dataset.sheettab=t;
+  if(typeof обновитьПульт==='function') обновитьПульт();
   for(const b of document.querySelectorAll('#msheet-tabs button'))
     b.classList.toggle('on', b.dataset.sheet===t);
   const пара=d!=='peek' && t==='params';
@@ -5459,6 +5475,11 @@ for(const [id,apply] of [['#mb-speed',v=>setSpeed(v||1)],
   el.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter') e.target.blur(); };
   el.onfocus=e=>e.target.select();
 }
+/* 5.1.0: скорость на телефоне — касанием по кругу 0,25× … 8×. Поле с
+   клавиатурой ради одного числа поднимало пол-экрана и закрывало сцену. */
+{ const sp=$('#mb-speed'); if(sp){ sp.readOnly=true; sp.onfocus=null;
+  sp.onclick=()=>{ const R=[0.25,0.5,1,2,4,8], i=R.findIndex(x=>x>S.speed+1e-9);
+    setSpeed(R[i<0?0:i]); if(typeof тронуть==='function') тронуть(6); }; } }
 /* Инструменты сцены: на телефоне левой панели нет, поэтому открываем их
    списком — и сразу переключаемся на сцену, иначе рисовать будет негде. */
 popup($('#simpick'),$('#pop-sims'));      // выбор симуляции темы на телефоне
@@ -7736,5 +7757,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '5.0.0';
+window.PHYSIM_BUILD = '5.1.0';
 window.PHYSIM_READY = true;

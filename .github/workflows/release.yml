@@ -148,6 +148,17 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 5.1.0 — a remote for the phone, and a logo
+
+          **The remote:** every parameter is a chip under the scene; pick one and drag the ruler with
+          your thumb — the scene recomputes as you go, with a light buzz on every tick. Switches flip
+          with a tap, lists become buttons. One-row transport, double-tap to fit, sliders in the
+          full parameter list.
+
+          **A logo:** the letter Φ built from an orbit, an axis and a particle — on the app icon, the
+          tab and the top bar. **Sections** are now a large number, a line icon and the first topics.
+          **The home field responds:** your finger or cursor becomes a charge.
+
           ## 5.0.0 — a clean sheet
 
           **The biggest redesign so far, and mostly by taking things away.** Bundled Inter,

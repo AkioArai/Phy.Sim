@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-5.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-5.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-5.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-5.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-5.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-5.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-5.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-5.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -107,9 +107,27 @@ KaTeX and its fonts ship inside the repository.
 | **147** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **91** glossary terms | short definitions, in search and in the *More* menu; optionally the first mention in the notes is underlined |
 | **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
-| **84** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
+| **85** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 5.1: a remote for the phone, and a logo
+
+- **The remote.** On a phone, under the scene, every parameter is a chip with its value. Pick a
+  chip and a ruler appears: drag it with your thumb and the scene recomputes as you go — no
+  sheet over the picture, no tiny − and + buttons. Ticks give a short buzz on the way and a firmer
+  one at the end of the range (can be switched off). A switch flips with one tap, a list becomes
+  a row of buttons, the value itself opens a field for an exact number. Changed parameters carry
+  a dot.
+- **Simpler transport.** One row: play, reset, speed (tap to cycle 0.25×…8×), more. Double-tap
+  the scene to fit it to the frame. The full parameter list gets a slider under every number.
+- **A logo.** The letter Φ built from a model: a tilted orbit, an axis and a particle; the lower
+  arc passes in front of the axis, the upper one behind it. App icons, the tab icon, the top bar
+  and the phone header all use it.
+- **Sections without animations.** Large section number in its colour, a fine line icon, the
+  first topics — and nothing moving.
+- **The field responds.** On the home screen your finger or cursor becomes a charge: the field
+  rebuilds around it and the particles stream into it.
 
 ### New in 5.0: a clean sheet
 

@@ -9,7 +9,7 @@ touch the network (that is why KaTeX moved from a CDN into `vendor/katex/`).
 
 ```
 packaging/
-  icon.svg           icon source: an elastic collision and the "Phy.Sim" wordmark
+  icon.svg           icon source: the letter Φ built from an orbit, an axis and a particle
   icon-512.png       the same icon rasterised — used by the .exe
   android/           Android shell + an .apk build that needs no Android SDK
   windows/           Electron shell + electron-builder configuration

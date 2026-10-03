@@ -1,14 +1,14 @@
 {
   "name": "Phy.Sim — физика в симуляциях",
   "short_name": "Phy.Sim",
-  "description": "Интерактивное пособие по физике: 76 симуляций, конспекты, формулы и задачи. Работает без интернета.",
+  "description": "Интерактивное пособие по физике: 85 симуляций, конспекты, формулы и задачи. Работает без интернета.",
   "lang": "ru",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#101318",
-  "theme_color": "#f7f8fa",
+  "background_color": "#0e1118",
+  "theme_color": "#0e1118",
   "categories": ["education", "science"],
   "icons": [
     {
@@ -24,7 +24,7 @@
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

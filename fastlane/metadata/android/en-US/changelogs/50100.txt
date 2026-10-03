@@ -1,0 +1,5 @@
+5.1.0 — a remote for the phone.
+• Every parameter is a chip under the scene: drag the ruler with your thumb, the scene changes as you go.
+• Switches flip with a tap; one-row transport; double-tap the scene to fit.
+• New logo: the letter Φ built from an orbit and a particle.
+• Cleaner sections; the home field reacts to your finger.

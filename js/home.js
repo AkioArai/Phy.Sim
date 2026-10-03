@@ -175,9 +175,25 @@ function полеГлавной(cv){
   const ctx=cv.getContext('2d'), dpr=Math.min(devicePixelRatio||1,2);
   const цв=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   let W=0,H=0,P=[],t=0,кадров=0;
+  /* Палец или курсор над шапкой — ещё один заряд, отрицательный: поле
+     перестраивается на ходу, и частицы стекаются к нему (5.1.0). Сила
+     нарастает за долю секунды и так же плавно гаснет, когда палец ушёл. */
+  const рука={x:0,y:0,сила:0,есть:false};
+  const шапка=cv.parentElement;
+  if(шапка){
+    const где=e=>{ const r=cv.getBoundingClientRect(); рука.x=e.clientX-r.left; рука.y=e.clientY-r.top; рука.есть=true; };
+    шапка.addEventListener('pointermove',где,{passive:true});
+    шапка.addEventListener('pointerdown',где,{passive:true});
+    шапка.addEventListener('pointerleave',()=>{ рука.есть=false; });
+    шапка.addEventListener('pointerup',e=>{ if(e.pointerType!=='mouse') рука.есть=false; });
+    шапка.addEventListener('pointercancel',()=>{ рука.есть=false; });
+  }
   const заряды=()=>{ const k=Math.min(W,H);
-    return [[0.30,0.45,1,0.9,0.6],[0.70,0.55,-1,0.7,1.1],[0.52,0.28,1,1.3,0.8],[0.45,0.75,-1,1.1,0.5]].map(([x,y,q,a,b],i)=>
-      ({x:W*x+Math.sin(t*0.13*a+i)*k*0.09, y:H*y+Math.cos(t*0.11*b+i*2)*k*0.08, q})); };
+    const Q=[[0.30,0.45,1,0.9,0.6],[0.70,0.55,-1,0.7,1.1],[0.52,0.28,1,1.3,0.8],[0.45,0.75,-1,1.1,0.5]].map(([x,y,q,a,b],i)=>
+      ({x:W*x+Math.sin(t*0.13*a+i)*k*0.09, y:H*y+Math.cos(t*0.11*b+i*2)*k*0.08, q}));
+    рука.сила+=((рука.есть?1:0)-рука.сила)*0.08;
+    if(рука.сила>0.02) Q.push({x:рука.x,y:рука.y,q:-2*рука.сила,рука:true});
+    return Q; };
   const новая=()=>({x:Math.random()*W,y:Math.random()*H,ж:40+Math.random()*160});
   const размер=()=>{ const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h) return false;
     if(w!==W||h!==H){ W=w; H=h; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
@@ -196,11 +212,13 @@ function полеГлавной(cv){
       p.x+=ex/e*1.5; p.y+=ey/e*1.5; p.ж--;
       ctx.strokeStyle=ф>0?ак:'#5fd0ff'; ctx.globalAlpha=Math.min(0.85,0.25+Math.abs(ф)*40);
       ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(p.x,p.y); ctx.stroke();
-      let сток=false; for(const c of Q) if(c.q<0&&Math.hypot(p.x-c.x,p.y-c.y)<6) сток=true;
+      let сток=false; for(const c of Q) if(c.q<0&&Math.hypot(p.x-c.x,p.y-c.y)<(c.рука?10:6)) сток=true;
       if(p.ж<0||сток||p.x<-4||p.y<-4||p.x>W+4||p.y>H+4) Object.assign(p,новая());
     }
     ctx.globalAlpha=1;
-    for(const c of Q){ ctx.fillStyle=c.q>0?ак:'#5fd0ff'; ctx.beginPath(); ctx.arc(c.x,c.y,3.2,0,7); ctx.fill();
+    for(const c of Q){ if(c.рука){ ctx.strokeStyle='#5fd0ff'; ctx.globalAlpha=0.5*рука.сила; ctx.lineWidth=1.2;
+        const ф=(t*1.6)%1; ctx.beginPath(); ctx.arc(c.x,c.y,6+ф*22,0,7); ctx.stroke(); ctx.globalAlpha=1; continue; }
+      ctx.fillStyle=c.q>0?ак:'#5fd0ff'; ctx.beginPath(); ctx.arc(c.x,c.y,3.2,0,7); ctx.fill();
       ctx.strokeStyle=ctx.fillStyle; ctx.globalAlpha=0.35; ctx.beginPath(); ctx.arc(c.x,c.y,9,0,7); ctx.stroke(); ctx.globalAlpha=1; }
   };
   const цикл=()=>{
@@ -208,72 +226,11 @@ function полеГлавной(cv){
     if(document.visibilityState==='visible'&&размер()){
       if(document.documentElement.dataset.motion==='full'){ t+=1/60; шаг(); }
       else if(кадров<160){ for(let i=0;i<160;i++){ шаг(); кадров++; } }
+      else if(рука.есть||рука.сила>0.02){ t+=1/60; шаг(); }
     }
     requestAnimationFrame(цикл);
   };
   requestAnimationFrame(цикл);
-}
-
-/* ---------------- миниатюры разделов (5.0.0) ----------------
-   У каждого раздела — своя маленькая живая картинка вместо списка тем:
-   бросок, газ в сосуде, диполь, волна, линза, световой конус, атом. Рисуются
-   в цвете раздела; без анимации — один кадр. */
-const МИНИ={
-  mech(c,w,h,t,к){ const g=0.9, v=1.25, x0=w*0.12, y0=h*0.82, T=(t*0.5)%2.4;
-    c.strokeStyle=к; c.globalAlpha=0.35; c.setLineDash([3,4]); c.beginPath();
-    for(let s=0;s<=2.4;s+=0.05){ const x=x0+s*w*0.31, y=y0-(v*s-g*s*s/2)*h*0.6; s?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.setLineDash([]);
-    c.globalAlpha=1; const x=x0+T*w*0.31, y=y0-(v*T-g*T*T/2)*h*0.6;
-    c.fillStyle=к; c.beginPath(); c.arc(x,y,5,0,7); c.fill();
-    c.lineWidth=1.6; c.beginPath(); c.moveTo(x,y); c.lineTo(x+16,y-(v-g*T)*18); c.stroke();
-    c.globalAlpha=0.5; c.beginPath(); c.moveTo(w*0.08,y0+5); c.lineTo(w*0.92,y0+5); c.stroke(); },
-  thermo(c,w,h,t,к){ c.strokeStyle=к; c.globalAlpha=0.45; c.lineWidth=1.5; c.strokeRect(w*0.2,h*0.15,w*0.6,h*0.7); c.globalAlpha=1; c.fillStyle=к;
-    for(let i=0;i<22;i++){ const a=i*2.39996, sx=Math.sin(a*3.1)*0.5+0.5, sy=Math.cos(a*1.7)*0.5+0.5, vx=0.07+0.05*((i*7)%5)/5, vy=0.06+0.05*((i*3)%5)/5;
-      const ox=Math.abs(((sx+vx*t*3)%2+2)%2-1), oy=Math.abs(((sy+vy*t*3)%2+2)%2-1);
-      c.beginPath(); c.arc(w*0.22+ox*w*0.56,h*0.17+oy*h*0.66,2.4,0,7); c.fill(); } },
-  electro(c,w,h,t,к){ const A=[w*0.32,h*0.5], B=[w*0.68,h*0.5]; c.strokeStyle=к; c.lineWidth=1.2;
-    for(let k=-3;k<=3;k++){ if(!k) continue; const s=k*0.32; c.globalAlpha=0.55-Math.abs(k)*0.1; c.beginPath();
-      for(let u=0;u<=1;u+=0.02){ const x=A[0]+(B[0]-A[0])*u, y=h*0.5-Math.sin(Math.PI*u)*s*h*0.5; u?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); }
-    c.globalAlpha=1; const u=(t*0.25)%1; c.fillStyle=к; c.beginPath(); c.arc(A[0]+(B[0]-A[0])*u,h*0.5-Math.sin(Math.PI*u)*0.32*h*0.5,2.5,0,7); c.fill();
-    for(const [p,зн] of [[A,'+'],[B,'−']]){ c.beginPath(); c.arc(p[0],p[1],9,0,7); c.fill(); c.fillStyle='#fff'; c.font='700 12px Inter,sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(зн,p[0],p[1]+0.5); c.fillStyle=к; } },
-  em(c,w,h,t,к){ c.lineWidth=1.8; for(const [фаза,a,al] of [[0,0.3,1],[0,0.16,0.4]]){ c.strokeStyle=к; c.globalAlpha=al; c.beginPath();
-      for(let x=0;x<=w;x+=3){ const y=h*0.5-Math.sin(x/w*Math.PI*4-t*2.2+фаза)*h*a*(al<1?0.6:1); x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); }
-    c.globalAlpha=0.3; c.lineWidth=1; c.beginPath(); c.moveTo(0,h*0.5); c.lineTo(w,h*0.5); c.stroke(); c.globalAlpha=1; },
-  optics(c,w,h,t,к){ const cx=w*0.45, F=w*0.24; c.strokeStyle=к; c.lineWidth=1.6; c.globalAlpha=0.55; c.beginPath(); c.ellipse(cx,h*0.5,5,h*0.36,0,0,7); c.stroke();
-    c.globalAlpha=1; for(const y of [-0.24,-0.12,0,0.12,0.24]){ const y0=h*0.5+y*h, k=(Math.sin(t*1.5)+1)/2*0.15+0.85;
-      c.beginPath(); c.moveTo(w*0.05,y0); c.lineTo(cx,y0); c.lineTo(cx+F*k,h*0.5); c.lineTo(cx+F*k+(cx+F*k-cx)*0.7,h*0.5-(y0-h*0.5)*0.7); c.stroke(); }
-    c.fillStyle=к; c.beginPath(); c.arc(cx+F*((Math.sin(t*1.5)+1)/2*0.15+0.85),h*0.5,3,0,7); c.fill(); },
-  rel(c,w,h,t,к){ const cx=w*0.5, cy=h*0.88, s=h*0.78; c.strokeStyle=к; c.globalAlpha=0.35; c.fillStyle=к;
-    c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx-s,cy-s); c.lineTo(cx+s,cy-s); c.closePath(); c.globalAlpha=0.12; c.fill(); c.globalAlpha=0.5; c.stroke();
-    c.globalAlpha=1; c.lineWidth=1.8; c.beginPath(); for(let u=0;u<=1;u+=0.02){ const y=cy-u*s, x=cx+Math.sin(u*3)*s*0.22; u?c.lineTo(x,y):c.moveTo(x,y); } c.stroke();
-    const u=(t*0.2)%1; c.beginPath(); c.arc(cx+Math.sin(u*3)*s*0.22,cy-u*s,4,0,7); c.fill(); },
-  quantum(c,w,h,t,к){ const cx=w*0.5, cy=h*0.5, R=h*0.2; let z=7;
-    const rnd=()=>(z=(z*16807)%2147483647)/2147483647, ug=t*0.25;
-    // облако 2p: плотность ~ r²·e^(−r)·cos²θ, ось медленно поворачивается
-    c.fillStyle=к;
-    for(let i=0;i<520;i++){ let r=0,th=0;
-      for(let k=0;k<12;k++){ r=rnd()*6; th=rnd()*Math.PI*2; const p=r*r*Math.exp(-r)*Math.cos(th)**2/0.55; if(rnd()<p) break; }
-      const x=r*Math.cos(th+ug)*R*0.62, y=r*Math.sin(th+ug)*R*0.62*0.62;
-      c.globalAlpha=0.55; c.fillRect(cx+x-0.9,cy+y-0.9,1.8,1.8); }
-    c.globalAlpha=1; c.beginPath(); c.arc(cx,cy,3,0,7); c.fill(); }
-};
-function миниатюры(h){
-  const тёмная=document.documentElement.dataset.theme==='dark';
-  const все=Array.from(h.querySelectorAll('canvas[data-mini]'));
-  const t0=performance.now();
-  const кадр=now=>{
-    if(!главнаяОткрыта()||!все.length||!document.body.contains(все[0])) return;
-    const полно=document.documentElement.dataset.motion==='full', t=полно?(now-t0)/1000:1.6;
-    for(const cv of все){
-      const w=cv.clientWidth, hh=cv.clientHeight; if(!w||!hh) continue;
-      const dpr=Math.min(devicePixelRatio||1,2);
-      if(cv.width!==Math.round(w*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(hh*dpr); }
-      const c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,hh);
-      const sec=SECTIONS.find(x=>x.id===cv.dataset.mini), в=видРаздела(sec);
-      c.save(); try{ (МИНИ[cv.dataset.mini]||МИНИ.quantum)(c,w,hh,t,тёмная?в.т:в.с); }catch(_){} c.restore();
-    }
-    if(полно) requestAnimationFrame(кадр);
-  };
-  requestAnimationFrame(кадр);
 }
 
 function рисоватьГлавную(h){
@@ -283,6 +240,7 @@ function рисоватьГлавную(h){
   const освоено=sec=>сост?темыРаздела(sec).filter(t=>сост.темы[t.id]&&(сост.темы[t.id].статус==='done'||сост.темы[t.id].статус==='due')).length:0;
   const симРаздела=sec=>new Set([].concat(...sec.topics.map(t=>[...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)))).size;
   const первая=ALL.find(t=>t.id==='mech.1d')||ALL[1];
+  let номер=1;
   const продолжить=тП
     ? `<p class="hm5-k">Вы остановились на</p><h1 class="hm5-h">${esc(тП.title)}</h1>
        <div class="hm5-act"><button class="btn primary hm5-go" data-topic="${тП.id}">Продолжить</button>
@@ -311,9 +269,11 @@ function рисоватьГлавную(h){
     <div class="hm-secs hm5-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
       const темы=темыРаздела(sec), n=освоено(sec);
       return `<button class="hm-sec sx${sec.hard?' hard':''}" style="${стильРаздела(sec)}" data-sec="${sec.id}">
-        <canvas class="hm5-mini" data-mini="${sec.id}" aria-hidden="true"></canvas>
+        <span class="hm6-top"><span class="hm6-n">${String(номер++).padStart(2,'0')}</span>${значокРаздела(sec,'hm6-ic')}</span>
         <span class="hm-sec-t">${esc(sec.title)}</span>
-        <span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'модель','модели','моделей')}</span>
+        <span class="hm6-ts">${темы.slice(0,3).map(t=>esc(t.title)).join(' · ')}${темы.length>3?' …':''}</span>
+        <span class="hm6-f"><span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'модель','модели','моделей')}</span>
+          ${n?`<span class="hm6-p">${n}/${темы.length}</span>`:''}</span>
         ${n?`<span class="hm-bar"><i style="width:${Math.round(100*n/темы.length)}%"></i></span>`:''}
       </button>`; }).join('')}</div>
   </div>`;
@@ -330,7 +290,6 @@ function рисоватьГлавную(h){
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
   полеГлавной(h.querySelector('#hm-cv'));
-  миниатюры(h);
 }
 function подключитьГлавную(){
   собратьГлавную();

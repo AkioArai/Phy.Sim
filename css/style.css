@@ -2717,15 +2717,15 @@ h2.sect::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 /* знак */
 .tbrand{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 6px;border-radius:var(--radius);
   font-weight:750;font-size:14.5px;letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
-.tbrand svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.5}
-.tbrand svg circle{fill:var(--accent)}
+.tbrand svg{width:24px;height:24px;flex:0 0 auto}
+
 .tbrand i{font-style:normal;color:var(--accent)}
 .tbrand:hover{background:var(--panel-2)}
 [data-bar="ink"] .tbrand{color:#fff}
-[data-bar="ink"] .tbrand svg{stroke:var(--accent-700)} [data-bar="ink"] .tbrand svg circle{fill:var(--accent-700)}
+
 [data-bar="ink"] .tbrand i{color:var(--accent-700)}
 [data-bar="ink"] .tbrand:hover{background:var(--bar-2)}
-[data-theme="dark"] .tbrand svg,[data-theme="dark"] .tbrand i{stroke:var(--accent);color:var(--accent)}
+[data-theme="dark"] .tbrand i{color:var(--accent)}
 @media (max-width:1100px){.tbrand span{display:none}}
 
 /* ---------- шапка темы: заголовок как в журнале ---------- */
@@ -2965,13 +2965,11 @@ details.deep>summary{font-family:var(--head)}
 .hm5-path b{font-family:var(--head);font-size:21px;font-weight:760;letter-spacing:-.01em;color:var(--ink);line-height:1.2}
 .hm5 .hm-h{font-family:var(--head);text-transform:none;letter-spacing:-.015em;font-size:26px;font-weight:800;color:var(--ink);margin:34px 2px 14px}
 .hm5-secs{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))!important;gap:14px!important}
-.hm5 .hm-sec{border:1px solid var(--hair);border-radius:18px;background:var(--panel);box-shadow:none;padding:0 0 18px;overflow:hidden;gap:4px;animation:none}
+.hm5 .hm-sec{border:1px solid var(--hair);border-radius:18px;background:var(--panel);box-shadow:none;padding:18px 20px 18px;overflow:hidden;gap:6px;animation:none;min-height:190px}
 .hm5 .hm-sec::before{display:none}
 .hm5 .hm-sec:hover{border-color:var(--sec);transform:none;background:var(--panel)}
-.hm5-mini{display:block;width:100%;height:132px;background:var(--panel-2);margin-bottom:12px}
-.hm5 .hm-sec-t{padding:0 18px;font-family:var(--head);font-size:19px;font-weight:780;letter-spacing:-.012em}
-.hm5 .hm-sec .hm-s{padding:0 18px}
-.hm5 .hm-sec .hm-bar{margin:8px 18px 0;width:calc(100% - 36px)}
+.hm5 .hm-sec-t{font-family:var(--head);font-size:21px;font-weight:780;letter-spacing:-.012em;line-height:1.15}
+.hm5 .hm-sec .hm-bar{margin:6px 0 0;width:100%;height:3px}
 .hm5 .hm-sec-t small{display:inline;margin-left:6px;font-family:var(--sans);font-size:11px;font-weight:600}
 [data-ui="mobile"] .hm5 .hm5-hero{min-height:62vh;border-radius:0;margin:-14px -14px 16px}
 [data-ui="mobile"] .hm5-in{padding:28px 20px 26px}
@@ -2979,9 +2977,6 @@ details.deep>summary{font-family:var(--head)}
 [data-ui="mobile"] .hm5-go,[data-ui="mobile"] .hm5-search{width:100%;min-width:0}
 [data-ui="mobile"] .hm5-search kbd{display:none}
 [data-ui="mobile"] .hm5-secs{grid-template-columns:1fr 1fr!important;gap:10px!important}
-[data-ui="mobile"] .hm5-mini{height:96px}
-[data-ui="mobile"] .hm5 .hm-sec-t{font-size:16px;padding:0 14px}
-[data-ui="mobile"] .hm5 .hm-sec .hm-s{padding:0 14px;font-size:12px}
 .home-on .statusbar>*{visibility:hidden}
 .home-on .statusbar{background:var(--bg);border-color:transparent}
 
@@ -2993,7 +2988,7 @@ details.deep>summary{font-family:var(--head)}
 #m-search{display:none}
 [data-ui="mobile"] #m-search{display:inline-flex}
 [data-ui="mobile"] #m-home.on{background:none;box-shadow:none;border-color:transparent;color:var(--bar-accent)}
-[data-ui="mobile"]:not([data-sheettab="params"]) .msheet-ro{display:none!important}
+[data-ui="mobile"]:not([data-detent="peek"]):not([data-sheettab="params"]) .msheet-ro{display:none!important}
 [data-ui="mobile"] .msheet-tabs button{background:none!important;border-radius:0!important;box-shadow:none!important;
   font-family:var(--sans);font-weight:600;color:var(--ink-3);border-bottom:2px solid transparent}
 [data-ui="mobile"] .msheet-tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
@@ -3003,3 +2998,75 @@ details.deep>summary{font-family:var(--head)}
 [data-ui="mobile"][data-detent="half"]:not([data-sheettab="params"]),
 [data-ui="mobile"][data-detent="full"]:not([data-sheettab="params"]){--sheet-head:74px}
 [data-ui="mobile"] .pr-grp{flex-direction:column;align-items:flex-start!important;gap:4px}
+
+/* =====================================================================
+   ПУЛЬТ НА ТЕЛЕФОНЕ (5.1.0)
+   В положении листа «край»: показания, чипы параметров, шкала. Транспорт —
+   одна строка: пуск, сброс, скорость, «ещё». Остальное — в карточке «ещё».
+   ===================================================================== */
+.pult{display:none}
+[data-ui="mobile"][data-detent="peek"][data-pult="on"]{--sheet-head:186px}
+[data-ui="mobile"][data-detent="peek"] .pult{display:flex;flex-direction:column;flex:0 0 auto;gap:6px;padding:0 0 6px}
+/* показания в «крае» — компактной строкой */
+[data-ui="mobile"][data-detent="peek"] .msheet-ro{flex:0 0 46px!important;display:flex!important;gap:6px}
+[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr{padding:4px 9px!important}
+[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr-v{font-size:15px!important}
+[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr-l{font-size:9.5px!important;-webkit-line-clamp:1!important}
+.pc-row{display:flex;gap:6px;overflow-x:auto;padding:0 12px;scrollbar-width:none;scroll-snap-type:x proximity}
+.pc-row::-webkit-scrollbar{display:none}
+.pc{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;max-width:180px;
+  height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--hair);background:var(--panel);color:var(--ink);
+  font:inherit;cursor:pointer;scroll-snap-align:start;-webkit-tap-highlight-color:transparent}
+.pc-l{font-size:11px;font-weight:500;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:156px}
+.pc-v{font:600 14px var(--mono);white-space:nowrap}
+.pc.on{border-color:var(--accent);background:var(--accent-soft)}
+.pc.on .pc-l{color:var(--accent)}
+.pc-chk .pc-v{color:var(--ink-3)}
+.pc-chk.yes{border-color:var(--ok,#1a8f4c)}
+.pc-chk.yes .pc-v{color:var(--ok,#1a8f4c)}
+.pd{display:flex;align-items:center;gap:6px;padding:0 10px;height:64px}
+.pd-b{flex:0 0 44px;height:44px;border-radius:12px;border:1px solid var(--hair);background:var(--panel);color:var(--ink);
+  font:500 22px var(--sans);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pd-b:active{background:var(--accent-soft)}
+.pd-r{flex:1;position:relative;height:64px;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none}
+.pd-r canvas{position:absolute;left:0;top:0;width:100%;height:100%}
+.pd-v{position:absolute;left:50%;top:2px;transform:translateX(-50%);border:0;background:none;padding:2px 8px;
+  font:700 19px var(--mono);color:var(--ink);white-space:nowrap;cursor:text}
+.pd-in{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:32px;text-align:center;
+  font:700 18px var(--mono);border:1px solid var(--accent);border-radius:8px;background:var(--panel);color:var(--ink)}
+.pd-opts{display:flex;gap:6px;overflow-x:auto;width:100%;scrollbar-width:none}
+.pd-o{flex:0 0 auto;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--hair);background:var(--panel);
+  color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:550;cursor:pointer}
+.pd-o.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* транспорт: одна строка, редкое — в «ещё» */
+[data-ui="mobile"] #mb-undo,[data-ui="mobile"] #mb-slow,[data-ui="mobile"] #mb-fast,
+[data-ui="mobile"] #tl-prev,[data-ui="mobile"] #tl-next,[data-ui="mobile"] #tl-loop,
+[data-ui="mobile"] .mbar2 .mb-sep{display:none!important}
+[data-ui="mobile"] #mb-speed{width:64px;text-align:center;border-radius:12px;font:600 14px var(--mono);caret-color:transparent}
+[data-ui="mobile"] .mbar2 .m2row{justify-content:space-between}
+/* 5.0 прятал показания вне вкладки параметров — но в «крае» вкладка не видна,
+   и показаниям там самое место */
+[data-ui="mobile"][data-detent="peek"] .msheet-tabs{display:none!important}
+
+/* ---- разделы 5.1: номер, тонкий значок, три темы — без картинок ---- */
+.hm6-top{display:flex;align-items:flex-start;justify-content:space-between;width:100%;margin-bottom:14px}
+.hm6-n{font-family:var(--head);font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:.9;color:var(--sec)}
+.hm6-ic{width:26px;height:26px;fill:none;stroke:var(--sec);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.hm6-ts{font-size:13px;line-height:1.5;color:var(--ink-3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hm6-f{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:auto;padding-top:10px}
+.hm6-p{font:600 12px var(--mono);color:var(--sec)}
+.hm5 .hm-sec:hover .hm6-n{transform:translateX(2px)}
+.hm6-n{transition:transform .2s ease}
+[data-ui="mobile"] .hm5 .hm-sec{min-height:0;padding:14px 14px 14px}
+[data-ui="mobile"] .hm6-n{font-size:32px}
+[data-ui="mobile"] .hm6-top{margin-bottom:8px}
+[data-ui="mobile"] .hm5 .hm-sec-t{font-size:16.5px}
+[data-ui="mobile"] .hm6-ts{display:none}
+[data-ui="mobile"] .hm6-f .hm-s{font-size:11.5px}
+.m-brand svg{width:26px;height:26px}
+.pc{position:relative}
+.pc.chg::after{content:"";position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+/* ползунок в списке параметров на телефоне */
+[data-ui="mobile"] .param.has-rng{flex-wrap:wrap}
+.p-rng{display:none}
+[data-ui="mobile"] .p-rng{display:block;flex:1 0 100%;width:100%;margin:8px 0 2px;height:28px;accent-color:var(--accent);touch-action:pan-y}

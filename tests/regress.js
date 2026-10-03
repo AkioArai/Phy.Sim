@@ -1285,7 +1285,7 @@ async function сторож(b) {
       await hp.goto(url); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm-sec').length,
         цвета: [...document.querySelectorAll('#home .hm-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
-        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home canvas[data-mini]').length }));
+        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm6-n').length }));
       await hp.click('#home .hm-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
       const тема = await hp.evaluate(() => ({ тема: S.topic.id, скрыта: !главнаяОткрыта() }));
       await hp.click('#btn-home'); await hp.waitForTimeout(200);
@@ -1647,7 +1647,8 @@ async function сторож(b) {
         r.шрифты = document.fonts.check('700 20px "Inter Tight"') && document.fonts.check('16px Inter') && document.fonts.check('12px "JetBrains Mono"');
         открытьГлавную(); await жди(400);
         const cv = document.querySelector('#hm-cv');
-        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home canvas[data-mini]').length === 7;
+        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm6-n').length === 7 && !document.querySelector('#home canvas[data-mini]');
+        r.знак = !!document.querySelector('#tbrand svg ellipse') && /svg/.test(document.querySelector('link[rel=icon]').href);
         r.безЛишнего = !document.querySelector('#home .hm-q, #home .hm-tools, #home .hm4-heat, #home .hm-foot');
         const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
         кн.click(); await жди(700);
@@ -1676,7 +1677,7 @@ async function сторож(b) {
         r.выход = !УРОК.вкл && getComputedStyle(document.querySelector('#pane')).display !== 'none';
         return r;
       });
-      ok('5.0: панель, шрифты, живое поле и миниатюры, задача дня, лишнее убрано, термины по настройке, урок клавишами',
+      ok('5.0–5.1: панель и знак Φ, шрифты, живое поле и разделы без анимаций, задача дня, лишнее убрано, термины по настройке, урок клавишами',
         Object.values(т).every(Boolean), т);
     }
 
@@ -1957,6 +1958,35 @@ async function сторож(b) {
       закончитьУрок(); return r;
     });
     ok('телефон: урок из меню во весь экран поверх листа, свайп листает; в шапке поиск вместо вычислителя, показания только у параметров', Object.values(урокТел).every(x => x === true), урокТел);
+
+    /* 5.1.0: пульт — чипы параметров и шкала в положении «край»; протяжка
+       шкалы меняет параметр на ходу, отпуск записывает его в историю; флажок
+       переключается касанием чипа; в полном списке — ползунки. */
+    const пульт = await m.p.evaluate(async () => {
+      const жди = ms => new Promise(r => setTimeout(r, ms));
+      закрытьГлавную(); openTopic('mech.2d'); openSimMobile(); setDetent('peek'); await жди(250);
+      const чипы = [...document.querySelectorAll('#pult .pc')];
+      const угол = чипы.find(b => /Угол/.test(b.textContent)); угол.click(); await жди(100);
+      const r = document.querySelector('#pult .pd-r'), b = r.getBoundingClientRect(), до = A().params.a01;
+      const ev = (type, x) => r.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7, pointerType: 'touch', clientX: x, clientY: b.top + b.height - 10 }));
+      ev('pointerdown', b.left + b.width * 0.6);
+      for (let k = 1; k <= 8; k++) ev('pointermove', b.left + b.width * (0.6 - k * 0.02));
+      const наХоду = A().params.a01;
+      ev('pointerup', b.left + b.width * 0.44); await жди(80);
+      const после = A().params.a01, чип = document.querySelector('#pult .pc.on .pc-v').textContent;
+      const флажок = [...document.querySelectorAll('#pult .pc-chk')][0], fk = флажок && флажок.dataset.key, было = fk && A().params[fk];
+      if (флажок) флажок.click(); await жди(80);
+      const щёлк = fk ? A().params[fk] === !было : true;
+      const видно = getComputedStyle(document.querySelector('#pult')).display !== 'none' && getComputedStyle(document.querySelector('#msheet-ro')).display !== 'none';
+      setDetent('half'); setSheetTab('params'); await жди(150);
+      const ползунков = document.querySelectorAll('#params .p-rng').length;
+      const скрыт = getComputedStyle(document.querySelector('#pult')).display === 'none';
+      setDetent('peek');
+      return { чипов: чипы.length, видно, до, наХоду, после, чип, щёлк, ползунков, скрыт };
+    });
+    ok('5.1 телефон: пульт под сценой — шкала меняет угол на ходу, чип обновляется, флажок касанием, ползунки в списке',
+      пульт.чипов >= 5 && пульт.видно && пульт.наХоду > пульт.до && пульт.после === пульт.наХоду &&
+      пульт.чип.startsWith(String(пульт.после)) && пульт.щёлк && пульт.ползунков >= 3 && пульт.скрыт, пульт);
 
     await m.p.close();
 

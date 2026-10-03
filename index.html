@@ -8,8 +8,8 @@
 <!-- Иконка вкладки и ярлыка «на главный экран». Встроена прямо сюда,
      а не файлом: тогда она есть и в однофайловой сборке, и в .apk,
      и в .exe без отдельного пути. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22 width=%22192%22 height=%22192%22%3E%3Cdefs%3E%3Cmarker id=%22ah%22 viewBox=%220 0 10 10%22 refX=%229%22 refY=%225%22 markerWidth=%223.4%22 markerHeight=%223.4%22 orient=%22auto-start-reverse%22%3E%3Cpath d=%22M0 0.6 10 5 0 9.4Z%22 fill=%22%2315181d%22/%3E%3C/marker%3E%3C/defs%3E%3Crect width=%22192%22 height=%22192%22 rx=%2238%22 fill=%22%23f7f8fa%22/%3E%3Crect x=%222.2%22 y=%222.2%22 width=%22187.6%22 height=%22187.6%22 rx=%2236%22 fill=%22none%22 stroke=%22%2315181d%22 stroke-width=%224.4%22/%3E%3Cg fill=%22none%22 stroke=%22%2315181d%22 stroke-width=%225%22 stroke-linecap=%22round%22%3E%3Ccircle cx=%2247%22 cy=%2270%22 r=%2218%22/%3E%3Cpath d=%22M70 70H92%22 marker-end=%22url(%23ah)%22/%3E%3Ccircle cx=%22117%22 cy=%2262%22 r=%2218%22 stroke-width=%224%22 stroke-dasharray=%226.5 7%22/%3E%3Ccircle cx=%22136%22 cy=%2289%22 r=%2219%22/%3E%3Cpath d=%22M132 45 160 24%22 marker-end=%22url(%23ah)%22/%3E%3Cpath d=%22M152 105 170 129%22 marker-end=%22url(%23ah)%22/%3E%3C/g%3E%3Cg font-family=%22ui-monospace, 'DejaVu Sans Mono', monospace%22 font-weight=%22700%22 font-size=%2234%22 fill=%22%2315181d%22%3E%3Ctext x=%2224%22 y=%22167%22%3EPhy%3C/text%3E%3Ctext x=%22106%22 y=%22167%22%3ESim%3C/text%3E%3C/g%3E%3Ccircle cx=%2296%22 cy=%22161%22 r=%226.4%22 fill=%22%232f5ea8%22/%3E%3C/svg%3E">
-<meta name="theme-color" content="#f7f8fa">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22%3E%3Cdefs%3E%3ClinearGradient id=%22pg%22 gradientUnits=%22userSpaceOnUse%22 x1=%22-160%22 x2=%22160%22 y1=%220%22 y2=%220%22%3E%3Cstop offset=%220%22 stop-color=%22%23a596ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%235fd0ff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%22512%22 height=%22512%22 rx=%22116%22 fill=%22%230e1118%22/%3E%3Cg transform=%22translate(256 256) rotate(-28)%22 fill=%22none%22 stroke-linecap=%22round%22%3E%3Cellipse rx=%22152%22 ry=%2264%22 stroke=%22url(%23pg)%22 stroke-width=%2226%22/%3E%3C/g%3E%3Cpath d=%22M256 92 V 420%22 stroke=%22%230e1118%22 stroke-width=%2258%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M256 92 V 420%22 stroke=%22%23f1f2f7%22 stroke-width=%2230%22 stroke-linecap=%22round%22/%3E%3Cg transform=%22translate(256 256) rotate(-28)%22 fill=%22none%22%3E%3Cpath d=%22M26.4 63 A152 64 0 0 1 -87.2 52.4%22 stroke=%22%230e1118%22 stroke-width=%2252%22/%3E%3Cpath d=%22M40 61 A152 64 0 0 1 -100 48%22 stroke=%22url(%23pg)%22 stroke-width=%2226%22/%3E%3Ccircle cx=%22146.1%22 cy=%22-17.6%22 r=%2228%22 fill=%22%235fd0ff%22 stroke=%22%230e1118%22 stroke-width=%2214%22/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#0e1118">
 
 <!-- Установка из браузера, без магазинов приложений. Ставить .apk может не
      каждый: где-то заблокированы сервисы Google, где-то установщик
@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="5.0.0">
+<meta name="physim-build" content="5.1.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -159,6 +159,7 @@
 <script defer src="js/home.js"></script>
 <script defer src="js/glossary.js"></script>
 <script defer src="js/lesson.js"></script>
+<script defer src="js/pult.js"></script>
 <script defer src="js/scene.js"></script>
 <script defer src="js/lab.js"></script>
 <script defer src="js/app.js"></script>
@@ -169,7 +170,7 @@
     <button class="iconbtn" id="btn-rail" title="Скрыть/открыть панель тем (Tab)" aria-pressed="true">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
     <!-- 4.0.0: знак и имя — клик ведёт на главную -->
-    <button class="tbrand" id="tbrand" title="Phy.Sim — на главную"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(120 12 12)"/></svg><span>Phy<i>.</i>Sim</span></button>
+    <button class="tbrand" id="tbrand" title="На главную"><svg viewBox="60 60 392 392" aria-hidden="true"><defs><linearGradient id="tb-g" gradientUnits="userSpaceOnUse" x1="-160" x2="160" y1="0" y2="0"><stop offset="0" stop-color="#a596ff"/><stop offset="1" stop-color="#5fd0ff"/></linearGradient></defs><g transform="translate(256 256) rotate(-28)" fill="none"><ellipse rx="152" ry="64" stroke="url(#tb-g)" stroke-width="30"/></g><path d="M256 92V420" stroke="var(--bar,#0e1118)" stroke-width="64" stroke-linecap="round"/><path d="M256 92V420" stroke="#f1f2f7" stroke-width="34" stroke-linecap="round"/><g transform="translate(256 256) rotate(-28)" fill="none"><path d="M26.4 63A152 64 0 0 1-87.2 52.4" stroke="var(--bar,#0e1118)" stroke-width="58"/><path d="M40 61A152 64 0 0 1-100 48" stroke="url(#tb-g)" stroke-width="30"/><circle cx="146.1" cy="-17.6" r="30" fill="#5fd0ff" stroke="var(--bar,#0e1118)" stroke-width="16"/></g></svg><span>Phy<i>.</i>Sim</span></button>
     <div class="sep"></div>
     <!-- 2.2.0: навигация словами, а не значками — три места, где можно быть -->
     <nav class="tnav" aria-label="Разделы приложения">
@@ -198,7 +199,7 @@
   <div class="mtop" id="mtop">
     <button class="iconbtn" id="m-drawer" title="Темы, поиск и настройки">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
-    <button class="iconbtn" id="m-home" title="Главная"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
+    <button class="iconbtn m-brand" id="m-home" title="Главная"><svg viewBox="60 60 392 392" aria-hidden="true"><defs><linearGradient id="mh-g" gradientUnits="userSpaceOnUse" x1="-160" x2="160" y1="0" y2="0"><stop offset="0" stop-color="#a596ff"/><stop offset="1" stop-color="#5fd0ff"/></linearGradient></defs><g transform="translate(256 256) rotate(-28)" fill="none"><ellipse rx="152" ry="64" stroke="url(#mh-g)" stroke-width="30"/></g><path d="M256 92V420" stroke="var(--bar,#0e1118)" stroke-width="64" stroke-linecap="round"/><path d="M256 92V420" stroke="#f1f2f7" stroke-width="34" stroke-linecap="round"/><g transform="translate(256 256) rotate(-28)" fill="none"><path d="M26.4 63A152 64 0 0 1-87.2 52.4" stroke="var(--bar,#0e1118)" stroke-width="58"/><path d="M40 61A152 64 0 0 1-100 48" stroke="url(#mh-g)" stroke-width="30"/><circle cx="146.1" cy="-17.6" r="30" fill="#5fd0ff" stroke="var(--bar,#0e1118)" stroke-width="16"/></g></svg></button>
     <div class="spacer"></div>
     <button class="iconbtn m-path" id="m-path" title="Мой путь"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg><b class="badge hidden" id="m-path-badge"></b></button>
     <button class="iconbtn" id="m-calc" title="Вычислитель"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18h.01M12 18h3.5"/></svg></button>
@@ -261,6 +262,7 @@
     <div class="msheet" id="msheet">
       <button class="msheet-grab" id="msheet-grab" title="Потяните: край / половина / полный лист"></button>
       <div class="msheet-ro" id="msheet-ro"></div>
+      <div class="pult" id="pult"></div>
       <div class="msheet-tabs" id="msheet-tabs">
         <button data-sheet="params" class="on">Параметры</button>
         <button data-sheet="notes">Конспект</button>
