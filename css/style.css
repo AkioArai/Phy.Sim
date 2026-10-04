@@ -936,83 +936,35 @@ table.ref tr:last-child td{border-bottom:0}
 
    z-index выше экрана доступа (500): заставка играет и до ввода пароля.
    Половины непрозрачные — они и есть «занавес», который раздвигается. */
-.splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:600;overflow:hidden;
-  font-family:var(--mono);font-weight:650;letter-spacing:-.02em;
-  font-size:30px;font-size:clamp(30px,11vw,64px);color:var(--ink)}
+/* 6.0: заставка — знак Φ рисует сам себя. Орбита прочерчивается, ось
+   вырастает из центра, частица делает виток и встаёт на место, под знаком
+   проявляется имя; затем всё мягко гаснет. Фон всегда чернильный — цвет
+   знака, а не темы. До класса .run это просто ровный фон (индикатор загрузки). */
+.splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:600;overflow:hidden;background:#0e1118;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
 .splash.done{display:none}
-.sp-half{position:absolute;top:0;bottom:0;width:50%;background:var(--bg);
-  display:flex;align-items:center;will-change:transform}
-.sp-l{left:0;justify-content:flex-end}
-/* правая половина заходит на левую на пиксель — иначе по центру видна
-   волосяная щель, и приложение проглядывает сквозь «занавес» раньше времени */
-.sp-r{right:0;width:calc(50% + 1px);justify-content:flex-start}
-/* Слово целиком: сначала «PhySim» без зазора, потом половинки слова
-   раздвигаются ровно на диаметр точки с воздухом по бокам. */
-.sp-txt{display:block;will-change:transform;opacity:0;
-  animation-duration:.42s,.40s;animation-delay:0s,.46s;animation-fill-mode:both,both;
-  animation-timing-function:cubic-bezier(.2,.7,.3,1),cubic-bezier(.3,.8,.3,1)}
-.splash.run .sp-l .sp-txt{animation-name:sp-in,sp-open-l}
-.splash.run .sp-r .sp-txt{animation-name:sp-in,sp-open-r}
-@keyframes sp-in{from{opacity:0}to{opacity:1}}
-@keyframes sp-open-l{to{transform:translateX(-.19em)}}
-@keyframes sp-open-r{to{transform:translateX(.19em)}}
-/* ВАЖНО: всё движение включается классом .run, который ставит скрипт после
-   того, как раскладка устоялась (см. playIntro). До этого заставка — просто
-   ровный фон, и это же индикатор загрузки. Пока анимация стартовала сразу с
-   первым кадром, на телефоне она успевала проиграться в старом окне: браузер
-   сначала размечает страницу под широкую область, а потом применяет
-   <meta viewport> — и падающая точка показывалась в правом нижнем углу,
-   после чего всё скачком вставало по центру. */
-/* Точка. transform-origin по нижнему краю: при сплющивании она остаётся
-   стоять на «полу», а не проваливается сквозь него. */
-.sp-dot{position:absolute;left:50%;bottom:calc(50% - .28em);
-  width:.19em;height:.19em;margin-left:-.095em;border-radius:50%;
-  background:var(--accent);transform-origin:50% 100%;opacity:0}
-.splash.run .sp-dot{animation:sp-fall .62s .54s both}
-@keyframes sp-fall{
-  0%  {opacity:0;transform:translateY(-3.2em) scaleX(.66) scaleY(1.6);
-       animation-timing-function:cubic-bezier(.45,0,.95,.5)}   /* разгон падения */
-  12% {opacity:1;transform:translateY(-2.7em) scaleX(.66) scaleY(1.6);
-       animation-timing-function:cubic-bezier(.45,0,.95,.5)}
-  62% {opacity:1;transform:translateY(0) scaleX(.66) scaleY(1.6);
-       animation-timing-function:cubic-bezier(.2,0,.25,1)}     /* касание */
-  76% {transform:translateY(0) scaleX(1.5) scaleY(.5);
-       animation-timing-function:cubic-bezier(.25,0,.2,1)}     /* сплющилась */
-  100%{transform:translateY(0) scaleX(1) scaleY(1)}            /* встала, без отскока */
-}
-/* ---- Финал ----
-   Линия состоит из ДВУХ половин: каждая приклеена к внутреннему краю своей
-   половины занавеса. Пока они рядом, это одна линия; когда занавес
-   разъезжается, линия расходится надвое и уходит в бока вместе с ним —
-   отдельной анимации для этого не нужно. Раньше линия была одним элементом
-   посередине и оставалась стоять, пока створки уезжали. */
-.sp-l::after,.sp-r::before{content:'';position:absolute;top:0;bottom:0;
-  width:calc(.095em + 1px);background:var(--accent);
-  transform:scaleY(0);transform-origin:50% 50%;will-change:transform}
-/* Половинки заходят друг на друга на пиксель. Встык не годится: каждая
-   из-за will-change лежит в своём слое, и по стыку проступала светлая
-   волосяная линия — вместо одной линии получались две. */
-.sp-l::after{right:-1px}
-.sp-r::before{left:0}
-.splash.go .sp-l::after,
-.splash.go .sp-r::before{animation:sp-bar .4s cubic-bezier(.6,0,.25,1) forwards}
-@keyframes sp-bar{to{transform:scaleY(1)}}
-/* Точка гаснет внутри уже выросшей линии — того же цвета, подмены не видно.
-   Уехать вместе со створками она не может: лежит не в них, а поверх. */
-.splash.go .sp-dot{animation:sp-dotout .14s .24s forwards}
-@keyframes sp-dotout{to{opacity:0}}
-.splash.go .sp-l{animation:sp-part-l .58s .4s cubic-bezier(.55,0,.25,1) both}
-.splash.go .sp-r{animation:sp-part-r .58s .4s cubic-bezier(.55,0,.25,1) both}
-@keyframes sp-part-l{to{transform:translateX(-101%)}}
-@keyframes sp-part-r{to{transform:translateX(101%)}}
-/* остатки гасим в самом конце, когда открывать уже нечего */
-.splash.go{animation:sp-fade .24s .8s both}
+.sp-mark{width:150px;height:150px;width:min(150px,36vw);height:min(150px,36vw);overflow:visible}
+.sp-orb{stroke-dasharray:1;stroke-dashoffset:1}
+.sp-ax{transform-box:fill-box;transform-origin:50% 50%;transform:scaleY(0)}
+.sp-front,.sp-p,.sp-word{opacity:0}
+.splash.run .sp-orb{animation:sp-draw .7s cubic-bezier(.6,0,.2,1) forwards}
+.splash.run .sp-ax{animation:sp-grow .45s .3s cubic-bezier(.3,.8,.3,1) forwards}
+.splash.run .sp-front{animation:sp-show .01s .62s forwards}
+.splash.run .sp-p{animation:sp-show .15s .55s forwards}
+.splash.run .sp-word{animation:sp-word .5s .75s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes sp-draw{to{stroke-dashoffset:0}}
+@keyframes sp-grow{to{transform:scaleY(1)}}
+@keyframes sp-show{to{opacity:1}}
+@keyframes sp-word{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.sp-word{font-family:"Inter Tight",var(--sans);font-weight:800;font-size:30px;letter-spacing:-.015em;color:#eef0f6}
+.sp-word i{font-style:normal;color:#9a8cff}
+.splash.go{animation:sp-fade .42s ease-in forwards}
+.splash.go .sp-mark{animation:sp-zoom .42s ease-in forwards}
 @keyframes sp-fade{to{opacity:0}}
-/* Страховка: если скрипты почему-то не выполнились, заставка не должна
-   остаться навсегда — иначе вместо приложения пустой экран. */
+@keyframes sp-zoom{to{transform:scale(1.18)}}
+/* страховка: что бы ни случилось со скриптом, через 9 с заставка уходит */
 .splash{animation:sp-failsafe .01s linear 9s forwards}
 @keyframes sp-failsafe{to{opacity:0;visibility:hidden}}
-/* «Уменьшить движение» в системе — показываем сразу приложение. */
 @media (prefers-reduced-motion: reduce){ .splash{display:none} }
 
 /* ---- Хуки новых настроек ---- */
@@ -2999,45 +2951,6 @@ details.deep>summary{font-family:var(--head)}
 [data-ui="mobile"][data-detent="full"]:not([data-sheettab="params"]){--sheet-head:74px}
 [data-ui="mobile"] .pr-grp{flex-direction:column;align-items:flex-start!important;gap:4px}
 
-/* =====================================================================
-   ПУЛЬТ НА ТЕЛЕФОНЕ (5.1.0)
-   В положении листа «край»: показания, чипы параметров, шкала. Транспорт —
-   одна строка: пуск, сброс, скорость, «ещё». Остальное — в карточке «ещё».
-   ===================================================================== */
-.pult{display:none}
-[data-ui="mobile"][data-detent="peek"][data-pult="on"]{--sheet-head:186px}
-[data-ui="mobile"][data-detent="peek"] .pult{display:flex;flex-direction:column;flex:0 0 auto;gap:6px;padding:0 0 6px}
-/* показания в «крае» — компактной строкой */
-[data-ui="mobile"][data-detent="peek"] .msheet-ro{flex:0 0 46px!important;display:flex!important;gap:6px}
-[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr{padding:4px 9px!important}
-[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr-v{font-size:15px!important}
-[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr-l{font-size:9.5px!important;-webkit-line-clamp:1!important}
-.pc-row{display:flex;gap:6px;overflow-x:auto;padding:0 12px;scrollbar-width:none;scroll-snap-type:x proximity}
-.pc-row::-webkit-scrollbar{display:none}
-.pc{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;max-width:180px;
-  height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--hair);background:var(--panel);color:var(--ink);
-  font:inherit;cursor:pointer;scroll-snap-align:start;-webkit-tap-highlight-color:transparent}
-.pc-l{font-size:11px;font-weight:500;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:156px}
-.pc-v{font:600 14px var(--mono);white-space:nowrap}
-.pc.on{border-color:var(--accent);background:var(--accent-soft)}
-.pc.on .pc-l{color:var(--accent)}
-.pc-chk .pc-v{color:var(--ink-3)}
-.pc-chk.yes{border-color:var(--ok,#1a8f4c)}
-.pc-chk.yes .pc-v{color:var(--ok,#1a8f4c)}
-.pd{display:flex;align-items:center;gap:6px;padding:0 10px;height:64px}
-.pd-b{flex:0 0 44px;height:44px;border-radius:12px;border:1px solid var(--hair);background:var(--panel);color:var(--ink);
-  font:500 22px var(--sans);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.pd-b:active{background:var(--accent-soft)}
-.pd-r{flex:1;position:relative;height:64px;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none}
-.pd-r canvas{position:absolute;left:0;top:0;width:100%;height:100%}
-.pd-v{position:absolute;left:50%;top:2px;transform:translateX(-50%);border:0;background:none;padding:2px 8px;
-  font:700 19px var(--mono);color:var(--ink);white-space:nowrap;cursor:text}
-.pd-in{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:32px;text-align:center;
-  font:700 18px var(--mono);border:1px solid var(--accent);border-radius:8px;background:var(--panel);color:var(--ink)}
-.pd-opts{display:flex;gap:6px;overflow-x:auto;width:100%;scrollbar-width:none}
-.pd-o{flex:0 0 auto;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--hair);background:var(--panel);
-  color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:550;cursor:pointer}
-.pd-o.on{background:var(--accent);border-color:var(--accent);color:#fff}
 /* транспорт: одна строка, редкое — в «ещё» */
 [data-ui="mobile"] #mb-undo,[data-ui="mobile"] #mb-slow,[data-ui="mobile"] #mb-fast,
 [data-ui="mobile"] #tl-prev,[data-ui="mobile"] #tl-next,[data-ui="mobile"] #tl-loop,
@@ -3064,9 +2977,151 @@ details.deep>summary{font-family:var(--head)}
 [data-ui="mobile"] .hm6-ts{display:none}
 [data-ui="mobile"] .hm6-f .hm-s{font-size:11.5px}
 .m-brand svg{width:26px;height:26px}
-.pc{position:relative}
-.pc.chg::after{content:"";position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
 /* ползунок в списке параметров на телефоне */
 [data-ui="mobile"] .param.has-rng{flex-wrap:wrap}
 .p-rng{display:none}
 [data-ui="mobile"] .p-rng{display:block;flex:1 0 100%;width:100%;margin:8px 0 2px;height:28px;accent-color:var(--accent);touch-action:pan-y}
+
+/* =====================================================================
+   ТЕЛЕФОН 6.0 — ЭКРАН СИМУЛЯЦИИ
+   Шапка: конспект · симуляция ▾ · параметры · ⋮. Сцена во весь экран.
+   Низ: время, показания, кнопки. Параметры и графики — своя страница.
+   ===================================================================== */
+.m6-only{display:none}
+[data-m6="1"] #m6-notes,[data-m6="1"] #m6-params{display:inline-flex}
+[data-m6="1"] #m6dock{display:flex}
+/* старое: лист, плавающие панели, полоса «развернуть», лишние входы в настройки */
+[data-m6="1"] #msheet,[data-m6="1"] .mbar,[data-m6="1"] .mbar2,[data-m6="1"] #stripctl,
+[data-m6="1"] #m2more,[data-m6="1"] #btn-simback,[data-m6="1"] #m-cmdk,[data-m6="1"] #m-settings,
+[data-m6="1"] #msheet-bg,[data-m6="1"] .msheet-head,[data-m6="1"] #mi-prefs{display:none!important}
+[data-m6="1"] .simpane{padding-bottom:0!important;display:flex;flex-direction:column}
+[data-m6="1"] .simpane.hidden{display:none}
+[data-m6="1"] .canvas-wrap{flex:1 1 auto!important;min-height:0!important}
+/* шапка */
+[data-m6="1"] .simhead{height:52px;padding:0 6px;gap:6px;border-bottom:1px solid var(--hair);background:var(--panel)}
+[data-m6="1"] .simhead .iconbtn{width:40px;height:40px;border-radius:12px}
+[data-m6="1"] .simhead .iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-m6="1"] #m6-params.on{color:var(--accent)}
+/* смена симуляции — заметно: рамка, фон, стрелка */
+[data-m6="1"] .simpick{height:38px;padding:0 10px 0 12px!important;border:1px solid var(--line)!important;border-radius:12px;
+  background:var(--panel-2)!important}
+[data-m6="1"] .simpick #simpick-t{font-family:var(--head);font-weight:700!important;font-size:15px!important;letter-spacing:-.005em}
+[data-m6="1"] .simpick .simpick-c{stroke:var(--ink-2)!important;width:17px!important;height:17px!important}
+/* нижняя панель */
+.m6dock{flex:0 0 auto;flex-direction:column;background:var(--panel);border-top:1px solid var(--hair);
+  padding:0 0 calc(6px + env(safe-area-inset-bottom))}
+.m6-tl #timeline{display:flex!important;height:42px;padding:0 12px;gap:10px;border:0;background:none}
+.m6-tl .tl-range{flex:1;height:30px;accent-color:var(--accent)}
+.m6-tl .tl-time{font:500 13px var(--mono);color:var(--ink-2);min-width:76px;text-align:right}
+.m6-ro #msheet-ro{display:flex!important;flex:0 0 auto!important;height:52px;gap:6px;padding:0 12px;overflow-x:auto}
+.m6-ro #msheet-ro .sr{padding:5px 10px!important;border-radius:10px!important;background:var(--panel-2)!important}
+.m6-ro #msheet-ro .sr-v{font-size:16px!important}
+.m6-ro #msheet-ro .sr-l{font-size:10px!important;-webkit-line-clamp:1!important}
+.m6-row{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:6px 10px 0}
+.m6b{flex:0 0 auto;width:44px;height:44px;border-radius:13px;border:0;background:none;color:var(--ink-2);display:grid;place-items:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.m6b svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.m6b:active{background:var(--panel-2)}
+.m6b.on{color:var(--accent);background:var(--accent-soft)}
+.m6-speed{width:52px;border:1px solid var(--line);font:600 14px var(--mono);color:var(--ink)}
+.m6-play{flex:1 1 auto;max-width:120px;height:48px;border-radius:16px;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer}
+.m6-play svg{width:24px;height:24px}
+.m6-play .m6-is{display:none}
+.m6-play.on .m6-ip{display:none}
+.m6-play.on .m6-is{display:block}
+[data-theme="dark"] .m6-play{color:#0b0b14}
+/* карточка над панелью */
+.m6card{position:fixed;left:10px;right:10px;bottom:calc(152px + env(safe-area-inset-bottom));z-index:330;max-height:62vh;overflow-y:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:0 18px 48px -12px rgba(10,14,25,.35);padding:14px 14px 12px}
+.m6card.hidden{display:none}
+.m6c-h{font-family:var(--head);font-size:17px;font-weight:760;margin:0 2px 10px}
+.m6c-sub{font-size:12px;font-weight:600;color:var(--ink-3);margin:12px 2px 6px}
+.m6c-step{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.m6c-step button{width:52px;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--panel-2);font:600 20px var(--sans);color:var(--ink)}
+.m6c-step b{flex:1;text-align:center;font:700 22px var(--mono);color:var(--ink)}
+.m6c-chips{display:flex;flex-wrap:wrap;gap:6px}
+.m6c-chips button{height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:none;font:600 13.5px var(--mono);color:var(--ink-2)}
+.m6c-chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.m6c-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.m6c-grid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:72px;padding:8px 4px;border-radius:14px;
+  border:1px solid var(--hair);background:var(--panel-2);color:var(--ink-2);font:inherit;font-size:11.5px;line-height:1.2;text-align:center}
+.m6c-grid button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.m6c-grid button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+/* страница параметров и графиков */
+[data-m6p] #simbottom{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;height:auto!important;
+  z-index:320!important;display:block!important;overflow-y:auto!important;background:var(--bg)!important;padding:0 0 calc(24px + env(safe-area-inset-bottom))!important;
+  transform:none!important;border:0!important}
+#m6-phead{position:sticky;top:0;z-index:2;align-items:center;gap:10px;height:56px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--hair)}
+[data-m6p] #m6-phead{display:flex}
+#m6-phead .iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round}
+.m6-seg{flex:1;display:flex;background:var(--panel-2);border-radius:12px;padding:3px}
+.m6-seg button{flex:1;height:36px;border:0;border-radius:9px;background:none;font:600 14px var(--sans);color:var(--ink-3)}
+.m6-seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+[data-m6p="params"] #gbox{display:none!important}
+[data-m6p="graphs"] #simbottom .pbox{display:none!important}
+[data-m6p="graphs"] #gbox{display:block!important;padding:10px 12px}
+[data-m6p] #simbottom .pbox{padding:6px 16px 0}
+[data-m6p] #params .param{padding:12px 0;gap:10px}
+[data-m6p] #params .param .name{font-size:15px;font-weight:550;color:var(--ink)}
+[data-m6p] #params .numfield input{font:600 16px var(--mono);height:40px}
+[data-m6p] #params .numfield button{width:40px;height:40px;font-size:20px}
+[data-m6p] .p-rng{height:36px}
+/* всплывающие подписи — над нижней панелью */
+[data-m6="1"] .toast{bottom:calc(160px + env(safe-area-inset-bottom))!important}
+[data-m6="1"] .eventflag{bottom:12px!important}
+.m6-tl #timeline{position:static!important;transform:none!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;
+  width:auto!important;box-shadow:none!important;border-radius:0!important;margin:0!important;align-items:center}
+[data-m6="1"] #tl-live{display:inline-flex!important}
+
+/* 6.0: «Главная» в верхней панели не нужна — туда ведёт знак Phy.Sim */
+#btn-home{display:none!important}
+.rail .iconbtn svg,.tnav svg{stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- главная 6.0: газ, слоган, карточки внутри газа ---- */
+.hm7 .hm7-hero{min-height:0;display:block;padding:0}
+.hm7-in{position:relative;padding:48px 48px 36px;pointer-events:none;max-width:none}
+.hm7-in>*{pointer-events:none}
+.hm7-in .hm5-act,.hm7-cards{pointer-events:none}
+.hm7-in button,.hm7-in .hm-card,.hm7-in a{pointer-events:auto}
+.hm7-h{display:inline-block;font-family:var(--head);font-size:52px;font-size:clamp(36px,5.2vw,66px);font-weight:800;letter-spacing:-.02em;line-height:1.02;
+  color:var(--bar-ink);margin:0 0 26px}
+.hm7-h em{font-style:normal;color:#ffb27a}
+.hm7-go{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hm7-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:40px;max-width:900px}
+.hm7 .hm7-card{background:rgba(18,21,30,.78)!important;border:1px solid rgba(255,255,255,.1)!important;color:var(--bar-ink);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);will-change:transform}
+.hm7 .hm7-card .hm5-l{color:var(--bar-ink-2)}
+.hm7 .hm7-card .hm4-stmt{color:var(--bar-ink)}
+.hm7 .hm7-card b{color:var(--bar-ink)!important}
+.hm7 .hm7-card .hm-s{color:var(--bar-ink-2)}
+.hm7 button.hm7-card:hover{border-color:#ffb27a!important;background:rgba(18,21,30,.86)!important}
+.hm7-logo{width:52px;height:52px;flex:0 0 auto;border-radius:14px}
+.hm7-n{font-family:var(--head);font-size:15px;font-weight:700;color:var(--ink-3);letter-spacing:.02em}
+.sec>.hd .sec-ic{width:20px!important;height:20px!important;border-radius:6px}
+[data-ui="mobile"] .hm7 .hm7-hero{min-height:0;border-radius:0;margin:-14px -14px 16px}
+[data-ui="mobile"] .hm7-in{padding:30px 18px 22px}
+[data-ui="mobile"] .hm7-h{font-size:38px;margin-bottom:20px}
+[data-ui="mobile"] .hm7-cards{grid-template-columns:1fr;margin-top:26px}
+[data-ui="mobile"] .hm7-logo{width:40px;height:40px;border-radius:11px}
+
+/* ---- интересные факты (6.0) ---- */
+.facts{display:grid;gap:12px;margin:4px 0 8px}
+.fact{display:flex;gap:14px;padding:16px 18px;border-radius:16px;background:var(--panel-2)}
+.fact-n{flex:0 0 30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--sec,var(--accent));color:#fff;
+  font:700 14px var(--head)}
+.fact-t{display:block;font-family:var(--head);font-size:1.05em;font-weight:720;color:var(--ink);margin-bottom:3px}
+.fact p{margin:0;color:var(--ink-2);line-height:1.55}
+.ls-fact{padding:14px 0;border-bottom:1px solid var(--hair)}
+.ls-fact b{font-family:var(--head);font-size:21px}
+.ls-fact p{margin:6px 0 0;color:var(--ink-2)}
+
+/* ---- уровень «Школа | Вуз» (6.0) ---- */
+.t-lvl{position:static;display:inline-flex;margin:12px 0 0;background:var(--panel-2);border-radius:10px;padding:3px;z-index:2}
+.t-lvl.hidden{display:none}
+.t-lvl button{height:28px;padding:0 12px;border:0;border-radius:8px;background:none;font:600 12.5px var(--sans);color:var(--ink-3);cursor:pointer}
+.t-lvl button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+[data-ui="mobile"] .t-lvl{position:static;display:inline-flex;margin:10px 0 0}
+[data-ui="mobile"] .t-lvl.hidden{display:none}
+.uni{margin-top:34px;padding:22px 24px 8px;border-radius:18px;background:var(--panel);border:1px solid var(--hair);box-shadow:inset 4px 0 0 #8b5cf6}
+.uni>h2.sect{margin-top:0}
+.uni-b h3{font-family:var(--head);font-size:1.12em;margin:18px 0 6px}

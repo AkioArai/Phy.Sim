@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="5.1.0">
+<meta name="physim-build" content="6.0.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -1073,83 +1073,35 @@ table.ref tr:last-child td{border-bottom:0}
 
    z-index выше экрана доступа (500): заставка играет и до ввода пароля.
    Половины непрозрачные — они и есть «занавес», который раздвигается. */
-.splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:600;overflow:hidden;
-  font-family:var(--mono);font-weight:650;letter-spacing:-.02em;
-  font-size:30px;font-size:clamp(30px,11vw,64px);color:var(--ink)}
+/* 6.0: заставка — знак Φ рисует сам себя. Орбита прочерчивается, ось
+   вырастает из центра, частица делает виток и встаёт на место, под знаком
+   проявляется имя; затем всё мягко гаснет. Фон всегда чернильный — цвет
+   знака, а не темы. До класса .run это просто ровный фон (индикатор загрузки). */
+.splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:600;overflow:hidden;background:#0e1118;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
 .splash.done{display:none}
-.sp-half{position:absolute;top:0;bottom:0;width:50%;background:var(--bg);
-  display:flex;align-items:center;will-change:transform}
-.sp-l{left:0;justify-content:flex-end}
-/* правая половина заходит на левую на пиксель — иначе по центру видна
-   волосяная щель, и приложение проглядывает сквозь «занавес» раньше времени */
-.sp-r{right:0;width:calc(50% + 1px);justify-content:flex-start}
-/* Слово целиком: сначала «PhySim» без зазора, потом половинки слова
-   раздвигаются ровно на диаметр точки с воздухом по бокам. */
-.sp-txt{display:block;will-change:transform;opacity:0;
-  animation-duration:.42s,.40s;animation-delay:0s,.46s;animation-fill-mode:both,both;
-  animation-timing-function:cubic-bezier(.2,.7,.3,1),cubic-bezier(.3,.8,.3,1)}
-.splash.run .sp-l .sp-txt{animation-name:sp-in,sp-open-l}
-.splash.run .sp-r .sp-txt{animation-name:sp-in,sp-open-r}
-@keyframes sp-in{from{opacity:0}to{opacity:1}}
-@keyframes sp-open-l{to{transform:translateX(-.19em)}}
-@keyframes sp-open-r{to{transform:translateX(.19em)}}
-/* ВАЖНО: всё движение включается классом .run, который ставит скрипт после
-   того, как раскладка устоялась (см. playIntro). До этого заставка — просто
-   ровный фон, и это же индикатор загрузки. Пока анимация стартовала сразу с
-   первым кадром, на телефоне она успевала проиграться в старом окне: браузер
-   сначала размечает страницу под широкую область, а потом применяет
-   <meta viewport> — и падающая точка показывалась в правом нижнем углу,
-   после чего всё скачком вставало по центру. */
-/* Точка. transform-origin по нижнему краю: при сплющивании она остаётся
-   стоять на «полу», а не проваливается сквозь него. */
-.sp-dot{position:absolute;left:50%;bottom:calc(50% - .28em);
-  width:.19em;height:.19em;margin-left:-.095em;border-radius:50%;
-  background:var(--accent);transform-origin:50% 100%;opacity:0}
-.splash.run .sp-dot{animation:sp-fall .62s .54s both}
-@keyframes sp-fall{
-  0%  {opacity:0;transform:translateY(-3.2em) scaleX(.66) scaleY(1.6);
-       animation-timing-function:cubic-bezier(.45,0,.95,.5)}   /* разгон падения */
-  12% {opacity:1;transform:translateY(-2.7em) scaleX(.66) scaleY(1.6);
-       animation-timing-function:cubic-bezier(.45,0,.95,.5)}
-  62% {opacity:1;transform:translateY(0) scaleX(.66) scaleY(1.6);
-       animation-timing-function:cubic-bezier(.2,0,.25,1)}     /* касание */
-  76% {transform:translateY(0) scaleX(1.5) scaleY(.5);
-       animation-timing-function:cubic-bezier(.25,0,.2,1)}     /* сплющилась */
-  100%{transform:translateY(0) scaleX(1) scaleY(1)}            /* встала, без отскока */
-}
-/* ---- Финал ----
-   Линия состоит из ДВУХ половин: каждая приклеена к внутреннему краю своей
-   половины занавеса. Пока они рядом, это одна линия; когда занавес
-   разъезжается, линия расходится надвое и уходит в бока вместе с ним —
-   отдельной анимации для этого не нужно. Раньше линия была одним элементом
-   посередине и оставалась стоять, пока створки уезжали. */
-.sp-l::after,.sp-r::before{content:'';position:absolute;top:0;bottom:0;
-  width:calc(.095em + 1px);background:var(--accent);
-  transform:scaleY(0);transform-origin:50% 50%;will-change:transform}
-/* Половинки заходят друг на друга на пиксель. Встык не годится: каждая
-   из-за will-change лежит в своём слое, и по стыку проступала светлая
-   волосяная линия — вместо одной линии получались две. */
-.sp-l::after{right:-1px}
-.sp-r::before{left:0}
-.splash.go .sp-l::after,
-.splash.go .sp-r::before{animation:sp-bar .4s cubic-bezier(.6,0,.25,1) forwards}
-@keyframes sp-bar{to{transform:scaleY(1)}}
-/* Точка гаснет внутри уже выросшей линии — того же цвета, подмены не видно.
-   Уехать вместе со створками она не может: лежит не в них, а поверх. */
-.splash.go .sp-dot{animation:sp-dotout .14s .24s forwards}
-@keyframes sp-dotout{to{opacity:0}}
-.splash.go .sp-l{animation:sp-part-l .58s .4s cubic-bezier(.55,0,.25,1) both}
-.splash.go .sp-r{animation:sp-part-r .58s .4s cubic-bezier(.55,0,.25,1) both}
-@keyframes sp-part-l{to{transform:translateX(-101%)}}
-@keyframes sp-part-r{to{transform:translateX(101%)}}
-/* остатки гасим в самом конце, когда открывать уже нечего */
-.splash.go{animation:sp-fade .24s .8s both}
+.sp-mark{width:150px;height:150px;width:min(150px,36vw);height:min(150px,36vw);overflow:visible}
+.sp-orb{stroke-dasharray:1;stroke-dashoffset:1}
+.sp-ax{transform-box:fill-box;transform-origin:50% 50%;transform:scaleY(0)}
+.sp-front,.sp-p,.sp-word{opacity:0}
+.splash.run .sp-orb{animation:sp-draw .7s cubic-bezier(.6,0,.2,1) forwards}
+.splash.run .sp-ax{animation:sp-grow .45s .3s cubic-bezier(.3,.8,.3,1) forwards}
+.splash.run .sp-front{animation:sp-show .01s .62s forwards}
+.splash.run .sp-p{animation:sp-show .15s .55s forwards}
+.splash.run .sp-word{animation:sp-word .5s .75s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes sp-draw{to{stroke-dashoffset:0}}
+@keyframes sp-grow{to{transform:scaleY(1)}}
+@keyframes sp-show{to{opacity:1}}
+@keyframes sp-word{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.sp-word{font-family:"Inter Tight",var(--sans);font-weight:800;font-size:30px;letter-spacing:-.015em;color:#eef0f6}
+.sp-word i{font-style:normal;color:#9a8cff}
+.splash.go{animation:sp-fade .42s ease-in forwards}
+.splash.go .sp-mark{animation:sp-zoom .42s ease-in forwards}
 @keyframes sp-fade{to{opacity:0}}
-/* Страховка: если скрипты почему-то не выполнились, заставка не должна
-   остаться навсегда — иначе вместо приложения пустой экран. */
+@keyframes sp-zoom{to{transform:scale(1.18)}}
+/* страховка: что бы ни случилось со скриптом, через 9 с заставка уходит */
 .splash{animation:sp-failsafe .01s linear 9s forwards}
 @keyframes sp-failsafe{to{opacity:0;visibility:hidden}}
-/* «Уменьшить движение» в системе — показываем сразу приложение. */
 @media (prefers-reduced-motion: reduce){ .splash{display:none} }
 
 /* ---- Хуки новых настроек ---- */
@@ -3136,45 +3088,6 @@ details.deep>summary{font-family:var(--head)}
 [data-ui="mobile"][data-detent="full"]:not([data-sheettab="params"]){--sheet-head:74px}
 [data-ui="mobile"] .pr-grp{flex-direction:column;align-items:flex-start!important;gap:4px}
 
-/* =====================================================================
-   ПУЛЬТ НА ТЕЛЕФОНЕ (5.1.0)
-   В положении листа «край»: показания, чипы параметров, шкала. Транспорт —
-   одна строка: пуск, сброс, скорость, «ещё». Остальное — в карточке «ещё».
-   ===================================================================== */
-.pult{display:none}
-[data-ui="mobile"][data-detent="peek"][data-pult="on"]{--sheet-head:186px}
-[data-ui="mobile"][data-detent="peek"] .pult{display:flex;flex-direction:column;flex:0 0 auto;gap:6px;padding:0 0 6px}
-/* показания в «крае» — компактной строкой */
-[data-ui="mobile"][data-detent="peek"] .msheet-ro{flex:0 0 46px!important;display:flex!important;gap:6px}
-[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr{padding:4px 9px!important}
-[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr-v{font-size:15px!important}
-[data-ui="mobile"][data-detent="peek"] .msheet-ro .sr-l{font-size:9.5px!important;-webkit-line-clamp:1!important}
-.pc-row{display:flex;gap:6px;overflow-x:auto;padding:0 12px;scrollbar-width:none;scroll-snap-type:x proximity}
-.pc-row::-webkit-scrollbar{display:none}
-.pc{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;max-width:180px;
-  height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--hair);background:var(--panel);color:var(--ink);
-  font:inherit;cursor:pointer;scroll-snap-align:start;-webkit-tap-highlight-color:transparent}
-.pc-l{font-size:11px;font-weight:500;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:156px}
-.pc-v{font:600 14px var(--mono);white-space:nowrap}
-.pc.on{border-color:var(--accent);background:var(--accent-soft)}
-.pc.on .pc-l{color:var(--accent)}
-.pc-chk .pc-v{color:var(--ink-3)}
-.pc-chk.yes{border-color:var(--ok,#1a8f4c)}
-.pc-chk.yes .pc-v{color:var(--ok,#1a8f4c)}
-.pd{display:flex;align-items:center;gap:6px;padding:0 10px;height:64px}
-.pd-b{flex:0 0 44px;height:44px;border-radius:12px;border:1px solid var(--hair);background:var(--panel);color:var(--ink);
-  font:500 22px var(--sans);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.pd-b:active{background:var(--accent-soft)}
-.pd-r{flex:1;position:relative;height:64px;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none}
-.pd-r canvas{position:absolute;left:0;top:0;width:100%;height:100%}
-.pd-v{position:absolute;left:50%;top:2px;transform:translateX(-50%);border:0;background:none;padding:2px 8px;
-  font:700 19px var(--mono);color:var(--ink);white-space:nowrap;cursor:text}
-.pd-in{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:32px;text-align:center;
-  font:700 18px var(--mono);border:1px solid var(--accent);border-radius:8px;background:var(--panel);color:var(--ink)}
-.pd-opts{display:flex;gap:6px;overflow-x:auto;width:100%;scrollbar-width:none}
-.pd-o{flex:0 0 auto;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--hair);background:var(--panel);
-  color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:550;cursor:pointer}
-.pd-o.on{background:var(--accent);border-color:var(--accent);color:#fff}
 /* транспорт: одна строка, редкое — в «ещё» */
 [data-ui="mobile"] #mb-undo,[data-ui="mobile"] #mb-slow,[data-ui="mobile"] #mb-fast,
 [data-ui="mobile"] #tl-prev,[data-ui="mobile"] #tl-next,[data-ui="mobile"] #tl-loop,
@@ -3201,12 +3114,154 @@ details.deep>summary{font-family:var(--head)}
 [data-ui="mobile"] .hm6-ts{display:none}
 [data-ui="mobile"] .hm6-f .hm-s{font-size:11.5px}
 .m-brand svg{width:26px;height:26px}
-.pc{position:relative}
-.pc.chg::after{content:"";position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
 /* ползунок в списке параметров на телефоне */
 [data-ui="mobile"] .param.has-rng{flex-wrap:wrap}
 .p-rng{display:none}
 [data-ui="mobile"] .p-rng{display:block;flex:1 0 100%;width:100%;margin:8px 0 2px;height:28px;accent-color:var(--accent);touch-action:pan-y}
+
+/* =====================================================================
+   ТЕЛЕФОН 6.0 — ЭКРАН СИМУЛЯЦИИ
+   Шапка: конспект · симуляция ▾ · параметры · ⋮. Сцена во весь экран.
+   Низ: время, показания, кнопки. Параметры и графики — своя страница.
+   ===================================================================== */
+.m6-only{display:none}
+[data-m6="1"] #m6-notes,[data-m6="1"] #m6-params{display:inline-flex}
+[data-m6="1"] #m6dock{display:flex}
+/* старое: лист, плавающие панели, полоса «развернуть», лишние входы в настройки */
+[data-m6="1"] #msheet,[data-m6="1"] .mbar,[data-m6="1"] .mbar2,[data-m6="1"] #stripctl,
+[data-m6="1"] #m2more,[data-m6="1"] #btn-simback,[data-m6="1"] #m-cmdk,[data-m6="1"] #m-settings,
+[data-m6="1"] #msheet-bg,[data-m6="1"] .msheet-head,[data-m6="1"] #mi-prefs{display:none!important}
+[data-m6="1"] .simpane{padding-bottom:0!important;display:flex;flex-direction:column}
+[data-m6="1"] .simpane.hidden{display:none}
+[data-m6="1"] .canvas-wrap{flex:1 1 auto!important;min-height:0!important}
+/* шапка */
+[data-m6="1"] .simhead{height:52px;padding:0 6px;gap:6px;border-bottom:1px solid var(--hair);background:var(--panel)}
+[data-m6="1"] .simhead .iconbtn{width:40px;height:40px;border-radius:12px}
+[data-m6="1"] .simhead .iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-m6="1"] #m6-params.on{color:var(--accent)}
+/* смена симуляции — заметно: рамка, фон, стрелка */
+[data-m6="1"] .simpick{height:38px;padding:0 10px 0 12px!important;border:1px solid var(--line)!important;border-radius:12px;
+  background:var(--panel-2)!important}
+[data-m6="1"] .simpick #simpick-t{font-family:var(--head);font-weight:700!important;font-size:15px!important;letter-spacing:-.005em}
+[data-m6="1"] .simpick .simpick-c{stroke:var(--ink-2)!important;width:17px!important;height:17px!important}
+/* нижняя панель */
+.m6dock{flex:0 0 auto;flex-direction:column;background:var(--panel);border-top:1px solid var(--hair);
+  padding:0 0 calc(6px + env(safe-area-inset-bottom))}
+.m6-tl #timeline{display:flex!important;height:42px;padding:0 12px;gap:10px;border:0;background:none}
+.m6-tl .tl-range{flex:1;height:30px;accent-color:var(--accent)}
+.m6-tl .tl-time{font:500 13px var(--mono);color:var(--ink-2);min-width:76px;text-align:right}
+.m6-ro #msheet-ro{display:flex!important;flex:0 0 auto!important;height:52px;gap:6px;padding:0 12px;overflow-x:auto}
+.m6-ro #msheet-ro .sr{padding:5px 10px!important;border-radius:10px!important;background:var(--panel-2)!important}
+.m6-ro #msheet-ro .sr-v{font-size:16px!important}
+.m6-ro #msheet-ro .sr-l{font-size:10px!important;-webkit-line-clamp:1!important}
+.m6-row{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:6px 10px 0}
+.m6b{flex:0 0 auto;width:44px;height:44px;border-radius:13px;border:0;background:none;color:var(--ink-2);display:grid;place-items:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.m6b svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.m6b:active{background:var(--panel-2)}
+.m6b.on{color:var(--accent);background:var(--accent-soft)}
+.m6-speed{width:52px;border:1px solid var(--line);font:600 14px var(--mono);color:var(--ink)}
+.m6-play{flex:1 1 auto;max-width:120px;height:48px;border-radius:16px;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer}
+.m6-play svg{width:24px;height:24px}
+.m6-play .m6-is{display:none}
+.m6-play.on .m6-ip{display:none}
+.m6-play.on .m6-is{display:block}
+[data-theme="dark"] .m6-play{color:#0b0b14}
+/* карточка над панелью */
+.m6card{position:fixed;left:10px;right:10px;bottom:calc(152px + env(safe-area-inset-bottom));z-index:330;max-height:62vh;overflow-y:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:0 18px 48px -12px rgba(10,14,25,.35);padding:14px 14px 12px}
+.m6card.hidden{display:none}
+.m6c-h{font-family:var(--head);font-size:17px;font-weight:760;margin:0 2px 10px}
+.m6c-sub{font-size:12px;font-weight:600;color:var(--ink-3);margin:12px 2px 6px}
+.m6c-step{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.m6c-step button{width:52px;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--panel-2);font:600 20px var(--sans);color:var(--ink)}
+.m6c-step b{flex:1;text-align:center;font:700 22px var(--mono);color:var(--ink)}
+.m6c-chips{display:flex;flex-wrap:wrap;gap:6px}
+.m6c-chips button{height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:none;font:600 13.5px var(--mono);color:var(--ink-2)}
+.m6c-chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.m6c-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.m6c-grid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:72px;padding:8px 4px;border-radius:14px;
+  border:1px solid var(--hair);background:var(--panel-2);color:var(--ink-2);font:inherit;font-size:11.5px;line-height:1.2;text-align:center}
+.m6c-grid button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.m6c-grid button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+/* страница параметров и графиков */
+[data-m6p] #simbottom{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;height:auto!important;
+  z-index:320!important;display:block!important;overflow-y:auto!important;background:var(--bg)!important;padding:0 0 calc(24px + env(safe-area-inset-bottom))!important;
+  transform:none!important;border:0!important}
+#m6-phead{position:sticky;top:0;z-index:2;align-items:center;gap:10px;height:56px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--hair)}
+[data-m6p] #m6-phead{display:flex}
+#m6-phead .iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round}
+.m6-seg{flex:1;display:flex;background:var(--panel-2);border-radius:12px;padding:3px}
+.m6-seg button{flex:1;height:36px;border:0;border-radius:9px;background:none;font:600 14px var(--sans);color:var(--ink-3)}
+.m6-seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+[data-m6p="params"] #gbox{display:none!important}
+[data-m6p="graphs"] #simbottom .pbox{display:none!important}
+[data-m6p="graphs"] #gbox{display:block!important;padding:10px 12px}
+[data-m6p] #simbottom .pbox{padding:6px 16px 0}
+[data-m6p] #params .param{padding:12px 0;gap:10px}
+[data-m6p] #params .param .name{font-size:15px;font-weight:550;color:var(--ink)}
+[data-m6p] #params .numfield input{font:600 16px var(--mono);height:40px}
+[data-m6p] #params .numfield button{width:40px;height:40px;font-size:20px}
+[data-m6p] .p-rng{height:36px}
+/* всплывающие подписи — над нижней панелью */
+[data-m6="1"] .toast{bottom:calc(160px + env(safe-area-inset-bottom))!important}
+[data-m6="1"] .eventflag{bottom:12px!important}
+.m6-tl #timeline{position:static!important;transform:none!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;
+  width:auto!important;box-shadow:none!important;border-radius:0!important;margin:0!important;align-items:center}
+[data-m6="1"] #tl-live{display:inline-flex!important}
+
+/* 6.0: «Главная» в верхней панели не нужна — туда ведёт знак Phy.Sim */
+#btn-home{display:none!important}
+.rail .iconbtn svg,.tnav svg{stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- главная 6.0: газ, слоган, карточки внутри газа ---- */
+.hm7 .hm7-hero{min-height:0;display:block;padding:0}
+.hm7-in{position:relative;padding:48px 48px 36px;pointer-events:none;max-width:none}
+.hm7-in>*{pointer-events:none}
+.hm7-in .hm5-act,.hm7-cards{pointer-events:none}
+.hm7-in button,.hm7-in .hm-card,.hm7-in a{pointer-events:auto}
+.hm7-h{display:inline-block;font-family:var(--head);font-size:52px;font-size:clamp(36px,5.2vw,66px);font-weight:800;letter-spacing:-.02em;line-height:1.02;
+  color:var(--bar-ink);margin:0 0 26px}
+.hm7-h em{font-style:normal;color:#ffb27a}
+.hm7-go{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hm7-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:40px;max-width:900px}
+.hm7 .hm7-card{background:rgba(18,21,30,.78)!important;border:1px solid rgba(255,255,255,.1)!important;color:var(--bar-ink);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);will-change:transform}
+.hm7 .hm7-card .hm5-l{color:var(--bar-ink-2)}
+.hm7 .hm7-card .hm4-stmt{color:var(--bar-ink)}
+.hm7 .hm7-card b{color:var(--bar-ink)!important}
+.hm7 .hm7-card .hm-s{color:var(--bar-ink-2)}
+.hm7 button.hm7-card:hover{border-color:#ffb27a!important;background:rgba(18,21,30,.86)!important}
+.hm7-logo{width:52px;height:52px;flex:0 0 auto;border-radius:14px}
+.hm7-n{font-family:var(--head);font-size:15px;font-weight:700;color:var(--ink-3);letter-spacing:.02em}
+.sec>.hd .sec-ic{width:20px!important;height:20px!important;border-radius:6px}
+[data-ui="mobile"] .hm7 .hm7-hero{min-height:0;border-radius:0;margin:-14px -14px 16px}
+[data-ui="mobile"] .hm7-in{padding:30px 18px 22px}
+[data-ui="mobile"] .hm7-h{font-size:38px;margin-bottom:20px}
+[data-ui="mobile"] .hm7-cards{grid-template-columns:1fr;margin-top:26px}
+[data-ui="mobile"] .hm7-logo{width:40px;height:40px;border-radius:11px}
+
+/* ---- интересные факты (6.0) ---- */
+.facts{display:grid;gap:12px;margin:4px 0 8px}
+.fact{display:flex;gap:14px;padding:16px 18px;border-radius:16px;background:var(--panel-2)}
+.fact-n{flex:0 0 30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--sec,var(--accent));color:#fff;
+  font:700 14px var(--head)}
+.fact-t{display:block;font-family:var(--head);font-size:1.05em;font-weight:720;color:var(--ink);margin-bottom:3px}
+.fact p{margin:0;color:var(--ink-2);line-height:1.55}
+.ls-fact{padding:14px 0;border-bottom:1px solid var(--hair)}
+.ls-fact b{font-family:var(--head);font-size:21px}
+.ls-fact p{margin:6px 0 0;color:var(--ink-2)}
+
+/* ---- уровень «Школа | Вуз» (6.0) ---- */
+.t-lvl{position:static;display:inline-flex;margin:12px 0 0;background:var(--panel-2);border-radius:10px;padding:3px;z-index:2}
+.t-lvl.hidden{display:none}
+.t-lvl button{height:28px;padding:0 12px;border:0;border-radius:8px;background:none;font:600 12.5px var(--sans);color:var(--ink-3);cursor:pointer}
+.t-lvl button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+[data-ui="mobile"] .t-lvl{position:static;display:inline-flex;margin:10px 0 0}
+[data-ui="mobile"] .t-lvl.hidden{display:none}
+.uni{margin-top:34px;padding:22px 24px 8px;border-radius:18px;background:var(--panel);border:1px solid var(--hair);box-shadow:inset 4px 0 0 #8b5cf6}
+.uni>h2.sect{margin-top:0}
+.uni-b h3{font-family:var(--head);font-size:1.12em;margin:18px 0 6px}
 </style>
 </head>
 <body>
@@ -3220,7 +3275,7 @@ details.deep>summary{font-family:var(--head)}
     <!-- 2.2.0: навигация словами, а не значками — три места, где можно быть -->
     <nav class="tnav" aria-label="Разделы приложения">
       <button class="tbtn" id="btn-home" title="Главная"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Главная</span></button>
-      <button class="tbtn on" id="tab-topics" title="Курс: список тем и конспекты"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M13 4h5.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H13z"/></svg><span>Курс</span></button>
+      <button class="tbtn on" id="tab-topics" title="Курс: список тем и конспекты"><svg viewBox="0 0 24 24"><path d="M12 3.5 21 8l-9 4.5L3 8z"/><path d="M3 12l9 4.5 9-4.5M3 16l9 4.5 9-4.5"/></svg><span>Курс</span></button>
       <button class="tbtn" id="btn-path" title="Мой путь: что повторить, карта тем, диагностика, навыки (Ctrl+M)"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg><span>Мой путь</span><b class="badge hidden" id="path-badge"></b></button>
     </nav>
     <div class="spacer"></div>
@@ -3257,24 +3312,24 @@ details.deep>summary{font-family:var(--head)}
 
   <div class="body">
     <div class="rail" id="rail">
-      <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z"/></svg></button>
-      <button class="iconbtn tool" data-tool="select" title="Выделение: выбрать нарисованное и передвинуть (Q)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z" fill="none"/><path d="M3 3h3M18 3h3M3 21h3M18 21h3M3 3v3M21 3v3M3 18v3M21 18v3" stroke-dasharray="0"/></svg></button>
+      <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M9.2 5.8 12 3l2.8 2.8M9.2 18.2 12 21l2.8-2.8M5.8 9.2 3 12l2.8 2.8M18.2 9.2 21 12l-2.8 2.8"/></svg></button>
+      <button class="iconbtn tool" data-tool="select" title="Выделение: выбрать нарисованное и передвинуть (Q)"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="12.5" height="12.5" rx="2" stroke-dasharray="2.6 2.4"/><path d="m11.5 11.5 9 3.4-3.8 1.4-1.4 3.8z"/></svg></button>
       <div class="railgrp" id="grp-classic" data-grp="classic">
         <button class="iconbtn grphead" title="Классические инструменты — чертёж и измерения"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8"/></svg><i class="chev"></i></button>
         <div class="grpbody">
-      <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg></button>
-      <button class="iconbtn tool" data-tool="ruler" title="Линейка: расстояние, угол и вектор — всё в настройках (L, сразу с выносками — D)"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1" transform="rotate(-20 12 12)"/><path d="M7 9.5v2M11 8v3M15 6.5v3"/></svg></button>
-      <button class="iconbtn tool" data-tool="circle" title="Окружность от центра (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><path d="M12 12l5.6 5.6"/></svg></button>
-      <button class="iconbtn tool" data-tool="area" title="Площадь многоугольника (Shift+A)"><svg viewBox="0 0 24 24"><path d="M4 18 8 6l7 3 5 9z"/></svg></button>
-      <button class="iconbtn tool" data-tool="note" title="Заметка на сцене (N)"><svg viewBox="0 0 24 24"><path d="M4 5h16v10l-4 4H4z"/><path d="M16 19v-4h4M7 9h10M7 13h6"/></svg></button>
-      <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9zM12 10l4-4 6 6-4 4"/></svg></button>
+      <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3 3"/></svg></button>
+      <button class="iconbtn tool" data-tool="ruler" title="Линейка: расстояние, угол и вектор — всё в настройках (L, сразу с выносками — D)"><svg viewBox="0 0 24 24"><rect x="2.5" y="8" width="19" height="8" rx="1.6"/><path d="M6.5 8v3M10 8v4.5M13.5 8v3M17 8v4.5"/></svg></button>
+      <button class="iconbtn tool" data-tool="circle" title="Окружность от центра (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M12 12l6-6"/></svg></button>
+      <button class="iconbtn tool" data-tool="area" title="Площадь многоугольника (Shift+A)"><svg viewBox="0 0 24 24"><path d="M4 18.5 7.5 5l9 3.5 3.5 10z"/><path d="M8.5 15h8M9.5 11.5h5.5" stroke-width="1.3" opacity=".55"/></svg></button>
+      <button class="iconbtn tool" data-tool="note" title="Заметка на сцене (N)"><svg viewBox="0 0 24 24"><path d="M4.5 4.5h15v10l-5 5h-10z"/><path d="M14.5 19.5v-5h5M8 9h8M8 12.5h4"/></svg></button>
+      <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="M8.5 19.5 3.8 14.8a1.6 1.6 0 0 1 0-2.3L12.6 3.7a1.6 1.6 0 0 1 2.3 0l5.4 5.4a1.6 1.6 0 0 1 0 2.3l-8.1 8.1z"/><path d="M8.2 8.2l7.6 7.6M8.5 19.5H20"/></svg></button>
         </div>
       </div>
       <div class="sep-h"></div>
-      <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
-      <button class="iconbtn" id="btn-coords" title="Координаты под курсором (K)"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m8 16 4-6 3 3 4-7" stroke-dasharray="2.5 2"/></svg></button>
+      <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><path d="M5 4h4v8a3 3 0 0 0 6 0V4h4v8a7 7 0 0 1-14 0z"/><path d="M5 8h4M15 8h4"/></svg></button>
+      <button class="iconbtn" id="btn-coords" title="Координаты под курсором (K)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></button>
       <div class="sep-h"></div>
-      <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>
+      <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg></button>
       <div class="railgrp" id="grp-build" data-grp="build" style="display:none">
         <button class="iconbtn grphead" title="Конструкторы — сборка схем и машин"><svg viewBox="0 0 24 24"><path d="M14 6.5a3.5 3.5 0 1 0-4.6 3.3L4 15.2V20h4.8l5.4-5.4A3.5 3.5 0 0 0 14 6.5z"/></svg><i class="chev"></i></button>
         <div class="grpbody simtools" id="simtools"></div>
@@ -3291,7 +3346,7 @@ details.deep>summary{font-family:var(--head)}
       <!-- подвал ящика: на телефоне отсюда попадают в помощь и настройки -->
       <div class="drawer-foot mobile-only">
         <div class="spacer"></div>
-        <button class="iconbtn" id="d-path" title="Мой путь"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg></button>
+        
         <button class="iconbtn" id="d-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       </div>
     </aside>
@@ -3307,7 +3362,6 @@ details.deep>summary{font-family:var(--head)}
     <div class="msheet" id="msheet">
       <button class="msheet-grab" id="msheet-grab" title="Потяните: край / половина / полный лист"></button>
       <div class="msheet-ro" id="msheet-ro"></div>
-      <div class="pult" id="pult"></div>
       <div class="msheet-tabs" id="msheet-tabs">
         <button data-sheet="params" class="on">Параметры</button>
         <button data-sheet="notes">Конспект</button>
@@ -3852,9 +3906,16 @@ details.deep>summary{font-family:var(--head)}
      поэтому «Phy» лежит в левой половине, а «Sim» в правой: они уезжают
      вместе с ней сами, без отдельной анимации. -->
 <div class="splash" id="splash" aria-hidden="true">
-  <div class="sp-half sp-l"><span class="sp-txt">Phy</span></div>
-  <div class="sp-half sp-r"><span class="sp-txt">Sim</span></div>
-  <i class="sp-dot" id="sp-dot"></i>
+  <svg class="sp-mark" viewBox="60 60 392 392">
+    <defs><linearGradient id="sp-g" gradientUnits="userSpaceOnUse" x1="-160" x2="160" y1="0" y2="0"><stop offset="0" stop-color="#a596ff"/><stop offset="1" stop-color="#5fd0ff"/></linearGradient></defs>
+    <g transform="translate(256 256) rotate(-28)" fill="none"><ellipse class="sp-orb" rx="152" ry="64" stroke="url(#sp-g)" stroke-width="28" pathLength="1"/></g>
+    <g class="sp-ax"><path d="M256 92V420" stroke="#0e1118" stroke-width="62" stroke-linecap="round"/><path d="M256 92V420" stroke="#f1f2f7" stroke-width="32" stroke-linecap="round"/></g>
+    <g transform="translate(256 256) rotate(-28)" fill="none">
+      <g class="sp-front"><path d="M26.4 63A152 64 0 0 1-87.2 52.4" stroke="#0e1118" stroke-width="56"/><path d="M40 61A152 64 0 0 1-100 48" stroke="url(#sp-g)" stroke-width="28"/></g>
+      <g class="sp-p"><circle cx="146.1" cy="-17.6" r="29" fill="#5fd0ff" stroke="#0e1118" stroke-width="15"><animateMotion id="sp-run" begin="indefinite" dur="0.85s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".3 0 .2 1" path="M-292.2 35.2A152 64 0 1 1 0 0"/></circle></g>
+    </g>
+  </svg>
+  <div class="sp-word">Phy<i>.</i>Sim</div>
 </div>
 <script>'use strict';
 /* =============================================================================
@@ -4388,7 +4449,11 @@ proj2d:{
     const spanX=Math.max(x1-x0,2)*1.2, spanY=Math.max(y1,2)*1.35;
     const W=(vp&&vp.W)||460, H=(vp&&vp.H)||320;
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-50)/(spanY*PX_PER_M)),0.002,30);
-    return {x:(x0+x1)/2, y:y1*0.42, scale};
+    /* Высокий узкий кадр (телефон стоя): по ширине влезает впритык, а по
+       высоте остаётся много места — земля оказывалась посередине, и низ
+       экрана пустовал. Прижимаем землю к нижнему краю с полями в 44 px. */
+    const k=PX_PER_M*scale, hM=H/k;
+    return {x:(x0+x1)/2, y:Math.max(y1*0.42, hM/2-44/k), scale};
   },
   /* ---------- бросок в пространстве ---------- */
   охват(p){
@@ -35061,7 +35126,7 @@ function разделТемы(t){
 function видРаздела(sec){ return ВИД_РАЗДЕЛОВ[sec&&sec.id]||ВИД_РАЗДЕЛОВ.intro; }
 /* стиль для элемента с цветом раздела: оба оттенка, CSS выберет по теме */
 function стильРаздела(sec){ const в=видРаздела(sec); return `--sec-l:${в.с};--sec-d:${в.т}`; }
-function значокРаздела(sec,кл){ return `<svg class="${кл||'sec-ic'}" viewBox="0 0 24 24" aria-hidden="true">${видРаздела(sec).значок}</svg>`; }
+function значокРаздела(sec,кл){ return sec&&ЛОГО[sec.id]?логотипРаздела(sec.id,кл||'sec-ic'):`<svg class="${кл||'sec-ic'}" viewBox="0 0 24 24" aria-hidden="true">${видРаздела(sec).значок}</svg>`; }
 
 /* ---------------- шапка темы ----------------
    Полоса цвета раздела, значок и короткая сводка: сколько читать, сколько
@@ -35069,7 +35134,7 @@ function значокРаздела(sec,кл){ return `<svg class="${кл||'sec-
    маленькая, до того как начнёшь листать. */
 function словВТеме(t){
   const текст=[t.why,t.theory,(t.key||[]).join(' '),(t.explore||[]).map(e=>e.do+' '+e.see).join(' '),
-    (t.mistakes||[]).map(m=>m.wrong+' '+m.right+' '+(m.why||'')).join(' ')].join(' ');
+    ((typeof ФАКТЫ!=='undefined'&&ФАКТЫ[t.id])||[]).map(x=>x.т+' '+x.о).join(' ')].join(' ');
   return текст.replace(/<[^>]+>/g,' ').replace(/\$[^$]*\$/g,' x ').split(/\s+/).filter(Boolean).length;
 }
 /* 5.0.0: шапка — только название и одна тихая строка под ним: раздел,
@@ -35196,68 +35261,107 @@ function открытьЗадачу(тема,i){
     const inp=el.querySelector('input'); if(inp&&!(typeof isNarrow==='function'&&isNarrow())) setTimeout(()=>inp.focus({preventScroll:true}),400); },160);
 }
 
-/* ---------------- поле: живая шапка главной (5.0.0) ----------------
-   Четыре заряда медленно ходят по фигурам Лиссажу, а тысяча пылинок течёт
-   вдоль их электрического поля и оставляет след. Это не заставка: картина —
-   настоящие силовые линии, в каждый момент свои. Без анимации (настройка
-   «движение» не «полное») рисуется один застывший кадр. */
-function полеГлавной(cv){
+/* ---------------- логотипы разделов (6.0.0) ----------------
+   Каждый раздел — своя «иконка приложения» в стиле знака Φ: тёмная плитка,
+   рисунок градиентом в цветах раздела. Бросок, газ в сосуде, диполь,
+   волна сквозь виток, линза, световой конус, волновой пакет. */
+const ЛОГО={
+  mech:{g:['#3b82f6','#22d3ee'],r:`<path d="M12 47h40" stroke="#ffffff30" stroke-width="2.5"/><path d="M14 46C20 20 38 12 50 30" stroke="url(#G)" stroke-width="4" stroke-dasharray="1 6.5"/><circle cx="35" cy="17.5" r="5.5" fill="url(#G)"/><path d="M40.5 17.5h9m-3.5-3.5 3.5 3.5-3.5 3.5" stroke="#eef0f6" stroke-width="2.6"/>`},
+  thermo:{g:['#f97316','#fbbf24'],r:`<rect x="11" y="11" width="42" height="42" rx="8" stroke="#ffffff26" stroke-width="2.5"/><path d="M19 40l6-5M41 22l6-3M29 23l-5-4M38 44l7 2" stroke="url(#G)" stroke-width="2.5" opacity=".55"/><circle cx="26" cy="34" r="4" fill="url(#G)"/><circle cx="40" cy="23" r="4" fill="url(#G)"/><circle cx="31" cy="25" r="3.2" fill="url(#G)"/><circle cx="37" cy="43" r="4" fill="url(#G)"/><circle cx="20" cy="22" r="2.6" fill="url(#G)" opacity=".8"/>`},
+  electro:{g:['#f59e0b','#fde047'],r:`<path d="M19 32C25 14 39 14 45 32M19 32C25 50 39 50 45 32" stroke="url(#G)" stroke-width="3"/><path d="M19 32h26" stroke="url(#G)" stroke-width="3" opacity=".6"/><circle cx="19" cy="32" r="7" fill="url(#G)"/><circle cx="45" cy="32" r="7" fill="url(#G)"/><path d="M15.5 32h7M19 28.5v7M41.5 32h7" stroke="#0e1118" stroke-width="2.4"/>`},
+  em:{g:['#8b5cf6','#ec4899'],r:`<ellipse cx="32" cy="32" rx="10" ry="18" stroke="#ffffff40" stroke-width="2.5"/><path d="M8 32c4-12 8-12 12 0s8 12 12 0 8-12 12 0 8 12 12 0" stroke="url(#G)" stroke-width="3.5"/><path d="M32 14a10 18 0 0 1 0 36" stroke="url(#G)" stroke-width="3"/>`},
+  optics:{g:['#06b6d4','#a5f3fc'],r:`<path d="M30 12c5 6 5 34 0 40-5-6-5-34 0-40z" stroke="url(#G)" stroke-width="3" fill="#ffffff10"/><path d="M8 22h22l18 10M8 32h40M8 42h22l18-10" stroke="url(#G)" stroke-width="2.5"/><circle cx="48" cy="32" r="3.5" fill="#eef0f6"/>`},
+  rel:{g:['#84cc16','#bef264'],r:`<path d="M12 52 52 12M52 52 12 12" stroke="#ffffff30" stroke-width="2.5"/><path d="M32 32 14 14h36z" fill="url(#G)" opacity=".22"/><path d="M32 54c-4-8 6-14 0-22s2-14 0-20" stroke="url(#G)" stroke-width="3.5"/><circle cx="32" cy="32" r="4.5" fill="#eef0f6"/>`},
+  quantum:{g:['#ec4899','#a78bfa'],r:`<path d="M8.0 32.9 L8.5 32.8 L9.0 32.8 L9.5 32.7 L10.0 32.7 L10.5 32.6 L11.0 32.6 L11.5 32.5 L12.0 32.4 L12.5 32.3 L13.0 32.1 L13.5 32.0 L14.0 31.8 L14.5 31.6 L15.0 31.4 L15.5 31.2 L16.0 31.0 L16.5 30.7 L17.0 30.4 L17.5 30.0 L18.0 29.6 L18.5 29.2 L19.0 28.8 L19.5 28.3 L20.0 27.8 L20.5 27.3 L21.0 26.7 L21.5 26.2 L22.0 25.6 L22.5 24.9 L23.0 24.3 L23.5 23.6 L24.0 23.0 L24.5 22.3 L25.0 21.7 L25.5 21.0 L26.0 20.4 L26.5 19.8 L27.0 19.2 L27.5 18.6 L28.0 18.1 L28.5 17.6 L29.0 17.2 L29.5 16.9 L30.0 16.6 L30.5 16.3 L31.0 16.1 L31.5 16.0 L32.0 16.0 L32.5 16.0 L33.0 16.1 L33.5 16.3 L34.0 16.6 L34.5 16.9 L35.0 17.2 L35.5 17.6 L36.0 18.1 L36.5 18.6 L37.0 19.2 L37.5 19.8 L38.0 20.4 L38.5 21.0 L39.0 21.7 L39.5 22.3 L40.0 23.0 L40.5 23.6 L41.0 24.3 L41.5 24.9 L42.0 25.6 L42.5 26.2 L43.0 26.7 L43.5 27.3 L44.0 27.8 L44.5 28.3 L45.0 28.8 L45.5 29.2 L46.0 29.6 L46.5 30.0 L47.0 30.4 L47.5 30.7 L48.0 31.0 L48.5 31.2 L49.0 31.4 L49.5 31.6 L50.0 31.8 L50.5 32.0 L51.0 32.1 L51.5 32.3 L52.0 32.4 L52.5 32.5 L53.0 32.6 L53.5 32.6 L54.0 32.7 L54.5 32.7 L55.0 32.8 L55.5 32.8 L56.0 32.9" stroke="#ffffff38" stroke-width="2" stroke-dasharray="2 3"/><path d="M8.0 33.1 L8.5 33.2 L9.0 33.2 L9.5 33.3 L10.0 33.3 L10.5 33.4 L11.0 33.4 L11.5 33.5 L12.0 33.6 L12.5 33.7 L13.0 33.9 L13.5 34.0 L14.0 34.2 L14.5 34.4 L15.0 34.6 L15.5 34.8 L16.0 35.0 L16.5 35.3 L17.0 35.6 L17.5 36.0 L18.0 36.4 L18.5 36.8 L19.0 37.2 L19.5 37.7 L20.0 38.2 L20.5 38.7 L21.0 39.3 L21.5 39.8 L22.0 40.4 L22.5 41.1 L23.0 41.7 L23.5 42.4 L24.0 43.0 L24.5 43.7 L25.0 44.3 L25.5 45.0 L26.0 45.6 L26.5 46.2 L27.0 46.8 L27.5 47.4 L28.0 47.9 L28.5 48.4 L29.0 48.8 L29.5 49.1 L30.0 49.4 L30.5 49.7 L31.0 49.9 L31.5 50.0 L32.0 50.0 L32.5 50.0 L33.0 49.9 L33.5 49.7 L34.0 49.4 L34.5 49.1 L35.0 48.8 L35.5 48.4 L36.0 47.9 L36.5 47.4 L37.0 46.8 L37.5 46.2 L38.0 45.6 L38.5 45.0 L39.0 44.3 L39.5 43.7 L40.0 43.0 L40.5 42.4 L41.0 41.7 L41.5 41.1 L42.0 40.4 L42.5 39.8 L43.0 39.3 L43.5 38.7 L44.0 38.2 L44.5 37.7 L45.0 37.2 L45.5 36.8 L46.0 36.4 L46.5 36.0 L47.0 35.6 L47.5 35.3 L48.0 35.0 L48.5 34.8 L49.0 34.6 L49.5 34.4 L50.0 34.2 L50.5 34.0 L51.0 33.9 L51.5 33.7 L52.0 33.6 L52.5 33.5 L53.0 33.4 L53.5 33.4 L54.0 33.3 L54.5 33.3 L55.0 33.2 L55.5 33.2 L56.0 33.1" stroke="#ffffff38" stroke-width="2" stroke-dasharray="2 3"/><path d="M8.0 33.1 L8.5 33.1 L9.0 33.0 L9.5 33.0 L10.0 32.9 L10.5 32.7 L11.0 32.6 L11.5 32.5 L12.0 32.4 L12.5 32.3 L13.0 32.4 L13.5 32.5 L14.0 32.8 L14.5 33.2 L15.0 33.7 L15.5 34.2 L16.0 34.8 L16.5 35.3 L17.0 35.6 L17.5 35.7 L18.0 35.5 L18.5 34.9 L19.0 33.9 L19.5 32.5 L20.0 30.9 L20.5 29.2 L21.0 27.6 L21.5 26.3 L22.0 25.6 L22.5 25.6 L23.0 26.4 L23.5 28.0 L24.0 30.5 L24.5 33.7 L25.0 37.1 L25.5 40.6 L26.0 43.6 L26.5 45.8 L27.0 46.8 L27.5 46.5 L28.0 44.8 L28.5 41.7 L29.0 37.5 L29.5 32.7 L30.0 27.7 L30.5 23.0 L31.0 19.3 L31.5 16.8 L32.0 16.0 L32.5 16.8 L33.0 19.3 L33.5 23.0 L34.0 27.7 L34.5 32.7 L35.0 37.5 L35.5 41.7 L36.0 44.8 L36.5 46.5 L37.0 46.8 L37.5 45.8 L38.0 43.6 L38.5 40.6 L39.0 37.1 L39.5 33.7 L40.0 30.5 L40.5 28.0 L41.0 26.4 L41.5 25.6 L42.0 25.6 L42.5 26.3 L43.0 27.6 L43.5 29.2 L44.0 30.9 L44.5 32.5 L45.0 33.9 L45.5 34.9 L46.0 35.5 L46.5 35.7 L47.0 35.6 L47.5 35.3 L48.0 34.8 L48.5 34.2 L49.0 33.7 L49.5 33.2 L50.0 32.8 L50.5 32.5 L51.0 32.4 L51.5 32.3 L52.0 32.4 L52.5 32.5 L53.0 32.6 L53.5 32.7 L54.0 32.9 L54.5 33.0 L55.0 33.0 L55.5 33.1 L56.0 33.1" stroke="url(#G)" stroke-width="3.4"/>`}
+};
+let _лг=0;
+function логотипРаздела(id,кл){ const л=ЛОГО[id]||ЛОГО.quantum, gid='lg'+(++_лг);
+  return `<svg class="${кл||'sec-logo'}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="${gid}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="${л.g[0]}"/><stop offset="1" stop-color="${л.g[1]}"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="#0e1118"/><g fill="none" stroke-linecap="round" stroke-linejoin="round">${л.r.replace(/url\(#G\)/g,'url(#'+gid+')')}</g></svg>`; }
+
+/* ---------------- газ: живая шапка главной (6.0.0) ----------------
+   Несколько сотен молекул идеального газа: упругие удары друг о друга и о
+   стенки. Цвет — скорость: медленные синие, быстрые оранжевые, самые
+   горячие почти белые; распределение само приходит к максвелловскому.
+   Карточки задачи дня и пути лежат прямо в газе: молекулы отскакивают от
+   них, а сами карточки чуть вздрагивают от ударов — броуновское движение.
+   Палец или курсор — тёплая рука: рядом с ним газ нагревается, а потом
+   остывает до прежней температуры. Без анимации — один застывший кадр. */
+function газГлавной(cv){
   if(!cv||cv._живёт) return; cv._живёт=true;
-  const ctx=cv.getContext('2d'), dpr=Math.min(devicePixelRatio||1,2);
+  const ctx=cv.getContext('2d'), dpr=Math.min(devicePixelRatio||1,2), шапка=cv.parentElement;
   const цв=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  let W=0,H=0,P=[],t=0,кадров=0;
-  /* Палец или курсор над шапкой — ещё один заряд, отрицательный: поле
-     перестраивается на ходу, и частицы стекаются к нему (5.1.0). Сила
-     нарастает за долю секунды и так же плавно гаснет, когда палец ушёл. */
-  const рука={x:0,y:0,сила:0,есть:false};
-  const шапка=cv.parentElement;
-  if(шапка){
-    const где=e=>{ const r=cv.getBoundingClientRect(); рука.x=e.clientX-r.left; рука.y=e.clientY-r.top; рука.есть=true; };
-    шапка.addEventListener('pointermove',где,{passive:true});
-    шапка.addEventListener('pointerdown',где,{passive:true});
-    шапка.addEventListener('pointerleave',()=>{ рука.есть=false; });
-    шапка.addEventListener('pointerup',e=>{ if(e.pointerType!=='mouse') рука.есть=false; });
-    шапка.addEventListener('pointercancel',()=>{ рука.есть=false; });
-  }
-  const заряды=()=>{ const k=Math.min(W,H);
-    const Q=[[0.30,0.45,1,0.9,0.6],[0.70,0.55,-1,0.7,1.1],[0.52,0.28,1,1.3,0.8],[0.45,0.75,-1,1.1,0.5]].map(([x,y,q,a,b],i)=>
-      ({x:W*x+Math.sin(t*0.13*a+i)*k*0.09, y:H*y+Math.cos(t*0.11*b+i*2)*k*0.08, q}));
-    рука.сила+=((рука.есть?1:0)-рука.сила)*0.08;
-    if(рука.сила>0.02) Q.push({x:рука.x,y:рука.y,q:-2*рука.сила,рука:true});
-    return Q; };
-  const новая=()=>({x:Math.random()*W,y:Math.random()*H,ж:40+Math.random()*160});
+  let W=0,H=0,P=[],кадров=0, Vt=60;          // Vt — средняя тепловая скорость, пикс/с
+  const рука={x:0,y:0,есть:false};
+  const где=e=>{ const r=cv.getBoundingClientRect(); рука.x=e.clientX-r.left; рука.y=e.clientY-r.top; рука.есть=true; };
+  шапка.addEventListener('pointermove',где,{passive:true}); шапка.addEventListener('pointerdown',где,{passive:true});
+  шапка.addEventListener('pointerleave',()=>{ рука.есть=false; });
+  шапка.addEventListener('pointerup',e=>{ if(e.pointerType!=='mouse') рука.есть=false; });
+  шапка.addEventListener('pointercancel',()=>{ рука.есть=false; });
+  const препятствия=()=>Array.from(шапка.querySelectorAll('.hm7-obst')).map(el=>{
+    if(!el._б) el._б={x:0,y:0,vx:0,vy:0};
+    const r=el.getBoundingClientRect(), c=cv.getBoundingClientRect();
+    return {el, l:r.left-c.left-el._б.x, t:r.top-c.top-el._б.y, r:r.right-c.left-el._б.x, b:r.bottom-c.top-el._б.y};
+  });
+  const гаусс=()=>{ let u=0,v=0; while(!u) u=Math.random(); v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
   const размер=()=>{ const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h) return false;
-    if(w!==W||h!==H){ W=w; H=h; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle=цв('--bar')||'#0e1118'; ctx.fillRect(0,0,W,H);
-      const n=Math.round(Math.min(1100,W*H/700)); P=[]; for(let i=0;i<n;i++) P.push(новая()); }
+    if(w!==W||h!==H){ W=w; H=h; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
+      const n=Math.round(Math.max(160,Math.min(560,W*H/1500))); P=[];
+      for(let i=0;i<n;i++){ const r=1.8+Math.random()*1.6; P.push({x:Math.random()*W,y:Math.random()*H,vx:гаусс()*Vt*0.7,vy:гаусс()*Vt*0.7,r}); } }
     return true; };
-  const шаг=()=>{
-    const Q=заряды(), ак=цв('--bar-accent')||'#9a8cff', фон=цв('--bar')||'#0e1118';
-    ctx.globalAlpha=0.075; ctx.fillStyle=фон; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
-    ctx.lineWidth=1.1; ctx.lineCap='round';
+  /* цвет по скорости: синий → фиолетовый → оранжевый → светло-жёлтый */
+  const ШКАЛА=[[0,[84,104,255]],[0.8,[165,150,255]],[1.6,[255,150,90]],[2.6,[255,236,180]]];
+  const цвет=v=>{ const s=v/Vt; let i=0; while(i<ШКАЛА.length-2&&s>ШКАЛА[i+1][0]) i++;
+    const [a,ca]=ШКАЛА[i],[b,cb]=ШКАЛА[i+1], k=Math.max(0,Math.min(1,(s-a)/(b-a)));
+    return `rgb(${ca.map((c,j)=>Math.round(c+(cb[j]-c)*k)).join(',')})`; };
+  const шаг=dt=>{
+    const O=препятствия(), N=P.length;
     for(const p of P){
-      let ex=0,ey=0,ф=0;
-      for(const c of Q){ const dx=p.x-c.x, dy=p.y-c.y, r2=dx*dx+dy*dy+90, r=Math.sqrt(r2);
-        ex+=c.q*dx/(r2*r); ey+=c.q*dy/(r2*r); ф+=c.q/r; }
-      const e=Math.hypot(ex,ey)||1, x0=p.x, y0=p.y;
-      p.x+=ex/e*1.5; p.y+=ey/e*1.5; p.ж--;
-      ctx.strokeStyle=ф>0?ак:'#5fd0ff'; ctx.globalAlpha=Math.min(0.85,0.25+Math.abs(ф)*40);
-      ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(p.x,p.y); ctx.stroke();
-      let сток=false; for(const c of Q) if(c.q<0&&Math.hypot(p.x-c.x,p.y-c.y)<(c.рука?10:6)) сток=true;
-      if(p.ж<0||сток||p.x<-4||p.y<-4||p.x>W+4||p.y>H+4) Object.assign(p,новая());
+      if(рука.есть){ const d=Math.hypot(p.x-рука.x,p.y-рука.y); if(d<90){ const k=1+0.06*(1-d/90); p.vx*=k; p.vy*=k; } }
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.x<p.r){ p.x=p.r; p.vx=Math.abs(p.vx); } if(p.x>W-p.r){ p.x=W-p.r; p.vx=-Math.abs(p.vx); }
+      if(p.y<p.r){ p.y=p.r; p.vy=Math.abs(p.vy); } if(p.y>H-p.r){ p.y=H-p.r; p.vy=-Math.abs(p.vy); }
+      for(const o of O){
+        if(p.x<o.l-p.r||p.x>o.r+p.r||p.y<o.t-p.r||p.y>o.b+p.r) continue;
+        const dl=p.x-(o.l-p.r), dr=(o.r+p.r)-p.x, dt2=p.y-(o.t-p.r), db=(o.b+p.r)-p.y, m=Math.min(dl,dr,dt2,db);
+        const б=o.el._б, удар=0.0016*p.r*p.r;
+        if(m===dl){ p.x=o.l-p.r; б.vx+=удар*Math.abs(p.vx); p.vx=-Math.abs(p.vx); }
+        else if(m===dr){ p.x=o.r+p.r; б.vx-=удар*Math.abs(p.vx); p.vx=Math.abs(p.vx); }
+        else if(m===dt2){ p.y=o.t-p.r; б.vy+=удар*Math.abs(p.vy); p.vy=-Math.abs(p.vy); }
+        else { p.y=o.b+p.r; б.vy-=удар*Math.abs(p.vy); p.vy=Math.abs(p.vy); }
+      }
     }
-    ctx.globalAlpha=1;
-    for(const c of Q){ if(c.рука){ ctx.strokeStyle='#5fd0ff'; ctx.globalAlpha=0.5*рука.сила; ctx.lineWidth=1.2;
-        const ф=(t*1.6)%1; ctx.beginPath(); ctx.arc(c.x,c.y,6+ф*22,0,7); ctx.stroke(); ctx.globalAlpha=1; continue; }
-      ctx.fillStyle=c.q>0?ак:'#5fd0ff'; ctx.beginPath(); ctx.arc(c.x,c.y,3.2,0,7); ctx.fill();
-      ctx.strokeStyle=ctx.fillStyle; ctx.globalAlpha=0.35; ctx.beginPath(); ctx.arc(c.x,c.y,9,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+    // попарные упругие удары (массы ~ r²)
+    for(let i=0;i<N;i++){ const a=P[i];
+      for(let j=i+1;j<N;j++){ const b=P[j], dx=b.x-a.x; if(dx>7||dx<-7) continue; const dy=b.y-a.y, R=a.r+b.r;
+        if(dy>R||dy<-R) continue; const d2=dx*dx+dy*dy; if(d2>=R*R||d2===0) continue;
+        const d=Math.sqrt(d2), nx=dx/d, ny=dy/d, vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny; if(vn>0) continue;
+        const ma=a.r*a.r, mb=b.r*b.r, J=-2*vn/(ma+mb);
+        a.vx-=J*mb*nx; a.vy-=J*mb*ny; b.vx+=J*ma*nx; b.vy+=J*ma*ny;
+        const сдвиг=(R-d)/2; a.x-=nx*сдвиг; a.y-=ny*сдвиг; b.x+=nx*сдвиг; b.y+=ny*сдвиг; } }
+    // термостат: газ медленно возвращается к исходной температуре
+    let E=0; for(const p of P) E+=p.vx*p.vx+p.vy*p.vy; const vrms=Math.sqrt(E/N), k=1+(Vt/Math.max(vrms,1)-1)*0.01;
+    for(const p of P){ p.vx*=k; p.vy*=k; }
+    // карточки: пружина возвращает их на место, вязкость гасит дрожь
+    for(const o of O){ const б=o.el._б; б.vx+=(-40*б.x-6*б.vx)*dt; б.vy+=(-40*б.y-6*б.vy)*dt; б.x+=б.vx*dt; б.y+=б.vy*dt;
+      б.x=Math.max(-3,Math.min(3,б.x)); б.y=Math.max(-3,Math.min(3,б.y));
+      o.el.style.transform=`translate(${б.x.toFixed(2)}px,${б.y.toFixed(2)}px)`; }
   };
-  const цикл=()=>{
+  const рисовать=()=>{
+    ctx.fillStyle=цв('--bar')||'#0e1118'; ctx.fillRect(0,0,W,H); ctx.lineCap='round';
+    for(const p of P){ const v=Math.hypot(p.vx,p.vy), c=цвет(v);
+      ctx.strokeStyle=c; ctx.globalAlpha=0.35; ctx.lineWidth=p.r*1.3;
+      ctx.beginPath(); ctx.moveTo(p.x-p.vx*0.06,p.y-p.vy*0.06); ctx.lineTo(p.x,p.y); ctx.stroke();
+      ctx.globalAlpha=0.95; ctx.fillStyle=c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
+    ctx.globalAlpha=1;
+    if(рука.есть){ ctx.strokeStyle='#ff9a5a'; ctx.globalAlpha=0.25; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(рука.x,рука.y,90,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+  };
+  let прошлое=performance.now();
+  const цикл=now=>{
     if(!document.body.contains(cv)||!главнаяОткрыта()){ cv._живёт=false; return; }
+    const dt=Math.min(0.033,(now-прошлое)/1000); прошлое=now;
     if(document.visibilityState==='visible'&&размер()){
-      if(document.documentElement.dataset.motion==='full'){ t+=1/60; шаг(); }
-      else if(кадров<160){ for(let i=0;i<160;i++){ шаг(); кадров++; } }
-      else if(рука.есть||рука.сила>0.02){ t+=1/60; шаг(); }
+      if(document.documentElement.dataset.motion==='full'||рука.есть){ шаг(dt); рисовать(); }
+      else if(кадров<1){ for(let i=0;i<240;i++) шаг(1/60); рисовать(); кадров++; }
     }
     requestAnimationFrame(цикл);
   };
@@ -35272,35 +35376,36 @@ function рисоватьГлавную(h){
   const симРаздела=sec=>new Set([].concat(...sec.topics.map(t=>[...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)))).size;
   const первая=ALL.find(t=>t.id==='mech.1d')||ALL[1];
   let номер=1;
-  const продолжить=тП
-    ? `<p class="hm5-k">Вы остановились на</p><h1 class="hm5-h">${esc(тП.title)}</h1>
-       <div class="hm5-act"><button class="btn primary hm5-go" data-topic="${тП.id}">Продолжить</button>
-         <button class="hm5-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Найти тему или формулу</span><kbd>Ctrl P</kbd></button></div>`
-    : `<h1 class="hm5-h">Физика, которую видно</h1>
-       <div class="hm5-act"><button class="btn primary hm5-go" data-topic="${первая.id}">Начать с механики</button>
-         <button class="hm5-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Найти тему или формулу</span><kbd>Ctrl P</kbd></button></div>`;
+  const поиск=`<button class="hm5-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Найти тему или формулу</span><kbd>Ctrl P</kbd></button>`;
+  const кнопка=тП
+    ? `<button class="btn primary hm5-go hm7-go hm7-obst" data-topic="${тП.id}">Продолжить · ${esc(тП.title)}</button>`
+    : `<button class="btn primary hm5-go hm7-go hm7-obst" data-topic="${первая.id}">Начать с механики</button>`;
   const зд=задачаДня(сост);
-  const задача=зд?`<div class="hm-card hm5-task"><span class="hm5-l">Задача дня · ${esc(зд.t.title)}</span>
+  const задача=зд?`<div class="hm-card hm5-task hm7-card hm7-obst"><span class="hm5-l">Задача дня · ${esc(зд.t.title)}</span>
       <div class="hm4-stmt">${зд.pr.statement}</div>
       <button class="btn primary" id="hm-task-go" data-t="${зд.t.id}" data-i="${зд.i}">Решить</button></div>`:'';
   let путь='';
   if(сост){
     const ж=журнал(), рем=УЧ.навыкиКРемонту(ж), пусто=!Object.keys(ж.задачи).length&&!ж.диагн;
     путь=пусто
-      ? `<button class="hm-card hm5-path" data-path="diag"><span class="hm5-l">Мой путь</span>
-          <b>Диагностика за 10 минут</b><span class="hm-s">12 задач по курсу — и станет ясно, с какой темы начать</span></button>`
-      : `<button class="hm-card hm5-path" data-path="today"><span class="hm5-l">Мой путь</span>
+      ? `<button class="hm-card hm5-path hm7-card hm7-obst" data-path="diag"><span class="hm5-l">Мой путь</span>
+          <b>Диагностика за 10 минут</b><span class="hm-s">12 задач — и станет ясно, с какой темы начать</span></button>`
+      : `<button class="hm-card hm5-path hm7-card hm7-obst" data-path="today"><span class="hm5-l">Мой путь</span>
           <b>${сост.повторить.length} ${plural(сост.повторить.length,'тема','темы','тем').replace(/^\d+\s/,'')} повторить · ${рем.length} ${plural(рем.length,'навык','навыка','навыков').replace(/^\d+\s/,'')} починить</b>
           <span class="hm-s">Открыть план на сегодня</span></button>`;
   }
-  h.innerHTML=`<div class="hm hm5">
-    <header class="hm-hero hm5-hero"><canvas id="hm-cv" aria-hidden="true"></canvas><div class="hm5-in">${продолжить}</div></header>
-    <div class="hm5-row">${задача}${путь}</div>
+  h.innerHTML=`<div class="hm hm5 hm7">
+    <header class="hm-hero hm5-hero hm7-hero"><canvas id="hm-cv" aria-hidden="true"></canvas>
+      <div class="hm7-in">
+        <h1 class="hm7-h hm7-obst">Не смог представить?<br><em>Сейчас исправим.</em></h1>
+        <div class="hm5-act">${кнопка}${поиск}</div>
+        <div class="hm7-cards">${задача}${путь}</div>
+      </div></header>
     <h2 class="hm-h">Разделы</h2>
     <div class="hm-secs hm5-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
       const темы=темыРаздела(sec), n=освоено(sec);
       return `<button class="hm-sec sx${sec.hard?' hard':''}" style="${стильРаздела(sec)}" data-sec="${sec.id}">
-        <span class="hm6-top"><span class="hm6-n">${String(номер++).padStart(2,'0')}</span>${значокРаздела(sec,'hm6-ic')}</span>
+        <span class="hm6-top">${логотипРаздела(sec.id,'hm7-logo')}<span class="hm7-n">${String(номер++).padStart(2,'0')}</span></span>
         <span class="hm-sec-t">${esc(sec.title)}</span>
         <span class="hm6-ts">${темы.slice(0,3).map(t=>esc(t.title)).join(' · ')}${темы.length>3?' …':''}</span>
         <span class="hm6-f"><span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'модель','модели','моделей')}</span>
@@ -35320,7 +35425,7 @@ function рисоватьГлавную(h){
   const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
-  полеГлавной(h.querySelector('#hm-cv'));
+  газГлавной(h.querySelector('#hm-cv'));
 }
 function подключитьГлавную(){
   собратьГлавную();
@@ -35373,6 +35478,258 @@ function режимЧтения(вкл){
   document.documentElement.classList.toggle('reading',!!чтение);
   const btn=document.getElementById('btn-reading'); if(btn) btn.classList.toggle('on',!!чтение);
   requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
+}
+
+;
+/* ===================== ИНТЕРЕСНЫЕ ФАКТЫ (6.0.0) =====================
+   По три на тему — вместо «типичных ошибок» в конце конспекта. Ошибки
+   никуда не делись: они живут в разборе неверного ответа на задачу (веер
+   типовых промахов в learn.js), где от них реальная польза. А в конце
+   темы — то, ради чего физику и любят: где она встречается в жизни, как
+   её открывали и чем она удивляет.
+   Каждый факт — заголовок в несколько слов и одно-два предложения. */
+const ФАКТЫ={
+  'mech.1d':[
+    {т:'Молоток и перо на Луне',о:'В 1971 году астронавт «Аполлона-15» Дэвид Скотт уронил одновременно молоток и соколиное перо. Без воздуха они упали вместе — ровно как предсказывал Галилей.'},
+    {т:'Тормозной путь растёт как квадрат скорости',о:'Из $s=\\dfrac{v^2}{2a}$: на 90 км/ч машине нужно не в полтора, а в 2,25 раза больше места, чем на 60 км/ч.'},
+    {т:'Гепард быстрее спорткара',о:'Гепард разгоняется до 100 км/ч примерно за три секунды, но держит такую скорость лишь полминуты: ускорение даётся мышцам дороже, чем скорость.'}],
+  'mech.2d':[
+    {т:'Две пули падают одновременно',о:'Пуля, выпущенная горизонтально, и пуля, просто выпавшая из руки на той же высоте, без учёта воздуха касаются земли одновременно: горизонтальное движение не мешает падению.'},
+    {т:'45° — только в пустоте',о:'Без воздуха дальше всего летит тело, брошенное под 45°. С сопротивлением воздуха выгоднее бросать положе: у бейсбольного мяча оптимум около 35°.'},
+    {т:'Станция всё время падает',о:'МКС непрерывно падает на Землю, но, летя вбок со скоростью около 7,7 км/с, всё время «промахивается» мимо неё — за час она проходит почти 28 000 км.'}],
+  'mech.dyn':[
+    {т:'«Начала» на латыни',о:'Три закона Ньютон опубликовал в 1687 году в книге «Математические начала натуральной философии». Книга вышла на латыни, и издание оплатил Эдмунд Галлей.'},
+    {т:'Почему шкаф сдвинуть труднее, чем тащить',о:'Трение покоя может превышать трение скольжения. Поэтому антиблокировочная система тормозов не даёт колёсам скользить: катящееся колесо держит дорогу лучше.'},
+    {т:'Вы толкаете Землю',о:'Подпрыгивая, вы давите на Землю с той же силой, с какой она толкает вас вверх. Но её масса больше в $10^{23}$ раз, и её ускорение незаметно.'}],
+  'mech.grav':[
+    {т:'Кавендиш «взвесил Землю»',о:'В 1798 году Генри Кавендиш крутильными весами измерил притяжение свинцовых шаров. По этому опыту впервые нашли среднюю плотность, а значит, и массу Земли.'},
+    {т:'Самое слабое из взаимодействий',о:'Маленький магнит удерживает скрепку, хотя её тянет вниз вся Земля. Гравитация — самое слабое из фундаментальных взаимодействий; она заметна только у огромных масс.'},
+    {т:'Прыжок на Луне',о:'На Луне сила тяжести в шесть раз меньше, а масса прежняя. Оттолкнувшись так же, как на Земле, вы подлетели бы примерно в шесть раз выше.'}],
+  'mech.work':[
+    {т:'Лошадиная сила — маркетинг',о:'Джеймс Уатт ввёл «лошадиную силу», чтобы владельцам лошадей было понятно, кого заменит паровая машина. Метрическая лошадиная сила — около 735 Вт.'},
+    {т:'Человек — лампочка на 100 ватт',о:'В покое организм взрослого расходует энергию с мощностью около 80–100 Вт — примерно как яркая лампа накаливания.'},
+    {т:'Устал, но работы не совершил',о:'Держа тяжёлую сумку неподвижно, вы не совершаете механической работы: перемещения нет. Устаёте же потому, что волокна мышц всё время сокращаются и расслабляются.'}],
+  'mech.energy':[
+    {т:'Майер и кровь моряков',о:'Врач Юлиус Роберт Майер заметил в тропиках, что венозная кровь моряков светлее: в жару телу нужно меньше «сжигать» для тепла. Отсюда он пришёл к закону сохранения энергии (1842).'},
+    {т:'Горки без мотора',о:'Тележку американских горок один раз поднимают на первую горку — дальше всё катание идёт на превращениях потенциальной энергии в кинетическую и обратно.'},
+    {т:'Предел прыжка с шестом',о:'Шест превращает энергию разбега в высоту. При скорости около 10 м/с центр масс можно поднять на $\\dfrac{v^2}{2g}\\approx5$ м — отсюда рекорды чуть больше шести метров.'}],
+  'mech.rot':[
+    {т:'Фигуристка и момент импульса',о:'Прижимая руки к телу, фигуристка уменьшает момент инерции и вращается в несколько раз быстрее: момент импульса $L=I\\omega$ сохраняется.'},
+    {т:'Как кошка переворачивается',о:'Падая спиной вниз, кошка успевает перевернуться, не нарушая сохранения момента импульса: она поворачивает переднюю и заднюю половины тела в разные стороны.'},
+    {т:'Сутки становятся длиннее',о:'Приливное трение передаёт момент импульса Земли Луне: сутки удлиняются примерно на 2 мс за столетие, а Луна удаляется на 3,8 см в год.'}],
+  'mech.osc':[
+    {т:'Люстра в Пизе',о:'По легенде, Галилей заметил, что качающаяся люстра собора проходит и большие, и малые размахи за одно и то же время, — и измерил это по собственному пульсу.'},
+    {т:'Мост Такома-Нэрроуз',о:'Мост обрушился в 1940 году не от простого резонанса с порывами: ветер постоянной скорости раскачивал пролёт через аэроупругий флаттер — колебания сами подкачивали энергию.'},
+    {т:'32 768 герц в часах',о:'Кварц в часах колеблется с частотой $2^{15}=32\\,768$ Гц. Пятнадцать делений частоты пополам дают ровно один импульс в секунду.'}],
+  'th.kinetic':[
+    {т:'Молекулы быстрее звука',о:'Молекулы воздуха при комнатной температуре носятся со скоростью около 500 м/с. Но запах распространяется медленно: каждая молекула миллиарды раз в секунду сталкивается с соседями.'},
+    {т:'Броуновское движение и атомы',о:'Беспорядочную пляску пыльцы объяснил Эйнштейн в 1905 году, а опыты Жана Перрена по его теории окончательно убедили учёных в реальности атомов.'},
+    {т:'Число Лошмидта',о:'В одном кубическом сантиметре воздуха около $2{,}7\\cdot10^{19}$ молекул: будь каждая миллиметровой песчинкой, ими можно было бы засыпать всю Москву слоем около десяти метров.'}],
+  'th.thermo':[
+    {т:'Дизель без свечей',о:'В дизельном двигателе нет свечей зажигания: воздух сжимают так быстро и сильно, что он адиабатически нагревается выше температуры воспламенения топлива.'},
+    {т:'Почему греется насос',о:'Велосипедный насос нагревается не только от трения: при быстром сжатии газа работа насоса идёт в его внутреннюю энергию.'},
+    {т:'Почти абсолютный нуль',о:'Абсолютный нуль недостижим, но в лабораториях охлаждали атомы до миллиардных долей кельвина — в таком холоде проявляются квантовые эффекты, например бозе-конденсат.'}],
+  'th.second':[
+    {т:'Формула на надгробии',о:'Связь энтропии с числом микросостояний $S=k\\ln W$ высечена на надгробии Людвига Больцмана в Вене.'},
+    {т:'Холодильник греет комнату',о:'Холодильник не делает холод, а перекачивает тепло наружу, тратя работу. Открытый холодильник в закрытой комнате её нагреет, а не охладит.'},
+    {т:'Предел для электростанций',о:'КПД тепловых электростанций — около 35–45 %. Значительная часть тепла неизбежно уходит в окружающую среду: этого требует второе начало, а не недоработка инженеров.'}],
+  'el.force':[
+    {т:'Электричество — «янтарность»',о:'Слово «электричество» происходит от греческого «электрон» — янтарь: древние греки заметили, что натёртый янтарь притягивает соломинки и пух.'},
+    {т:'В $10^{39}$ раз сильнее',о:'Электрическое притяжение протона и электрона примерно в $10^{39}$ раз сильнее их гравитационного притяжения.'},
+    {т:'Крутильные весы Кулона',о:'Закон обратных квадратов для зарядов Шарль Кулон проверил в 1785 году крутильными весами — тот же принцип позже позволил Кавендишу измерить гравитационную постоянную.'}],
+  'el.statics':[
+    {т:'Клетка Фарадея',о:'Внутри замкнутой металлической оболочки поля нет. Поэтому молния не опасна пассажирам машины или самолёта, а в лифте пропадает мобильная связь.'},
+    {т:'Молния горячее Солнца',о:'Канал молнии нагревается примерно до 30 000 К — в пять раз горячее поверхности Солнца. Резкое расширение воздуха мы слышим как гром.'},
+    {т:'Вспышка фотоаппарата',о:'Конденсатор вспышки заряжается секунды, а разряжается за тысячные доли секунды: мощность в момент разряда в тысячи раз больше, чем отдаёт батарейка.'}],
+  'el.current':[
+    {т:'Электроны ползут, свет загорается сразу',о:'Электроны в проводе дрейфуют со скоростью долей миллиметра в секунду. Свет включается мгновенно, потому что почти со скоростью света распространяется поле, толкающее все электроны сразу.'},
+    {т:'Сверхпроводимость',о:'В 1911 году Камерлинг-Оннес охладил ртуть до 4,2 К, и её сопротивление исчезло полностью. Ток в сверхпроводящем кольце может течь годами без источника.'},
+    {т:'Мокрая кожа опаснее',о:'Сухая кожа сопротивляется току в десятки раз сильнее мокрой. Поэтому одно и то же напряжение в ванной намного опаснее, чем в сухой комнате.'}],
+  'em.fields':[
+    {т:'МРТ сильнее Земли в 50 000 раз',о:'Магнитное поле Земли у поверхности — около 50 мкТл, а в аппарате МРТ — 1,5–3 Тл.'},
+    {т:'Полярные сияния',о:'Заряженные частицы солнечного ветра закручиваются магнитным полем Земли и уходят к полюсам; сталкиваясь с атомами воздуха, они заставляют его светиться.'},
+    {т:'Магнитный компас у животных',о:'Морские черепахи и перелётные птицы в опытах ориентируются по магнитному полю Земли — так они находят путь через океаны.'}],
+  'em.induction':[
+    {т:'Почти всё электричество — индукция',о:'Большую часть электроэнергии в мире вырабатывают генераторы, где катушки вращаются в магнитном поле, — прямое применение открытия Фарадея 1831 года.'},
+    {т:'Плита, которая греет кастрюлю',о:'Индукционная плита греет не себя, а саму посуду: переменное магнитное поле наводит в металлическом дне вихревые токи.'},
+    {т:'Рамка в аэропорту',о:'Металлоискатель создаёт переменное поле; металл отвечает вихревыми токами со своим полем, и прибор замечает изменение.'}],
+  'em.radiation':[
+    {т:'Солнце восемь минут назад',о:'Свет идёт от Солнца до Земли около 8 минут 20 секунд — мы всегда видим Солнце таким, каким оно было в прошлом.'},
+    {т:'Одно явление — много названий',о:'Радиоволны, свет и рентген — одни и те же электромагнитные волны; различаются они лишь длиной волны: от километров до долей нанометра.'},
+    {т:'Волна в микроволновке',о:'Микроволновка работает на частоте 2,45 ГГц, длина волны — около 12 см. Поэтому без вращающейся тарелки еда греется пятнами: в узлах стоячей волны нагрев слабый.'}],
+  'op.optics':[
+    {т:'Радуга — это круг',о:'Радуга — окружность с угловым радиусом около 42° вокруг точки, противоположной Солнцу. С самолёта её можно увидеть целым кольцом.'},
+    {т:'Мир вверх ногами',о:'Роговица и хрусталик дают на сетчатке перевёрнутое изображение. Переворачивает картинку мозг.'},
+    {т:'Почему алмаз «играет»',о:'Свет в алмазе идёт в 2,4 раза медленнее, чем в вакууме. Большой показатель преломления и полное внутреннее отражение заставляют огранённый камень сверкать.'}],
+  'op.matter':[
+    {т:'Почему небо голубое',о:'Молекулы воздуха рассеивают синий свет сильнее красного — пропорционально $1/\\lambda^4$. На закате свет проходит толщу атмосферы, синее рассеивается по пути, и остаются красные тона.'},
+    {т:'Очки против бликов',о:'Свет, отражённый от воды и мокрого асфальта, частично поляризован. Поляризационные очки пропускают только «вертикальные» колебания и гасят блики.'},
+    {т:'Две призмы Ньютона',о:'Первая призма разложила белый свет в спектр, вторая собрала его обратно в белый. Так Ньютон доказал, что белый свет — смесь цветов, а не «чистый» свет.'}],
+  'op.interf':[
+    {т:'Радуга в мыльном пузыре',о:'Разводы на мыльном пузыре и бензиновой плёнке — интерференция: свет отражается от двух поверхностей тонкой плёнки, и разные цвета усиливаются при разной толщине.'},
+    {т:'Синева бабочки морфо',о:'Яркий синий цвет крыльев морфо — не пигмент, а интерференция на микроскопических рёбрах чешуек. Под другим углом цвет меняется.'},
+    {т:'LIGO слышит пространство',о:'Детектор гравитационных волн LIGO — интерферометр с плечами по 4 км. Он замечает изменение длины плеча в тысячи раз меньше размера протона.'}],
+  'q.wave':[
+    {т:'Нобелевка Эйнштейна',о:'Эйнштейн получил Нобелевскую премию 1921 года не за теорию относительности, а за объяснение фотоэффекта.'},
+    {т:'Электрон как волна',о:'В 1927 году Дэвиссон и Джермер увидели дифракцию электронов на кристалле никеля — электрон повёл себя как волна с длиной, предсказанной де Бройлем.'},
+    {т:'Почему электронный микроскоп видит больше',о:'Длина волны быстрого электрона в тысячи раз короче длины волны видимого света — поэтому электронный микроскоп различает детали, недоступные оптическому.'}],
+  'q.qm':[
+    {т:'Кот — это насмешка',о:'Шрёдингер придумал своего кота не как иллюстрацию, а как возражение: он хотел показать, насколько странно переносить суперпозицию на большие предметы.'},
+    {т:'Солнце светит благодаря туннелю',о:'Протонам в недрах Солнца не хватает энергии, чтобы преодолеть кулоновское отталкивание. Они проходят барьер квантовым туннелированием — иначе термоядерный синтез бы не шёл.'},
+    {т:'Флешка на квантовом эффекте',о:'Флеш-память записывает данные, проталкивая электроны сквозь тонкий изолирующий слой — это тоже туннельный эффект.'}],
+  'q.hydrogen':[
+    {т:'Атом почти пуст',о:'Если ядро атома водорода увеличить до размера горошины, электронное облако окажется размером со стадион.'},
+    {т:'Формула без объяснения',о:'Школьный учитель Иоганн Бальмер в 1885 году подобрал формулу для линий водорода, не зная, откуда она берётся. Объяснил её Нильс Бор в 1913 году.'},
+    {т:'Главный элемент Вселенной',о:'Водород — около трёх четвертей массы обычного вещества во Вселенной; почти весь он образовался в первые минуты после Большого взрыва.'}],
+  'q.atomic':[
+    {т:'Гелий нашли на Солнце',о:'Гелий открыли в 1868 году по жёлтой линии в спектре Солнца — отсюда и название от греческого «гелиос». На Земле его нашли только через 27 лет.'},
+    {т:'Секунда — это атом цезия',о:'Секунда определена как 9 192 631 770 периодов излучения атома цезия-133. Лучшие атомные часы ошибаются меньше чем на секунду за миллионы лет.'},
+    {т:'Цвет неоновой вывески',о:'Каждый газ светится своими линиями: неон — красно-оранжевым, аргон с парами ртути — голубым. Остальные цвета вывесок дают люминофоры на стекле.'}],
+  'q.condensed':[
+    {т:'Алмаз и графит',о:'Алмаз и грифель карандаша — один и тот же углерод. Разница только в том, как уложены атомы, а свойства противоположные: самый твёрдый минерал и мягкий слоистый.'},
+    {т:'Цвет светодиода',о:'Цвет светодиода задаёт ширина запрещённой зоны полупроводника. За яркий синий светодиод, без которого нет белых ламп и экранов, дали Нобелевскую премию 2014 года.'},
+    {т:'Миллиарды транзисторов',о:'В современном процессоре миллиарды транзисторов, и размеры их деталей — десятки атомов. Всё это держится на кремнии с примесями.'}],
+  'q.nuclear':[
+    {т:'Солнце худеет',о:'Каждую секунду Солнце превращает в излучение около четырёх миллионов тонн своей массы — по формуле $E=mc^2$.'},
+    {т:'Радиоуглеродные часы',о:'Углерод-14 распадается с периодом около 5730 лет. По его доле в находке определяют её возраст — до примерно 50 000 лет.'},
+    {т:'Радиоактивный банан',о:'В бананах много калия, а часть природного калия — радиоактивный калий-40. Отсюда шуточная единица дозы «банановый эквивалент».'}],
+  'q.particles':[
+    {т:'Нейтрино сквозь ноготь',о:'Каждую секунду сквозь ваш ноготь пролетают десятки миллиардов солнечных нейтрино — почти никак не взаимодействуя с веществом.'},
+    {т:'На 3 м/с медленнее света',о:'В Большом адронном коллайдере (кольцо длиной 27 км) протоны движутся всего примерно на 3 метра в секунду медленнее света.'},
+    {т:'Античастицу нашли по уравнению',о:'Позитрон предсказал Поль Дирак в 1928 году как «лишнее» решение своего уравнения, а в 1932 году Карл Андерсон увидел его следы в космических лучах.'}],
+  'em.ac':[
+    {т:'230 вольт — это не амплитуда',о:'В розетке 230 В — действующее значение. Мгновенное напряжение колеблется от −325 до +325 В пятьдесят раз в секунду.'},
+    {т:'Война токов',о:'Эдисон продвигал постоянный ток, Тесла и Вестингауз — переменный. Победил переменный: его легко трансформировать и передавать на большие расстояния.'},
+    {т:'Радио на резонансе',о:'Приёмник выбирает станцию резонансом: контур настраивают на её частоту, и только её сигнал раскачивает его сильно.'}],
+  'rel.sr':[
+    {т:'GPS без относительности ошибался бы',о:'Часы на спутниках GPS из-за скорости отстают на 7 мкс в сутки, а из-за слабой гравитации спешат на 45 мкс. Без поправок ошибка положения росла бы примерно на 10 км в сутки.'},
+    {т:'Мюоны долетают до Земли',о:'Мюоны рождаются в верхних слоях атмосферы и живут около 2 мкс — за это время свет прошёл бы лишь 600 м. Но они долетают до земли: их время для нас замедлено.'},
+    {т:'Самая известная формула — в приложении',о:'$E=mc^2$ появилась в 1905 году в коротком дополнении к статье о теории относительности — всего на три страницы.'}],
+  'q.slits':[
+    {т:'Интерференция молекул',о:'Двухщелевой опыт повторили не только с электронами, но и с атомами и молекулами из 2000 атомов — интерференционные полосы всё равно появляются.'},
+    {т:'По одной частице',о:'Если пускать частицы по одной, картина складывается из отдельных вспышек, а полосы проступают постепенно — каждая частица интерферирует сама с собой.'},
+    {т:'«Сердце квантовой механики»',о:'Ричард Фейнман называл двухщелевой опыт явлением, которое невозможно объяснить классически и в котором заключена вся загадка квантовой механики.'}],
+  'q.laser':[
+    {т:'Лазер до Луны',о:'Астронавты «Аполлонов» оставили на Луне уголковые отражатели. Посылая на них лазерные импульсы, расстояние до Луны измеряют с точностью до миллиметров.'},
+    {т:'Лазер — это аббревиатура',о:'LASER — Light Amplification by Stimulated Emission of Radiation, «усиление света вынужденным излучением».'},
+    {т:'Первый — на рубине',о:'Первый лазер собрал Теодор Мейман в 1960 году на кристалле рубина. Тогда его называли «решением, которое ищет задачу».'}],
+  'q.spin':[
+    {т:'Поворот на 720°',о:'Чтобы электрон вернулся в точности в исходное состояние, его нужно повернуть на 720°: при повороте на 360° его волновая функция меняет знак.'},
+    {т:'МРТ слушает спины',о:'В сильном магнитном поле спины ядер водорода в теле прецессируют; по их радиосигналу томограф и строит изображение.'},
+    {т:'Расщепление на два',о:'В 1922 году Штерн и Герлах увидели, что пучок атомов серебра расщепляется ровно на два. Спина тогда ещё не придумали — его ввели в 1925 году, чтобы объяснить такие опыты.'}]
+};
+function фактыHTML(t){
+  const ф=ФАКТЫ[t.id]; if(!ф||!ф.length) return '';
+  return `<h2 class="sect">Интересные факты</h2><div class="facts">${ф.map((x,i)=>
+    `<div class="fact"><span class="fact-n">${i+1}</span><div><b class="fact-t">${x.т}</b><p>${x.о}</p></div></div>`).join('')}</div>`;
+}
+
+;
+/* ===================== УРОВЕНЬ «ВУЗ» (6.0.0) =====================
+   Школьная тема остаётся как есть. Переключатель «Школа | Вуз» в шапке
+   темы добавляет в конспект раздел «Вузовский уровень»: тот же материал
+   через радиус-векторы, производные, уравнения Максвелла, фазовое
+   пространство. Школьник может не трогать переключатель вовсе — для него
+   ничего не меняется; студент включает его один раз, и настройка
+   запоминается для всех тем.
+   Как добавлять: в ВУЗ[id темы] — массив блоков {h:'заголовок', html:'текст'}.
+   Формулы — как везде в курсе: $…$ и $$…$$, обратная косая — удвоенная,
+   вместо «<» внутри формул — \\lt. Тема без блоков переключателя не показывает. */
+const ВУЗ={
+  'mech.1d':[
+    {h:'Кинематика через радиус-вектор',html:`
+      <p>Положение точки задаётся радиус-вектором $\\vec r(t)=x(t)\\,\\vec i+y(t)\\,\\vec j+z(t)\\,\\vec k$. Скорость и ускорение —
+      его первая и вторая производные по времени:</p>
+      $$\\vec v=\\frac{d\\vec r}{dt},\\qquad \\vec a=\\frac{d\\vec v}{dt}=\\frac{d^2\\vec r}{dt^2}.$$
+      <p>Одномерное движение — частный случай: от вектора остаётся одна проекция, и производная становится наклоном графика $x(t)$.</p>`},
+    {h:'Обратная задача: интегрирование',html:`
+      <p>Если известно ускорение, скорость и положение находятся интегрированием с начальными условиями:</p>
+      $$\\vec v(t)=\\vec v_0+\\int_0^t\\vec a(t')\\,dt',\\qquad \\vec r(t)=\\vec r_0+\\int_0^t\\vec v(t')\\,dt'.$$
+      <p>При $\\vec a=\\text{const}$ это даёт сразу и школьные формулы, и параболу броска:
+      $\\vec r=\\vec r_0+\\vec v_0t+\\dfrac{\\vec a t^2}{2}$. Площадь под графиком $v(t)$ — это и есть интеграл, то есть перемещение.</p>`},
+    {h:'Касательное и нормальное ускорение',html:`
+      <p>Запишем $\\vec v=v\\,\\vec\\tau$, где $\\vec\\tau$ — единичный вектор касательной. Тогда</p>
+      $$\\vec a=\\frac{dv}{dt}\\,\\vec\\tau+\\frac{v^2}{R}\\,\\vec n:$$
+      <p>первое слагаемое меняет модуль скорости, второе — её направление ($R$ — радиус кривизны траектории). Равномерное движение по
+      окружности — случай $dv/dt=0$.</p>`}],
+  'mech.dyn':[
+    {h:'Второй закон через импульс',html:`
+      <p>В общем виде второй закон говорит о скорости изменения импульса $\\vec p=m\\vec v$:</p>
+      $$\\frac{d\\vec p}{dt}=\\sum\\vec F.$$
+      <p>При постоянной массе это $m\\vec a=\\sum\\vec F$. Но форма с импульсом верна и тогда, когда масса меняется, — например, у ракеты.</p>`},
+    {h:'Система тел и центр масс',html:`
+      <p>Для системы частиц внутренние силы попарно сокращаются по третьему закону, и остаётся</p>
+      $$\\frac{d\\vec P}{dt}=\\sum\\vec F_{\\text{внеш}},\\qquad M\\frac{d^2\\vec R}{dt^2}=\\sum\\vec F_{\\text{внеш}},\\qquad \\vec R=\\frac{\\sum m_i\\vec r_i}{M}.$$
+      <p>Центр масс движется так, будто вся масса сосредоточена в нём и к нему приложены все внешние силы. Нет внешних сил — импульс системы сохраняется.</p>`},
+    {h:'Ракета: формула Циолковского',html:`
+      <p>Ракета выбрасывает газ со скоростью $u$ относительно себя. Из сохранения импульса: $m\\,dv=-u\\,dm$, откуда</p>
+      $$\\Delta v=u\\ln\\frac{m_0}{m}.$$
+      <p>Чтобы набрать скорость в три раза больше скорости истечения, ракета должна быть на старте в $e^3\\approx20$ раз тяжелее, чем в конце.</p>`}],
+  'mech.osc':[
+    {h:'Нелинейный маятник',html:`
+      <p>Точное уравнение маятника нелинейно:</p>
+      $$\\ddot\\theta+\\frac{g}{L}\\sin\\theta=0.$$
+      <p>При малых углах $\\sin\\theta\\approx\\theta$, и получаются гармонические колебания с периодом $2\\pi\\sqrt{L/g}$. При больших амплитудах период растёт. А если добавить затухание и вынуждающую силу,
+      $\\ddot\\theta+\\gamma\\dot\\theta+\\omega_0^2\\sin\\theta=A\\cos\\Omega t$, движение может стать хаотическим.</p>`},
+    {h:'Детерминированный хаос',html:`
+      <p>Хаос — не случайность: уравнения те же, и одинаковые начальные условия дают одинаковый результат. Но две траектории, начатые на расстоянии $\\delta_0$,
+      расходятся экспоненциально:</p>
+      $$|\\delta(t)|\\approx|\\delta_0|\\,e^{\\lambda t},$$
+      <p>где $\\lambda>0$ — показатель Ляпунова. Отсюда горизонт предсказуемости $t\\sim\\frac{1}{\\lambda}\\ln\\frac{\\Delta}{\\delta_0}$: улучшив точность измерений в тысячу раз,
+      мы отодвигаем его лишь на $\\frac{\\ln 1000}{\\lambda}\\approx\\frac{7}{\\lambda}$. Поэтому погоду нельзя предсказать на месяц — это понял Лоренц в 1963 году.</p>`},
+    {h:'Фазовое пространство',html:`
+      <p>Состояние маятника — точка $(\\theta,\\dot\\theta)$ на фазовой плоскости. Без трения траектории замкнуты, с трением скручиваются к точке покоя,
+      при вынужденных колебаниях выходят на предельный цикл. У хаотической системы траектория заполняет «странный аттрактор» — множество дробной размерности.</p>`}],
+  'th.kinetic':[
+    {h:'Давление как поток импульса',html:`
+      <p>Молекула, ударяясь о стенку, передаёт ей импульс $2mv_x$. Сложив удары всех молекул в единицу времени на единицу площади, получаем</p>
+      $$p=n\\,m\\,\\langle v_x^2\\rangle=\\tfrac13\\,n\\,m\\,\\langle v^2\\rangle.$$
+      <p>Сравнив с $p=nkT$, находим смысл температуры: $\\tfrac32kT=\\langle\\tfrac{mv^2}{2}\\rangle$.</p>`},
+    {h:'Распределение Максвелла',html:`
+      <p>Доля молекул со скоростями от $v$ до $v+dv$:</p>
+      $$f(v)\\,dv=4\\pi\\left(\\frac{m}{2\\pi kT}\\right)^{3/2}v^2e^{-mv^2/2kT}\\,dv.$$
+      <p>Множитель $v^2$ — объём тонкого шарового слоя в пространстве скоростей, экспонента — больцмановский вес энергии. Отсюда три характерные скорости:</p>
+      $$v_{\\text{вер}}=\\sqrt{\\frac{2kT}{m}},\\quad \\langle v\\rangle=\\sqrt{\\frac{8kT}{\\pi m}},\\quad v_{\\text{кв}}=\\sqrt{\\frac{3kT}{m}}.$$`}],
+  'em.radiation':[
+    {h:'Уравнения Максвелла',html:`
+      <p>Вся классическая электродинамика — четыре уравнения. В интегральной форме:</p>
+      $$\\oint\\vec E\\cdot d\\vec A=\\frac{Q}{\\varepsilon_0},\\qquad \\oint\\vec B\\cdot d\\vec A=0,$$
+      $$\\oint\\vec E\\cdot d\\vec l=-\\frac{d\\Phi_B}{dt},\\qquad \\oint\\vec B\\cdot d\\vec l=\\mu_0I+\\mu_0\\varepsilon_0\\frac{d\\Phi_E}{dt}.$$
+      <p>Заряды — источники электрического поля; магнитных зарядов нет; меняющийся магнитный поток порождает вихревое электрическое поле (индукция); ток и меняющийся
+      электрический поток порождают магнитное поле. Последнее слагаемое — ток смещения — добавил Максвелл, и именно оно делает возможными волны.</p>`},
+    {h:'Дифференциальная форма',html:`
+      $$\\nabla\\cdot\\vec E=\\frac{\\rho}{\\varepsilon_0},\\qquad \\nabla\\cdot\\vec B=0,$$
+      $$\\nabla\\times\\vec E=-\\frac{\\partial\\vec B}{\\partial t},\\qquad \\nabla\\times\\vec B=\\mu_0\\vec j+\\mu_0\\varepsilon_0\\frac{\\partial\\vec E}{\\partial t}.$$
+      <p>Переход от интегральной формы — теоремы Гаусса и Стокса: поток через замкнутую поверхность равен интегралу дивергенции по объёму, циркуляция по контуру — потоку ротора.</p>`},
+    {h:'Откуда берётся скорость света',html:`
+      <p>В пустоте ($\\rho=0$, $\\vec j=0$) возьмём ротор от третьего уравнения и подставим четвёртое:</p>
+      $$\\nabla^2\\vec E=\\mu_0\\varepsilon_0\\frac{\\partial^2\\vec E}{\\partial t^2}.$$
+      <p>Это волновое уравнение со скоростью $c=\\dfrac{1}{\\sqrt{\\mu_0\\varepsilon_0}}\\approx3\\cdot10^8$ м/с. Максвелл увидел, что она совпадает с измеренной скоростью света, и заключил:
+      свет — электромагнитная волна.</p>`}]
+};
+function естьВуз(t){ return !!(t&&ВУЗ[t.id]&&ВУЗ[t.id].length); }
+function уровеньВуз(){ return typeof prefGet==='function'&&prefGet('level')==='uni'; }
+function вузHTML(t){
+  if(!естьВуз(t)||!уровеньВуз()) return '';
+  return `<section class="uni"><h2 class="sect">Вузовский уровень</h2>${ВУЗ[t.id].map(b=>
+    `<div class="uni-b"><h3>${b.h}</h3>${b.html}</div>`).join('')}</section>`;
+}
+/* Переключатель в шапке темы: виден только у тем, где есть вузовский раздел. */
+function переключательУровня(t){
+  const ch=document.querySelector('#content .chead'); if(!ch) return;
+  let el=document.getElementById('t-lvl');
+  if(!el){ el=document.createElement('div'); el.id='t-lvl'; el.className='t-lvl'; el.setAttribute('role','group'); el.setAttribute('aria-label','Уровень изложения');
+    el.innerHTML='<button data-l="school">Школа</button><button data-l="uni">Вуз</button>';
+    const sub=document.getElementById('t-sub'); if(sub) sub.after(el); else ch.appendChild(el);
+    el.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      if(!S.settings) S.settings={};
+      try{ prefSet('level',b.dataset.l); }catch(_){ S.settings.level=b.dataset.l; }
+      переключательУровня(S.topic); renderPane();
+      if(b.dataset.l==='uni'){ const u=document.querySelector('#pane .uni'); if(u) try{ u.scrollIntoView({block:'start',behavior:'smooth'}); }catch(_){} }
+    }); }
+  el.classList.toggle('hidden',!естьВуз(t));
+  const ур=уровеньВуз()?'uni':'school';
+  el.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.l===ур));
 }
 
 ;
@@ -35666,8 +36023,9 @@ function слайдыТемы(t){
   const ф=t.formulas||[];
   for(let k=0;k<ф.length;k+=3) сл.push({вид:'формулы',h:'Основные формулы'+(k?' (продолжение)':''),sim:ф[k].sim,
     html:ф.slice(k,k+3).map(f=>`<div class="ls-f"><div>$$${f.tex}$$</div>${f.note?`<div class="ls-fn">${f.note}</div>`:''}</div>`).join('')});
-  if(t.mistakes&&t.mistakes.length) сл.push({вид:'ошибки',h:'Типичные ошибки',
-    html:t.mistakes.slice(0,3).map(m=>`<div class="ls-pf"><div class="bad"><span>так думают</span>${m.wrong}</div><div class="good"><span>на самом деле</span>${m.right}</div></div>`).join('')});
+  const фк=(typeof ФАКТЫ!=='undefined'&&ФАКТЫ[t.id])||[];
+  if(фк.length) сл.push({вид:'факты',h:'Интересные факты',
+    html:фк.map(x=>`<div class="ls-fact"><b>${x.т}</b><p>${x.о}</p></div>`).join('')});
   for(const q of (t.checks||[]).slice(0,4)) сл.push({вид:'вопрос',h:'Проверьте себя',
     html:`<div class="ls-q">${q.q}</div><button class="btn primary ls-rev">Показать ответ</button><div class="ls-a">${q.a}</div>`});
   сл.push({вид:'конец',h:'Тема пройдена',html:`<p class="ls-lead">Закрепить — задачами: ответ в них пересчитывается под параметры модели.</p>
@@ -35745,143 +36103,177 @@ addEventListener('keydown',e=>{
 })();
 
 ;
-/* ===================== ПУЛЬТ НА ТЕЛЕФОНЕ (5.1.0) =====================
-   Под сценой — ряд чипов: по одному на параметр, с текущим значением. Чип
-   выбран — под ним большая шкала: её тянут пальцем влево-вправо, а сцена
-   пересчитывается на ходу. Так параметр меняют одной рукой, не закрывая
-   сцену листом и не попадая по крошечным «−» и «+». Флажок переключается
-   прямо касанием чипа, у списка вариантов вместо шкалы — ряд кнопок.
-   Значение на шкале можно тронуть — откроется поле для точного числа.
-   Каждое деление отзывается коротким толчком вибромотора там, где он есть.
-   Пульт виден только на телефоне и только в положении листа «край», когда
-   на экране главное — сцена. */
-const ПУЛЬТ={выбор:{},шкала:null};
+/* ===================== ТЕЛЕФОН 6.0: ЭКРАН СИМУЛЯЦИИ =====================
+   Сцена — во весь экран, и больше ничего не выезжает на неё снизу.
+     Шапка: [конспект] [симуляция ▾ — в рамке] [параметры] [⋮]
+     Низ:   шкала времени · показания · кнопки
+            отменить, повторить, скорость, пуск/стоп, сброс, инструменты, ещё
+   Конспект и задачи — отдельной страницей (кнопка слева), параметры и
+   графики — тоже отдельной страницей во весь экран (кнопка справа). Лист с
+   тремя положениями, в котором всё это теснилось над сценой, на телефоне
+   больше не открывается.
+   Шкала времени и строка показаний — те же элементы, что и раньше: их не
+   копируем, а переносим в нижнюю панель, поэтому все обработчики и
+   обновления продолжают работать. На компьютере они возвращаются на место. */
+const М6={места:new Map(), страница:''};
+const ИК6={
+  конспект:'<path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14 3.5V8h5M9 12h7M9 15.5h7M9 19h4"/>',
+  параметры:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.3"/><circle cx="9" cy="17" r="2.3"/>',
+  отмена:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  повтор:'<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  сброс:'<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/>',
+  карандаш:'<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3 3"/>',
+  ещё:'<circle cx="5.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
+  пуск:'<path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/>',
+  стоп:'<rect x="7" y="5.5" width="3.6" height="13" rx="1" fill="currentColor" stroke="none"/><rect x="13.4" y="5.5" width="3.6" height="13" rx="1" fill="currentColor" stroke="none"/>',
+  закрыть:'<path d="M6 6l12 12M18 6L6 18"/>'
+};
+const св6=(п,кл)=>`<svg viewBox="0 0 24 24"${кл?` class="${кл}"`:''} aria-hidden="true">${п}</svg>`;
 
-/* Параметры в том порядке и с той же видимостью, что и в списке на
-   компьютере: группа, скрытая условием, прячет и свои поля. */
-function параметрыПульта(a){
-  const out=[]; let скрыта=false;
-  for(const p of a.def.params){
-    if(p.type==='group'){ скрыта=!видноПараметр(a,p); continue; }
-    if(скрыта||!видноПараметр(a,p)) continue;
-    out.push(p);
+function м6Собрать(){
+  if(document.getElementById('m6dock')) return;
+  const sp=document.getElementById('simpane'), head=sp&&sp.querySelector('.simhead'); if(!head) return;
+  // шапка: конспект слева, параметры справа
+  const конспект=document.createElement('button');
+  конспект.className='iconbtn m6-only'; конспект.id='m6-notes'; конспект.title='Конспект и задачи';
+  конспект.innerHTML=св6(ИК6.конспект);
+  head.insertBefore(конспект,head.firstChild);
+  const парам=document.createElement('button');
+  парам.className='iconbtn m6-only'; парам.id='m6-params'; парам.title='Параметры и графики';
+  парам.innerHTML=св6(ИК6.параметры);
+  const меню=document.getElementById('m-menu');
+  head.insertBefore(парам,меню||null);
+  конспект.onclick=()=>{ м6Страница(''); closeSimMobile(); try{ syncMbar(); }catch(_){} };
+  парам.onclick=()=>м6Страница('params');
+  // нижняя панель
+  const d=document.createElement('div'); d.id='m6dock'; d.className='m6dock m6-only';
+  d.innerHTML=`<div class="m6-tl" id="m6-tl"></div><div class="m6-ro" id="m6-ro"></div>
+    <div class="m6-row">
+      <button class="m6b" id="m6-undo" title="Отменить">${св6(ИК6.отмена)}</button>
+      <button class="m6b" id="m6-redo" title="Повторить">${св6(ИК6.повтор)}</button>
+      <button class="m6b m6-speed" id="m6-speed" title="Скорость времени">1×</button>
+      <button class="m6-play" id="m6-play" title="Пуск / стоп">${св6(ИК6.пуск,'m6-ip')}${св6(ИК6.стоп,'m6-is')}</button>
+      <button class="m6b" id="m6-reset" title="Сбросить">${св6(ИК6.сброс)}</button>
+      <button class="m6b" id="m6-tools" title="Инструменты">${св6(ИК6.карандаш)}</button>
+      <button class="m6b" id="m6-more" title="Ещё">${св6(ИК6.ещё)}</button>
+    </div>`;
+  sp.appendChild(d);
+  const $6=id=>document.getElementById(id);
+  $6('m6-undo').onclick=()=>{ try{ общаяОтмена(); }catch(_){} };
+  $6('m6-redo').onclick=()=>{ try{ redo(); }catch(_){} };
+  /* Пуск и стоп — одна кнопка. Стоп только останавливает время: сцена
+     остаётся там, где была, сбрасывает её отдельная кнопка. */
+  $6('m6-play').onclick=()=>{ const b=document.getElementById('btn-play'); if(b) b.click(); м6Обновить(); };
+  $6('m6-reset').onclick=()=>{ const b=document.getElementById('btn-reset'); if(b) b.click(); };
+  $6('m6-speed').onclick=e=>{ e.stopPropagation(); м6Карточка('speed'); };
+  $6('m6-tools').onclick=e=>{ e.stopPropagation(); м6Карточка('tools'); };
+  $6('m6-more').onclick=e=>{ e.stopPropagation(); м6Карточка('more'); };
+  // страница параметров: шапка с вкладками поверх #simbottom
+  const sb=document.getElementById('simbottom');
+  if(sb&&!document.getElementById('m6-phead')){
+    const h=document.createElement('div'); h.id='m6-phead'; h.className='m6-phead m6-only';
+    h.innerHTML=`<button class="iconbtn" id="m6-pclose" title="Вернуться к сцене">${св6(ИК6.закрыть)}</button>
+      <div class="m6-seg" role="tablist"><button data-p="params" class="on">Параметры</button><button data-p="graphs">Графики</button></div>`;
+    sb.insertBefore(h,sb.firstChild);
+    h.querySelector('#m6-pclose').onclick=()=>м6Страница('');
+    h.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>м6Страница(b.dataset.p));
   }
-  return out;
+  // карточка над нижней панелью: скорость, инструменты, «ещё»
+  const к=document.createElement('div'); к.id='m6card'; к.className='m6card hidden'; к.setAttribute('role','dialog');
+  document.body.appendChild(к);
+  document.addEventListener('pointerdown',e=>{ if(!к.classList.contains('hidden')&&!к.contains(e.target)&&!e.target.closest('#m6dock')) м6Карточка(null); },true);
+  setInterval(м6Обновить,300);
 }
-/* «Начальная скорость v₀ (м/с)» → «Начальная скорость v₀»: в чипе нет места
-   уточнениям в скобках, единица и так стоит рядом со значением. */
-function ярлыкПульта(s){ return безВекторов(String(s)).replace(/\s*\([^)]*\)\s*$/,'').trim(); }
-function значениеПульта(p,v){
-  if(p.type==='check') return v?'да':'нет';
-  if(p.type==='select'){ const o=(p.options||[]).find(o=>String(o.v)===String(v)); return o?безВекторов(o.t):String(v); }
-  const десятых=Math.max(0,Math.min(4,-Math.floor(Math.log10(p.step||1)+1e-9)));
-  return (+v).toFixed(десятых).replace('.',',')+(p.unit?(p.unit==='°'?'':' ')+p.unit:'');
-}
-function пультНужен(){ return typeof isNarrow==='function'&&isNarrow()&&!!A()&&!$('#simpane').classList.contains('hidden'); }
 
-function рисоватьПульт(){
-  const box=document.getElementById('pult'); if(!box) return;
-  const a=A();
-  if(!пультНужен()||!a){ box.innerHTML=''; document.documentElement.dataset.pult='off'; return; }
-  const пп=параметрыПульта(a);
-  if(!пп.length){ box.innerHTML=''; document.documentElement.dataset.pult='off'; return; }
-  document.documentElement.dataset.pult='on';
-  const id=S.active;
-  let ключ=ПУЛЬТ.выбор[id];
-  if(!пп.some(p=>p.key===ключ&&p.type!=='check')) ключ=(пп.find(p=>p.type!=='check'&&p.type!=='select')||пп.find(p=>p.type!=='check')||{}).key;
-  ПУЛЬТ.выбор[id]=ключ;
-  const прокрутка=box.querySelector('.pc-row')?box.querySelector('.pc-row').scrollLeft:0;
-  box.innerHTML=`<div class="pc-row" role="toolbar" aria-label="Параметры">${пп.map(p=>
-    `<button class="pc${p.key===ключ?' on':''}${p.type==='check'?' pc-chk'+(a.params[p.key]?' yes':''):''}${p.default!==undefined&&String(a.params[p.key])!==String(p.default)?' chg':''}" data-key="${p.key}">
-      <span class="pc-l">${esc(ярлыкПульта(p.label))}</span><b class="pc-v">${esc(значениеПульта(p,a.params[p.key]))}</b></button>`).join('')}</div>
-    <div class="pd" id="pult-dial"></div>`;
-  const row=box.querySelector('.pc-row'); row.scrollLeft=прокрутка;
-  row.querySelectorAll('.pc').forEach(b=>b.onclick=()=>{
-    const p=пп.find(x=>x.key===b.dataset.key); if(!p) return;
-    if(p.type==='check'){ commit(p.key,!a.params[p.key]); тронуть(8); return; }
-    ПУЛЬТ.выбор[id]=p.key; рисоватьПульт();
-    const on=box.querySelector('.pc.on'); if(on&&on.scrollIntoView) try{ on.scrollIntoView({inline:'nearest',block:'nearest'}); }catch(_){}
+/* Переносим шкалу времени и показания в нижнюю панель и обратно. */
+function м6Разместить(){
+  const надо=isNarrow();
+  document.documentElement.dataset.m6=надо?'1':'0';
+  for(const [id,куда] of [['timeline','m6-tl'],['msheet-ro','m6-ro']]){
+    const el=document.getElementById(id), box=document.getElementById(куда); if(!el||!box) continue;
+    if(надо){ if(el.parentNode!==box){ М6.места.set(id,{p:el.parentNode,n:el.nextSibling}); box.appendChild(el); } }
+    else { const м=М6.места.get(id); if(м&&el.parentNode===box){ м.p.insertBefore(el,м.n&&м.n.parentNode===м.p?м.n:null); } }
+  }
+  if(!надо) м6Страница('');
+  // лист с тремя положениями на телефоне больше не открывается: всегда «край»
+  if(надо&&document.documentElement.dataset.detent!=='peek'){ document.documentElement.dataset.detent='peek'; try{ syncSheet(); }catch(_){} }
+}
+function м6Обновить(){
+  if(!isNarrow()) return;
+  const sp=document.getElementById('m6-speed'); if(sp){ const v=S.speed; sp.textContent=(v>=1?(Number.isInteger(v)?v:v.toFixed(1)):v)+'×'; }
+  const pl=document.getElementById('m6-play'); if(pl) pl.classList.toggle('on',!!S.playing);
+  const tl=document.getElementById('m6-tools'); if(tl) tl.classList.toggle('on',!!(S.tool&&S.tool!=='pan'));
+}
+
+/* ---- страницы: параметры и графики во весь экран ---- */
+function м6Страница(какая){
+  М6.страница=какая||'';
+  const root=document.documentElement;
+  if(М6.страница) root.dataset.m6p=М6.страница; else delete root.dataset.m6p;
+  document.querySelectorAll('#m6-phead [data-p]').forEach(b=>b.classList.toggle('on',b.dataset.p===М6.страница));
+  м6Карточка(null);
+  if(М6.страница==='params'){ try{ renderParams(); }catch(_){} const sb=document.getElementById('simbottom'); if(sb) sb.scrollTop=0; }
+  if(М6.страница==='graphs') requestAnimationFrame(()=>{ try{ buildGraphs(); drawGraphs(); }catch(_){} });
+  if(!М6.страница) requestAnimationFrame(()=>{ try{ resize(); }catch(_){} });
+}
+
+/* ---- карточки над нижней панелью ---- */
+function м6Карточка(что){
+  const к=document.getElementById('m6card'); if(!к) return;
+  if(!что||к.dataset.what===что&&!к.classList.contains('hidden')){ к.classList.add('hidden'); к.dataset.what=''; return; }
+  к.dataset.what=что;
+  if(что==='speed'){
+    const П=[0.1,0.25,0.5,1,2,4,8,16];
+    к.innerHTML=`<div class="m6c-h">Скорость времени</div>
+      <div class="m6c-step"><button data-d="-1" aria-label="Медленнее">«</button><b>${(document.getElementById('m6-speed')||{}).textContent||'1×'}</b><button data-d="1" aria-label="Быстрее">»</button></div>
+      <div class="m6c-chips">${П.map(v=>`<button data-v="${v}" class="${Math.abs(v-S.speed)<1e-9?'on':''}">${v}×</button>`).join('')}</div>`;
+    к.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{ try{ stepSpeed(+b.dataset.d); }catch(_){} м6Обновить(); к.dataset.what=''; м6Карточка('speed'); });
+    к.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ setSpeed(+b.dataset.v); м6Обновить(); м6Карточка(null); });
+  } else if(что==='tools'){
+    м6Инструменты(к);
+  } else {
+    /* «Ещё» — то, что на компьютере стоит в нижней строке и не вошло в
+       панель: масштаб, вписывание, покадровый шаг, повтор, живой расчёт. */
+    const z=(document.getElementById('zoomval')||{}).value||'100%';
+    к.innerHTML=`<div class="m6c-h">Сцена</div>
+      <div class="m6c-step"><button id="m6z-out" aria-label="Отдалить">−</button><b>${z}</b><button id="m6z-in" aria-label="Приблизить">+</button></div>
+      <div class="m6c-grid">
+        <button id="m6-fit">${св6('<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/>')}<span>Вписать</span></button>
+        <button id="m6-prev">${св6('<path d="M15 5l-7 7 7 7M6 5v14"/>')}<span>Кадр назад</span></button>
+        <button id="m6-next">${св6('<path d="M9 5l7 7-7 7M18 5v14"/>')}<span>Кадр вперёд</span></button>
+        <button id="m6-loop" class="${S.loop?'on':''}">${св6('<path d="M4 10a5 5 0 0 1 5-5h9m0 0-3-3m3 3-3 3M20 14a5 5 0 0 1-5 5H6m0 0 3 3m-3-3 3-3"/>')}<span>По кругу</span></button>
+      </div>`;
+    const клик=(id,f)=>{ const b=к.querySelector('#'+id); if(b) b.onclick=f; };
+    const через=id=>()=>{ const b=document.getElementById(id); if(b) b.click(); к.dataset.what=''; м6Карточка('more'); };
+    клик('m6z-out',через('btn-zout')); клик('m6z-in',через('btn-zin'));
+    клик('m6-fit',()=>{ try{ fitView(); }catch(_){} м6Карточка(null); });
+    клик('m6-prev',через('tl-prev')); клик('m6-next',через('tl-next')); клик('m6-loop',через('tl-loop'));
+  }
+  к.classList.remove('hidden');
+}
+
+/* Инструменты — сеткой по группам, крупными плитками. Сами кнопки те же,
+   что в левой панели компьютера: нажатие здесь включает тот же инструмент. */
+function м6Инструменты(к){
+  const q=sel=>Array.from(document.querySelectorAll(sel));
+  const подпись=t=>{ let x=String(t.title||t.textContent||'').replace(/\s*\([^)]*\)$/,'').split(/\s*[:—]\s+/)[0].trim();
+    if(x.length>14) x=x.split(/\s+(?:от|с|со|на|по|для|в|из)\s+/)[0].trim(); return x; };
+  const группы=[['Основные',q('#rail > .tool')],['Чертёж',q('#grp-classic .tool')],
+    ['Сцена',['btn-snap','btn-coords','btn-clear'].map(i=>document.getElementById(i)).filter(Boolean)],
+    ['Сборка',q('#simtools button')]].filter(g=>g[1].length);
+  к.innerHTML=`<div class="m6c-h">Инструменты</div>`+группы.map(([имя,кн])=>`<div class="m6c-sub">${имя}</div>
+    <div class="m6c-grid">${кн.map((b,i)=>`<button data-g="${имя}" data-i="${i}" class="${b.classList.contains('on')||b.getAttribute('aria-pressed')==='true'?'on':''}">${b.querySelector('svg')?b.querySelector('svg').outerHTML:''}<span>${esc(подпись(b))}</span></button>`).join('')}</div>`).join('');
+  к.querySelectorAll('[data-g]').forEach(x=>x.onclick=()=>{
+    const g=группы.find(г=>г[0]===x.dataset.g), b=g&&g[1][+x.dataset.i]; if(!b) return;
+    if(b.dataset.tool) setTool(b.dataset.tool); else b.click();
+    м6Карточка(null); м6Обновить();
   });
-  const p=пп.find(x=>x.key===ключ); if(p) шкалаПульта(box.querySelector('#pult-dial'),a,p);
 }
-/* Короткий толчок вибромотора. На iOS вызова нет — молча пропускаем. */
-let _толчок=0;
-function тронуть(мс){ const t=performance.now(); if(t-_толчок<28) return; _толчок=t;
-  try{ if(navigator.vibrate&&prefGet('haptics')!==false) navigator.vibrate(мс||3); }catch(_){} }
 
-function шкалаПульта(el,a,p){
-  if(p.type==='select'){
-    el.innerHTML=`<div class="pd-opts">${p.options.map(o=>`<button class="pd-o${String(a.params[p.key])===String(o.v)?' on':''}" data-v="${esc(String(o.v))}">${esc(безВекторов(o.t))}</button>`).join('')}</div>`;
-    el.querySelectorAll('.pd-o').forEach(b=>b.onclick=()=>{ const o=p.options.find(o=>String(o.v)===b.dataset.v);
-      commit(p.key,o?o.v:b.dataset.v); renderParams(); buildGraphs(); тронуть(8); });
-    return;
-  }
-  el.innerHTML=`<button class="pd-b" data-d="-1" aria-label="Меньше">−</button>
-    <div class="pd-r"><canvas></canvas><button class="pd-v" title="Ввести точное значение">${esc(значениеПульта(p,a.params[p.key]))}</button></div>
-    <button class="pd-b" data-d="1" aria-label="Больше">+</button>`;
-  const cv=el.querySelector('canvas'), r=el.querySelector('.pd-r'), val=el.querySelector('.pd-v');
-  const шагов=Math.max(1,Math.round((p.max-p.min)/p.step));
-  let v=+a.params[p.key];
-  const ширина=()=>r.clientWidth||300;
-  const пикс=()=>Math.max(1.2,Math.min(16,3.5*ширина()/шагов));    // пикселей на шаг
-  const округлить=x=>clamp(Math.round((x-p.min)/p.step)*p.step+p.min,p.min,p.max);
-  const рисовать=()=>{
-    const W=ширина(), H=r.clientHeight||56, dpr=Math.min(devicePixelRatio||1,2);
-    if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
-    const c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
-    const css=getComputedStyle(document.documentElement), тих=css.getPropertyValue('--ink-3').trim()||'#888', ак=css.getPropertyValue('--accent').trim()||'#5b48e8';
-    const пш=пикс(), через=пш>=4?1:Math.ceil(4/пш), k0=Math.round((v-p.min)/p.step);
-    const крупно=через*(через===1?10:5);
-    for(let k=k0-Math.ceil(W/2/пш)-1;k<=k0+Math.ceil(W/2/пш)+1;k++){
-      if(k<0||k>шагов||k%через) continue;
-      const x=W/2+(k-k0)*пш - ((v-p.min)/p.step-k0)*пш, big=k%крупно===0;
-      c.strokeStyle=тих; c.globalAlpha=big?0.9:0.45; c.lineWidth=big?1.4:1;
-      c.beginPath(); c.moveTo(x,H-6); c.lineTo(x,H-(big?22:13)); c.stroke();
-    }
-    c.globalAlpha=1; c.strokeStyle=ак; c.lineWidth=2.4; c.beginPath(); c.moveTo(W/2,H-4); c.lineTo(W/2,H-28); c.stroke();
-    // края шкалы гаснут: видно, что она уходит дальше
-    c.globalCompositeOperation='destination-out';
-    for(const [x0,x1] of [[0,W*0.18],[W,W*0.82]]){ const g=c.createLinearGradient(x0,0,x1,0); g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=g; c.fillRect(Math.min(x0,x1),0,Math.abs(x1-x0),H); }
-    c.globalCompositeOperation='source-over';
-  };
-  const показать=()=>{ val.textContent=значениеПульта(p,v);
-    const chip=document.querySelector(`#pult .pc[data-key="${p.key}"] .pc-v`); if(chip) chip.textContent=значениеПульта(p,v); рисовать(); };
-  /* Во время протяжки пересчитываем сцену без вписывания в кадр и без
-     записи в историю — это делает commit() один раз, когда палец отпущен. */
-  const живьём=nv=>{ nv=округлить(nv); if(nv===v) return;
-    const край=(nv===p.min||nv===p.max); v=nv; a.params[p.key]=v; try{ restart(a); }catch(_){} показать(); тронуть(край?14:3); };
-  let x0=null, v0=0, тянули=false;
-  r.addEventListener('pointerdown',e=>{ if(e.target===val) return; x0=e.clientX; v0=v; тянули=false; try{ r.setPointerCapture(e.pointerId); }catch(_){} });
-  r.addEventListener('pointermove',e=>{ if(x0===null) return; const dx=e.clientX-x0; if(Math.abs(dx)>3) тянули=true;
-    живьём(v0-dx/пикс()*p.step); });
-  const конец=()=>{ if(x0===null) return; x0=null; if(тянули) commit(p.key,v); рисоватьПульт(); };
-  r.addEventListener('pointerup',конец); r.addEventListener('pointercancel',конец);
-  el.querySelectorAll('.pd-b').forEach(b=>b.onclick=()=>{ живьём(v+(+b.dataset.d)*p.step); commit(p.key,v); });
-  val.onclick=()=>{
-    const inp=document.createElement('input'); inp.type='text'; inp.inputMode='decimal'; inp.className='pd-in'; inp.value=String(v);
-    val.replaceWith(inp); inp.focus(); inp.select();
-    const готово=()=>{ const n=parseFloat(String(inp.value).replace(',','.')); if(isFinite(n)){ v=округлить(n); commit(p.key,v); } рисоватьПульт(); };
-    inp.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=String(v); inp.blur(); } };
-    inp.onblur=готово;
-  };
-  requestAnimationFrame(рисовать);
-  ПУЛЬТ.шкала=рисовать;
+function подключитьМ6(){
+  м6Собрать(); м6Разместить(); м6Обновить();
+  addEventListener('resize',()=>requestAnimationFrame(м6Разместить));
 }
-function обновитьПульт(){ try{ рисоватьПульт(); }catch(e){ console.error('пульт',e); } }
-addEventListener('resize',()=>{ if(ПУЛЬТ.шкала) requestAnimationFrame(ПУЛЬТ.шкала); });
-
-/* Двойное касание сцены — вписать её в кадр: после щипков и протяжек это
-   самый частый жест «верни как было», а кнопка для него пряталась в «ещё». */
-(function(){ let прошлое=0, px=0, py=0;
-  addEventListener('pointerup',e=>{
-    if(e.pointerType!=='touch'||typeof isNarrow!=='function'||!isNarrow()) return;
-    const w=document.getElementById('cwrap'); if(!w||!w.contains(e.target)) return;
-    const t=performance.now();
-    if(t-прошлое<320&&Math.hypot(e.clientX-px,e.clientY-py)<30){ прошлое=0;
-      try{ fitView(); }catch(_){} тронуть(10); return; }
-    прошлое=t; px=e.clientX; py=e.clientY;
-  },true);
-})();
 
 ;
 'use strict';
@@ -38194,6 +38586,7 @@ function openTopic(id){
   $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
+  if(typeof переключательУровня==='function') try{ переключательУровня(t); }catch(_){}
   if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); показатьШапку(); обновитьЧтение(); }catch(e){ console.error(e); }
   /* В список идут и сцены из «Что попробовать» (3.3.0): так тема показывает
      все свои опыты, а не только те, к которым есть формула или задача. */
@@ -38237,7 +38630,7 @@ function openTopic(id){
      оставался в положении «край» на вкладке «Параметры»: нажал на тему в
      списке — приехал к ползункам. Открываем лист на конспекте: сверху сцена,
      снизу текст темы, то есть ровно то, за чем нажимали. */
-  if(isNarrow() && A() && !$('#simpane').classList.contains('hidden')){
+  if(isNarrow() && document.documentElement.dataset.m6!=='1' && A() && !$('#simpane').classList.contains('hidden')){
     LS.set('sheetTab','notes');
     if(detent()!=='full') setDetent('full',true);
     try{ syncSheet(); }catch(_){}
@@ -38884,6 +39277,7 @@ function renderPane(){
           <span class="deep-s">полный текст темы</span></summary>
         <div class="deep-b">${t.theory}</div>
       </details>
+      ${typeof вузHTML==='function'?вузHTML(t):''}
       ${derivHTML(t)}
       <h2 class="sect">Основные формулы</h2>
       ${t.formulas.map((f,i)=>`
@@ -38894,7 +39288,7 @@ function renderPane(){
           ${f.note?`<div class="note">${f.note}</div>`:''}
         </div>`).join('')}
       ${examplesHTML(t)}
-      ${mistakesHTML(t)}
+      ${typeof фактыHTML==='function'?фактыHTML(t):mistakesHTML(t)}
       ${checksHTML(t)}
       ${linksHTML(t)}
     </article>`;
@@ -39222,7 +39616,7 @@ function renderParams(){
         const rng=document.createElement('input');
         rng.type='range'; rng.className='p-rng'; rng.min=p.min; rng.max=p.max; rng.step=p.step; rng.value=a.params[p.key];
         rng.oninput=()=>{ const v=+rng.value; inp.value=v; a.params[p.key]=v; try{ restart(a); }catch(_){}
-          if(typeof тронуть==='function') тронуть(2); };
+          };
         rng.onchange=()=>put(+rng.value);
         d.classList.add('has-rng'); d.append(rng);
       }
@@ -39245,7 +39639,6 @@ function renderParams(){
     тело.append(d);
   }
   applyParamFilter();
-  if(typeof обновитьПульт==='function') обновитьПульт();
 }
 /* Счётчик на заголовке: сколько полей внутри и сколько из них уведено от
    исходного значения. Без него свёрнутая группа прячет правки молча. */
@@ -39307,7 +39700,6 @@ function commit(key,val){
   a.params[key]=val;
   restart(a); fitView();
   pushUndo(a);
-  if(typeof обновитьПульт==='function') обновитьПульт();
   // поменялось, какие группы нужны (число тел, режим опыта) — перестраиваем
   // панель, но курсор оставляем в том же поле: человек мог ещё печатать
   if(было!==видимостьПараметров(a)){
@@ -40747,7 +41139,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true,
   // 4.0.0
-  bar:'ink',glossary:false,haptics:true};
+  bar:'ink',glossary:false,level:'school'};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -40906,10 +41298,11 @@ const PREFS=[
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
 
+  {cat:'behav',key:'level',type:'select',def:'school',
+   name:'Уровень изложения',desc:'«Вуз» добавляет в темы раздел с выводами через векторы, производные и интегралы — там, где он уже написан. Переключатель есть и в шапке темы (6.0.0).',
+   options:[['school','Школа'],['uni','Школа и вуз']]},
   {cat:'behav',key:'glossary',type:'toggle',def:false,
    name:'Термины в конспекте',desc:'Первое упоминание понятия подчёркнуто пунктиром: наведите или нажмите — откроется короткое определение и ссылка на тему, где оно вводится (4.0.0).'},
-  {cat:'behav',key:'haptics',type:'toggle',def:true,
-   name:'Вибро-отклик пульта',desc:'На телефоне шкала параметра отзывается коротким толчком на каждом делении и чуть сильнее — на краю диапазона (5.1.0).'},
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
   {cat:'behav',key:'headerTuck',type:'toggle',def:true,
@@ -41764,6 +42157,8 @@ const ДЕТЕНТЫ=['peek','half','full'];
 function detent(){ return document.documentElement.dataset.detent||'peek'; }
 function setDetent(d,тихо){
   if(!ДЕТЕНТЫ.includes(d)) return;
+  // 6.0: лист на телефоне не открывается — конспект и параметры стали страницами
+  if(document.documentElement.dataset.m6==='1') d='peek';
   document.documentElement.dataset.detent=d;
   LS.set('detent',d);
   syncSheet();
@@ -41824,7 +42219,6 @@ function syncSheet(){
   const t=sheetTab(), d=detent();
   // по вкладке листа CSS прячет строку показаний там, где читают (5.0.0)
   document.documentElement.dataset.sheettab=t;
-  if(typeof обновитьПульт==='function') обновитьПульт();
   for(const b of document.querySelectorAll('#msheet-tabs button'))
     b.classList.toggle('on', b.dataset.sheet===t);
   const пара=d!=='peek' && t==='params';
@@ -41929,7 +42323,7 @@ for(const [id,apply] of [['#mb-speed',v=>setSpeed(v||1)],
    клавиатурой ради одного числа поднимало пол-экрана и закрывало сцену. */
 { const sp=$('#mb-speed'); if(sp){ sp.readOnly=true; sp.onfocus=null;
   sp.onclick=()=>{ const R=[0.25,0.5,1,2,4,8], i=R.findIndex(x=>x>S.speed+1e-9);
-    setSpeed(R[i<0?0:i]); if(typeof тронуть==='function') тронуть(6); }; } }
+    setSpeed(R[i<0?0:i]); }; } }
 /* Инструменты сцены: на телефоне левой панели нет, поэтому открываем их
    списком — и сразу переключаемся на сцену, иначе рисовать будет негде. */
 popup($('#simpick'),$('#pop-sims'));      // выбор симуляции темы на телефоне
@@ -42908,8 +43302,8 @@ initTeacher();
   const kill=()=>sp.remove();
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(prefGet('intro')===false || reduce){ kill(); return; }
-  const FALL=1420;      // конец падения точки: 540 мс задержки + 620 анимации + пауза
-  const PART=1080;      // линия вырастает, расходится надвое и уезжает со створками
+  const FALL=1500;      // знак дорисован: орбита, ось, виток частицы, имя (6.0)
+  const PART=440;       // мягкое затухание с лёгким приближением
   let done=false, timer=0;
   const open=()=>{
     if(done) return; done=true; clearTimeout(timer);
@@ -42924,6 +43318,8 @@ initTeacher();
   const start=()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
     if(done) return;
     sp.classList.add('run');
+    // частица делает виток по орбите и встаёт на место (SMIL — без него она просто стоит)
+    setTimeout(()=>{ const m=document.getElementById('sp-run'); try{ if(m&&m.beginElement) m.beginElement(); }catch(_){} },520);
     timer=setTimeout(open,FALL);
   }));
   if(document.readyState==='complete') start();
@@ -44171,6 +44567,7 @@ function запуск(){
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
   if(typeof подключитьТермины==='function') try{ подключитьТермины(); }catch(e){ console.error('словарь',e); }
+  if(typeof подключитьМ6==='function') try{ подключитьМ6(); }catch(e){ console.error('телефон 6.0',e); }
   if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
   if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
@@ -44207,7 +44604,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '5.1.0';
+window.PHYSIM_BUILD = '6.0.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

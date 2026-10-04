@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-5.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-5.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-5.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-5.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-6.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-6.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-6.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-6.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -102,7 +102,8 @@ KaTeX and its fonts ship inside the repository.
 | **prerequisites, stated** | a topic names what you must know first and offers a one-minute check before you start reading |
 | **295** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
 | **430** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
-| **157** common mistakes | the wrong idea, the right one, and why the wrong one is tempting |
+| **96** interesting facts | three per topic at the end of the notes: where the physics shows up in life, how it was discovered, what surprises in it |
+| **university level** | a «School / University» switch adds sections with vectors, derivatives, integrals and Maxwell's equations; five topics so far, more being added |
 | **100** self-checks | three questions per topic, answers hidden until you have tried |
 | **147** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **91** glossary terms | short definitions, in search and in the *More* menu; optionally the first mention in the notes is underlined |
@@ -110,6 +111,31 @@ KaTeX and its fonts ship inside the repository.
 | **85** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 6.0: the phone redesigned from a sketch, a gas on the home screen
+
+- **The simulation screen on a phone**, drawn by the author: at the top — notes, the
+  simulation name in a visible box (tap to switch), parameters, ⋮. At the bottom — the time
+  bar, readouts and one row of buttons: undo, redo, speed, play/stop (stop only pauses), reset,
+  a pencil for tools, more. Nothing slides up over the scene any more.
+- **Notes and problems** open as their own page; **parameters and graphs** — as a full-screen
+  page with two tabs and a slider under every number.
+- **Settings in one place** — the gear at the bottom of the topic list; the extra entries in the
+  simulation header and panels are gone.
+- **A new splash**: the Φ logo draws itself — the orbit, the axis, the particle's turn.
+- **Home screen**: an ideal gas instead of the field — hundreds of molecules colliding, coloured
+  by speed; your finger warms the gas. The problem of the day and the diagnostics card lie right
+  in the gas: molecules bounce off them and they tremble slightly (Brownian motion). The slogan:
+  «Не смог представить? Сейчас исправим.»
+- **Section logos**: a throw, gas in a box, a dipole, a wave through a loop, a lens, a light cone,
+  a wave packet. New icons for the course and for the tools; no separate «Home» tab — the logo
+  leads there.
+- **Interesting facts** replace common mistakes at the end of every topic (the mistakes still
+  drive the analysis of a wrong answer to a problem).
+- **School / University**: a switch in the topic header adds a university-level section —
+  kinematics with the radius vector, Newton's laws through momentum and Tsiolkovsky's formula,
+  the nonlinear pendulum and deterministic chaos, the Maxwell distribution, Maxwell's equations
+  and the speed of light.
 
 ### New in 5.1: a remote for the phone, and a logo
 

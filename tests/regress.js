@@ -1285,11 +1285,11 @@ async function сторож(b) {
       await hp.goto(url); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm-sec').length,
         цвета: [...document.querySelectorAll('#home .hm-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
-        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm6-n').length }));
+        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm7-logo').length }));
       await hp.click('#home .hm-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
       const тема = await hp.evaluate(() => ({ тема: S.topic.id, скрыта: !главнаяОткрыта() }));
-      await hp.click('#btn-home'); await hp.waitForTimeout(200);
-      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm5-h') || {}).textContent || '' }));
+      await hp.click('#tbrand'); await hp.waitForTimeout(200);
+      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm7-go') || {}).textContent || '' }));
       await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
       await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
@@ -1377,8 +1377,9 @@ async function сторож(b) {
 
     /* Навигация словами, поиск по курсу, режим чтения */
     {
-      await p.click('#btn-home'); await p.waitForTimeout(150);
-      const наГлавной = await p.evaluate(() => document.querySelector('#btn-home').classList.contains('cur'));
+      // 6.0: вкладки «Главная» нет — на главную ведёт знак Phy.Sim
+      await p.click('#tbrand'); await p.waitForTimeout(150);
+      const наГлавной = await p.evaluate(() => главнаяОткрыта() && getComputedStyle(document.querySelector('#btn-home')).display === 'none');
       await p.click('#tab-topics'); await p.waitForTimeout(150);
       const вКурсе = await p.evaluate(() => ({ курс: document.querySelector('#tab-topics').classList.contains('cur'), главная: главнаяОткрыта() }));
       await p.click('#btn-cmdk'); await p.waitForTimeout(150);
@@ -1647,7 +1648,7 @@ async function сторож(b) {
         r.шрифты = document.fonts.check('700 20px "Inter Tight"') && document.fonts.check('16px Inter') && document.fonts.check('12px "JetBrains Mono"');
         открытьГлавную(); await жди(400);
         const cv = document.querySelector('#hm-cv');
-        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm6-n').length === 7 && !document.querySelector('#home canvas[data-mini]');
+        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm7-logo').length === 7 && !document.querySelector('#home canvas[data-mini]');
         r.знак = !!document.querySelector('#tbrand svg ellipse') && /svg/.test(document.querySelector('link[rel=icon]').href);
         r.безЛишнего = !document.querySelector('#home .hm-q, #home .hm-tools, #home .hm4-heat, #home .hm-foot');
         const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
@@ -1696,16 +1697,15 @@ async function сторож(b) {
       // конспект, панель свёрнута и её высота честно равна нулю
       симшапка: (() => { openSim(Object.keys(SIMS)[0]); openSimMobile();
                          return Math.round(document.querySelector('.simhead').getBoundingClientRect().height); })(),
-      ключ: !!document.querySelector('#mb-tools svg') &&
-            document.querySelector('#mb-tools').innerHTML.length > 0,
-      пуск2: !!document.querySelector('#mb-play2'),
+      ключ: !!document.querySelector('#m6-tools svg') && getComputedStyle(document.querySelector('#m6-tools')).display !== 'none',
+      пуск2: !!document.querySelector('#m6-play') && getComputedStyle(document.querySelector('#m6-play')).display !== 'none',
       папки: (() => { openSim(Object.keys(SIMS)[0]); fillToolsPop();
                       return document.querySelectorAll('#pop-tools .tf-folder').length; })(),
     }));
-    // .mtop — 46 px по макету, шапка симуляции — тонкая, до 40 px
+    // .mtop — 46 px по макету, шапка симуляции 6.0 — 52 px
     ok('мобильная раскладка', mob.ui === 'mobile' && mob.шапкаПК === 0 &&
-        mob.шапка === 46 && mob.симшапка > 0 && mob.симшапка <= 40, mob);
-    ok('гаечный ключ и пуск во второй панели', mob.ключ && mob.пуск2, mob);
+        mob.шапка === 46 && mob.симшапка > 0 && mob.симшапка <= 56, mob);
+    ok('карандаш и пуск в нижней панели', mob.ключ && mob.пуск2, mob);
     ok('инструменты папками', mob.папки >= 3, mob);
 
     const mpen = await m.p.evaluate(() => {
@@ -1760,39 +1760,23 @@ async function сторож(b) {
     });
     ok('нижние панели не лезут поверх настроек', поверх.length === 0, поверх);
 
-    /* Лист: три положения, и ни в одном он не накрывает сцену.
-       Это и есть главное обещание мобильного макета, поэтому проверяем его
-       буквально: верх листа никогда не заходит на низ холста, а сцена при
-       раскрытии ужимается — в полном положении до живой полосы 88 px. */
-    const лист = await m.p.evaluate(async () => {
-      const жди = () => new Promise(r => setTimeout(r, 400));
-      const мерка = () => {
-        const c = document.querySelector('#cwrap').getBoundingClientRect();
-        const s = document.querySelector('#msheet').getBoundingClientRect();
-        return { сцена: Math.round(c.height), листСверху: Math.round(s.top),
-                 накрывает: Math.round(c.bottom) > Math.round(s.top) + 1 };
-      };
-      const out = {};
-      for (const d of ['peek', 'half', 'full']) { setDetent(d); await жди(); out[d] = мерка(); }
-      setDetent('peek'); await жди();
-      out.вкладки = [...document.querySelectorAll('#msheet-tabs button')].map(b => b.dataset.sheet);
-      out.показания = document.querySelectorAll('#msheet-ro .sr').length;
-      out.док = getComputedStyle(document.querySelector('#mb-tools')).display !== 'none';
-      return out;
-    });
-    /* Дно листа (3.5.0): одна строка, редкие кнопки — в карточке «ещё»,
-       которая видна поверх листа. Боком строка не встаёт столбиком. */
+    /* Нижняя панель 6.0: шкала времени, показания, ряд кнопок; карточка
+       «ещё» встаёт над панелью и не уходит под сцену. */
     const дно = await m.p.evaluate(async () => {
       const жди = t => new Promise(r => setTimeout(r, t || 300));
-      openSim('lens'); openSimMobile(); setDetent('peek'); await жди(500);
-      const m2 = document.querySelector('#mbar2').getBoundingClientRect();
-      m2ещё(true); await жди();
-      const k = document.querySelector('#m2more').getBoundingClientRect();
-      const сверху = (document.elementFromPoint(k.left + k.width / 2, k.top + 12) || document.body).closest('#m2more') !== null;
-      m2ещё(false);
-      return { высота: Math.round(m2.height), сверху, карта: Math.round(k.height) };
+      закрытьГлавную(); openSim('lens'); openSimMobile(); await жди(500);
+      const d = document.querySelector('#m6dock'), c = document.querySelector('#cwrap').getBoundingClientRect(), r = d.getBoundingClientRect();
+      const out = { высота: Math.round(r.height), время: !!d.querySelector('#timeline'), показания: d.querySelectorAll('#msheet-ro .sr').length,
+        кнопок: d.querySelectorAll('.m6-row button').length, сценаНадПанелью: Math.round(c.bottom) <= Math.round(r.top) + 1 };
+      м6Карточка('more'); await жди(150);
+      const k = document.querySelector('#m6card').getBoundingClientRect();
+      out.карта = Math.round(k.height);
+      out.сверху = (document.elementFromPoint(k.left + k.width / 2, k.top + 12) || document.body).closest('#m6card') !== null;
+      м6Карточка(null);
+      return out;
     });
-    ok('дно листа в одну строку, карточка «ещё» поверх листа', дно.высота < 64 && дно.сверху && дно.карта > 60, дно);
+    ok('нижняя панель: время, показания, семь кнопок, сцена над ней, карточка «ещё» поверх',
+      дно.время && дно.показания > 2 && дно.кнопок === 7 && дно.сценаНадПанелью && дно.высота < 190 && дно.сверху && дно.карта > 60, дно);
     {
       const бок = await b.newPage({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true,
         userAgent: 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36' });
@@ -1824,23 +1808,19 @@ async function сторож(b) {
                  высота: Math.round(r.height),
                  текста: (document.querySelector('#pane').textContent || '').trim().length }; };
       const из = {};
-      document.querySelector('#btn-simback').click(); await жди();
+      document.querySelector('#m6-notes').click(); await жди();
       из.безСцены = мерка();
-      openTopic('mech.2d'); await жди();
-      из.послеТемы = мерка();
-      setSheetTab('params'); await жди();
-      из.параметры = мерка();
-      setSheetTab('notes'); await жди();
+      openTopic('mech.2d'); openSimMobile(); await жди();
+      из.сосценой = мерка();
+      document.querySelector('#m6-notes').click(); await жди();
       из.чтение = мерка();
-      из.detentЧтения = document.documentElement.dataset.detent;
+      из.detent = document.documentElement.dataset.detent;
       return из;
     });
-    ok('конспект на телефоне виден',
-      конспект.безСцены.видно && конспект.безСцены.текста > 500 &&
-      конспект.послеТемы.видно && конспект.чтение.видно &&
-      !конспект.параметры.видно &&          // на вкладке параметров его и не должно быть
-      конспект.чтение.высота > 400 &&       // на чтение отдан весь лист, а не три строки
-      конспект.detentЧтения === 'full', конспект);
+    // 6.0: конспект — своя страница; пока открыта сцена, его не видно
+    ok('конспект на телефоне — отдельная страница',
+      конспект.безСцены.видно && конспект.безСцены.текста > 500 && !конспект.сосценой.видно &&
+      конспект.чтение.видно && конспект.чтение.высота > 400 && конспект.detent === 'peek', конспект);
 
     /* Разделители пальцем. На планшете в режиме компьютера протяг по
        разделителю браузер принимал за прокрутку и отбирал жест — панель
@@ -1854,11 +1834,25 @@ async function сторож(b) {
     ok('разделители не отдают жест прокрутке',
       хваты.hsplit === 'none' && хваты.splitter === 'none', хваты);
 
-    ok('лист: три положения, сцена не закрыта',
-      !лист.peek.накрывает && !лист.half.накрывает && !лист.full.накрывает &&
-      лист.peek.сцена > лист.half.сцена && лист.half.сцена > лист.full.сцена &&
-      лист.full.сцена === 88 && лист.вкладки.join(',') === 'params,notes,problems' &&
-      лист.показания > 3 && лист.док, лист);
+    /* 6.0: лист с тремя положениями на телефоне больше не открывается;
+       параметры и графики — страница во весь экран. */
+    const стр = await m.p.evaluate(async () => {
+      const жди = t => new Promise(r => setTimeout(r, t || 250));
+      openTopic('mech.2d'); openSimMobile(); setDetent('full'); await жди();
+      const r = { detent: document.documentElement.dataset.detent };
+      document.querySelector('#m6-params').click(); await жди();
+      const sb = document.querySelector('#simbottom').getBoundingClientRect();
+      r.весьЭкран = Math.round(sb.width) === innerWidth && Math.round(sb.height) >= innerHeight - 2;
+      r.параметров = document.querySelectorAll('#params .param').length;
+      r.ползунков = document.querySelectorAll('#params .p-rng').length;
+      document.querySelector('#m6-phead [data-p="graphs"]').click(); await жди();
+      r.графики = getComputedStyle(document.querySelector('#gbox')).display !== 'none' && getComputedStyle(document.querySelector('#simbottom .pbox')).display === 'none';
+      document.querySelector('#m6-pclose').click(); await жди();
+      r.закрыта = !document.documentElement.dataset.m6p;
+      return r;
+    });
+    ok('параметры и графики — страница во весь экран, лист не открывается',
+      стр.detent === 'peek' && стр.весьЭкран && стр.параметров > 3 && стр.ползунков > 2 && стр.графики && стр.закрыта, стр);
 
     /* Карточка приёма на телефоне: рядом с меткой в узкой колонке ей не
        поместиться, поэтому это нижний лист во всю ширину — и он обязан лечь
@@ -1866,7 +1860,7 @@ async function сторож(b) {
     const приёмТел = await m.p.evaluate(async () => {
       const жди = ms => new Promise(r => setTimeout(r, ms));
       openTopic('mech.osc'); await жди(300);
-      setSheetTab('notes'); await жди(400);
+      closeSimMobile(); await жди(400);
       const d = document.querySelector('#pane .deriv[data-d="1"]');
       d.querySelector('.dv-all').click();
       const чип = d.querySelector('.dv-step[data-k="1"] .op-chip');
@@ -1900,7 +1894,7 @@ async function сторож(b) {
       openTopic('mech.osc'); openSim('spring'); openSimMobile(); S.playing = false;
       const a = A();
       for (let k = 0; k < 3 / DT; k++) { a.def.step(a.state, DT, a.params); if (++a.tick % 6 === 0) record(a); }
-      setSheetTab('params'); setDetent('full'); drawGraphs();
+      м6Страница('graphs'); drawGraphs();
       document.querySelector('#gbox canvas.gcv').scrollIntoView({ block: 'center' });
     });
     await m.p.waitForTimeout(400);
@@ -1940,9 +1934,9 @@ async function сторож(b) {
        кнопки урока и чтения — первой строкой конспекта */
     const урокТел = await m.p.evaluate(async () => {
       const жди = ms => new Promise(r => setTimeout(r, ms));
-      openTopic('op.optics'); await жди(200);
-      setSheetTab('notes'); await жди(100);
-      const кнопки = !!document.querySelector('#mi-lesson') && getComputedStyle(document.querySelector('#msheet-ro')).display === 'none' &&
+      м6Страница(''); openTopic('op.optics'); await жди(200);
+      closeSimMobile(); await жди(100);
+      const кнопки = !!document.querySelector('#mi-lesson') &&
         getComputedStyle(document.querySelector('#m-calc')).display === 'none' && getComputedStyle(document.querySelector('#m-search')).display !== 'none';
       начатьУрок(); await жди(200);
       const el = document.querySelector('#lesson'), b = el.getBoundingClientRect();
@@ -1957,36 +1951,32 @@ async function сторож(b) {
         поверх, свайп: УРОК.i === до + 1 };
       закончитьУрок(); return r;
     });
-    ok('телефон: урок из меню во весь экран поверх листа, свайп листает; в шапке поиск вместо вычислителя, показания только у параметров', Object.values(урокТел).every(x => x === true), урокТел);
+    ok('телефон: урок из меню во весь экран, свайп листает; в шапке поиск вместо вычислителя', Object.values(урокТел).every(x => x === true), урокТел);
 
-    /* 5.1.0: пульт — чипы параметров и шкала в положении «край»; протяжка
-       шкалы меняет параметр на ходу, отпуск записывает его в историю; флажок
-       переключается касанием чипа; в полном списке — ползунки. */
-    const пульт = await m.p.evaluate(async () => {
+    /* 6.0.0: экран симуляции по эскизу — шапка [конспект][симуляция ▾][параметры][⋮],
+       внизу кнопки; пуск/стоп не сбрасывает время; настройки — только в
+       ящике тем (в шапке сцены и в «ещё» их нет); инструменты — сеткой. */
+    const экран6 = await m.p.evaluate(async () => {
       const жди = ms => new Promise(r => setTimeout(r, ms));
-      закрытьГлавную(); openTopic('mech.2d'); openSimMobile(); setDetent('peek'); await жди(250);
-      const чипы = [...document.querySelectorAll('#pult .pc')];
-      const угол = чипы.find(b => /Угол/.test(b.textContent)); угол.click(); await жди(100);
-      const r = document.querySelector('#pult .pd-r'), b = r.getBoundingClientRect(), до = A().params.a01;
-      const ev = (type, x) => r.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7, pointerType: 'touch', clientX: x, clientY: b.top + b.height - 10 }));
-      ev('pointerdown', b.left + b.width * 0.6);
-      for (let k = 1; k <= 8; k++) ev('pointermove', b.left + b.width * (0.6 - k * 0.02));
-      const наХоду = A().params.a01;
-      ev('pointerup', b.left + b.width * 0.44); await жди(80);
-      const после = A().params.a01, чип = document.querySelector('#pult .pc.on .pc-v').textContent;
-      const флажок = [...document.querySelectorAll('#pult .pc-chk')][0], fk = флажок && флажок.dataset.key, было = fk && A().params[fk];
-      if (флажок) флажок.click(); await жди(80);
-      const щёлк = fk ? A().params[fk] === !было : true;
-      const видно = getComputedStyle(document.querySelector('#pult')).display !== 'none' && getComputedStyle(document.querySelector('#msheet-ro')).display !== 'none';
-      setDetent('half'); setSheetTab('params'); await жди(150);
-      const ползунков = document.querySelectorAll('#params .p-rng').length;
-      const скрыт = getComputedStyle(document.querySelector('#pult')).display === 'none';
-      setDetent('peek');
-      return { чипов: чипы.length, видно, до, наХоду, после, чип, щёлк, ползунков, скрыт };
+      м6Страница(''); закрытьГлавную(); openTopic('mech.2d'); openSimMobile(); await жди(300);
+      const виден = s => { const e = document.querySelector(s); return !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0; };
+      const head = [...document.querySelectorAll('.simhead > *')].filter(e => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0).map(e => e.id);
+      const r = { шапка: head.join(','), рамка: getComputedStyle(document.querySelector('#simpick')).borderTopWidth !== '0px',
+        безНастроек: !виден('#m-settings') && !виден('#m-cmdk') && !виден('#btn-simback') && !виден('#d-path') };
+      S.playing = true; setPlayIcon(); A().state.t = 1.234;
+      document.querySelector('#m6-play').click(); await жди(50);
+      r.стоп = !S.playing && Math.abs(A().state.t - 1.234) < 1e-9;
+      м6Карточка('tools'); await жди(80);
+      r.инструментов = document.querySelectorAll('#m6card .m6c-grid button').length;
+      м6Карточка(null);
+      setMenuTab && openSimMenu(200, 200); setMenuTab('more');
+      r.безНастроекВМеню = !виден('#mi-prefs');
+      document.querySelector('#pop-simmenu').classList.add('hidden');
+      return r;
     });
-    ok('5.1 телефон: пульт под сценой — шкала меняет угол на ходу, чип обновляется, флажок касанием, ползунки в списке',
-      пульт.чипов >= 5 && пульт.видно && пульт.наХоду > пульт.до && пульт.после === пульт.наХоду &&
-      пульт.чип.startsWith(String(пульт.после)) && пульт.щёлк && пульт.ползунков >= 3 && пульт.скрыт, пульт);
+    ok('6.0 телефон: шапка по эскизу, рамка у смены симуляции, стоп без сброса, инструменты сеткой, настройки только в ящике',
+      /^m6-notes,simpick,m6-params,m-menu$/.test(экран6.шапка) && экран6.рамка && экран6.безНастроек && экран6.стоп &&
+      экран6.инструментов >= 8 && экран6.безНастроекВМеню, экран6);
 
     await m.p.close();
 

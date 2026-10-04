@@ -1744,6 +1744,7 @@ function openTopic(id){
   $('#tabs').classList.toggle('hidden', !t.problems.length);
   renderPane(); renderTree($('#search').value); paneTop();
   if(typeof полосаТемы==='function') try{ полосаТемы(t); }catch(_){}
+  if(typeof переключательУровня==='function') try{ переключательУровня(t); }catch(_){}
   if(typeof шапкаТемы==='function') try{ шапкаТемы(t); закрытьГлавную(); показатьШапку(); обновитьЧтение(); }catch(e){ console.error(e); }
   /* В список идут и сцены из «Что попробовать» (3.3.0): так тема показывает
      все свои опыты, а не только те, к которым есть формула или задача. */
@@ -1787,7 +1788,7 @@ function openTopic(id){
      оставался в положении «край» на вкладке «Параметры»: нажал на тему в
      списке — приехал к ползункам. Открываем лист на конспекте: сверху сцена,
      снизу текст темы, то есть ровно то, за чем нажимали. */
-  if(isNarrow() && A() && !$('#simpane').classList.contains('hidden')){
+  if(isNarrow() && document.documentElement.dataset.m6!=='1' && A() && !$('#simpane').classList.contains('hidden')){
     LS.set('sheetTab','notes');
     if(detent()!=='full') setDetent('full',true);
     try{ syncSheet(); }catch(_){}
@@ -2434,6 +2435,7 @@ function renderPane(){
           <span class="deep-s">полный текст темы</span></summary>
         <div class="deep-b">${t.theory}</div>
       </details>
+      ${typeof вузHTML==='function'?вузHTML(t):''}
       ${derivHTML(t)}
       <h2 class="sect">Основные формулы</h2>
       ${t.formulas.map((f,i)=>`
@@ -2444,7 +2446,7 @@ function renderPane(){
           ${f.note?`<div class="note">${f.note}</div>`:''}
         </div>`).join('')}
       ${examplesHTML(t)}
-      ${mistakesHTML(t)}
+      ${typeof фактыHTML==='function'?фактыHTML(t):mistakesHTML(t)}
       ${checksHTML(t)}
       ${linksHTML(t)}
     </article>`;
@@ -2772,7 +2774,7 @@ function renderParams(){
         const rng=document.createElement('input');
         rng.type='range'; rng.className='p-rng'; rng.min=p.min; rng.max=p.max; rng.step=p.step; rng.value=a.params[p.key];
         rng.oninput=()=>{ const v=+rng.value; inp.value=v; a.params[p.key]=v; try{ restart(a); }catch(_){}
-          if(typeof тронуть==='function') тронуть(2); };
+          };
         rng.onchange=()=>put(+rng.value);
         d.classList.add('has-rng'); d.append(rng);
       }
@@ -2795,7 +2797,6 @@ function renderParams(){
     тело.append(d);
   }
   applyParamFilter();
-  if(typeof обновитьПульт==='function') обновитьПульт();
 }
 /* Счётчик на заголовке: сколько полей внутри и сколько из них уведено от
    исходного значения. Без него свёрнутая группа прячет правки молча. */
@@ -2857,7 +2858,6 @@ function commit(key,val){
   a.params[key]=val;
   restart(a); fitView();
   pushUndo(a);
-  if(typeof обновитьПульт==='function') обновитьПульт();
   // поменялось, какие группы нужны (число тел, режим опыта) — перестраиваем
   // панель, но курсор оставляем в том же поле: человек мог ещё печатать
   if(было!==видимостьПараметров(a)){
@@ -4297,7 +4297,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true,
   // 4.0.0
-  bar:'ink',glossary:false,haptics:true};
+  bar:'ink',glossary:false,level:'school'};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
@@ -4456,10 +4456,11 @@ const PREFS=[
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
 
+  {cat:'behav',key:'level',type:'select',def:'school',
+   name:'Уровень изложения',desc:'«Вуз» добавляет в темы раздел с выводами через векторы, производные и интегралы — там, где он уже написан. Переключатель есть и в шапке темы (6.0.0).',
+   options:[['school','Школа'],['uni','Школа и вуз']]},
   {cat:'behav',key:'glossary',type:'toggle',def:false,
    name:'Термины в конспекте',desc:'Первое упоминание понятия подчёркнуто пунктиром: наведите или нажмите — откроется короткое определение и ссылка на тему, где оно вводится (4.0.0).'},
-  {cat:'behav',key:'haptics',type:'toggle',def:true,
-   name:'Вибро-отклик пульта',desc:'На телефоне шкала параметра отзывается коротким толчком на каждом делении и чуть сильнее — на краю диапазона (5.1.0).'},
   {cat:'behav',key:'autoplay',type:'toggle',def:false,
    name:'Запускать время сразу',desc:'Симуляция начинает считать, как только вы её открыли, без нажатия на пуск.'},
   {cat:'behav',key:'headerTuck',type:'toggle',def:true,
@@ -5314,6 +5315,8 @@ const ДЕТЕНТЫ=['peek','half','full'];
 function detent(){ return document.documentElement.dataset.detent||'peek'; }
 function setDetent(d,тихо){
   if(!ДЕТЕНТЫ.includes(d)) return;
+  // 6.0: лист на телефоне не открывается — конспект и параметры стали страницами
+  if(document.documentElement.dataset.m6==='1') d='peek';
   document.documentElement.dataset.detent=d;
   LS.set('detent',d);
   syncSheet();
@@ -5374,7 +5377,6 @@ function syncSheet(){
   const t=sheetTab(), d=detent();
   // по вкладке листа CSS прячет строку показаний там, где читают (5.0.0)
   document.documentElement.dataset.sheettab=t;
-  if(typeof обновитьПульт==='function') обновитьПульт();
   for(const b of document.querySelectorAll('#msheet-tabs button'))
     b.classList.toggle('on', b.dataset.sheet===t);
   const пара=d!=='peek' && t==='params';
@@ -5479,7 +5481,7 @@ for(const [id,apply] of [['#mb-speed',v=>setSpeed(v||1)],
    клавиатурой ради одного числа поднимало пол-экрана и закрывало сцену. */
 { const sp=$('#mb-speed'); if(sp){ sp.readOnly=true; sp.onfocus=null;
   sp.onclick=()=>{ const R=[0.25,0.5,1,2,4,8], i=R.findIndex(x=>x>S.speed+1e-9);
-    setSpeed(R[i<0?0:i]); if(typeof тронуть==='function') тронуть(6); }; } }
+    setSpeed(R[i<0?0:i]); }; } }
 /* Инструменты сцены: на телефоне левой панели нет, поэтому открываем их
    списком — и сразу переключаемся на сцену, иначе рисовать будет негде. */
 popup($('#simpick'),$('#pop-sims'));      // выбор симуляции темы на телефоне
@@ -6458,8 +6460,8 @@ initTeacher();
   const kill=()=>sp.remove();
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(prefGet('intro')===false || reduce){ kill(); return; }
-  const FALL=1420;      // конец падения точки: 540 мс задержки + 620 анимации + пауза
-  const PART=1080;      // линия вырастает, расходится надвое и уезжает со створками
+  const FALL=1500;      // знак дорисован: орбита, ось, виток частицы, имя (6.0)
+  const PART=440;       // мягкое затухание с лёгким приближением
   let done=false, timer=0;
   const open=()=>{
     if(done) return; done=true; clearTimeout(timer);
@@ -6474,6 +6476,8 @@ initTeacher();
   const start=()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
     if(done) return;
     sp.classList.add('run');
+    // частица делает виток по орбите и встаёт на место (SMIL — без него она просто стоит)
+    setTimeout(()=>{ const m=document.getElementById('sp-run'); try{ if(m&&m.beginElement) m.beginElement(); }catch(_){} },520);
     timer=setTimeout(open,FALL);
   }));
   if(document.readyState==='complete') start();
@@ -7721,6 +7725,7 @@ function запуск(){
   try{ подключитьВолну(); подключитьПодсказки(); подключитьПодписи(); }catch(e){ console.error('отклик интерфейса',e); }
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
   if(typeof подключитьТермины==='function') try{ подключитьТермины(); }catch(e){ console.error('словарь',e); }
+  if(typeof подключитьМ6==='function') try{ подключитьМ6(); }catch(e){ console.error('телефон 6.0',e); }
   if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
   if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
@@ -7757,5 +7762,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '5.1.0';
+window.PHYSIM_BUILD = '6.0.0';
 window.PHYSIM_READY = true;

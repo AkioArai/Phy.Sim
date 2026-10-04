@@ -1,0 +1,5 @@
+6.0.0 — the phone redesigned.
+• Simulation screen from the author's sketch: notes, picker, parameters on top; time, readouts and one row of buttons below.
+• Parameters and graphs on their own full-screen page.
+• Home: a living gas; new splash and section logos.
+• Interesting facts; a School / University level switch.

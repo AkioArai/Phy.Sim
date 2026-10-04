@@ -148,6 +148,21 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 6.0.0 — the phone redesigned, a gas on the home screen
+
+          **Phone:** the simulation screen follows the author's sketch — notes, simulation picker in a
+          visible box, parameters and ⋮ on top; time bar, readouts and one row of buttons below
+          (undo, redo, speed, play/stop, reset, tools, more). Notes and parameters with graphs are
+          full-screen pages; settings live in one place.
+
+          **New splash and home:** the Φ logo draws itself; the home screen is an ideal gas coloured by
+          speed that your finger warms, with the problem of the day lying right in it. Every section has
+          its own logo; new course and tool icons.
+
+          **Content:** 96 interesting facts instead of common mistakes; a School / University switch with
+          university-level sections in five topics (vectors and derivatives, momentum and Tsiolkovsky,
+          deterministic chaos, the Maxwell distribution, Maxwell's equations).
+
           ## 5.1.0 — a remote for the phone, and a logo
 
           **The remote:** every parameter is a chip under the scene; pick one and drag the ruler with

@@ -45,8 +45,9 @@ function слайдыТемы(t){
   const ф=t.formulas||[];
   for(let k=0;k<ф.length;k+=3) сл.push({вид:'формулы',h:'Основные формулы'+(k?' (продолжение)':''),sim:ф[k].sim,
     html:ф.slice(k,k+3).map(f=>`<div class="ls-f"><div>$$${f.tex}$$</div>${f.note?`<div class="ls-fn">${f.note}</div>`:''}</div>`).join('')});
-  if(t.mistakes&&t.mistakes.length) сл.push({вид:'ошибки',h:'Типичные ошибки',
-    html:t.mistakes.slice(0,3).map(m=>`<div class="ls-pf"><div class="bad"><span>так думают</span>${m.wrong}</div><div class="good"><span>на самом деле</span>${m.right}</div></div>`).join('')});
+  const фк=(typeof ФАКТЫ!=='undefined'&&ФАКТЫ[t.id])||[];
+  if(фк.length) сл.push({вид:'факты',h:'Интересные факты',
+    html:фк.map(x=>`<div class="ls-fact"><b>${x.т}</b><p>${x.о}</p></div>`).join('')});
   for(const q of (t.checks||[]).slice(0,4)) сл.push({вид:'вопрос',h:'Проверьте себя',
     html:`<div class="ls-q">${q.q}</div><button class="btn primary ls-rev">Показать ответ</button><div class="ls-a">${q.a}</div>`});
   сл.push({вид:'конец',h:'Тема пройдена',html:`<p class="ls-lead">Закрепить — задачами: ответ в них пересчитывается под параметры модели.</p>

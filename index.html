@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="5.1.0">
+<meta name="physim-build" content="6.0.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -157,9 +157,11 @@
 <script defer src="js/learn.js"></script>
 <script defer src="js/path.js"></script>
 <script defer src="js/home.js"></script>
+<script defer src="js/facts.js"></script>
+<script defer src="js/uni.js"></script>
 <script defer src="js/glossary.js"></script>
 <script defer src="js/lesson.js"></script>
-<script defer src="js/pult.js"></script>
+<script defer src="js/m6.js"></script>
 <script defer src="js/scene.js"></script>
 <script defer src="js/lab.js"></script>
 <script defer src="js/app.js"></script>
@@ -175,7 +177,7 @@
     <!-- 2.2.0: навигация словами, а не значками — три места, где можно быть -->
     <nav class="tnav" aria-label="Разделы приложения">
       <button class="tbtn" id="btn-home" title="Главная"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Главная</span></button>
-      <button class="tbtn on" id="tab-topics" title="Курс: список тем и конспекты"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M13 4h5.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H13z"/></svg><span>Курс</span></button>
+      <button class="tbtn on" id="tab-topics" title="Курс: список тем и конспекты"><svg viewBox="0 0 24 24"><path d="M12 3.5 21 8l-9 4.5L3 8z"/><path d="M3 12l9 4.5 9-4.5M3 16l9 4.5 9-4.5"/></svg><span>Курс</span></button>
       <button class="tbtn" id="btn-path" title="Мой путь: что повторить, карта тем, диагностика, навыки (Ctrl+M)"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg><span>Мой путь</span><b class="badge hidden" id="path-badge"></b></button>
     </nav>
     <div class="spacer"></div>
@@ -212,24 +214,24 @@
 
   <div class="body">
     <div class="rail" id="rail">
-      <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z"/></svg></button>
-      <button class="iconbtn tool" data-tool="select" title="Выделение: выбрать нарисованное и передвинуть (Q)"><svg viewBox="0 0 24 24"><path d="m5 3 6 16 2.2-6.8L20 10z" fill="none"/><path d="M3 3h3M18 3h3M3 21h3M18 21h3M3 3v3M21 3v3M3 18v3M21 18v3" stroke-dasharray="0"/></svg></button>
+      <button class="iconbtn tool on" data-tool="pan" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M9.2 5.8 12 3l2.8 2.8M9.2 18.2 12 21l2.8-2.8M5.8 9.2 3 12l2.8 2.8M18.2 9.2 21 12l-2.8 2.8"/></svg></button>
+      <button class="iconbtn tool" data-tool="select" title="Выделение: выбрать нарисованное и передвинуть (Q)"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="12.5" height="12.5" rx="2" stroke-dasharray="2.6 2.4"/><path d="m11.5 11.5 9 3.4-3.8 1.4-1.4 3.8z"/></svg></button>
       <div class="railgrp" id="grp-classic" data-grp="classic">
         <button class="iconbtn grphead" title="Классические инструменты — чертёж и измерения"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8"/></svg><i class="chev"></i></button>
         <div class="grpbody">
-      <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg></button>
-      <button class="iconbtn tool" data-tool="ruler" title="Линейка: расстояние, угол и вектор — всё в настройках (L, сразу с выносками — D)"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="8" rx="1" transform="rotate(-20 12 12)"/><path d="M7 9.5v2M11 8v3M15 6.5v3"/></svg></button>
-      <button class="iconbtn tool" data-tool="circle" title="Окружность от центра (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><path d="M12 12l5.6 5.6"/></svg></button>
-      <button class="iconbtn tool" data-tool="area" title="Площадь многоугольника (Shift+A)"><svg viewBox="0 0 24 24"><path d="M4 18 8 6l7 3 5 9z"/></svg></button>
-      <button class="iconbtn tool" data-tool="note" title="Заметка на сцене (N)"><svg viewBox="0 0 24 24"><path d="M4 5h16v10l-4 4H4z"/><path d="M16 19v-4h4M7 9h10M7 13h6"/></svg></button>
-      <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9zM12 10l4-4 6 6-4 4"/></svg></button>
+      <button class="iconbtn tool" data-tool="pencil" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3 3"/></svg></button>
+      <button class="iconbtn tool" data-tool="ruler" title="Линейка: расстояние, угол и вектор — всё в настройках (L, сразу с выносками — D)"><svg viewBox="0 0 24 24"><rect x="2.5" y="8" width="19" height="8" rx="1.6"/><path d="M6.5 8v3M10 8v4.5M13.5 8v3M17 8v4.5"/></svg></button>
+      <button class="iconbtn tool" data-tool="circle" title="Окружность от центра (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M12 12l6-6"/></svg></button>
+      <button class="iconbtn tool" data-tool="area" title="Площадь многоугольника (Shift+A)"><svg viewBox="0 0 24 24"><path d="M4 18.5 7.5 5l9 3.5 3.5 10z"/><path d="M8.5 15h8M9.5 11.5h5.5" stroke-width="1.3" opacity=".55"/></svg></button>
+      <button class="iconbtn tool" data-tool="note" title="Заметка на сцене (N)"><svg viewBox="0 0 24 24"><path d="M4.5 4.5h15v10l-5 5h-10z"/><path d="M14.5 19.5v-5h5M8 9h8M8 12.5h4"/></svg></button>
+      <button class="iconbtn tool" data-tool="eraser" title="Резинка (E)"><svg viewBox="0 0 24 24"><path d="M8.5 19.5 3.8 14.8a1.6 1.6 0 0 1 0-2.3L12.6 3.7a1.6 1.6 0 0 1 2.3 0l5.4 5.4a1.6 1.6 0 0 1 0 2.3l-8.1 8.1z"/><path d="M8.2 8.2l7.6 7.6M8.5 19.5H20"/></svg></button>
         </div>
       </div>
       <div class="sep-h"></div>
-      <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
-      <button class="iconbtn" id="btn-coords" title="Координаты под курсором (K)"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m8 16 4-6 3 3 4-7" stroke-dasharray="2.5 2"/></svg></button>
+      <button class="iconbtn" id="btn-snap" title="Анкерная привязка: тела, узлы сетки (A)"><svg viewBox="0 0 24 24"><path d="M5 4h4v8a3 3 0 0 0 6 0V4h4v8a7 7 0 0 1-14 0z"/><path d="M5 8h4M15 8h4"/></svg></button>
+      <button class="iconbtn" id="btn-coords" title="Координаты под курсором (K)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></button>
       <div class="sep-h"></div>
-      <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>
+      <button class="iconbtn" id="btn-clear" title="Стереть пометки"><svg viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></svg></button>
       <div class="railgrp" id="grp-build" data-grp="build" style="display:none">
         <button class="iconbtn grphead" title="Конструкторы — сборка схем и машин"><svg viewBox="0 0 24 24"><path d="M14 6.5a3.5 3.5 0 1 0-4.6 3.3L4 15.2V20h4.8l5.4-5.4A3.5 3.5 0 0 0 14 6.5z"/></svg><i class="chev"></i></button>
         <div class="grpbody simtools" id="simtools"></div>
@@ -246,7 +248,7 @@
       <!-- подвал ящика: на телефоне отсюда попадают в помощь и настройки -->
       <div class="drawer-foot mobile-only">
         <div class="spacer"></div>
-        <button class="iconbtn" id="d-path" title="Мой путь"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg></button>
+        
         <button class="iconbtn" id="d-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       </div>
     </aside>
@@ -262,7 +264,6 @@
     <div class="msheet" id="msheet">
       <button class="msheet-grab" id="msheet-grab" title="Потяните: край / половина / полный лист"></button>
       <div class="msheet-ro" id="msheet-ro"></div>
-      <div class="pult" id="pult"></div>
       <div class="msheet-tabs" id="msheet-tabs">
         <button data-sheet="params" class="on">Параметры</button>
         <button data-sheet="notes">Конспект</button>
@@ -807,9 +808,16 @@
      поэтому «Phy» лежит в левой половине, а «Sim» в правой: они уезжают
      вместе с ней сами, без отдельной анимации. -->
 <div class="splash" id="splash" aria-hidden="true">
-  <div class="sp-half sp-l"><span class="sp-txt">Phy</span></div>
-  <div class="sp-half sp-r"><span class="sp-txt">Sim</span></div>
-  <i class="sp-dot" id="sp-dot"></i>
+  <svg class="sp-mark" viewBox="60 60 392 392">
+    <defs><linearGradient id="sp-g" gradientUnits="userSpaceOnUse" x1="-160" x2="160" y1="0" y2="0"><stop offset="0" stop-color="#a596ff"/><stop offset="1" stop-color="#5fd0ff"/></linearGradient></defs>
+    <g transform="translate(256 256) rotate(-28)" fill="none"><ellipse class="sp-orb" rx="152" ry="64" stroke="url(#sp-g)" stroke-width="28" pathLength="1"/></g>
+    <g class="sp-ax"><path d="M256 92V420" stroke="#0e1118" stroke-width="62" stroke-linecap="round"/><path d="M256 92V420" stroke="#f1f2f7" stroke-width="32" stroke-linecap="round"/></g>
+    <g transform="translate(256 256) rotate(-28)" fill="none">
+      <g class="sp-front"><path d="M26.4 63A152 64 0 0 1-87.2 52.4" stroke="#0e1118" stroke-width="56"/><path d="M40 61A152 64 0 0 1-100 48" stroke="url(#sp-g)" stroke-width="28"/></g>
+      <g class="sp-p"><circle cx="146.1" cy="-17.6" r="29" fill="#5fd0ff" stroke="#0e1118" stroke-width="15"><animateMotion id="sp-run" begin="indefinite" dur="0.85s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".3 0 .2 1" path="M-292.2 35.2A152 64 0 1 1 0 0"/></circle></g>
+    </g>
+  </svg>
+  <div class="sp-word">Phy<i>.</i>Sim</div>
 </div>
 </body>
 </html>
