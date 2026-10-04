@@ -144,9 +144,17 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 88 live simulations,
-          42 topics, 106 step-by-step derivations, 313 formulas and 448 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 93 live simulations,
+          45 topics, 113 step-by-step derivations, 331 formulas and 467 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 6.3.0 — real gases, transport phenomena, current in different media
+
+          Three new topics with five simulations: van der Waals isotherms with Maxwell's construction, heat
+          conduction in a rod, Brownian motion against Einstein's formula, an electron beam between capacitor
+          plates, and electrolysis by Faraday's law. University-level sections for all of thermodynamics and
+          electricity. Section icons are plain coloured marks until real logos are drawn. Fixed: the energy
+          diagram can be hidden; switching School / University keeps full screen.
 
           ## 6.2.0 — a soap film, momentum and fluids, university-level mechanics
 

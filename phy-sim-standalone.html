@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="6.2.0">
+<meta name="physim-build" content="6.3.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -3290,6 +3290,12 @@ details.deep>summary{font-family:var(--head)}
   background:color-mix(in srgb,var(--sec) 11%,transparent)}
 .sec>.hd .sec-ic{color:var(--sec);stroke:currentColor!important;border-radius:0!important}
 [data-ui="mobile"] .hm7-logo{width:40px;height:40px;padding:9px;border-radius:12px}
+
+/* 6.3.0: значки разделов — заглушки до авторских логотипов: квадратик цвета
+   раздела на карточке, точка в оглавлении. Без плиток и подложек. */
+.hm7-logo.sec-mark{width:16px;height:16px;padding:0;border-radius:0;background:none;color:var(--sec)}
+[data-ui="mobile"] .hm7-logo.sec-mark{width:14px;height:14px;padding:0}
+.sec>.hd .sec-ic.sec-mark{width:12px!important;height:12px!important;color:var(--sec);stroke:none!important}
 </style>
 </head>
 <body>
@@ -3474,7 +3480,8 @@ details.deep>summary{font-family:var(--head)}
           <div class="pvbody" id="pvbody"></div>
         </div>
         <div class="energybox fpanel hidden" id="energybox">
-          <div class="fp-head"><b>Энергия</b></div>
+          <div class="fp-head"><b>Энергия</b>
+            <button class="iconbtn" id="energy-close" title="Скрыть диаграмму"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
           <div class="energy-body" id="energy-body"></div>
         </div>
         <!-- Панель сравнения: снимок состояния и разница с текущим -->
@@ -21618,6 +21625,560 @@ drag:{
 });
 
 ;
+/* ===================== РЕАЛЬНЫЙ ГАЗ И ЯВЛЕНИЯ ПЕРЕНОСА (6.3.0) =====================
+   vdw — изотермы Ван-дер-Ваальса в приведённых переменных
+       π = 8τ/(3φ − 1) − 3/φ²,   π = p/p_кр, φ = V/V_кр, τ = T/T_кр.
+   Ниже критической температуры изотерма имеет петлю; настоящая изотерма
+   идёт по горизонтали — давлению насыщенного пара π_н, которое находится
+   правилом Максвелла: площади петли над и под горизонталью равны,
+       ∫ π dφ (от φ_ж до φ_п) = π_н·(φ_п − φ_ж).
+   Газ под поршнем медленно сжимают при постоянной температуре: точка идёт
+   по изотерме, в куполе появляется жидкость, её доля — по правилу рычага.
+
+   heat — теплопроводность стержня: ∂T/∂t = a·∂²T/∂x², a = λ/(ρc).
+   Явная схема со стабильным шагом (r = a·dt/dx² ≤ 0,45). Синусоидальный
+   профиль затухает точно как exp(−π²at/L²) — на этом стоит проверка.
+
+   diffusion — броуновское движение. Каждая частица за шаг dt смещается по
+   каждой оси на гауссову случайную величину с дисперсией 2D·dt, где
+   D = kT/(6πηr) — формула Эйнштейна — Стокса. Генератор с зерном: одна и
+   та же картина при одних и тех же настройках. */
+Object.assign(SIMS,{
+vdw:{
+  title:'Реальный газ: изотермы Ван-дер-Ваальса',
+  schema:true,
+  params:[
+    {key:'sub',label:'Вещество',type:'select',default:'co2',
+     options:[{v:'co2',t:'углекислый газ: T_кр = 304 К, p_кр = 7,38 МПа'},{v:'water',t:'вода: 647 К, 22,1 МПа'},
+              {v:'n2',t:'азот: 126 К, 3,40 МПа'},{v:'he',t:'гелий: 5,2 К, 0,227 МПа'}]},
+    {key:'tau',label:'Температура T / T_кр',min:0.75,max:1.3,step:0.01,default:0.9},
+    {key:'phi0',label:'Начальный объём V / V_кр',min:1,max:5,step:0.1,default:4},
+    {key:'phi1',label:'Конечный объём V / V_кр',min:0.45,max:3,step:0.01,default:0.5},
+    {key:'dur',label:'Длительность сжатия',unit:'с',min:4,max:40,step:1,default:14},
+    {type:'group',label:'Показывать'},
+    {key:'loop',  label:'Петлю Ван-дер-Ваальса и равные площади',type:'check',default:true},
+    {key:'dome',  label:'Область двух фаз (купол)',type:'check',default:true},
+    {key:'family',label:'Другие изотермы',type:'check',default:true}
+  ],
+  SUB:{co2:{Tc:304.13,pc:7.377e6,имя:'CO₂'},water:{Tc:647.1,pc:22.064e6,имя:'H₂O'},
+       n2:{Tc:126.19,pc:3.396e6,имя:'N₂'},he:{Tc:5.195,pc:0.2275e6,имя:'He'}},
+  R:8.314462618,
+  в(p){ return this.SUB[p.sub]||this.SUB.co2; },
+  pv(τ,φ){ return 8*τ/(3*φ-1)-3/(φ*φ); },
+  /* площадь под изотермой Ван-дер-Ваальса от a до b */
+  инт(τ,a,b){ return 8*τ/3*Math.log((3*b-1)/(3*a-1))+3*(1/b-1/a); },
+  /* корни уравнения π = π_vdW(φ) при φ > 1/3: 3πφ³ − (π + 8τ)φ² + 9φ − 3 = 0 */
+  корни(τ,π){
+    const f=φ=>3*π*φ*φ*φ-(π+8*τ)*φ*φ+9*φ-3, out=[];
+    let a=0.3334, fa=f(a);
+    for(let i=1;i<=3000;i++){
+      const b=0.3334*Math.pow(60/0.3334,i/3000), fb=f(b);
+      if(fa===0) out.push(a);
+      else if(fa*fb<0){ let lo=a,hi=b,flo=fa; for(let k=0;k<70;k++){ const m=(lo+hi)/2, fm=f(m); if(flo*fm<=0) hi=m; else { lo=m; flo=fm; } } out.push((lo+hi)/2); }
+      a=b; fa=fb;
+    }
+    return out;
+  },
+  _м:new Map(),
+  /* правило Максвелла: {πн, φж, φп} или null выше критической температуры */
+  максвелл(τ){
+    if(!(τ<0.99999)) return null;
+    const ключ=τ.toFixed(6); if(this._м.has(ключ)) return this._м.get(ключ);
+    // экстремумы петли: 4τφ³ = (3φ − 1)²
+    const g=φ=>4*τ*φ*φ*φ-(3*φ-1)*(3*φ-1), экс=[];
+    let a=0.3334, ga=g(a);
+    for(let i=1;i<=2000;i++){ const b=0.3334+i*0.0025, gb=g(b); if(ga*gb<0){ let lo=a,hi=b,glo=ga; for(let k=0;k<60;k++){ const m=(lo+hi)/2, gm=g(m); if(glo*gm<=0) hi=m; else { lo=m; glo=gm; } } экс.push((lo+hi)/2); } a=b; ga=gb; }
+    if(экс.length<2){ this._м.set(ключ,null); return null; }
+    let lo=Math.max(1e-9,this.pv(τ,экс[0])), hi=this.pv(τ,экс[1]), рез=null;
+    for(let k=0;k<80;k++){
+      const π=(lo+hi)/2, к=this.корни(τ,π);
+      if(к.length<3){ break; }
+      const φж=к[0], φп=к[к.length-1], разн=this.инт(τ,φж,φп)-π*(φп-φж);
+      рез={πн:π,φж,φп};
+      if(разн>0) lo=π; else hi=π;
+    }
+    this._м.set(ключ,рез); return рез;
+  },
+  /* настоящая изотерма: горизонталь в куполе */
+  πр(τ,φ){ const м=this.максвелл(τ); if(м&&φ>м.φж&&φ<м.φп) return м.πн; return this.pv(τ,φ); },
+  доляЖ(τ,φ){ const м=this.максвелл(τ); if(!м) return 0; if(φ<=м.φж) return 1; if(φ>=м.φп) return 0; return (м.φп-φ)/(м.φп-м.φж); },
+  φ(p,t){ return p.phi0*Math.pow(p.phi1/p.phi0,clamp(t/p.dur,0,1)); },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    s.t+=dt;
+    if(s.t>=p.dur){ s.t=p.dur; s.event={type:'end',t:s.t};
+      const x=this.доляЖ(p.tau,this.φ(p,s.t));
+      s.__stop=p.tau>=1?'Выше критической температуры газ не сжижается: жидкость так и не появилась'
+        :`Сжатие окончено: жидкости ${(100*x).toFixed(0)} % по массе`; }
+  },
+  readouts(s,p){
+    const в=this.в(p), φ=this.φ(p,s.t), π=this.πр(p.tau,φ), м=this.максвелл(p.tau), x=this.доляЖ(p.tau,φ);
+    const out=[['t',s.t,'с'],['объём V / V_кр',φ,''],['давление p / p_кр',π,''],['давление p',π*в.pc/1e6,'МПа'],
+      ['температура T',p.tau*в.Tc,'К']];
+    if(м) out.push(['давление насыщенного пара',м.πн*в.pc/1e6,'МПа'],['доля жидкости по массе',100*x,'%']);
+    return out;
+  },
+  graphs:[
+    {label:'p(t) — давление при сжатии: горизонталь — кипение наоборот',unit:'МПа',series:['p'],
+     get(s,p){ const S=SIMS.vdw; return [S.πр(p.tau,S.φ(p,s.t))*S.в(p).pc/1e6,null]; }},
+    {label:'Доля жидкости',unit:'%',series:['жидкость'],get(s,p){ const S=SIMS.vdw; return [100*S.доляЖ(p.tau,S.φ(p,s.t)),null]; }}
+  ],
+  presets:[
+    {name:'Ниже критической: газ сжижается',values:{tau:0.9,phi0:4,phi1:0.5}},
+    {name:'Почти критическая: купол сужается',values:{tau:0.98,phi0:3,phi1:0.6}},
+    {name:'Выше критической: жидкости не будет',values:{tau:1.15,phi0:4,phi1:0.5}},
+    {name:'Холодный пар: длинная горизонталь',values:{tau:0.8,phi0:5,phi1:0.48}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-20)/(9.4*PX_PER_M),(H-20)/(5.4*PX_PER_M)),0.002,30);
+    return {x:4.5,y:2.45,scale};
+  },
+  anchors(s,p){ return [{x:0.4,y:0.3},{x:8.6,y:4.4}]; },
+  X(φ){ return 0.4+5.6*Math.log(φ/0.36)/Math.log(5.6/0.36); },
+  Y(π){ return 0.3+clamp(π,-0.5,3)/2*4; },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const X=φ=>this.X(φ), Y=π=>this.Y(π), τ=p.tau, в=this.в(p);
+    // оси
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2); ctx.beginPath(); ctx.moveTo(0.4,4.5); ctx.lineTo(0.4,0.3); ctx.lineTo(6.1,0.3); ctx.stroke();
+    v.label(ctx,'p / p_кр',0.4,4.5,6,0,ink3); v.label(ctx,'V / V_кр',6.1,0.3,-50,14,ink3);
+    for(const φ of [0.5,1,2,4]){ ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(X(φ),0.3); ctx.lineTo(X(φ),0.38); ctx.stroke(); v.label(ctx,String(φ).replace('.',','),X(φ),0.3,-6,12,ink3); }
+    for(const π of [0.5,1,1.5,2]){ ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(0.4,Y(π)); ctx.lineTo(0.48,Y(π)); ctx.stroke(); v.label(ctx,String(π).replace('.',','),0.4,Y(π),-26,0,ink3); }
+    const кривая=(f,a,b,n=160)=>{ ctx.beginPath(); for(let i=0;i<=n;i++){ const φ=a*Math.pow(b/a,i/n), π=f(φ); if(!isFinite(π)) continue; i?ctx.lineTo(X(φ),Y(π)):ctx.moveTo(X(φ),Y(π)); } ctx.stroke(); };
+    ctx.save(); ctx.beginPath(); ctx.rect(0.4,0.3,5.75,4.25); ctx.clip();
+    // купол двух фаз
+    if(p.dome){
+      const лев=[],прав=[];
+      for(let k=0;k<=40;k++){ const t=0.62+k*(0.999-0.62)/40, м=this.максвелл(t); if(м){ лев.push([м.φж,м.πн]); прав.push([м.φп,м.πн]); } }
+      if(лев.length){
+        ctx.fillStyle=sec; ctx.globalAlpha=.08; ctx.beginPath();
+        лев.forEach(([φ,π],i)=>i?ctx.lineTo(X(φ),Y(π)):ctx.moveTo(X(φ),Y(π))); ctx.lineTo(X(1),Y(1));
+        for(let i=прав.length-1;i>=0;i--) ctx.lineTo(X(прав[i][0]),Y(прав[i][1]));
+        ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+        ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.beginPath();
+        лев.forEach(([φ,π],i)=>i?ctx.lineTo(X(φ),Y(π)):ctx.moveTo(X(φ),Y(π))); ctx.lineTo(X(1),Y(1));
+        for(let i=прав.length-1;i>=0;i--) ctx.lineTo(X(прав[i][0]),Y(прав[i][1])); ctx.stroke(); ctx.setLineDash([]);
+        v.label(ctx,'жидкость + пар',X(1.4),Y(0.25),-40,0,sec);
+      }
+    }
+    if(p.family){ ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(0.9); ctx.globalAlpha=.45;
+      for(const t of [0.8,0.85,0.9,0.95,1,1.1,1.2,1.3]) if(Math.abs(t-τ)>0.004) кривая(φ=>this.πр(t,φ),0.37,5.6);
+      ctx.globalAlpha=1; }
+    // петля и равные площади
+    const м=this.максвелл(τ);
+    if(м&&p.loop){
+      ctx.fillStyle=meas; ctx.globalAlpha=.16;
+      const к=this.корни(τ,м.πн), φс=к[1];
+      for(const [a,b] of [[м.φж,φс],[φс,м.φп]]){ ctx.beginPath(); ctx.moveTo(X(a),Y(м.πн));
+        for(let i=0;i<=60;i++){ const φ=a+(b-a)*i/60; ctx.lineTo(X(φ),Y(this.pv(τ,φ))); } ctx.lineTo(X(b),Y(м.πн)); ctx.closePath(); ctx.fill(); }
+      ctx.globalAlpha=1;
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.3); ctx.setLineDash([v.lw(3),v.lw(3)]); кривая(φ=>this.pv(τ,φ),м.φж,м.φп,80); ctx.setLineDash([]);
+      v.label(ctx,'площади равны',X(φс),Y(м.πн),-36,-14,meas);
+    }
+    // текущая изотерма
+    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.4); кривая(φ=>this.πр(τ,φ),0.37,5.6,240);
+    v.label(ctx,`T = ${(τ*в.Tc).toFixed(τ*в.Tc<20?1:0)} К`,X(5.4),Y(this.πр(τ,5.4)),-60,-12,acc);
+    ctx.restore();
+    // критическая точка
+    ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(X(1),Y(1),v.lw(3.5),0,7); ctx.fill();
+    v.label(ctx,'К',X(1),Y(1),6,-10,dang);
+    // состояние
+    const φ=this.φ(p,s.t), π=this.πр(τ,φ);
+    ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(X(φ),Y(π),v.lw(5),0,7); ctx.fill();
+    // цилиндр с поршнем
+    const cx0=6.7, cx1=8.5, низ=0.3, h=0.35+3.6*φ/Math.max(p.phi0,1), x=this.доляЖ(τ,φ);
+    const долеОбъёма=м&&x>0?x*м.φж/φ:0, hж=h*долеОбъёма;
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.moveTo(cx0,4.4); ctx.lineTo(cx0,низ); ctx.lineTo(cx1,низ); ctx.lineTo(cx1,4.4); ctx.stroke();
+    if(hж>0){ ctx.fillStyle=sec; ctx.globalAlpha=.45; ctx.fillRect(cx0,низ,cx1-cx0,hж); ctx.globalAlpha=1; }
+    // молекулы пара: плотность ~ 1/φ_п (или 1/φ выше критической)
+    const плотн=м&&x>0&&x<1?1/м.φп:1/φ, n=Math.round(clamp(60*плотн,6,90));
+    ctx.fillStyle=ink3; let зерно=7;
+    const rnd=()=>{ зерно=(зерно*16807)%2147483647; return зерно/2147483647; };
+    for(let i=0;i<n;i++){ const xx=cx0+0.08+rnd()*(cx1-cx0-0.16), yy=низ+hж+0.08+rnd()*Math.max(0,h-hж-0.16);
+      if(h-hж>0.16){ ctx.beginPath(); ctx.arc(xx+0.04*Math.sin(s.t*3+i),yy,v.lw(1.8),0,7); ctx.fill(); } }
+    ctx.fillStyle=ink3; ctx.globalAlpha=.6; ctx.fillRect(cx0,низ+h,cx1-cx0,0.14); ctx.globalAlpha=1;
+    ctx.strokeStyle=ink2; ctx.beginPath(); ctx.moveTo((cx0+cx1)/2,низ+h+0.14); ctx.lineTo((cx0+cx1)/2,4.6); ctx.stroke();
+    v.label(ctx,τ>=1?'газ (флюид)':x>=1?'жидкость':x>0?'жидкость и насыщенный пар':'пар',cx0,низ,0,14,ink2);
+  }
+},
+
+heat:{
+  title:'Теплопроводность: стержень остывает и прогревается',
+  params:[
+    {key:'mat',label:'Материал',type:'select',default:'cu',
+     options:[{v:'cu',t:'медь: λ = 401 Вт/(м·К)'},{v:'al',t:'алюминий: λ = 237'},{v:'steel',t:'сталь: λ = 50'},{v:'glass',t:'стекло: λ = 1,0'}]},
+    {key:'L',label:'Длина стержня L',unit:'м',min:0.05,max:1,step:0.01,default:0.3},
+    {key:'init',label:'Опыт',type:'select',default:'step',
+     options:[{v:'step',t:'стержень при T₀, концы держат T₁ и T₂'},{v:'sin',t:'синусоида: середина горячее на ΔT'},{v:'spot',t:'нагрели середину, концы теплоизолированы'}]},
+    {key:'T0',label:'Начальная температура T₀',unit:'°C',min:-50,max:500,step:1,default:20},
+    {key:'T1',label:'Левый конец T₁',unit:'°C',min:-50,max:500,step:1,default:100,если:p=>p.init!=='spot'},
+    {key:'T2',label:'Правый конец T₂',unit:'°C',min:-50,max:500,step:1,default:0,если:p=>p.init!=='spot'},
+    {key:'dT',label:'Нагрев ΔT',unit:'°C',min:1,max:500,step:1,default:80,если:p=>p.init!=='step'},
+    {type:'group',label:'Показывать'},
+    {key:'flux',label:'Поток тепла стрелками',type:'check',default:true}
+  ],
+  MAT:{cu:{λ:401,ρ:8960,c:385,имя:'медь'},al:{λ:237,ρ:2700,c:897,имя:'алюминий'},
+       steel:{λ:50,ρ:7850,c:490,имя:'сталь'},glass:{λ:1.0,ρ:2500,c:840,имя:'стекло'}},
+  N:101,
+  м(p){ return this.MAT[p.mat]||this.MAT.cu; },
+  a(p){ const м=this.м(p); return м.λ/(м.ρ*м.c); },
+  τ(p){ return p.L*p.L/(Math.PI*Math.PI*this.a(p)); },          // время затухания основной гармоники
+  init(p){
+    const N=this.N, T=new Float64Array(N);
+    for(let i=0;i<N;i++){ const x=i/(N-1);
+      if(p.init==='step') T[i]=p.T0;
+      else if(p.init==='sin') T[i]=p.T1+(p.T2-p.T1)*x+p.dT*Math.sin(Math.PI*x);
+      else T[i]=p.T0+p.dT*Math.exp(-Math.pow((x-0.5)/0.05,2)); }
+    if(p.init!=='spot'){ T[0]=p.T1; T[N-1]=p.T2; }
+    return {t:0,T,event:null,__stop:null};
+  },
+  step(s,dt,p){
+    const N=this.N, a=this.a(p), dx=p.L/(N-1), шаг=dt*this.τ(p)/3;      // секунда сцены — треть времени затухания
+    const n=Math.max(1,Math.ceil(шаг/(0.45*dx*dx/a))), h=шаг/n, r=a*h/(dx*dx);
+    const T=s.T, нов=new Float64Array(N);
+    for(let k=0;k<n;k++){
+      for(let i=1;i<N-1;i++) нов[i]=T[i]+r*(T[i+1]-2*T[i]+T[i-1]);
+      if(p.init==='spot'){ нов[0]=T[0]+2*r*(T[1]-T[0]); нов[N-1]=T[N-1]+2*r*(T[N-2]-T[N-1]); }
+      else { нов[0]=p.T1; нов[N-1]=p.T2; }
+      T.set(нов);
+    }
+    s.t+=шаг;
+  },
+  поток(s,p,i){ const N=this.N, dx=p.L/(N-1), j=clamp(i,0,N-2); return -this.м(p).λ*(s.T[j+1]-s.T[j])/dx; },
+  readouts(s,p){
+    const N=this.N, м=this.м(p);
+    let ср=0; for(let i=0;i<N;i++) ср+=s.T[i]*((i===0||i===N-1)?0.5:1); ср/=(N-1);
+    return [['t',s.t,'с'],['температура посередине',s.T[(N-1)/2],'°C'],['средняя температура',ср,'°C'],
+      ['поток тепла у левого конца q',this.поток(s,p,0)/1000,'кВт/м²'],
+      ['температуропроводность a = λ/ρc',this.a(p)*1e6,'мм²/с'],['время затухания τ = L²/π²a',this.τ(p),'с']];
+  },
+  graphs:[
+    {label:'T(t) посередине стержня',unit:'°C',series:['T середины'],get:s=>[s.T[(SIMS.heat.N-1)/2],null]},
+    {label:'Поток тепла у левого конца',unit:'кВт/м²',series:['q'],get(s,p){ return [SIMS.heat.поток(s,p,0)/1000,null]; }}
+  ],
+  presets:[
+    {name:'Медь между кипятком и льдом',values:{mat:'cu',init:'step',L:0.3,T0:20,T1:100,T2:0}},
+    {name:'Стекло: то же, но в тысячу раз медленнее',values:{mat:'glass',init:'step',L:0.3,T0:20,T1:100,T2:0}},
+    {name:'Синусоида гаснет по экспоненте',values:{mat:'al',init:'sin',L:0.2,T1:20,T2:20,dT:80}},
+    {name:'Нагретая середина расплывается',values:{mat:'steel',init:'spot',L:0.2,T0:20,dT:300}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(7.2*PX_PER_M),(H-30)/(5*PX_PER_M)),0.002,30);
+    return {x:3,y:2.1,scale};
+  },
+  anchors(){ return [{x:0,y:0},{x:6,y:4}]; },
+  цвет(T,лo,хi){ const k=clamp((T-лo)/Math.max(1e-9,хi-лo),0,1);
+    const c=[[40,90,220],[120,90,210],[230,110,60],[220,40,40]], i=Math.min(2,Math.floor(k*3)), f=k*3-i;
+    return `rgb(${c[i].map((v,j)=>Math.round(v+(c[i+1][j]-v)*f)).join(',')})`; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), meas=v.c('--measure'), acc=v.c('--accent');
+    const N=this.N, Ws=6, T=s.T;
+    const вс=[p.T0,p.T1,p.T2,p.T0+(p.init==='step'?0:p.dT),p.init==='sin'?Math.max(p.T1,p.T2)+p.dT:-1e9].filter(x=>x>-1e8);
+    const лo=Math.min(...вс), хi=Math.max(...вс,лo+1);
+    // стержень цветом температуры
+    const y0=0.2, hh=0.5;
+    for(let i=0;i<N-1;i++){ ctx.fillStyle=this.цвет((T[i]+T[i+1])/2,лo,хi); ctx.fillRect(i/(N-1)*Ws,y0,Ws/(N-1)+0.01,hh); }
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.4); ctx.strokeRect(0,y0,Ws,hh);
+    if(p.init!=='spot'){ v.label(ctx,`T₁ = ${p.T1} °C`,0,y0,0,14,ink2); v.label(ctx,`T₂ = ${p.T2} °C`,Ws,y0,-70,14,ink2); }
+    else { ctx.fillStyle=ink3; ctx.fillRect(-0.12,y0-0.1,0.12,hh+0.2); ctx.fillRect(Ws,y0-0.1,0.12,hh+0.2); v.label(ctx,'теплоизоляция на концах',0,y0,0,14,ink3); }
+    v.label(ctx,`${this.м(p).имя}, L = ${p.L} м`,Ws/2,y0,-50,14,ink3);
+    // график T(x)
+    const g0=1.2, gh=2.8, Y=Tt=>g0+(Tt-лo)/(хi-лo)*gh;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(0,g0+gh+0.15); ctx.lineTo(0,g0); ctx.lineTo(Ws,g0); ctx.stroke();
+    v.label(ctx,'T(x)',0,g0+gh+0.15,6,0,ink3);
+    v.label(ctx,`${Math.round(хi)} °C`,0,Y(хi),-46,0,ink3); v.label(ctx,`${Math.round(лo)} °C`,0,Y(лo),-46,0,ink3);
+    if(p.init!=='spot'){ // стационарный профиль — прямая
+      ctx.strokeStyle=line; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(0,Y(p.T1)); ctx.lineTo(Ws,Y(p.T2)); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
+    for(let i=0;i<N;i++){ const x=i/(N-1)*Ws; i?ctx.lineTo(x,Y(T[i])):ctx.moveTo(x,Y(T[i])); } ctx.stroke();
+    if(p.flux){ // стрелки потока: q = −λ dT/dx
+      const qs=[]; for(let k=1;k<8;k++){ const i=Math.round(k/8*(N-1)); qs.push([i,this.поток(s,p,i)]); }
+      const М=Math.max(...qs.map(q=>Math.abs(q[1])),1e-9);
+      for(const [i,q] of qs){ const x=i/(N-1)*Ws, L=0.55*q/М; if(Math.abs(L)<0.04) continue;
+        v.arrow(ctx,x-L/2,y0+hh+0.18,x+L/2,y0+hh+0.18,meas); }
+      v.label(ctx,'тепло течёт от горячего к холодному',Ws/2,y0+hh+0.18,-100,-12,meas);
+    }
+  }
+},
+
+diffusion:{
+  title:'Броуновское движение и диффузия',
+  gridUnit:'мкм',
+  params:[
+    {key:'liq',label:'Жидкость',type:'select',default:'water',
+     options:[{v:'water',t:'вода, η = 1,0 мПа·с'},{v:'mix',t:'вода с глицерином, η = 6 мПа·с'},{v:'glyc',t:'глицерин, η = 1410 мПа·с'}]},
+    {key:'T',label:'Температура T',unit:'К',min:273,max:373,step:1,default:293},
+    {key:'r',label:'Радиус частицы r',unit:'мкм',min:0.1,max:3,step:0.05,default:0.5},
+    {key:'N',label:'Число частиц',min:50,max:2000,step:50,default:600},
+    {type:'group',label:'Показывать'},
+    {key:'tracks',label:'Путь пяти частиц',type:'check',default:true},
+    {key:'ring',label:'Круг радиуса √⟨r²⟩',type:'check',default:true}
+  ],
+  ETA:{water:1.0e-3,mix:6e-3,glyc:1.41},
+  kB:1.380649e-23,
+  D(p){ return this.kB*p.T/(6*Math.PI*this.ETA[p.liq]*p.r*1e-6); },     // м²/с
+  init(p){ const n=Math.round(p.N); return {t:0,n,xy:new Float64Array(2*n),зерно:20260412,следы:[[],[],[],[],[]],event:null,__stop:null}; },
+  гаусс(s){ // Бокс — Мюллер на генераторе с зерном
+    const r=()=>{ s.зерно=(s.зерно*48271)%2147483647; return s.зерно/2147483647; };
+    let u=0; while(u<1e-12) u=r(); const w=r();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*w);
+  },
+  step(s,dt,p){
+    const σ=Math.sqrt(2*this.D(p)*dt)*1e6;                               // мкм
+    for(let i=0;i<2*s.n;i++) s.xy[i]+=σ*this.гаусс(s);
+    s.t+=dt;
+    if(p.tracks){ for(let k=0;k<5;k++){ s.следы[k].push([s.xy[2*k],s.xy[2*k+1]]); if(s.следы[k].length>1500) s.следы[k].shift(); } }
+  },
+  ср(s){ let x2=0,r2=0; for(let i=0;i<s.n;i++){ const x=s.xy[2*i], y=s.xy[2*i+1]; x2+=x*x; r2+=x*x+y*y; } return {x2:x2/s.n,r2:r2/s.n}; },
+  readouts(s,p){
+    const с=this.ср(s);
+    return [['t',s.t,'с'],['⟨x²⟩',с.x2,'мкм²'],['⟨r²⟩',с.r2,'мкм²'],
+      ['измеренный D = ⟨r²⟩/4t',s.t>0?с.r2/(4*s.t):0,'мкм²/с'],
+      ['формула Эйнштейна D = kT/6πηr',this.D(p)*1e12,'мкм²/с']];
+  },
+  graphs:[
+    {label:'⟨r²⟩(t) — растёт линейно',unit:'мкм²',series:['⟨r²⟩','4Dt'],get(s,p){ return [SIMS.diffusion.ср(s).r2,4*SIMS.diffusion.D(p)*1e12*s.t]; }}
+  ],
+  presets:[
+    {name:'Частица 1 мкм в воде (опыт Перрена)',values:{liq:'water',T:293,r:0.5}},
+    {name:'Горячая вода: блуждание быстрее',values:{liq:'water',T:360,r:0.5}},
+    {name:'Крупная частица почти стоит',values:{liq:'water',T:293,r:3}},
+    {name:'В глицерине — в тысячу раз медленнее',values:{liq:'glyc',T:293,r:0.5}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, R=Math.max(2,1.7*Math.sqrt(4*this.D(p)*1e12*20));
+    const scale=clamp(Math.min((W-30)/(2*R*PX_PER_M),(H-30)/(2*R*PX_PER_M)),1e-4,300);
+    return {x:0,y:0,scale};
+  },
+  anchors(){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const с=this.ср(s), Rт=Math.sqrt(4*this.D(p)*1e12*s.t);
+    ctx.fillStyle=ink3; ctx.globalAlpha=.55;
+    for(let i=0;i<s.n;i++){ ctx.beginPath(); ctx.arc(s.xy[2*i],s.xy[2*i+1],v.lw(1.8),0,7); ctx.fill(); }
+    ctx.globalAlpha=1;
+    if(p.tracks){ ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.2);
+      for(const tr of s.следы){ if(tr.length<2) continue; ctx.beginPath(); tr.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke(); } }
+    if(p.ring&&s.t>0){
+      ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.beginPath(); ctx.arc(0,0,Math.sqrt(с.r2),0,7); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.2); ctx.beginPath(); ctx.arc(0,0,Rт,0,7); ctx.stroke();
+      v.label(ctx,`√⟨r²⟩ = ${Math.sqrt(с.r2).toFixed(2)} мкм`,Math.sqrt(с.r2)*0.71,Math.sqrt(с.r2)*0.71,6,-6,meas);
+      v.label(ctx,`√(4Dt) по Эйнштейну`,-Rт*0.71,-Rт*0.71,-130,10,sec);
+    }
+    const Rв=Math.max(2,1.7*Math.sqrt(4*this.D(p)*1e12*20));
+    v.label(ctx,`${s.n} частиц радиусом ${p.r} мкм — все стартовали из центра`,-Rв*0.95,Rв*0.9,0,0,ink2);
+  }
+}
+});
+
+;
+/* ===================== ЗАРЯД В ПОЛЕ И ТОК В СРЕДАХ (6.3.0) =====================
+   beam — электронно-лучевая трубка. Электрон разгоняется напряжением U₀:
+   v₀ = √(2eU₀/m). Между пластинами длиной L с зазором d и напряжением U
+   на него действует постоянная сила eU/d — траектория парабола, на выходе
+   смещение y₁ = UL²/(4dU₀). Дальше он летит прямо и попадает на экран на
+   расстоянии D от пластин:  Y = (UL/2dU₀)·(L/2 + D).
+   Движение интегрируется численно (RK4), а пятно на экране сверяется с
+   формулой в проверках физики. Время — наносекунды.
+
+   electrolysis — закон Фарадея. Через раствор соли металла валентности z
+   течёт ток I; на катоде за время t выделяется масса  m = M·I·t/(zF).
+   Секунда сцены — минута опыта. */
+Object.assign(SIMS,{
+beam:{
+  title:'Электрон в поле конденсатора: электронно-лучевая трубка',
+  timeUnit:'нс',
+  gridUnit:'см',
+  params:[
+    {key:'U0',label:'Ускоряющее напряжение U₀',unit:'В',min:100,max:5000,step:10,default:1000},
+    {key:'U', label:'Напряжение на пластинах U',unit:'В',min:-400,max:400,step:1,default:60},
+    {key:'L', label:'Длина пластин L',unit:'см',min:1,max:10,step:0.1,default:4},
+    {key:'d', label:'Зазор между пластинами d',unit:'см',min:0.5,max:4,step:0.1,default:1.5},
+    {key:'D', label:'От пластин до экрана D',unit:'см',min:2,max:30,step:0.5,default:15},
+    {type:'group',label:'Показывать'},
+    {key:'field',label:'Поле между пластинами',type:'check',default:true},
+    {key:'force',label:'Силу на электрон',type:'check',default:true}
+  ],
+  e:1.602176634e-19, me:9.1093837015e-31,
+  v0(p){ return Math.sqrt(2*this.e*p.U0/this.me); },
+  полёт(p){ return (p.L+p.D)/100/this.v0(p)*1e9; },                     // нс
+  /* численный пролёт одного электрона: путь и точка попадания */
+  траектория(p){
+    const ключ=[p.U0,p.U,p.L,p.d,p.D].join('|'); if(this._к&&this._к.ключ===ключ) return this._к;
+    const L=p.L/100, d=p.d/100, D=p.D/100, a=this.e*p.U/(this.me*d), v0=this.v0(p);
+    // шаги по времени: между пластинами сила постоянна, за ними её нет
+    let x=0,y=0,vy=0,t=0, удар=null; const путь=[[0,0,0]], n1=1500, h1=L/v0/n1;
+    for(let i=0;i<n1;i++){
+      const y2=y+vy*h1+a*h1*h1/2;
+      if(Math.abs(y2)>=d/2){ // долетел до пластины внутри шага: время из квадратного уравнения
+        const Y=Math.sign(y2)*d/2, A=a/2, B=vy, C=y-Y, D2=B*B-4*A*C;
+        const τ=Math.abs(A)>1e-30?(-B+Math.sign(A)*Math.sqrt(Math.max(0,D2)))/(2*A):-C/B;
+        удар={x:x+v0*τ,y:Y,t:t+τ}; путь.push([удар.x,Y,удар.t]); break; }
+      y=y2; vy+=a*h1; x+=v0*h1; t+=h1; путь.push([x,y,t]);
+    }
+    const y1=y;
+    if(!удар){ const n2=300, h2=D/v0/n2; for(let i=0;i<n2;i++){ y+=vy*h2; x+=v0*h2; t+=h2; путь.push([x,y,t]); } }
+    this._к={ключ,путь,удар,Y:удар?null:y,y1,tпл:L/v0,vy,v0};
+    return this._к;
+  },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    const T=this.полёт(p); s.t+=dt*T/2.5;                               // пролёт — за 2,5 секунды сцены
+    if(!s.event&&s.t>=T){ const тр=this.траектория(p); s.event={type:'screen',t:s.t};
+      if(тр.удар) s.__stop=`Электрон попал в пластину: отклонение больше половины зазора`; }
+  },
+  readouts(s,p){
+    const тр=this.траектория(p), out=[['t',s.t,'нс'],['скорость после разгона v₀',тр.v0/1e6,'Мм/с'],
+      ['время между пластинами',тр.tпл*1e9,'нс'],['напряжённость между пластинами E',p.U/(p.d/100)/1000,'кВ/м']];
+    if(тр.удар) out.push(['попадает в пластину на расстоянии',тр.удар.x*100,'см']);
+    else out.push(['смещение на выходе из пластин y₁',тр.y1*1000,'мм'],['отклонение пятна на экране Y',тр.Y*1000,'мм'],
+      ['угол вылета',Math.atan2(тр.vy,тр.v0)*180/Math.PI,'°']);
+    return out;
+  },
+  graphs:[
+    {label:'y(t) — отклонение электрона',unit:'мм',series:['y'],get(s,p){ const тр=SIMS.beam.траектория(p), t=s.t*1e-9;
+      let q=тр.путь[0]; for(const r of тр.путь){ if(r[2]>t) break; q=r; } return [q[1]*1000,null]; }}
+  ],
+  presets:[
+    {name:'Осциллограф: пятно уходит на полтора сантиметра',values:{U0:1000,U:60,L:4,d:1.5,D:15}},
+    {name:'Слишком большое напряжение — удар о пластину',values:{U0:1000,U:300,L:4,d:1.5,D:15}},
+    {name:'Быстрые электроны отклоняются слабее',values:{U0:4000,U:60,L:4,d:1.5,D:15}},
+    {name:'Минус на пластинах — луч вниз',values:{U0:1000,U:-80,L:4,d:1.5,D:15}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, span=p.L+p.D+6;
+    const тр=this.траектория(p), Yсм=тр.удар?p.d/2:Math.abs(тр.Y*100);
+    const scale=clamp(Math.min((W-30)/(span*PX_PER_M),(H-40)/(Math.max(5,p.d*2.4,2.6*Yсм)*PX_PER_M)),0.002,30);
+    return {x:(p.L+p.D)/2-2,y:0,scale};
+  },
+  anchors(s,p){ return [{x:-4,y:0},{x:p.L+p.D,y:0}]; },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), ok=v.c('--ok');
+    const тр=this.траектория(p), L=p.L, d=p.d, D=p.D, к=100;         // рисуем в сантиметрах
+    // пушка
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6); ctx.strokeRect(-4,-0.6,2.2,1.2);
+    ctx.beginPath(); ctx.moveTo(-1.2,-0.8); ctx.lineTo(-1.2,-0.15); ctx.moveTo(-1.2,0.15); ctx.lineTo(-1.2,0.8); ctx.stroke();
+    v.label(ctx,`пушка · U₀ = ${p.U0} В`,-4,-0.6,0,14,ink3);
+    // пластины
+    const пл=0.18;
+    ctx.fillStyle=p.U>=0?dang:acc; ctx.fillRect(0,d/2,L,пл); ctx.fillStyle=p.U>=0?acc:dang; ctx.fillRect(0,-d/2-пл,L,пл);
+    v.label(ctx,p.U>=0?'+':'−',L,d/2+пл,4,-6,ink2); v.label(ctx,p.U>=0?'−':'+',L,-d/2-пл,4,8,ink2);
+    v.label(ctx,`U = ${p.U} В`,0,d/2+пл,0,-10,ink2);
+    if(p.field&&p.U!==0){ ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
+      for(let i=1;i<6;i++){ const x=L*i/6, з=p.U>0?-1:1; v.arrow(ctx,x,-з*d/2*0.8,x,з*d/2*0.8,line); } }
+    // экран
+    const xs=L+D, hs=Math.max(2.2,d*1.1,тр.Y?Math.abs(тр.Y*к)*1.2:0); ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(xs,-hs); ctx.lineTo(xs,hs); ctx.stroke();
+    v.label(ctx,'экран',xs,-hs,-14,14,ink3);
+    ctx.strokeStyle=line; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(-1.2,0); ctx.lineTo(xs,0); ctx.stroke(); ctx.setLineDash([]);
+    // траектория до текущего момента — пунктиром целиком, жирно пройденное
+    const t=s.t*1e-9;
+    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1); ctx.globalAlpha=.4; ctx.beginPath();
+    тр.путь.forEach((q,i)=>i?ctx.lineTo(q[0]*к,q[1]*к):ctx.moveTo(q[0]*к,q[1]*к)); ctx.stroke(); ctx.globalAlpha=1;
+    // поток электронов: точки с шагом по времени
+    const T=тр.путь[тр.путь.length-1][2], шаг=T/10;
+    ctx.fillStyle=sec;
+    for(let k=0;k<10;k++){ const τ=((t+k*шаг)%T+T)%T; let q=тр.путь[0]; for(const r of тр.путь){ if(r[2]>τ) break; q=r; }
+      ctx.beginPath(); ctx.arc(q[0]*к,q[1]*к,v.lw(2.6),0,7); ctx.fill(); }
+    if(p.force&&p.U!==0){ const x=Math.min(L*0.5,L); let q=тр.путь[0]; for(const r of тр.путь){ if(r[0]*к>x) break; q=r; }
+      if(q[0]*к<=L&&!(тр.удар&&тр.удар.x*к<x)){ const з=Math.sign(p.U); v.arrow(ctx,q[0]*к,q[1]*к,q[0]*к,q[1]*к+з*Math.min(d*0.35,1.2),ok);
+        v.label(ctx,'F = eE',q[0]*к,q[1]*к+з*Math.min(d*0.35,1.2),6,з>0?-6:10,ok); } }
+    if(тр.удар){ ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(тр.удар.x*к,тр.удар.y*к,v.lw(5),0,7); ctx.fill();
+      v.label(ctx,'удар о пластину',тр.удар.x*к,тр.удар.y*к,6,тр.удар.y>0?-12:14,dang); }
+    else { ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(xs,тр.Y*к,v.lw(6),0,7); ctx.fill();
+      v.label(ctx,`Y = ${(тр.Y*1000).toFixed(1)} мм`,xs,тр.Y*к,8,0,meas); }
+  }
+},
+
+electrolysis:{
+  title:'Электролиз: закон Фарадея',
+  timeUnit:'мин',
+  schema:true,
+  params:[
+    {key:'el',label:'Раствор',type:'select',default:'cu',
+     options:[{v:'cu',t:'медный купорос CuSO₄ → медь, z = 2'},{v:'ag',t:'нитрат серебра AgNO₃ → серебро, z = 1'},
+              {v:'zn',t:'сульфат цинка ZnSO₄ → цинк, z = 2'},{v:'ni',t:'сульфат никеля NiSO₄ → никель, z = 2'},
+              {v:'al',t:'расплав Al₂O₃ → алюминий, z = 3'}]},
+    {key:'I',label:'Сила тока I',unit:'А',min:0.1,max:10,step:0.1,default:2},
+    {key:'tStop',label:'Остановить через',unit:'мин',min:0,max:600,step:1,default:0},
+    {type:'group',label:'Показывать'},
+    {key:'ions',label:'Ионы',type:'check',default:true}
+  ],
+  EL:{cu:{M:63.546,z:2,ρ:8960,имя:'медь',ион:'Cu²⁺',ан:'SO₄²⁻'},ag:{M:107.868,z:1,ρ:10490,имя:'серебро',ион:'Ag⁺',ан:'NO₃⁻'},
+      zn:{M:65.38,z:2,ρ:7140,имя:'цинк',ион:'Zn²⁺',ан:'SO₄²⁻'},ni:{M:58.693,z:2,ρ:8908,имя:'никель',ион:'Ni²⁺',ан:'SO₄²⁻'},
+      al:{M:26.982,z:3,ρ:2700,имя:'алюминий',ион:'Al³⁺',ан:'O²⁻'}},
+  F:96485.33212, NA:6.02214076e23,
+  в(p){ return this.EL[p.el]||this.EL.cu; },
+  масса(p,tмин){ const в=this.в(p); return в.M*p.I*tмин*60/(в.z*this.F); },   // г
+  init(p){ const ионы=[]; let з=99;
+    const r=()=>{ з=(з*16807)%2147483647; return з/2147483647; };
+    for(let i=0;i<46;i++) ионы.push({x:0.8+r()*5.4,y:0.5+r()*2.6,кат:i%2===0,ф:r()*6});
+    return {t:0,ионы,event:null,__stop:null}; },
+  step(s,dt,p){
+    s.t+=dt;
+    const v=0.25+0.12*p.I;
+    for(const и of s.ионы){ и.x+=(и.кат?1:-1)*v*dt+0.15*Math.sin(s.t*3+и.ф)*dt; и.y+=0.25*Math.cos(s.t*2.3+и.ф*1.7)*dt;
+      if(и.x>6.3) и.x=0.7; if(и.x<0.7) и.x=6.3; и.y=clamp(и.y,0.45,3.2); }
+    if(p.tStop>0&&s.t>=p.tStop&&!s.event){ s.t=p.tStop; s.event={type:'stop',t:s.t}; s.__stop=`Ток выключен через ${p.tStop} мин`; }
+  },
+  readouts(s,p){
+    const в=this.в(p), m=this.масса(p,s.t), q=p.I*s.t*60;
+    return [['t',s.t,'мин'],['прошёл заряд q = It',q,'Кл'],['выделилось на катоде',m*1000,'мг'],
+      ['атомов металла',m/в.M*this.NA,''],['электронов через цепь',q/1.602176634e-19,'']];
+  },
+  graphs:[
+    {label:'m(t) — масса на катоде растёт линейно',unit:'мг',series:['m'],get(s,p){ return [SIMS.electrolysis.масса(p,s.t)*1000,null]; }}
+  ],
+  presets:[
+    {name:'Меднение: 2 А',values:{el:'cu',I:2}},
+    {name:'Серебрение: одновалентный ион — вдвое больше металла',values:{el:'ag',I:2}},
+    {name:'Алюминий из расплава: трёхвалентный',values:{el:'al',I:5}},
+    {name:'Час работы при 1 А',values:{el:'cu',I:1,tStop:60}}
+  ],
+  fit(p,vp){
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-20)/(7.6*PX_PER_M),(H-20)/(5.6*PX_PER_M)),0.002,30);
+    return {x:3.5,y:2.3,scale};
+  },
+  anchors(){ return [{x:0,y:0},{x:7,y:5}]; },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'),
+          ink2=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const в=this.в(p), m=this.масса(p,s.t);
+    // ванна
+    ctx.fillStyle=sec; ctx.globalAlpha=.13; ctx.fillRect(0.4,0.3,6.2,3.1); ctx.globalAlpha=1;
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.moveTo(0.4,3.7); ctx.lineTo(0.4,0.3); ctx.lineTo(6.6,0.3); ctx.lineTo(6.6,3.7); ctx.stroke();
+    // электроды: анод слева (+), катод справа (−), на катоде растёт слой
+    const слой=clamp(0.04+0.05*Math.cbrt(m*1000),0.04,0.5);
+    ctx.fillStyle=ink3; ctx.fillRect(0.75,0.6,0.22,3.4);
+    ctx.fillRect(6.05,0.6,0.22,3.4);
+    ctx.fillStyle=meas; ctx.globalAlpha=.85; ctx.fillRect(6.05-слой,0.6,слой,2.8); ctx.globalAlpha=1;
+    v.label(ctx,'анод +',0.75,4.0,-6,-12,dang); v.label(ctx,'катод −',6.05,4.0,-10,-12,acc);
+    v.label(ctx,`${в.имя} на катоде: ${(m*1000).toFixed(m*1000<10?2:0)} мг`,6.05-слой,1.2,-150,0,meas);
+    // цепь и источник
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(0.86,4.0); ctx.lineTo(0.86,4.8); ctx.lineTo(3.0,4.8);
+    ctx.moveTo(3.4,4.8); ctx.lineTo(6.16,4.8); ctx.lineTo(6.16,4.0); ctx.stroke();
+    ctx.lineWidth=v.lw(2.4); ctx.beginPath(); ctx.moveTo(3.0,4.55); ctx.lineTo(3.0,5.05); ctx.moveTo(3.4,4.65); ctx.lineTo(3.4,4.95); ctx.stroke();
+    v.label(ctx,`I = ${p.I} А`,3.2,4.8,-24,-16,ink2);
+    // электроны в проводе: от анода к катоду по внешней цепи
+    ctx.fillStyle=acc; const ф=(s.t*0.5*p.I)%1;
+    for(let k=0;k<8;k++){ const u=(k/8+ф)%1, путь=[[0.86,4.0],[0.86,4.8],[6.16,4.8],[6.16,4.0]], дл=[0.8,5.3,0.8], всего=6.9;
+      let r=u*всего, i=0; while(i<2&&r>дл[i]){ r-=дл[i]; i++; } const a=путь[i], b=путь[i+1], f=r/дл[i];
+      ctx.beginPath(); ctx.arc(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,v.lw(2.2),0,7); ctx.fill(); }
+    if(p.ions) for(const и of s.ионы){
+      ctx.fillStyle=и.кат?meas:sec; ctx.beginPath(); ctx.arc(и.x,и.y,v.lw(4),0,7); ctx.fill();
+      v.label(ctx,и.кат?'+':'−',и.x,и.y,-3,0,'#fff'); }
+    v.label(ctx,`${в.ион} → к катоду, ${в.ан} → к аноду`,0.4,0.3,0,14,ink3);
+  }
+}
+});
+
+;
 'use strict';
 /* ================================= ТЕМЫ ================================= */
 const wip=(id,ch,title)=>({id,ch,title,theory:'',formulas:[],problems:[]});
@@ -26069,6 +26630,7 @@ const T_potential={
     {sim:'capacitor', do:`Раздвиньте обкладки при постоянном заряде`, see:`напряжение вырастет, ёмкость упадёт, энергия увеличится — работу совершили вы`},
     {sim:'capacitor', do:`Вставьте диэлектрик`, see:`поле внутри ослабнет, ёмкость вырастет в $\\varepsilon$ раз`},
     {sim:'charged', do:`Загляните внутрь проводящего шара`, see:`поле там строго ноль, весь заряд ушёл на поверхность`},
+    {sim:'beam', do:`Подайте на пластины трубки напряжение`, see:`между пластинами электрон летит по параболе, как камень, брошенный горизонтально, а за ними — по прямой`},
   ],
   theory:`
   <p>Заряженные тела встречаются повсюду — в конденсаторах, антеннах, линиях передач, полупроводниках. В этой главе
@@ -26170,7 +26732,16 @@ const T_potential={
   накапливается на вас, когда вы «бьётесь током» о дверную ручку зимой. А молния длиной в километр требует
   разности потенциалов порядка сотен миллионов вольт. Заметьте и обратную сторону: чем тоньше зазор
   в конденсаторе, тем больше ёмкость, но тем ближе пробой — этот компромисс определяет конструкцию
-  всех конденсаторов на свете.</p>`,
+  всех конденсаторов на свете.</p>
+
+  <h3 class="sub">Заряд в однородном поле: электронно-лучевая трубка</h3>
+  <p>Электрон, разогнанный напряжением $U_0$, получает энергию $eU_0=mv_0^2/2$ — для 1000 В его скорость около
+  19 000 км/с. Влетев между пластинами конденсатора, он испытывает постоянную поперечную силу $F=eE=eU/d$. Это та же
+  задача, что бросок камня горизонтально: вдоль пластин скорость не меняется, а поперёк — равноускоренное движение.
+  Траектория между пластинами — парабола, а за ними электрон летит прямо и рисует пятно на экране.</p>
+  <p>Смещение пятна пропорционально отклоняющему напряжению $U$ и обратно пропорционально ускоряющему $U_0$; масса и
+  заряд электрона сокращаются. Так работал осциллограф: напряжение сигнала подавали на пластины, и луч рисовал его
+  график. По той же схеме Томсон в 1897 году измерил отношение $e/m$ и открыл электрон.</p>`,
   time:50,
   needs:['el.force','mech.work'],
   why:`Потенциал относится к полю так же, как потенциальная энергия — к силе тяжести: это
@@ -26230,6 +26801,25 @@ const T_potential={
          op:['обе-части']}
       ],
       sim:'capacitor'
+    },
+    {
+      goal:'Y=\\dfrac{UL}{2dU_0}\\left(\\dfrac L2+D\\right)',
+      from:['eU_0=\\dfrac{mv_0^2}{2}','F=eE','y=\\dfrac{at^2}{2}'],
+      steps:[
+        {tex:'a=\\dfrac{eU}{md},\\qquad t_1=\\dfrac{L}{v_0}',
+         why:'между пластинами поле однородно, сила постоянна; вдоль пластин скорость $v_0$ не меняется',
+         op:['физика']},
+        {tex:'y_1=\\dfrac{at_1^2}{2}=\\dfrac{eUL^2}{2mdv_0^2}=\\dfrac{UL^2}{4dU_0}',
+         why:'равноускоренное движение поперёк пластин; $mv_0^2=2eU_0$ — масса и заряд сокращаются',
+         op:['подстановка','сократить']},
+        {tex:'\\operatorname{tg}\\alpha=\\dfrac{at_1}{v_0}=\\dfrac{UL}{2dU_0}',
+         why:'угол вылета — отношение поперечной скорости к продольной',
+         op:['проекция']},
+        {tex:'Y=y_1+D\\operatorname{tg}\\alpha=\\dfrac{UL}{2dU_0}\\left(\\dfrac L2+D\\right)',
+         why:'за пластинами — прямая. Её продолжение назад проходит через середину пластин, будто электрон отклонился там мгновенно',
+         op:['сумма','скобки']}
+      ],
+      sim:'beam'
     }
   ],
   formulas:[
@@ -26259,7 +26849,10 @@ const T_potential={
      note:'Плотность энергии электрического поля. Энергия хранится в самом поле, а не «на зарядах».', sim:'capacitor'},
     {tex:'E_{\\text{внутри проводника}}=0',
      kind:'следствие',
-     note:'Отсюда всё: заряд только на поверхности, поверхность эквипотенциальна, клетка Фарадея экранирует.', sim:'charged'}
+     note:'Отсюда всё: заряд только на поверхности, поверхность эквипотенциальна, клетка Фарадея экранирует.', sim:'charged'},
+    {tex:'Y=\\dfrac{UL}{2dU_0}\\left(\\dfrac L2+D\\right)',
+     kind:'следствие',
+     note:'Отклонение электронного луча на экране. От массы и заряда частицы не зависит.', sim:'beam'}
   ],
   mistakes:[
     {wrong:'Потенциал и напряжённость поля — по сути одно и то же, просто в разных единицах.',
@@ -26293,6 +26886,20 @@ const T_potential={
     {to:'em.radiation', text:'Энергия, «размазанная» по полю с плотностью $\\tfrac12\\varepsilon_0E^2$, окажется вполне реальной: волна унесёт её от источника в пустоту.'}
   ],
   problems:[
+
+    /* ---------- Электронный луч (6.3.0) ---------- */
+    {level:2, sim:'beam', unit:'В',
+     statement:`Какое напряжение нужно подать на пластины, чтобы пятно на экране сместилось ровно на 1 см?`,
+     hint:'Смещение пропорционально напряжению: $Y=\\dfrac{UL}{2dU_0}\\left(\\dfrac L2+D\\right)$.',
+     answer:p=>0.01*2*(p.d/100)*p.U0/((p.L/100)*(p.L/200+p.D/100))},
+    {level:3, sim:'beam', unit:'В',
+     statement:`При каком наибольшем напряжении на пластинах электрон ещё пролетит между ними, не задев пластину?`,
+     hint:'Смещение на выходе $y_1=\\dfrac{UL^2}{4dU_0}$ не должно превышать половины зазора.',
+     answer:p=>2*Math.pow(p.d/100,2)*p.U0/Math.pow(p.L/100,2)},
+    {level:4, sim:'beam', unit:'мм/В',
+     statement:`Найдите чувствительность трубки — смещение пятна на один вольт напряжения на пластинах.`,
+     hint:'Разделите $Y$ на $U$; результат от $U$ не зависит.',
+     answer:p=>1000*(p.L/100)*(p.L/200+p.D/100)/(2*(p.d/100)*p.U0)},
 
     /* ---------- Распределения заряда ---------- */
     {level:1, sim:'charged', unit:'В/м',
@@ -32978,6 +33585,557 @@ const T_fluids={
   ]
 };
 
+/* ===================== РЕАЛЬНЫЙ ГАЗ, ПАР И ЖИДКОСТЬ (6.3.0) =====================
+   Молекулярная физика по программе: уравнение Ван-дер-Ваальса, критическая
+   точка, насыщенный пар, кипение, влажность, поверхностное натяжение. */
+const T_phase={
+  id:'th.phase', ch:'10а', title:'Реальный газ, пар и жидкость',
+  key:[
+    `Реальный газ отличается от идеального двумя поправками: молекулы занимают объём и притягиваются. Обе учитывает уравнение Ван-дер-Ваальса.`,
+    `Ниже критической температуры при сжатии газ начинает конденсироваться, и давление перестаёт расти — это давление насыщенного пара.`,
+    `Давление насыщенного пара зависит только от температуры, а не от объёма. Выше критической температуры газ не сжижается никаким давлением.`,
+    `Жидкость кипит, когда давление её насыщенного пара сравнивается с внешним, — поэтому в горах вода кипит ниже 100 °C.`,
+    `Относительная влажность — отношение давления пара в воздухе к давлению насыщенного пара при той же температуре.`,
+    `Поверхность жидкости натянута, как плёнка: сила $F=\\sigma l$. Из-за неё вода поднимается в узких капиллярах.`,
+  ],
+  explore:[
+    {sim:'vdw', do:`Сожмите газ при $T=0{,}9\\,T_{\\text{кр}}$`, see:`давление растёт до насыщенного и замирает на горизонтали, а под поршнем появляется жидкость`},
+    {sim:'vdw', do:`Поднимите температуру выше критической`, see:`горизонталь исчезает: газ плавно густеет, но жидкость отдельной фазой не появляется`},
+    {sim:'vdw', do:`Включите петлю Ван-дер-Ваальса`, see:`настоящая изотерма срезает петлю так, что две заштрихованные площади равны`},
+    {sim:'calorimetry', do:`Нагревайте лёд до пара`, see:`две горизонтальные полки — плавление и кипение: тепло идёт, а температура стоит`},
+  ],
+  theory:`
+  <p>Идеальный газ — модель: молекулы-точки, которые не замечают друг друга между ударами. Для разреженного газа она
+  отличная. Но если газ сильно сжать или охладить, молекулы оказываются близко, и становятся важны две вещи,
+  которыми модель пренебрегла: <strong>собственный объём</strong> молекул и их <strong>притяжение</strong>. Именно
+  притяжение в конце концов собирает газ в жидкость.</p>
+
+  <h3 class="sub">Уравнение Ван-дер-Ваальса</h3>
+  <p>Ван-дер-Ваальс в 1873 году внёс в уравнение Менделеева — Клапейрона две поправки. Молекулам доступен не весь
+  объём сосуда, а за вычетом их собственного: $V\\to V-\\nu b$. А притяжение соседей тянет каждую молекулу у стенки
+  внутрь и ослабляет удар; поправка пропорциональна квадрату плотности: $p\\to p+a\\nu^2/V^2$. Получается</p>
+  $$\\left(p+\\frac{a\\nu^2}{V^2}\\right)(V-\\nu b)=\\nu RT.$$
+  <p>Постоянные $a$ и $b$ свои у каждого вещества. При большом объёме обе поправки малы, и уравнение переходит в
+  уравнение идеального газа.</p>
+
+  <h3 class="sub">Изотермы реального газа и насыщенный пар</h3>
+  <p>Будем медленно сжимать газ при постоянной температуре. Сначала давление растёт, как у идеального газа. Потом в
+  какой-то момент на стенках появляются капли, и дальше давление <em>перестаёт расти</em>: сжатие лишь переводит
+  пар в жидкость. Пар над своей жидкостью в этот момент называют <strong>насыщенным</strong>: сколько молекул
+  вылетает из жидкости в секунду, столько же возвращается — динамическое равновесие.</p>
+  <p>Давление насыщенного пара $p_{\\text{н}}$ зависит только от температуры. Сожмите пар — часть сконденсируется, и
+  давление останется прежним; расширьте — часть жидкости испарится. Когда весь пар превратился в жидкость, изотерма
+  круто уходит вверх: жидкость почти несжимаема.</p>
+  <p>Уравнение Ван-дер-Ваальса на этом участке даёт волнообразную петлю. Настоящая изотерма идёт по горизонтали,
+  проведённой так, что площади петли над ней и под ней равны (<strong>правило Максвелла</strong>). Участки петли
+  возле горизонтали всё-таки реализуются: это переохлаждённый пар и перегретая жидкость — на них работают камера
+  Вильсона и пузырьковая камера.</p>
+
+  <h3 class="sub">Критическая точка</h3>
+  <p>С ростом температуры горизонтальный участок укорачивается и при <strong>критической температуре</strong>
+  $T_{\\text{кр}}$ стягивается в точку. Здесь исчезает разница между жидкостью и паром: у них одинаковая плотность
+  и нет поверхности раздела. Выше $T_{\\text{кр}}$ газ нельзя сжижить никаким давлением. У воды
+  $T_{\\text{кр}}=647$ К, у углекислого газа — всего 304 К (31 °C), поэтому баллон с углекислотой в жаркий день
+  содержит не жидкость, а сжатый флюид. Кислород и азот критичны при $-119$ и $-147$ °C — их сжижают, сначала
+  сильно охладив.</p>
+  <p>Из уравнения Ван-дер-Ваальса критические параметры выражаются через $a$ и $b$, а в переменных
+  $\\pi=p/p_{\\text{кр}}$, $\\varphi=V/V_{\\text{кр}}$, $\\tau=T/T_{\\text{кр}}$ уравнение становится одинаковым для
+  всех веществ — <strong>закон соответственных состояний</strong>. Именно в этих переменных построена симуляция.</p>
+
+  <h3 class="sub">Кипение</h3>
+  <p>Испаряется жидкость при любой температуре, но только с поверхности. <strong>Кипение</strong> — испарение по всему
+  объёму: пузырьки пара растут внутри жидкости. Пузырёк может существовать, только если давление пара в нём не
+  меньше внешнего, поэтому жидкость кипит при температуре, где $p_{\\text{н}}(T)$ равно внешнему давлению. На
+  вершине Эльбруса (около 50 кПа) вода кипит при 82 °C, а в скороварке (около 200 кПа) — при 120 °C, и мясо
+  варится втрое быстрее. Пока жидкость кипит, её температура не растёт: всё тепло уходит на парообразование.</p>
+
+  <h3 class="sub">Влажность воздуха</h3>
+  <p>Водяной пар в воздухе обычно не насыщен. Его парциальное давление $p$ делят на давление насыщенного пара при той
+  же температуре и получают <strong>относительную влажность</strong> $f=p/p_{\\text{н}}\\cdot100\\,\\%$. При
+  охлаждении $p_{\\text{н}}$ падает, и при некоторой температуре — <strong>точке росы</strong> — пар становится
+  насыщенным: выпадает роса, запотевает холодная бутылка, образуется туман. Зимой тёплый воздух комнаты с
+  влажностью 60 % у холодного стекла достигает точки росы — отсюда мокрые окна.</p>
+
+  <h3 class="sub">Поверхностное натяжение и капилляры</h3>
+  <p>Молекула внутри жидкости притягивается соседями со всех сторон, а на поверхности — только изнутри. Поэтому
+  поверхность стремится сократиться и ведёт себя как натянутая плёнка: на отрезок её края длиной $l$ действует сила
+  $F=\\sigma l$, где $\\sigma$ — <strong>коэффициент поверхностного натяжения</strong> (у воды 0,073 Н/м). Капли
+  круглые, водомерки бегают по воде, мыльная плёнка стягивается.</p>
+  <p>Если жидкость смачивает стенки, у узкой трубки край поверхности тянет её вверх, и столбик поднимается на высоту
+  $h=\\dfrac{2\\sigma\\cos\\theta}{\\rho gr}$. В капилляре радиусом 0,1 мм вода поднимается на 15 см; по таким
+  каналам вода идёт в почве, в бумажном полотенце и — вместе с другими механизмами — в стволах деревьев. Под
+  изогнутой поверхностью давление отличается на $\\Delta p=2\\sigma/R$ (формула Лапласа): чем мельче пузырёк, тем
+  сильнее сжат газ в нём.</p>`,
+  time:45,
+  needs:['th.kinetic','th.thermo'],
+  why:`Уравнение идеального газа не знает ни о жидкостях, ни о кипении, ни о росе. Чтобы понять, почему газ
+    сжижается, почему в горах трудно сварить яйцо и что такое критическая точка, нужно вернуть молекулам их
+    размер и притяжение. Это первый шаг от идеальной модели к реальному веществу.`,
+  derivations:[
+    {
+      goal:'V_{\\text{кр}}=3b,\\quad T_{\\text{кр}}=\\dfrac{8a}{27Rb},\\quad p_{\\text{кр}}=\\dfrac{a}{27b^2}',
+      from:['\\left(p+\\dfrac{a\\nu^2}{V^2}\\right)(V-\\nu b)=\\nu RT'],
+      steps:[
+        {tex:'p=\\dfrac{RT}{V-b}-\\dfrac{a}{V^2}',
+         why:'выразили давление для одного моля ($V$ — молярный объём)',
+         op:['выразить']},
+        {tex:'-\\dfrac{RT}{(V-b)^2}+\\dfrac{2a}{V^3}=0,\\qquad \\dfrac{2RT}{(V-b)^3}-\\dfrac{6a}{V^4}=0',
+         why:'в критической точке петля стягивается в точку перегиба с горизонтальной касательной: первая и вторая производные давления по объёму равны нулю',
+         op:['производная','экстремум']},
+        {tex:'\\dfrac{V-b}{2}=\\dfrac V3\\ \\Rightarrow\\ V_{\\text{кр}}=3b',
+         why:'разделили одно уравнение на другое — температура и $a$ сократились',
+         op:['отношение','выразить']},
+        {tex:'V_{\\text{кр}}=3b,\\quad T_{\\text{кр}}=\\dfrac{8a}{27Rb},\\quad p_{\\text{кр}}=\\dfrac{a}{27b^2}',
+         why:'подставили $V_{\\text{кр}}$ в первое уравнение и нашли температуру, потом давление из самого уравнения состояния. Измерив $T_{\\text{кр}}$ и $p_{\\text{кр}}$, находят $a$ и $b$',
+         op:['подстановка']}
+      ],
+      sim:'vdw'
+    },
+    {
+      goal:'x_{\\text{ж}}=\\dfrac{V_{\\text{п}}-V}{V_{\\text{п}}-V_{\\text{ж}}}',
+      from:['V=\\text{const на горизонтали}'],
+      steps:[
+        {tex:'V=x\\,V_{\\text{ж}}+(1-x)\\,V_{\\text{п}}',
+         why:'на горизонтальном участке вещество разделено на жидкость и насыщенный пар; у каждой фазы свой удельный объём, а доли по массе — $x$ и $1-x$',
+         op:['физика','сумма']},
+        {tex:'x_{\\text{ж}}=\\dfrac{V_{\\text{п}}-V}{V_{\\text{п}}-V_{\\text{ж}}}',
+         why:'выразили долю жидкости. Это правило рычага: точка на горизонтали делит её в отношении масс фаз',
+         op:['выразить']}
+      ],
+      sim:'vdw'
+    }
+  ],
+  formulas:[
+    {tex:'\\left(p+\\dfrac{a\\nu^2}{V^2}\\right)(V-\\nu b)=\\nu RT',
+     kind:'закон',
+     note:'Уравнение Ван-дер-Ваальса: поправки на собственный объём молекул ($b$) и их притяжение ($a$).', sim:'vdw'},
+    {tex:'V_{\\text{кр}}=3b,\\quad T_{\\text{кр}}=\\dfrac{8a}{27Rb},\\quad p_{\\text{кр}}=\\dfrac{a}{27b^2}',
+     kind:'следствие',
+     note:'Критические параметры (на моль). Выше $T_{\\text{кр}}$ газ не сжижается.', sim:'vdw'},
+    {tex:'\\pi=\\dfrac{8\\tau}{3\\varphi-1}-\\dfrac{3}{\\varphi^2}',
+     kind:'следствие',
+     note:'Приведённое уравнение: в долях критических параметров оно одно для всех веществ.', sim:'vdw'},
+    {tex:'x_{\\text{ж}}=\\dfrac{V_{\\text{п}}-V}{V_{\\text{п}}-V_{\\text{ж}}}',
+     kind:'следствие',
+     note:'Правило рычага: доля жидкости по массе на горизонтальном участке изотермы.', sim:'vdw'},
+    {tex:'f=\\dfrac{p}{p_{\\text{н}}}\\cdot100\\,\\%',
+     kind:'определение',
+     note:'Относительная влажность. При $f=100\\,\\%$ пар насыщен — выпадает роса.', sim:'vdw'},
+    {tex:'F=\\sigma l,\\qquad h=\\dfrac{2\\sigma\\cos\\theta}{\\rho gr}',
+     kind:'следствие',
+     note:'Сила поверхностного натяжения и высота подъёма жидкости в капилляре.'}
+  ],
+  mistakes:[
+    {wrong:'Если сжать насыщенный пар, его давление вырастет.',
+     right:'Не вырастет: часть пара сконденсируется, а давление останется равным $p_{\\text{н}}(T)$.',
+     why:'Давление насыщенного пара определяется равновесием испарения и конденсации и зависит только от температуры.'},
+    {wrong:'Вода всегда кипит при 100 °C.',
+     right:'При 100 °C она кипит только при нормальном атмосферном давлении.',
+     why:'Кипение начинается, когда давление насыщенного пара равно внешнему давлению. Ниже давление — ниже температура кипения.'}
+  ],
+  checks:[
+    {q:'Почему в скороварке еда готовится быстрее?',
+     a:'Давление внутри выше атмосферного, и вода закипает при более высокой температуре — около 120 °C вместо 100.'},
+    {q:'Можно ли сжижить углекислый газ при 40 °C?',
+     a:'Нет: это выше его критической температуры (31 °C). При любом давлении он останется однородным флюидом.'},
+    {q:'Почему запотевает очки, когда входишь с мороза в тёплую комнату?',
+     a:'Стёкла холодные: воздух у их поверхности охлаждается ниже точки росы, пар становится насыщенным и конденсируется.'}
+  ],
+  links:[
+    {to:'th.kinetic', text:'Там газ был идеальным. Здесь та же модель, но у молекул появились размер и притяжение.'},
+    {to:'th.thermo', text:'Теплота парообразования — это работа против сил притяжения молекул, которые Ван-дер-Ваальс учёл поправкой $a$.'},
+    {to:'mech.fluids', text:'Поверхностное натяжение и формула Лапласа дополняют гидростатику: давление в капле больше, чем снаружи.'}
+  ],
+  problems:[
+    {level:1, sim:'vdw', unit:'К',
+     statement:`Температура задана в долях критической. Какова она в кельвинах?`,
+     hint:'$T=\\tau\\,T_{\\text{кр}}$; критическая температура — в описании вещества.',
+     answer:p=>p.tau*SIMS.vdw.в(p).Tc},
+    {level:2, sim:'vdw', unit:'МПа',
+     statement:`По уравнению Ван-дер-Ваальса найдите давление вещества при $V=2V_{\\text{кр}}$ и текущей температуре.`,
+     hint:'Приведённое уравнение: $\\pi=\\dfrac{8\\tau}{3\\varphi-1}-\\dfrac3{\\varphi^2}$, затем умножьте на $p_{\\text{кр}}$.',
+     answer:p=>(8*p.tau/5-3/4)*SIMS.vdw.в(p).pc/1e6},
+    {level:3, sim:'vdw', unit:'см³/моль',
+     statement:`Найдите критический молярный объём выбранного вещества по его критическим температуре и давлению.`,
+     hint:'Из критических параметров: $b=\\dfrac{RT_{\\text{кр}}}{8p_{\\text{кр}}}$, а $V_{\\text{кр}}=3b$.',
+     answer:p=>{ const в=SIMS.vdw.в(p); return 3*8.314462618*в.Tc/(8*в.pc)*1e6; }},
+    {level:4, sim:'vdw', unit:'Па·м⁶/моль²',
+     statement:`Найдите постоянную $a$ уравнения Ван-дер-Ваальса для выбранного вещества.`,
+     hint:'Исключите $b$ из формул для $T_{\\text{кр}}$ и $p_{\\text{кр}}$: $a=\\dfrac{27R^2T_{\\text{кр}}^2}{64\\,p_{\\text{кр}}}$.',
+     answer:p=>{ const в=SIMS.vdw.в(p), R=8.314462618; return 27*R*R*в.Tc*в.Tc/(64*в.pc); }},
+    {level:5, sim:'vdw', unit:'%',
+     statement:`Газ сжимают при текущей температуре. Какую долю объёма займёт жидкость, когда объём станет равен $V_{\\text{кр}}$?
+       Давление насыщенного пара и объёмы фаз найдите по правилу Максвелла (или прочтите на диаграмме).`,
+     hint:'Доля по массе — правило рычага; доля по объёму — $x\\,V_{\\text{ж}}/V$.',
+     answer:p=>{ const м=SIMS.vdw.максвелл(p.tau); if(!м) return NaN; const x=(м.φп-1)/(м.φп-м.φж); return 100*x*м.φж; }}
+  ]
+};
+
+/* ===================== ЯВЛЕНИЯ ПЕРЕНОСА (6.3.0) =====================
+   Длина свободного пробега, диффузия и броуновское движение, теплопроводность,
+   вязкость газа, теплопередача излучением. */
+const T_transport={
+  id:'th.transport', ch:'11а', title:'Явления переноса',
+  key:[
+    `Молекула газа пролетает между столкновениями в среднем путь $\\lambda=1/(\\sqrt2\\,n\\sigma)$ — длину свободного пробега.`,
+    `Диффузия, теплопроводность и вязкость — один механизм: молекулы, перемешиваясь, переносят вещество, энергию или импульс.`,
+    `Поток всегда направлен против градиента: вещество течёт туда, где его меньше, тепло — туда, где холоднее.`,
+    `Броуновская частица уходит не на расстояние, пропорциональное времени, а на пропорциональное его корню: $\\langle x^2\\rangle=2Dt$.`,
+    `Время выравнивания температуры растёт как квадрат размера: $\\tau\\sim L^2/a$.`,
+  ],
+  explore:[
+    {sim:'diffusion', do:`Запустите блуждание и откройте график $\\langle r^2\\rangle(t)$`, see:`растёт по прямой: квадрат смещения пропорционален времени`},
+    {sim:'diffusion', do:`Увеличьте радиус частицы вчетверо`, see:`облако расползается вчетверо медленнее: $D\\propto1/r$`},
+    {sim:'heat', do:`Сравните медь и стекло`, see:`профиль один и тот же, но стекло выходит на него в сотни раз дольше`},
+    {sim:'heat', do:`Опыт «синусоида»`, see:`горб опадает, сохраняя форму, по экспоненте с временем $L^2/\\pi^2a$`},
+  ],
+  theory:`
+  <p>В газе молекулы летят со скоростями в сотни метров в секунду, а запах духов расходится по комнате минутами.
+  Причина — столкновения: молекула всё время сбивается с пути, и её движение похоже на блуждание пьяного. Этот
+  беспорядочный путь и стоит за тремя знакомыми явлениями: <strong>диффузией</strong>, <strong>теплопроводностью</strong>
+  и <strong>вязкостью</strong>. Их называют явлениями переноса.</p>
+
+  <h3 class="sub">Длина свободного пробега</h3>
+  <p>Представим молекулу шариком диаметром $d$. Она столкнётся со всякой другой, центр которой окажется ближе $d$ от
+  её пути, то есть в цилиндре сечением $\\sigma=\\pi d^2$. На длине $\\lambda$ в таком цилиндре должна оказаться в
+  среднем одна молекула: $n\\sigma\\lambda\\approx1$. С учётом того, что движутся все молекулы,</p>
+  $$\\lambda=\\frac{1}{\\sqrt2\\,n\\sigma}.$$
+  <p>Для воздуха при нормальных условиях $\\lambda\\approx70$ нм — в двести с лишним раз больше размера молекулы, а
+  столкновений у каждой молекулы — несколько миллиардов в секунду. В вакуумной лампе с давлением $10^{-6}$ Па
+  пробег уже километры: молекулы бьются только о стенки.</p>
+
+  <h3 class="sub">Диффузия</h3>
+  <p>Если концентрация вещества неодинакова, хаотическое движение само выравнивает её: из места, где частиц много,
+  их уходит больше, чем приходит. Поток частиц через единичную площадку пропорционален градиенту концентрации —
+  <strong>закон Фика</strong>: $j=-D\\,\\dfrac{dn}{dx}$. Коэффициент диффузии $D$ у газов порядка $10^{-5}$ м²/с, в
+  жидкостях — в десять тысяч раз меньше, $10^{-9}$ м²/с: капля чернил в стакане без помешивания расплывается
+  часами.</p>
+
+  <h3 class="sub">Броуновское движение</h3>
+  <p>В 1827 году ботаник Броун увидел в микроскоп, что пыльца в воде непрерывно дрожит. Объяснение дали Эйнштейн и
+  Смолуховский в 1905 году: частицу толкают удары молекул, и их неравномерность не усредняется. Каждый шаг
+  случаен, поэтому средний сдвиг равен нулю, зато средний <em>квадрат</em> сдвига растёт пропорционально времени:</p>
+  $$\\langle x^2\\rangle=2Dt,\\qquad D=\\frac{kT}{6\\pi\\eta r}.$$
+  <p>Вторая формула — <strong>соотношение Эйнштейна</strong>: та же вязкость, что тормозит частицу по Стоксу, задаёт
+  и силу её теплового блуждания. Жан Перрен, проследив под микроскопом пути частиц смолы, измерил $D$ и отсюда
+  постоянную Больцмана, а с ней число Авогадро. Это был решающий довод в пользу существования атомов (Нобелевская
+  премия 1926 года).</p>
+  <div class="callout"><strong>Что показывает симуляция.</strong> Сотни частиц стартуют из одной точки. Каждая блуждает
+  случайно, но облако в целом расползается так, что $\\langle r^2\\rangle$ растёт по прямой с наклоном $4D$ (на
+  плоскости две оси, по $2D$ на каждую). Пунктирный круг — измеренный радиус облака, сплошной — предсказание
+  Эйнштейна.</div>
+
+  <h3 class="sub">Теплопроводность</h3>
+  <p>Тепло тоже переносится от горячего к холодному: быстрые молекулы горячей области, перемешиваясь с медленными,
+  отдают им энергию. Плотность потока тепла пропорциональна градиенту температуры — <strong>закон Фурье</strong>:
+  $q=-\\lambda\\,\\dfrac{dT}{dx}$, где $\\lambda$ — теплопроводность (у меди 400 Вт/(м·К), у стекла 1, у воздуха
+  0,026). Через стену толщиной $d$ и площадью $S$ при разности температур $\\Delta T$ уходит мощность
+  $P=\\lambda S\\Delta T/d$.</p>
+  <p>Скорость <em>выравнивания</em> температуры задаёт не сама $\\lambda$, а <strong>температуропроводность</strong>
+  $a=\\lambda/(\\rho c)$: хорошо проводящее, но теплоёмкое тело прогревается медленно. Характерное время прогрева
+  тела размером $L$ — $\\tau\\sim L^2/a$. Вдвое толще — вчетверо дольше: поэтому большую индейку запекают часами, а
+  тонкий блин — минуту.</p>
+  <div class="callout"><strong>Почему металл холоднее дерева при одной и той же температуре?</strong> Рука теряет тепло
+  тем быстрее, чем лучше материал отводит его от кожи. Металл в сотни раз теплопроводнее дерева, поэтому холодный на
+  ощупь, хотя термометр показывает одно и то же.</div>
+
+  <h3 class="sub">Вязкость газа</h3>
+  <p>Если соседние слои газа движутся с разной скоростью, молекулы, перелетая между ними, переносят импульс и
+  тормозят быстрый слой. Кинетическая теория даёт для газа $\\eta=\\tfrac13\\rho\\langle v\\rangle\\lambda$. Удивительное
+  следствие нашёл Максвелл: так как $\\lambda\\propto1/n$, а $\\rho\\propto n$, вязкость газа не зависит от давления.
+  Маятник в разреженном воздухе затухает так же, как в плотном, пока пробег не станет сравним с размером сосуда.</p>
+
+  <h3 class="sub">Конвекция и излучение</h3>
+  <p>Теплопроводность — не единственный способ передать тепло. В жидкостях и газах работает <strong>конвекция</strong>:
+  нагретое вещество становится легче и всплывает, унося тепло потоком (батарея греет комнату в основном так).
+  А <strong>излучение</strong> не нуждается в веществе вовсе: так Солнце греет Землю сквозь пустоту. Нагретое тело
+  излучает мощность $P=\\varepsilon\\sigma ST^4$ (закон Стефана — Больцмана), и рост вчетверо по степени делает
+  излучение главным способом теплообмена при высоких температурах.</p>`,
+  time:45,
+  needs:['th.kinetic'],
+  why:`Почему запах расходится медленно, хотя молекулы летят быстрее пули? Почему металл кажется холоднее дерева?
+    Как по дрожанию пылинки измерили число Авогадро? Всё это — следствия хаотического блуждания молекул, и
+    описываются они тремя похожими законами переноса.`,
+  derivations:[
+    {
+      goal:'\\langle x^2\\rangle=2Dt',
+      from:['x_N=\\sum_{i=1}^{N}\\xi_i'],
+      steps:[
+        {tex:'x_N=\\xi_1+\\xi_2+\\dots+\\xi_N,\\qquad \\langle\\xi_i\\rangle=0,\\ \\langle\\xi_i^2\\rangle=l^2',
+         why:'частица делает $N$ независимых шагов длиной около $l$ в случайную сторону — вправо и влево равновероятно',
+         op:['физика','сумма']},
+        {tex:'\\langle x_N^2\\rangle=\\sum_i\\langle\\xi_i^2\\rangle+\\sum_{i\\ne j}\\langle\\xi_i\\xi_j\\rangle=Nl^2',
+         why:'возвели сумму в квадрат и усреднили. Перекрёстные члены дают ноль: шаги независимы, и их произведение с равной вероятностью положительно и отрицательно',
+         op:['скобки','среднее']},
+        {tex:'N=\\dfrac t{\\tau_0}\\ \\Rightarrow\\ \\langle x^2\\rangle=\\dfrac{l^2}{\\tau_0}\\,t=2Dt',
+         why:'число шагов пропорционально времени. Обозначив $D=l^2/2\\tau_0$, получаем: квадрат смещения растёт линейно, а само смещение — как $\\sqrt t$',
+         op:['подстановка','обозначение']}
+      ],
+      sim:'diffusion'
+    },
+    {
+      goal:'\\tau=\\dfrac{L^2}{\\pi^2a}',
+      from:['q=-\\lambda\\,\\dfrac{dT}{dx}','Q=cm\\,\\Delta T'],
+      steps:[
+        {tex:'\\rho c\\,\\dfrac{\\partial T}{\\partial t}=-\\dfrac{\\partial q}{\\partial x}=\\lambda\\,\\dfrac{\\partial^2T}{\\partial x^2}',
+         why:'тепло, которое втекает в тонкий слой, идёт на его нагрев: баланс энергии для слоя толщиной $dx$ плюс закон Фурье',
+         op:['физика','производная']},
+        {tex:'\\dfrac{\\partial T}{\\partial t}=a\\,\\dfrac{\\partial^2T}{\\partial x^2},\\qquad a=\\dfrac{\\lambda}{\\rho c}',
+         why:'уравнение теплопроводности. Важен не сам $\\lambda$, а его отношение к теплоёмкости единицы объёма',
+         op:['обозначение']},
+        {tex:'T=A\\sin\\dfrac{\\pi x}{L}\\,e^{-t/\\tau}\\ \\Rightarrow\\ -\\dfrac1\\tau=-a\\,\\dfrac{\\pi^2}{L^2}',
+         why:'подставили горб-синусоиду, обращающийся в ноль на концах. Она не меняет форму, а только гаснет — и условие даёт время затухания',
+         op:['подстановка','экспонента']},
+        {tex:'\\tau=\\dfrac{L^2}{\\pi^2a}',
+         why:'время растёт как квадрат длины: стержень вдвое длиннее остывает вчетверо дольше',
+         op:['выразить','зависимость']}
+      ],
+      sim:'heat'
+    }
+  ],
+  formulas:[
+    {tex:'\\lambda=\\dfrac{1}{\\sqrt2\\,n\\sigma}',
+     kind:'следствие',
+     note:'Длина свободного пробега; $\\sigma=\\pi d^2$ — эффективное сечение столкновения.', sim:'diffusion'},
+    {tex:'j=-D\\,\\dfrac{dn}{dx}',
+     kind:'закон',
+     note:'Закон Фика: поток частиц против градиента концентрации.', sim:'diffusion'},
+    {tex:'\\langle x^2\\rangle=2Dt',
+     kind:'следствие',
+     note:'Броуновское смещение по одной оси; на плоскости $\\langle r^2\\rangle=4Dt$.', sim:'diffusion'},
+    {tex:'D=\\dfrac{kT}{6\\pi\\eta r}',
+     kind:'закон',
+     note:'Соотношение Эйнштейна — Стокса: по нему Перрен измерил постоянную Больцмана.', sim:'diffusion'},
+    {tex:'q=-\\lambda\\,\\dfrac{dT}{dx},\\qquad P=\\dfrac{\\lambda S\\,\\Delta T}{d}',
+     kind:'закон',
+     note:'Закон Фурье и поток тепла через плоскую стену.', sim:'heat'},
+    {tex:'\\tau=\\dfrac{L^2}{\\pi^2a}',
+     kind:'следствие',
+     note:'Время выравнивания температуры; $a=\\lambda/(\\rho c)$ — температуропроводность.', sim:'heat'},
+    {tex:'P=\\varepsilon\\sigma ST^4',
+     kind:'закон',
+     note:'Закон Стефана — Больцмана для теплового излучения, $\\sigma=5{,}67\\cdot10^{-8}$ Вт/(м²·К⁴).', sim:'heat'}
+  ],
+  mistakes:[
+    {wrong:'Броуновская частица за вдвое большее время уходит вдвое дальше.',
+     right:'В $\\sqrt2$ раз дальше: от времени линейно растёт квадрат смещения.',
+     why:'Случайные шаги частично гасят друг друга. Растёт только разброс, и растёт он как корень из числа шагов.'},
+    {wrong:'Металл холоднее дерева в той же комнате.',
+     right:'Температура одна; металл лишь быстрее отводит тепло от руки.',
+     why:'Ощущение холода — это поток тепла из кожи, а он пропорционален теплопроводности материала.'}
+  ],
+  checks:[
+    {q:'Почему двойное окно утепляет лучше одного толстого стекла?',
+     a:'Между стёклами слой воздуха, а теплопроводность воздуха в 40 раз меньше, чем у стекла. Тонкий слой не даёт развиться конвекции.'},
+    {q:'Как изменится коэффициент диффузии броуновской частицы, если нагреть воду?',
+     a:'Вырастет: $D=kT/6\\pi\\eta r$ растёт с температурой напрямую, а вязкость воды при нагреве ещё и сильно падает.'},
+    {q:'Зависит ли вязкость газа от давления?',
+     a:'Почти нет: плотность растёт с давлением, а длина свободного пробега во столько же раз уменьшается.'}
+  ],
+  links:[
+    {to:'th.kinetic', text:'Скорости молекул и их концентрация оттуда задают длину пробега и все коэффициенты переноса.'},
+    {to:'mech.fluids', text:'Вязкость, тормозящая шарик по Стоксу, — та же, что задаёт его броуновское блуждание.'},
+    {to:'th.second', text:'Перенос всегда идёт от неравновесия к равновесию — это и есть рост энтропии.'}
+  ],
+  problems:[
+    {level:2, sim:'heat', unit:'кВт/м²',
+     statement:`Опыт с концами при $T_1$ и $T_2$. Какой поток тепла установится в стержне, когда температура перестанет меняться?`,
+     hint:'В установившемся режиме профиль — прямая, градиент $(T_1-T_2)/L$. Теплопроводность — в описании материала.',
+     answer:p=>SIMS.heat.м(p).λ*(p.T1-p.T2)/p.L/1000},
+    {level:3, sim:'heat', unit:'с',
+     statement:`Опыт «синусоида». Через сколько секунд превышение температуры середины над средним значением концов уменьшится вдвое?`,
+     hint:'Горб гаснет как $e^{-t/\\tau}$ с $\\tau=L^2/\\pi^2a$; половина — при $t=\\tau\\ln2$.',
+     answer:p=>SIMS.heat.τ(p)*Math.LN2},
+    {level:4, sim:'heat', unit:'раз',
+     statement:`Во сколько раз дольше выравнивалась бы температура, будь стержень из того же материала втрое длиннее?`,
+     hint:'$\\tau\\propto L^2$.',
+     answer:p=>9},
+    {level:3, sim:'diffusion', unit:'мкм',
+     statement:`Каким станет среднеквадратичное смещение частицы по одной оси через минуту?`,
+     hint:'$\\sqrt{\\langle x^2\\rangle}=\\sqrt{2Dt}$, $D$ — по формуле Эйнштейна.',
+     answer:p=>Math.sqrt(2*SIMS.diffusion.D(p)*60)*1e6},
+    {level:4, sim:'diffusion', unit:'мин',
+     statement:`За какое время частица в среднем сместится по одной оси на 0,1 мм?`,
+     hint:'Решите $\\langle x^2\\rangle=2Dt$ относительно $t$.',
+     answer:p=>Math.pow(1e-4,2)/(2*SIMS.diffusion.D(p))/60},
+    {level:5, sim:'diffusion', unit:'',
+     statement:`Перрен по броуновскому движению измерил число Авогадро. Пусть измеренный коэффициент диффузии равен формуле
+       Эйнштейна при текущих параметрах. Восстановите по нему $N_A=R/k$, считая известными $R$, $T$, $\\eta$ и $r$.`,
+     hint:'Из $D=\\dfrac{RT}{6\\pi\\eta rN_A}$ выразите $N_A$.',
+     answer:p=>{ const D=SIMS.diffusion.D(p); return 8.314462618*p.T/(6*Math.PI*SIMS.diffusion.ETA[p.liq]*p.r*1e-6*D); }}
+  ]
+};
+
+/* ===================== ТОК В РАЗЛИЧНЫХ СРЕДАХ (6.3.0) =====================
+   Металлы, электролиты, газы, вакуум, полупроводники — школьная глава
+   «Электрический ток в различных средах» с вузовскими дополнениями. */
+const T_media={
+  id:'el.media', ch:'14а', title:'Ток в различных средах',
+  key:[
+    `В металлах ток несут свободные электроны. Их дрейфовая скорость — доли миллиметра в секунду, а сигнал бежит со скоростью, близкой к световой.`,
+    `Сопротивление металла растёт с температурой: $R=R_0(1+\\alpha t)$. Некоторые металлы при сильном охлаждении становятся сверхпроводниками.`,
+    `В электролитах ток несут ионы, и вместе с зарядом переносится вещество: $m=\\dfrac{M}{zF}It$ — закон Фарадея.`,
+    `Газ — изолятор, пока в нём нет ионов. Разряд становится самостоятельным, когда электроны ионизуют газ ударом.`,
+    `В вакууме ток возможен, если электроны вылетают из нагретого катода — термоэлектронная эмиссия.`,
+    `В полупроводниках носители — электроны и дырки; примеси меняют проводимость в миллионы раз, а p–n-переход пропускает ток в одну сторону.`,
+  ],
+  explore:[
+    {sim:'electrolysis', do:`Включите ток и следите за массой на катоде`, see:`она растёт строго по прямой: каждый ион приносит одинаковую порцию заряда`},
+    {sim:'electrolysis', do:`Замените медь серебром при том же токе`, see:`серебра выделяется в 3,4 раза больше: ион одновалентный и тяжелее`},
+    {sim:'beam', do:`Увеличьте ускоряющее напряжение`, see:`луч отклоняется слабее: быстрый электрон меньше времени проводит между пластинами`},
+    {sim:'resistors', do:`Соберите цепь и посмотрите на ток`, see:`ток один и тот же во всех последовательных участках — заряд не копится`},
+  ],
+  theory:`
+  <p>Закон Ома и правила Кирхгофа не спрашивают, <em>кто</em> несёт заряд. Но именно от этого зависит, как вещество
+  проводит ток, как его сопротивление меняется с температурой и что при этом происходит с самим веществом.</p>
+
+  <h3 class="sub">Металлы</h3>
+  <p>В металле внешние электроны атомов не привязаны к своим ядрам и образуют «электронный газ». Опыт Толмена и
+  Стюарта (1916) доказал это прямо: катушку резко тормозили, и электроны по инерции проскакивали вперёд, давая
+  импульс тока; по его знаку и величине нашли, что носители — отрицательные частицы с отношением $e/m$ электрона.</p>
+  <p>Сила тока выражается через концентрацию носителей $n$ и их среднюю скорость: $I=enSv$. Для медного провода
+  сечением 1 мм² при токе 1 А получается $v\\approx0{,}07$ мм/с — электроны ползут медленнее улитки. Лампа же
+  загорается мгновенно, потому что вдоль провода со скоростью, близкой к световой, распространяется электрическое
+  поле, и оно толкает все электроны сразу.</p>
+  <p>Сопротивление металла создают столкновения электронов с колеблющимися ионами решётки. Чем горячее металл, тем
+  сильнее колебания, поэтому $R=R_0(1+\\alpha t)$ с $\\alpha\\approx0{,}004$ К⁻¹: нить лампы накаливания горячей
+  имеет сопротивление в 10–15 раз больше, чем холодной. В 1911 году Камерлинг-Оннес обнаружил, что ртуть при 4,2 К
+  теряет сопротивление полностью — <strong>сверхпроводимость</strong>. Ток в сверхпроводящем кольце течёт годами без
+  источника.</p>
+
+  <h3 class="sub">Электролиты и закон Фарадея</h3>
+  <p>Соли, кислоты и щёлочи в воде распадаются на ионы — <strong>электролитическая диссоциация</strong>. В поле ионы
+  идут к электродам: положительные к катоду, отрицательные к аноду. На электродах они отдают или принимают
+  электроны и выделяются веществом. Так получают чистую медь и алюминий, наносят хромовые и никелевые покрытия,
+  заряжают аккумулятор.</p>
+  <p>Каждый ион валентности $z$ переносит заряд $ze$. Чтобы на катоде выделился один моль металла, через раствор
+  должен пройти заряд $zeN_A=zF$, где $F=eN_A\\approx96\\,485$ Кл/моль — <strong>постоянная Фарадея</strong>.
+  Отсюда</p>
+  $$m=\\frac{M}{zF}\\,It.$$
+  <p>Фарадей установил этот закон в 1833 году опытом, ещё ничего не зная об электронах. Позже по нему впервые оценили
+  элементарный заряд: если известна $F$ и число Авогадро, то $e=F/N_A$.</p>
+
+  <h3 class="sub">Газы</h3>
+  <p>Воздух — прекрасный изолятор: в нём почти нет заряженных частиц. Ток появляется, если газ ионизировать —
+  пламенем, ультрафиолетом, радиоактивностью. Такой разряд <strong>несамостоятельный</strong>: уберите ионизатор, и
+  он погаснет. Если же поле достаточно сильное, электрон между столкновениями набирает энергию, хватающую на
+  ионизацию атома. Каждый удар рождает новый электрон, растёт лавина, и разряд поддерживает себя сам. Его формы:
+  искра и молния, дуга (сварка, прожекторы), тлеющий разряд (неоновые лампы), коронный разряд у острия.</p>
+
+  <h3 class="sub">Вакуум</h3>
+  <p>В пустоте носителей нет вовсе. Их можно «испарить» из металла: при нагреве часть электронов получает энергию
+  больше работы выхода и вылетает — <strong>термоэлектронная эмиссия</strong>. На ней работают вакуумный диод (ток
+  идёт, только когда горячий катод отрицателен), радиолампы и электронно-лучевые трубки. Разогнанный пучок электронов
+  отклоняют полем пластин — так рисовали изображение кинескопы и осциллографы, так работает электронный микроскоп.</p>
+
+  <h3 class="sub">Полупроводники</h3>
+  <p>У кремния и германия электроны связаны в ковалентных связях, но энергия, нужная, чтобы освободить один из них,
+  невелика. При нагреве или освещении часть связей рвётся: появляются свободный электрон и <strong>дырка</strong> —
+  вакансия, которая ведёт себя как положительный заряд. В отличие от металлов, сопротивление полупроводника при
+  нагреве <em>падает</em>: носителей становится больше. На этом работают термисторы и фоторезисторы.</p>
+  <p>Примеси меняют всё. Атом фосфора в кремнии отдаёт лишний электрон (проводимость $n$-типа), атом бора — захватывает
+  (дырочная, $p$-тип). Миллионная доля примеси увеличивает проводимость в тысячи раз. На границе $p$- и
+  $n$-областей возникает <strong>p–n-переход</strong>, который пропускает ток в одном направлении, — диод. Два
+  перехода дают транзистор, а миллиарды транзисторов — процессор.</p>`,
+  time:45,
+  needs:['el.current'],
+  why:`Закон Ома одинаков для всех проводников, но провод, раствор соли, неоновая лампа и транзистор проводят ток
+    совершенно по-разному. Понимание носителей заряда объясняет, почему лампа загорается мгновенно, как получают
+    чистые металлы, откуда берётся молния и как работает электроника.`,
+  derivations:[
+    {
+      goal:'m=\\dfrac{M}{zF}\\,It',
+      from:['q=It','F=eN_A'],
+      steps:[
+        {tex:'N=\\dfrac{q}{ze}=\\dfrac{It}{ze}',
+         why:'каждый ион валентности $z$ переносит заряд $ze$; через электролит прошёл заряд $It$',
+         op:['физика','подстановка']},
+        {tex:'m=N\\,\\dfrac{M}{N_A}=\\dfrac{M\\,It}{z\\,eN_A}',
+         why:'каждый ион, разрядившись, оставляет на катоде атом массой $M/N_A$',
+         op:['подстановка']},
+        {tex:'m=\\dfrac{M}{zF}\\,It',
+         why:'произведение $eN_A$ обозначили постоянной Фарадея $F$. Масса растёт пропорционально заряду — это и видно на графике $m(t)$',
+         op:['обозначение']}
+      ],
+      sim:'electrolysis'
+    },
+    {
+      goal:'I=enSv',
+      from:['I=\\dfrac{\\Delta q}{\\Delta t}'],
+      steps:[
+        {tex:'\\Delta N=nSv\\,\\Delta t',
+         why:'за время $\\Delta t$ через сечение $S$ проходят все носители из цилиндра длиной $v\\Delta t$',
+         op:['геометрия']},
+        {tex:'\\Delta q=e\\,\\Delta N=enSv\\,\\Delta t',
+         why:'у каждого носителя заряд $e$',
+         op:['подстановка']},
+        {tex:'I=enSv',
+         why:'разделили на время. Для меди $n\\approx8{,}5\\cdot10^{28}$ м⁻³, поэтому даже сильный ток — это очень медленный дрейф',
+         op:['обе-части']}
+      ],
+      sim:'resistors'
+    }
+  ],
+  formulas:[
+    {tex:'I=enSv',
+     kind:'следствие',
+     note:'Ток через концентрацию и дрейфовую скорость носителей.', sim:'resistors'},
+    {tex:'R=R_0(1+\\alpha t)',
+     kind:'закон',
+     note:'Сопротивление металла растёт с температурой; $\\alpha\\approx0{,}004$ К⁻¹ для чистых металлов.', sim:'resistors'},
+    {tex:'m=\\dfrac{M}{zF}\\,It',
+     kind:'закон',
+     note:'Объединённый закон Фарадея для электролиза; $F=eN_A=96\\,485$ Кл/моль.', sim:'electrolysis'},
+    {tex:'k=\\dfrac{M}{zF}',
+     kind:'определение',
+     note:'Электрохимический эквивалент — масса вещества, выделяемая зарядом в 1 Кл.', sim:'electrolysis'}
+  ],
+  mistakes:[
+    {wrong:'Электроны в проводе летят со скоростью света, поэтому лампа загорается сразу.',
+     right:'Электроны дрейфуют со скоростью доли миллиметра в секунду; со скоростью, близкой к световой, распространяется поле.',
+     why:'Провод уже заполнен электронами. Поле толкает их все одновременно, как воду в полном шланге: вода из конца течёт сразу, хотя каждая капля движется медленно.'},
+    {wrong:'При нагреве сопротивление любого проводника растёт.',
+     right:'У металлов растёт, у полупроводников и электролитов падает.',
+     why:'В металле число носителей постоянно, а рассеяние растёт. В полупроводнике нагрев освобождает новые носители, и этот эффект сильнее.'}
+  ],
+  checks:[
+    {q:'Почему лампы накаливания чаще всего перегорают в момент включения?',
+     a:'Холодная нить имеет сопротивление в 10–15 раз меньше горячей, и в первый миг через неё идёт большой ток, перегревающий тонкие места.'},
+    {q:'Сколько серебра выделится, если через раствор пройдёт заряд 96 485 Кл?',
+     a:'Один моль, то есть 108 г: серебро одновалентно, и одна постоянная Фарадея разряжает моль ионов.'},
+    {q:'Почему молния бьёт в высокие и острые предметы?',
+     a:'У острия поле сильнее всего, там начинается коронный разряд и ионизация воздуха, по которой затем проходит основной канал.'}
+  ],
+  links:[
+    {to:'el.current', text:'Закон Ома и правила Кирхгофа верны для любых проводников — здесь видно, кто несёт ток внутри.'},
+    {to:'el.statics', text:'Электронный луч в трубке — заряд, разогнанный и отклонённый электростатическим полем.'},
+    {to:'q.condensed', text:'Почему у кремния есть запрещённая зона, а у меди нет, объясняет зонная теория твёрдого тела.'}
+  ],
+  problems:[
+    {level:2, sim:'electrolysis', unit:'г',
+     statement:`Какая масса металла выделится на катоде за час при текущей силе тока?`,
+     hint:'Закон Фарадея: $m=\\dfrac{M}{zF}It$, $t=3600$ с.',
+     answer:p=>{ const в=SIMS.electrolysis.в(p); return в.M*p.I*3600/(в.z*SIMS.electrolysis.F); }},
+    {level:3, sim:'electrolysis', unit:'ч',
+     statement:`Сколько часов нужно вести электролиз при текущем токе, чтобы получить 100 г металла?`,
+     hint:'Выразите время из закона Фарадея.',
+     answer:p=>{ const в=SIMS.electrolysis.в(p); return 100*в.z*SIMS.electrolysis.F/(в.M*p.I)/3600; }},
+    {level:3, sim:'electrolysis', unit:'мг/Кл',
+     statement:`Найдите электрохимический эквивалент выделяющегося металла.`,
+     hint:'$k=M/(zF)$; не забудьте перевести граммы в миллиграммы.',
+     answer:p=>{ const в=SIMS.electrolysis.в(p); return в.M/(в.z*SIMS.electrolysis.F)*1000; }},
+    {level:4, sim:'electrolysis', unit:'мкм',
+     statement:`Металл осаждается на катод площадью 50 см². Какой толщины слой нарастёт за 30 минут? Плотности: медь 8,96, серебро 10,49, цинк 7,14, никель 8,91, алюминий 2,70 г/см³.`,
+     hint:'Масса из закона Фарадея, объём — масса на плотность, толщина — объём на площадь.',
+     answer:p=>{ const в=SIMS.electrolysis.в(p), m=в.M*p.I*1800/(в.z*SIMS.electrolysis.F); return m/(в.ρ/1000)/50*1e4; }},
+    {level:5, sim:'electrolysis', unit:'мг',
+     statement:`Ванну с выбранным раствором соединили последовательно с ванной с раствором нитрата серебра. Пока в серебряной ванне
+       выделился 1 г серебра, сколько миллиграммов металла выделилось в первой?`,
+     hint:'Через последовательные ванны проходит один и тот же заряд. Массы относятся как $M/z$.',
+     answer:p=>{ const в=SIMS.electrolysis.в(p); return 1000*(в.M/в.z)/107.868; }}
+  ]
+};
+
 /* Разделы и темы — строго по оглавлению Дж. Орира «Физика» (т. 1–2, 1981) */
 const SECTIONS=[
  {id:'intro', title:'Начало', topics:[ T_intro ]},
@@ -32996,12 +34154,15 @@ const SECTIONS=[
  {id:'thermo', title:'МКТ и термодинамика', topics:[
    T_gas,
    T_thermo,
-   T_carnot
+   T_phase,
+   T_carnot,
+   T_transport
  ]},
  {id:'electro', title:'Электродинамика', topics:[
    T_efield,
    T_potential,
-   T_current
+   T_current,
+   T_media
  ]},
  {id:'em', title:'Электромагнетизм', topics:[
    T_magfields,
@@ -35442,10 +36603,15 @@ const УЧ=(function(){
     ['Тепло','Почему вода кипит при 100 °C и не нагревается дальше?','th.thermo','calorimetry'],
     ['Тепло','Почему нельзя построить двигатель с КПД 100 %?','th.second','carnot'],
     ['Тепло','Почему разбитую чашку не собрать обратно?','th.kinetic','micro'],
+    ['Тепло','Почему углекислый газ в баллоне в жару перестаёт быть жидкостью?','th.phase','vdw'],
+    ['Тепло','Почему металл на ощупь холоднее дерева?','th.transport','heat'],
+    ['Тепло','Как по дрожанию пылинки измерили число Авогадро?','th.transport','diffusion'],
     ['Тепло','Почему самолёт держится в воздухе?','mech.fluids','bernoulli'],
     ['Силы','Почему подушка безопасности спасает, хотя удар тот же?','mech.momentum','impact'],
     ['Силы','Почему из пробитой бочки дальше всех бьёт струя из середины?','mech.fluids','torricelli'],
     ['Электричество','Почему расчёска после волос притягивает бумажки?','el.force','efield'],
+    ['Электричество','Как в старом телевизоре луч рисовал картинку?','el.statics','beam'],
+    ['Электричество','Как получают чистую медь и алюминий?','el.media','electrolysis'],
     ['Электричество','Как конденсатор хранит энергию?','el.statics','capacitor'],
     ['Электричество','Почему лампочки в гирлянде гаснут все разом?','el.current','resistors'],
     ['Магнетизм','Как работает электростанция?','em.induction','generator'],
@@ -36143,7 +37309,7 @@ function разделТемы(t){
 function видРаздела(sec){ return ВИД_РАЗДЕЛОВ[sec&&sec.id]||ВИД_РАЗДЕЛОВ.intro; }
 /* стиль для элемента с цветом раздела: оба оттенка, CSS выберет по теме */
 function стильРаздела(sec){ const в=видРаздела(sec); return `--sec-l:${в.с};--sec-d:${в.т}`; }
-function значокРаздела(sec,кл){ return sec&&ЛОГО[sec.id]?логотипРаздела(sec.id,кл||'sec-ic'):`<svg class="${кл||'sec-ic'}" viewBox="0 0 24 24" aria-hidden="true">${видРаздела(sec).значок}</svg>`; }
+function значокРаздела(sec,кл){ return sec&&ЛОГО[sec.id]?логотипРаздела(sec.id,кл||'sec-ic'):точкаРаздела(кл); }
 
 /* ---------------- шапка темы ----------------
    Полоса цвета раздела, значок и короткая сводка: сколько читать, сколько
@@ -36278,21 +37444,17 @@ function открытьЗадачу(тема,i){
     const inp=el.querySelector('input'); if(inp&&!(typeof isNarrow==='function'&&isNarrow())) setTimeout(()=>inp.focus({preventScroll:true}),400); },160);
 }
 
-/* ---------------- значки разделов (6.1.0) ----------------
-   Минималистичные и одноцветные: тонкая линия цвета раздела, без плиток и
-   градиентов — одинаково хорошо на светлой и тёмной теме. Бросок, газ в
-   сосуде, диполь, волна сквозь виток, линза, световой конус, волновой пакет. */
-const ЛОГО={
-  mech:`<path d="M3 20.5h18"/><path d="M4 18.5C6.5 9 13 6 19.5 12" stroke-dasharray="1.2 2.6"/><circle cx="12.6" cy="8.4" r="2.3" fill="currentColor" stroke="none"/><path d="M15 8.2h4m-1.6-1.6L19 8.2l-1.6 1.6"/>`,
-  thermo:`<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.5" cy="8.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.6" cy="7.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="7.8" cy="16.2" r="1.5" fill="currentColor" stroke="none"/><circle cx="16.2" cy="15.8" r="1.5" fill="currentColor" stroke="none"/><path d="M10.2 9.8l-1-.7M17.5 9.5l-.9-.9M13.6 14.1l.9.6" stroke-width="1.3"/>`,
-  electro:`<circle cx="5.5" cy="12" r="2.8"/><circle cx="18.5" cy="12" r="2.8"/><path d="M4.3 12h2.4M5.5 10.8v2.4M17.3 12h2.4" stroke-width="1.4"/><path d="M8 10.4C10.3 6.6 13.7 6.6 16 10.4M8 13.6C10.3 17.4 13.7 17.4 16 13.6M8.4 12h7.2"/>`,
-  em:`<ellipse cx="12" cy="12" rx="3.6" ry="8.2"/><path d="M2 12c1.7-5 3.3-5 5 0s3.3 5 5 0 3.3-5 5 0 3.3 5 5 0"/>`,
-  optics:`<path d="M10.5 3c2.4 3.2 2.4 14.8 0 18-2.4-3.2-2.4-14.8 0-18z"/><path d="M2 7.5h8.5L21 12M2 16.5h8.5L21 12M2 12h19"/>`,
-  rel:`<path d="M4 4l16 16M20 4L4 20"/><path d="M12 21.5c-2-3 2.2-5.5 0-9.5s1.8-6 0-9.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>`,
-  quantum:`<path d="M2 18.5h20" stroke-width="1.2" opacity=".45"/><path d="M2.00 12.03 L2.25 12.03 L2.50 12.02 L2.75 12.01 L3.00 11.99 L3.25 11.95 L3.50 11.90 L3.75 11.85 L4.00 11.80 L4.25 11.79 L4.50 11.82 L4.75 11.91 L5.00 12.07 L5.25 12.29 L5.50 12.54 L5.75 12.79 L6.00 12.97 L6.25 13.00 L6.50 12.84 L6.75 12.44 L7.00 11.81 L7.25 11.01 L7.50 10.17 L7.75 9.43 L8.00 8.98 L8.25 8.99 L8.50 9.55 L8.75 10.68 L9.00 12.28 L9.25 14.12 L9.50 15.91 L9.75 17.30 L10.00 17.97 L10.25 17.73 L10.50 16.52 L10.75 14.46 L11.00 11.85 L11.25 9.12 L11.50 6.72 L11.75 5.08 L12.00 4.50 L12.25 5.08 L12.50 6.72 L12.75 9.12 L13.00 11.85 L13.25 14.46 L13.50 16.52 L13.75 17.73 L14.00 17.97 L14.25 17.30 L14.50 15.91 L14.75 14.12 L15.00 12.28 L15.25 10.68 L15.50 9.55 L15.75 8.99 L16.00 8.98 L16.25 9.43 L16.50 10.17 L16.75 11.01 L17.00 11.81 L17.25 12.44 L17.50 12.84 L17.75 13.00 L18.00 12.97 L18.25 12.79 L18.50 12.54 L18.75 12.29 L19.00 12.07 L19.25 11.91 L19.50 11.82 L19.75 11.79 L20.00 11.80 L20.25 11.85 L20.50 11.90 L20.75 11.95 L21.00 11.99 L21.25 12.01 L21.50 12.02 L21.75 12.03 L22.00 12.03"/>`
-};
-function логотипРаздела(id,кл){ const р=ЛОГО[id]||ЛОГО.quantum;
-  return `<svg class="${кл||'sec-logo'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${р}</svg>`; }
+/* ---------------- значки разделов (6.3.0) ----------------
+   Пока у разделов нет своих логотипов, вместо значка — простой знак цвета
+   раздела: квадратик на карточке главной и точка в оглавлении. Логотипы
+   автор нарисует сам. Чтобы поставить логотип, положите в ЛОГО[id раздела]
+   SVG-разметку на сетке 24×24 (линии stroke="currentColor") — и он
+   появится и на главной, и в оглавлении, без других правок. */
+const ЛОГО={};
+function логотипРаздела(id,кл){ const р=ЛОГО[id];
+  if(р) return `<svg class="${кл||'sec-logo'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${р}</svg>`;
+  return `<svg class="${кл||'sec-logo'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor" stroke="none"/></svg>`; }
+function точкаРаздела(кл){ return `<svg class="${кл||'sec-ic'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg>`; }
 
 /* ---------------- мыльная плёнка: живая шапка главной (6.2.0) ----------------
    Цвета мыльного пузыря — интерференция в тонкой плёнке. Свет отражается
@@ -36588,6 +37750,18 @@ const ФАКТЫ={
     {т:'Формула на надгробии',о:'Связь энтропии с числом микросостояний $S=k\\ln W$ высечена на надгробии Людвига Больцмана в Вене.'},
     {т:'Холодильник греет комнату',о:'Холодильник не делает холод, а перекачивает тепло наружу, тратя работу. Открытый холодильник в закрытой комнате её нагреет, а не охладит.'},
     {т:'Предел для электростанций',о:'КПД тепловых электростанций — около 35–45 %. Значительная часть тепла неизбежно уходит в окружающую среду: этого требует второе начало, а не недоработка инженеров.'}],
+  'th.phase':[
+    {т:'Кипяток на Эвересте',о:'На вершине Эвереста давление около трети атмосферы, и вода кипит при 70 °C. Сварить там яйцо вкрутую в открытой кастрюле почти невозможно.'},
+    {т:'Сверхкритический CO₂ варит кофе без кофеина',о:'Выше 31 °C и 74 атмосфер углекислый газ становится флюидом — плотным, как жидкость, и проникающим, как газ. Им вымывают кофеин из зёрен, не оставляя растворителя.'},
+    {т:'Почему лужа на морозе исчезает',о:'Лёд испаряется, минуя жидкую фазу, — сублимация. Бельё, вывешенное на мороз, высыхает именно так.'}],
+  'th.transport':[
+    {т:'Перрен взвесил атом по дрожанию пылинок',о:'В 1908 году Жан Перрен следил в микроскоп за шариками смолы в воде и по их блужданию нашёл число Авогадро. После этого в существовании атомов не сомневался никто.'},
+    {т:'Звезда остывает миллионы лет',о:'Фотону, рождённому в центре Солнца, нужно от десятков тысяч до сотен тысяч лет, чтобы пробиться к поверхности: он блуждает, рассеиваясь триллионы раз.'},
+    {т:'Пуховик греет воздухом',о:'Пух сам по себе почти ничего не значит: он держит неподвижный воздух, теплопроводность которого в 20 раз меньше, чем у воды, и не даёт ему конвекции.'}],
+  'el.media':[
+    {т:'Электрон в проводе медленнее улитки',о:'При токе 1 А в медном проводе сечением 1 мм² электроны дрейфуют со скоростью около 0,07 мм/с. От выключателя до лампы они добирались бы часы.'},
+    {т:'Алюминий дороже золота',о:'До изобретения электролиза расплава в 1886 году алюминий был драгоценным металлом: Наполеон III подавал почётным гостям алюминиевые вилки. Сегодня на его производство уходит несколько процентов мировой электроэнергии.'},
+    {т:'Молния горячее Солнца',о:'Канал молнии разогревается до 30 000 К — в пять раз горячее поверхности Солнца. Воздух расширяется взрывом, и мы слышим гром.'}],
   'el.force':[
     {т:'Электричество — «янтарность»',о:'Слово «электричество» происходит от греческого «электрон» — янтарь: древние греки заметили, что натёртый янтарь притягивает соломинки и пух.'},
     {т:'В $10^{39}$ раз сильнее',о:'Электрическое притяжение протона и электрона примерно в $10^{39}$ раз сильнее их гравитационного притяжения.'},
@@ -36846,7 +38020,109 @@ const ВУЗ={
       <p>Доля молекул со скоростями от $v$ до $v+dv$:</p>
       $$f(v)\\,dv=4\\pi\\left(\\frac{m}{2\\pi kT}\\right)^{3/2}v^2e^{-mv^2/2kT}\\,dv.$$
       <p>Множитель $v^2$ — объём тонкого шарового слоя в пространстве скоростей, экспонента — больцмановский вес энергии. Отсюда три характерные скорости:</p>
-      $$v_{\\text{вер}}=\\sqrt{\\frac{2kT}{m}},\\quad \\langle v\\rangle=\\sqrt{\\frac{8kT}{\\pi m}},\\quad v_{\\text{кв}}=\\sqrt{\\frac{3kT}{m}}.$$`}],
+      $$v_{\\text{вер}}=\\sqrt{\\frac{2kT}{m}},\\quad \\langle v\\rangle=\\sqrt{\\frac{8kT}{\\pi m}},\\quad v_{\\text{кв}}=\\sqrt{\\frac{3kT}{m}}.$$`},
+    {h:'Распределение Больцмана и барометрическая формула',html:`
+      <p>В поле тяжести слой газа толщиной $dh$ держит разность давлений $dp=-\\rho g\\,dh=-n\\,mg\\,dh$. Вместе с $p=nkT$ при постоянной температуре:</p>
+      $$n(h)=n_0\\,e^{-mgh/kT}.$$
+      <p>Это частный случай распределения Больцмана $n\\propto e^{-U/kT}$: частиц тем меньше, чем выше их потенциальная энергия по сравнению с $kT$. Для воздуха давление падает в $e$ раз на высоте около 8 км; Перрен, проследив такое же распределение для взвеси смолы в воде, измерил постоянную Больцмана.</p>`},
+    {h:'Равнораспределение по степеням свободы',html:`
+      <p>В классической статистике на каждую квадратичную степень свободы в энергии приходится в среднем $kT/2$. Отсюда $C_V=\\tfrac32R$ у одноатомного газа, $\\tfrac52R$ у двухатомного (три поступательные и две вращательные степени) и $3R$ у твёрдого тела (закон Дюлонга — Пти). Колебательные степени молекул при комнатной температуре «заморожены» — объяснить это смогла только квантовая теория.</p>`}],
+  'th.thermo':[
+    {h:'Первое начало в дифференциалах',html:`
+      <p>Для бесконечно малого процесса $\\delta Q=dU+p\\,dV$. Здесь $dU$ — полный дифференциал функции состояния, а $\\delta Q$ и $\\delta A=p\\,dV$ — нет: количество теплоты и работа зависят от пути. Для идеального газа $dU=\\nu C_V\\,dT$, и из уравнения состояния сразу следует соотношение Майера:</p>
+      $$C_p-C_V=R.$$
+      <p>При постоянном давлении часть тепла уходит на работу расширения $p\\,dV=\\nu R\\,dT$ — отсюда разница ровно $R$ на моль.</p>`},
+    {h:'Уравнение адиабаты',html:`
+      <p>При $\\delta Q=0$: $\\nu C_VdT=-p\\,dV$. Подставив $p=\\nu RT/V$ и разделив переменные, получаем $\\frac{C_V}{R}\\frac{dT}{T}=-\\frac{dV}{V}$, откуда</p>
+      $$TV^{\\gamma-1}=\\text{const},\\qquad pV^{\\gamma}=\\text{const},\\qquad \\gamma=\\frac{C_p}{C_V}.$$
+      <p>Адиабата круче изотермы в $\\gamma$ раз. Скорость звука в газе определяется именно адиабатической сжимаемостью: $c=\\sqrt{\\gamma RT/M}$ — Ньютон, взяв изотерму, ошибся на 15 %.</p>`},
+    {h:'Политропа',html:`
+      <p>Процесс с постоянной теплоёмкостью $C$ называют политропическим: $pV^n=\\text{const}$, где $n=\\frac{C-C_p}{C-C_V}$. Изобара ($n=0$), изотерма ($n=1$), адиабата ($n=\\gamma$) и изохора ($n\\to\\infty$) — его частные случаи. При $1\\lt n\\lt\\gamma$ теплоёмкость отрицательна: газ получает тепло, а охлаждается — работа расширения больше подведённой теплоты.</p>`}],
+  'th.second':[
+    {h:'Энтропия как функция состояния',html:`
+      <p>Для обратимых процессов $\\oint\\frac{\\delta Q}{T}=0$ (следствие теоремы Карно), поэтому $dS=\\frac{\\delta Q_{\\text{обр}}}{T}$ — полный дифференциал. Для идеального газа</p>
+      $$\\Delta S=\\nu C_V\\ln\\frac{T_2}{T_1}+\\nu R\\ln\\frac{V_2}{V_1}.$$
+      <p>При необратимом расширении в пустоту (опыт Джоуля) $Q=0$, $T$ не меняется, а энтропия растёт на $\\nu R\\ln(V_2/V_1)$: считать надо по любому обратимому пути между теми же состояниями.</p>`},
+    {h:'Неравенство Клаузиуса и формула Больцмана',html:`
+      <p>Для любого цикла $\\oint\\frac{\\delta Q}{T}\\le0$, а для теплоизолированной системы $\\Delta S\\ge0$ — закон возрастания энтропии. Больцман связал её с числом микросостояний $W$, реализующих данное макросостояние:</p>
+      $$S=k\\ln W.$$
+      <p>Расширение газа вдвое увеличивает число способов разместить $N$ молекул в $2^N$ раз, и $\\Delta S=Nk\\ln2=\\nu R\\ln2$ — то же, что даёт термодинамика.</p>`},
+    {h:'Термодинамические потенциалы',html:`
+      <p>Из $dU=T\\,dS-p\\,dV$ преобразованием Лежандра получаются свободная энергия $F=U-TS$ ($dF=-S\\,dT-p\\,dV$) и потенциал Гиббса $G=F+pV$ ($dG=-S\\,dT+V\\,dp$). Равенство смешанных производных даёт соотношения Максвелла, например</p>
+      $$\\left(\\frac{\\partial S}{\\partial V}\\right)_T=\\left(\\frac{\\partial p}{\\partial T}\\right)_V.$$
+      <p>При постоянных $T$ и $p$ система идёт к минимуму $G$; в равновесии двух фаз их удельные потенциалы Гиббса равны.</p>`}],
+  'th.phase':[
+    {h:'Уравнение Клапейрона — Клаузиуса',html:`
+      <p>На линии равновесия фаз $g_1(p,T)=g_2(p,T)$. Сместившись вдоль неё, $-s_1dT+v_1dp=-s_2dT+v_2dp$, а $s_2-s_1=q/T$, где $q$ — удельная теплота перехода:</p>
+      $$\\frac{dp}{dT}=\\frac{q}{T\\,(v_2-v_1)}.$$
+      <p>Для испарения вдали от критической точки $v_2\\gg v_1$ и пар почти идеален, отсюда $p_{\\text{н}}\\propto e^{-qM/RT}$. У воды при плавлении $v_2\\lt v_1$ (лёд легче воды), поэтому давление <em>понижает</em> температуру плавления — на этом, отчасти, скользят коньки.</p>`},
+    {h:'Правило Максвелла',html:`
+      <p>Почему горизонталь проводят по равным площадям? Пройдём от жидкости к пару по петле Ван-дер-Ваальса и вернёмся по горизонтали. Это обратимый изотермический цикл, и $\\oint p\\,dV=\\oint dF$ с обратным знаком равно нулю. Значит, площадь под петлёй равна площади под горизонталью — площади над и под ней одинаковы. То же условие — равенство потенциалов Гиббса двух фаз.</p>`},
+    {h:'Критические показатели',html:`
+      <p>Вблизи критической точки разность плотностей жидкости и пара обращается в ноль как $(T_{\\text{кр}}-T)^\\beta$. Теория Ван-дер-Ваальса даёт $\\beta=1/2$, а опыт — $\\beta\\approx0{,}33$ для всех веществ сразу. Это универсальность критического поведения; объяснить её смогла лишь теория ренормгруппы (Вильсон, Нобелевская премия 1982 года). В той же точке сжимаемость обращается в бесконечность, флуктуации плотности становятся макроскопическими, и вещество мутнеет — критическая опалесценция.</p>`}],
+  'th.transport':[
+    {h:'Уравнения диффузии и теплопроводности',html:`
+      <p>Закон сохранения вещества $\\partial n/\\partial t+\\partial j/\\partial x=0$ вместе с законом Фика даёт уравнение диффузии; с законом Фурье — уравнение теплопроводности. Они одинаковы:</p>
+      $$\\frac{\\partial n}{\\partial t}=D\\frac{\\partial^2n}{\\partial x^2}.$$
+      <p>Его фундаментальное решение — расплывающаяся гауссиана $n=\\frac{N}{\\sqrt{4\\pi Dt}}e^{-x^2/4Dt}$ с дисперсией $2Dt$: облако броуновских частиц и пятно тепла от вспышки ведут себя одинаково.</p>`},
+    {h:'Кинетические коэффициенты газа',html:`
+      <p>В простейшей модели каждая молекула переносит «свою» величину на расстояние порядка длины пробега:</p>
+      $$D=\\tfrac13\\langle v\\rangle\\lambda,\\qquad \\eta=\\tfrac13\\rho\\langle v\\rangle\\lambda,\\qquad \\kappa=\\tfrac13\\rho c_V\\langle v\\rangle\\lambda.$$
+      <p>Отсюда $\\eta=\\rho D$ и $\\kappa=c_V\\eta$ — связи, которые для газов выполняются с точностью до множителя порядка единицы. Все три коэффициента растут как $\\sqrt T$ и не зависят от давления, пока $\\lambda$ меньше размеров сосуда.</p>`},
+    {h:'Соотношение Эйнштейна',html:`
+      <p>Броуновская частица в поле силы $F$ дрейфует со скоростью $v=bF$ ($b=1/6\\pi\\eta r$ — подвижность). В равновесии диффузионный поток против градиента концентрации уравновешивает дрейф, а распределение больцмановское $n\\propto e^{-U/kT}$. Отсюда</p>
+      $$D=bkT.$$
+      <p>Это первый пример флуктуационно-диссипационной теоремы: трение, рассеивающее энергию, и тепловые флуктуации — две стороны одного взаимодействия с молекулами среды.</p>`}],
+  'el.force':[
+    {h:'Теорема Гаусса в дифференциальной форме',html:`
+      <p>Применим теорему Гаусса к малому кубику и разделим на его объём. Поток через поверхность, отнесённый к объёму, — это дивергенция:</p>
+      $$\\nabla\\cdot\\vec E=\\frac{\\rho}{\\varepsilon_0}.$$
+      <p>Поле «вытекает» из положительных зарядов и «втекает» в отрицательные; там, где зарядов нет, силовые линии не начинаются и не кончаются.</p>`},
+    {h:'Потенциальность и уравнение Пуассона',html:`
+      <p>Электростатическое поле потенциально: $\\nabla\\times\\vec E=0$, $\\vec E=-\\nabla\\varphi$. Подставив в теорему Гаусса, получаем уравнение Пуассона</p>
+      $$\\Delta\\varphi=-\\frac{\\rho}{\\varepsilon_0},$$
+      <p>а в пустоте — уравнение Лапласа $\\Delta\\varphi=0$. У его решений нет максимумов и минимумов внутри области, отсюда теорема Ирншоу: заряд нельзя удержать в устойчивом равновесии одними электростатическими силами.</p>`},
+    {h:'Мультипольное разложение',html:`
+      <p>Вдали от системы зарядов её потенциал раскладывается по степеням $1/r$:</p>
+      $$\\varphi=\\frac{1}{4\\pi\\varepsilon_0}\\left(\\frac{Q}{r}+\\frac{\\vec p\\cdot\\vec r}{r^3}+\\dots\\right),\\qquad \\vec p=\\sum q_i\\vec r_i.$$
+      <p>У нейтральной системы главный член — дипольный: потенциал падает как $1/r^2$, поле — как $1/r^3$. Именно так взаимодействуют нейтральные молекулы.</p>`}],
+  'el.statics':[
+    {h:'Метод изображений',html:`
+      <p>Заряд $q$ на расстоянии $a$ от заземлённой проводящей плоскости. Поле над плоскостью такое же, как у пары $q$ и $-q$, где $-q$ — зеркальное изображение: оно удовлетворяет тому же уравнению Лапласа и тому же условию $\\varphi=0$ на плоскости, а решение единственно. Сила притяжения заряда к плоскости</p>
+      $$F=\\frac{q^2}{4\\pi\\varepsilon_0(2a)^2}.$$
+      <p>Индуцированный заряд на плоскости в сумме равен $-q$. Метод работает и для сферы: изображение заряда $q$ на расстоянии $l$ от центра заземлённой сферы радиуса $R$ — заряд $-qR/l$ в точке $R^2/l$.</p>`},
+    {h:'Энергия поля и сила на обкладку',html:`
+      <p>Энергия конденсатора распределена по полю с плотностью $w=\\varepsilon_0E^2/2$. Сила притяжения обкладок — производная энергии по зазору при постоянном заряде:</p>
+      $$F=-\\left(\\frac{\\partial W}{\\partial x}\\right)_q=\\frac{q^2}{2\\varepsilon_0S}=\\frac{qE}{2}.$$
+      <p>Половина — потому что поле, действующее на обкладку, создаёт только другая обкладка. Давление поля на проводник $\\varepsilon_0E^2/2$ равно плотности энергии.</p>`},
+    {h:'Диэлектрики: поляризация и вектор D',html:`
+      <p>В поле диэлектрик поляризуется: дипольный момент единицы объёма $\\vec P=\\varepsilon_0\\chi\\vec E$. Связанные заряды учитывают, вводя вектор индукции $\\vec D=\\varepsilon_0\\vec E+\\vec P=\\varepsilon\\varepsilon_0\\vec E$, для которого</p>
+      $$\\oint\\vec D\\cdot d\\vec A=Q_{\\text{своб}}.$$
+      <p>На границе двух диэлектриков сохраняются касательная составляющая $\\vec E$ и нормальная составляющая $\\vec D$ — поэтому силовые линии преломляются.</p>`}],
+  'el.current':[
+    {h:'Закон Ома в дифференциальной форме',html:`
+      <p>Для малого цилиндра проводника $I=jS$, $U=El$, $R=l/(\\sigma S)$, и закон Ома превращается в локальный:</p>
+      $$\\vec j=\\sigma\\vec E.$$
+      <p>Модель Друде: электрон разгоняется полем и теряет направленную скорость при столкновениях в среднем через время $\\tau$. Дрейфовая скорость $v=eE\\tau/m$, откуда $\\sigma=\\frac{ne^2\\tau}{m}$. Для меди $\\tau\\sim10^{-14}$ с.</p>`},
+    {h:'Уравнение непрерывности',html:`
+      <p>Заряд сохраняется: сколько вытекло через поверхность, на столько уменьшилось внутри. В дифференциальной форме</p>
+      $$\\frac{\\partial\\rho}{\\partial t}+\\nabla\\cdot\\vec j=0.$$
+      <p>Вместе с $\\vec j=\\sigma\\vec E$ и теоремой Гаусса отсюда $\\partial\\rho/\\partial t=-\\frac{\\sigma}{\\varepsilon_0}\\rho$: избыточный заряд внутри проводника исчезает за время $\\varepsilon_0/\\sigma\\sim10^{-19}$ с и уходит на поверхность.</p>`},
+    {h:'RC-цепь и энергия зарядки',html:`
+      <p>Правило Кирхгофа $\\mathcal E=IR+q/C$ с $I=dq/dt$ — линейное уравнение первого порядка. Решение $q=C\\mathcal E\\,(1-e^{-t/RC})$. Источник за время зарядки совершает работу $q\\mathcal E=C\\mathcal E^2$, а в конденсаторе остаётся $C\\mathcal E^2/2$:</p>
+      $$Q_{\\text{тепло}}=\\frac{C\\mathcal E^2}{2}$$
+      <p>— ровно половина уходит в тепло, при любом $R$. Сопротивление определяет лишь, как быстро.</p>`}],
+  'el.media':[
+    {h:'Почему сопротивление металла растёт с температурой',html:`
+      <p>По Друде $\\rho=\\frac{m}{ne^2\\tau}$. Концентрация электронов в металле от температуры не зависит, а время между рассеяниями определяется колебаниями решётки — фононами. Число фононов при высоких температурах пропорционально $T$, поэтому $\\rho\\propto T$. При низких температурах остаётся рассеяние на примесях и дефектах — остаточное сопротивление, по которому судят о чистоте металла.</p>`},
+    {h:'Закон трёх вторых',html:`
+      <p>В вакуумном диоде ток ограничен облаком электронов у катода: их собственный заряд экранирует поле. Решая вместе уравнение Пуассона, закон сохранения энергии и постоянство тока, получают закон Чайлда — Ленгмюра</p>
+      $$j=\\frac{4\\varepsilon_0}{9}\\sqrt{\\frac{2e}{m}}\\,\\frac{U^{3/2}}{d^2}.$$
+      <p>Ток растёт не пропорционально напряжению, как в законе Ома, а как $U^{3/2}$ — пока не наступит насыщение, когда все вылетающие электроны уже попадают на анод.</p>`},
+    {h:'Собственные носители в полупроводнике',html:`
+      <p>Концентрация электронов в зоне проводимости определяется больцмановским множителем от ширины запрещённой зоны $E_g$:</p>
+      $$n_i\\propto T^{3/2}e^{-E_g/2kT}.$$
+      <p>Двойка в знаменателе — потому что каждый акт рождает пару: электрон и дырку. У кремния $E_g=1{,}12$ эВ, и при нагреве на 10 К от комнатной температуры собственная проводимость вырастает примерно вдвое.</p>`}],
   'em.radiation':[
     {h:'Уравнения Максвелла',html:`
       <p>Вся классическая электродинамика — четыре уравнения. В интегральной форме:</p>
@@ -36956,6 +38232,19 @@ const ГЛОССАРИЙ=[
   {т:'КПД',к:['кпд'],о:'Доля полученной энергии, ушедшая в полезную работу: $\\eta=\\dfrac{A}{Q_1}$. Для тепловой машины не больше $1-\\dfrac{T_2}{T_1}$.',тема:'th.second'},
   {т:'Энтропия',к:['энтропи'],о:'Мера числа микросостояний, отвечающих данному макросостоянию. В изолированной системе не убывает — это и есть второе начало.',тема:'th.second'},
   // электричество и магнетизм
+  {т:'Насыщенный пар',к:['насыщенн[а-яё]* пар'],о:'Пар в динамическом равновесии со своей жидкостью. Его давление зависит только от температуры.',тема:'th.phase'},
+  {т:'Критическая температура',к:['критическ[а-яё]* температур','критическ[а-яё]* точк'],о:'Температура, выше которой исчезает различие жидкости и пара: газ не сжижается никаким давлением.',тема:'th.phase'},
+  {т:'Относительная влажность',к:['относительн[а-яё]* влажност'],о:'Отношение давления водяного пара в воздухе к давлению насыщенного пара при той же температуре.',тема:'th.phase'},
+  {т:'Поверхностное натяжение',к:['поверхностн[а-яё]* натяжени'],о:'Сила на единицу длины края поверхности жидкости, $\\sigma=F/l$; у воды 0,073 Н/м.',тема:'th.phase'},
+  {т:'Длина свободного пробега',к:['свободн[а-яё]* пробег'],о:'Средний путь молекулы между двумя столкновениями, $\\lambda=1/(\\sqrt2\\,n\\sigma)$.',тема:'th.transport'},
+  {т:'Диффузия',к:['диффузи'],о:'Самопроизвольное выравнивание концентрации за счёт теплового движения: $j=-D\\,dn/dx$.',тема:'th.transport'},
+  {т:'Броуновское движение',к:['броуновск'],о:'Беспорядочное движение мелких частиц под ударами молекул среды: $\\langle x^2\\rangle=2Dt$.',тема:'th.transport'},
+  {т:'Теплопроводность',к:['теплопроводност'],о:'Перенос тепла без переноса вещества: $q=-\\lambda\\,dT/dx$ (закон Фурье).',тема:'th.transport'},
+  {т:'Электролиз',к:['электролиз'],о:'Выделение вещества на электродах при прохождении тока через электролит: $m=\\frac{M}{zF}It$.',тема:'el.media'},
+  {т:'Постоянная Фарадея',к:['постоянн[а-яё]* фарадея'],о:'Заряд моля элементарных зарядов: $F=eN_A\\approx96\\,485$ Кл/моль.',тема:'el.media'},
+  {т:'Сверхпроводимость',к:['сверхпроводим'],о:'Полное исчезновение сопротивления некоторых веществ ниже критической температуры.',тема:'el.media'},
+  {т:'Термоэлектронная эмиссия',к:['термоэлектронн'],о:'Испускание электронов нагретым металлом; на ней работают вакуумные лампы и электронные пушки.',тема:'el.media'},
+  {т:'p–n-переход',к:['p[–-]n-переход'],о:'Граница областей полупроводника с электронной и дырочной проводимостью; пропускает ток в одну сторону.',тема:'el.media'},
   {т:'Электрический заряд',к:['заряд'],о:'Свойство частиц участвовать в электромагнитном взаимодействии. Сохраняется и квантуется: кратен $e=1{,}6\\cdot10^{-19}$ Кл.',тема:'el.force'},
   {т:'Закон Кулона',к:['закон[а-яё]* кулон'],о:'Сила между точечными зарядами: $F=k\\dfrac{|q_1q_2|}{r^2}$. Единица заряда, кулон, названа тем же именем.',тема:'el.force'},
   {т:'Напряжённость поля',к:['напряжённост','напряженност'],о:'Сила, действующая на единичный положительный заряд: $\\vec E=\\dfrac{\\vec F}{q}$.',тема:'el.statics'},
@@ -38621,7 +39910,7 @@ function drawGrid(ctx){
   if(prefGet('axisTicks')!==false && метрическая() && !сценаПолоска())
     drawAxes(ctx,step,x0,x1,y0,y1);
   if(S.settings.gridLabels!==false && метрическая() && !сценаПолоска())
-    VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
+    VIEW.label(ctx,`сетка ${step} ${(A()&&A().def.gridUnit)||'м'}`,x1,y0,-80,-10,css('--ink-3'));   // gridUnit — у сцен в см или мкм (6.3.0)
 }
 
 /* ---------------------- ОСИ С ДЕЛЕНИЯМИ И ЧИСЛАМИ ----------------------
@@ -39665,7 +40954,11 @@ function updateHistoBox(a){
 }
 function updateEnergyBox(a){
   const box=$('#energybox');
-  if(!a.def.energies || S.settings.energy===false){ box.classList.add('hidden'); return; }
+  /* Панель прячется тремя путями: общей настройкой, флажком «Диаграмма
+     энергии» у самой симуляции (6.3.0: раньше он ни на что не влиял) и
+     крестиком в заголовке панели — он и снимает этот флажок. */
+  const флаг=a.def.params.some(q=>q.key==='bars');
+  if(!a.def.energies || S.settings.energy===false || (флаг&&a.params.bars===false)){ box.classList.add('hidden'); return; }
   const E=a.def.energies(a.state,a.params), p=a.params;
   const bars=[['E_кин',E.Ek,'var(--accent)']];
   // вторую полоску подбираем по тому, какая форма энергии активна
@@ -44268,6 +45561,14 @@ function updateCompare(){
   $('#cmp-body').innerHTML=`<div class="cmp-row" style="color:var(--ink-3)">
       <span>снимок при t</span><span>${snap.t.toFixed(2)} с</span></div>`+rows;
 }
+if($('#energy-close')) $('#energy-close').onclick=()=>{
+  const a=A(); if(!a) return;
+  const флаг=a.def.params.some(q=>q.key==='bars');
+  if(флаг){ a.params.bars=false; try{ renderParams(); }catch(_){} }
+  else prefSet('energy',false);
+  $('#energybox').classList.add('hidden');
+  toast(флаг?'Диаграмма энергии скрыта — вернуть её можно флажком в параметрах':'Диаграмма энергии скрыта — вернуть её можно в настройках сцены');
+};
 if($('#cmp-close')) $('#cmp-close').onclick=()=>{ $('#cmpbox').classList.add('hidden'); S.snapshot=null; };
 
 function copyReadouts(){
@@ -44314,8 +45615,16 @@ function cycleWindowMode(){
   prefSet('winMode',next);
   toast('Режим окна: '+({window:'в окне',full:'во весь экран',fullwin:'весь экран в окне'})[next]);
 }
+/* applySettings зовёт эту функцию при ЛЮБОЙ смене настройки. Раньше она
+   каждый раз приводила окно к сохранённому режиму, и стоило в полноэкранном
+   режиме (кнопка, F11 браузера) переключить, например, «Школа | Вуз» —
+   сохранённое «в окне» выкидывало из полного экрана. Теперь режим
+   применяется, только когда изменилась сама настройка winMode (6.3.0). */
+let _режимОкна=null;
 function applyWindowMode(init){
   const m=prefGet('winMode')||'window';
+  if(m===_режимОкна) return;
+  _режимОкна=m;
   if(window.physimShell && physimShell.setWindowMode){
     try{ physimShell.setWindowMode(m); }catch(_){}
     return;
@@ -45843,7 +47152,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '6.2.0';
+window.PHYSIM_BUILD = '6.3.0';
 window.PHYSIM_READY = true;
 </script>
 </body>

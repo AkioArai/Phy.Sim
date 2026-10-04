@@ -549,7 +549,7 @@ function drawGrid(ctx){
   if(prefGet('axisTicks')!==false && метрическая() && !сценаПолоска())
     drawAxes(ctx,step,x0,x1,y0,y1);
   if(S.settings.gridLabels!==false && метрическая() && !сценаПолоска())
-    VIEW.label(ctx,`сетка ${step} м`,x1,y0,-80,-10,css('--ink-3'));
+    VIEW.label(ctx,`сетка ${step} ${(A()&&A().def.gridUnit)||'м'}`,x1,y0,-80,-10,css('--ink-3'));   // gridUnit — у сцен в см или мкм (6.3.0)
 }
 
 /* ---------------------- ОСИ С ДЕЛЕНИЯМИ И ЧИСЛАМИ ----------------------
@@ -1593,7 +1593,11 @@ function updateHistoBox(a){
 }
 function updateEnergyBox(a){
   const box=$('#energybox');
-  if(!a.def.energies || S.settings.energy===false){ box.classList.add('hidden'); return; }
+  /* Панель прячется тремя путями: общей настройкой, флажком «Диаграмма
+     энергии» у самой симуляции (6.3.0: раньше он ни на что не влиял) и
+     крестиком в заголовке панели — он и снимает этот флажок. */
+  const флаг=a.def.params.some(q=>q.key==='bars');
+  if(!a.def.energies || S.settings.energy===false || (флаг&&a.params.bars===false)){ box.classList.add('hidden'); return; }
   const E=a.def.energies(a.state,a.params), p=a.params;
   const bars=[['E_кин',E.Ek,'var(--accent)']];
   // вторую полоску подбираем по тому, какая форма энергии активна
@@ -6196,6 +6200,14 @@ function updateCompare(){
   $('#cmp-body').innerHTML=`<div class="cmp-row" style="color:var(--ink-3)">
       <span>снимок при t</span><span>${snap.t.toFixed(2)} с</span></div>`+rows;
 }
+if($('#energy-close')) $('#energy-close').onclick=()=>{
+  const a=A(); if(!a) return;
+  const флаг=a.def.params.some(q=>q.key==='bars');
+  if(флаг){ a.params.bars=false; try{ renderParams(); }catch(_){} }
+  else prefSet('energy',false);
+  $('#energybox').classList.add('hidden');
+  toast(флаг?'Диаграмма энергии скрыта — вернуть её можно флажком в параметрах':'Диаграмма энергии скрыта — вернуть её можно в настройках сцены');
+};
 if($('#cmp-close')) $('#cmp-close').onclick=()=>{ $('#cmpbox').classList.add('hidden'); S.snapshot=null; };
 
 function copyReadouts(){
@@ -6242,8 +6254,16 @@ function cycleWindowMode(){
   prefSet('winMode',next);
   toast('Режим окна: '+({window:'в окне',full:'во весь экран',fullwin:'весь экран в окне'})[next]);
 }
+/* applySettings зовёт эту функцию при ЛЮБОЙ смене настройки. Раньше она
+   каждый раз приводила окно к сохранённому режиму, и стоило в полноэкранном
+   режиме (кнопка, F11 браузера) переключить, например, «Школа | Вуз» —
+   сохранённое «в окне» выкидывало из полного экрана. Теперь режим
+   применяется, только когда изменилась сама настройка winMode (6.3.0). */
+let _режимОкна=null;
 function applyWindowMode(init){
   const m=prefGet('winMode')||'window';
+  if(m===_режимОкна) return;
+  _режимОкна=m;
   if(window.physimShell && physimShell.setWindowMode){
     try{ physimShell.setWindowMode(m); }catch(_){}
     return;
@@ -7771,5 +7791,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '6.2.0';
+window.PHYSIM_BUILD = '6.3.0';
 window.PHYSIM_READY = true;

@@ -3153,3 +3153,9 @@ details.deep>summary{font-family:var(--head)}
   background:color-mix(in srgb,var(--sec) 11%,transparent)}
 .sec>.hd .sec-ic{color:var(--sec);stroke:currentColor!important;border-radius:0!important}
 [data-ui="mobile"] .hm7-logo{width:40px;height:40px;padding:9px;border-radius:12px}
+
+/* 6.3.0: значки разделов — заглушки до авторских логотипов: квадратик цвета
+   раздела на карточке, точка в оглавлении. Без плиток и подложек. */
+.hm7-logo.sec-mark{width:16px;height:16px;padding:0;border-radius:0;background:none;color:var(--sec)}
+[data-ui="mobile"] .hm7-logo.sec-mark{width:14px;height:14px;padding:0}
+.sec>.hd .sec-ic.sec-mark{width:12px!important;height:12px!important;color:var(--sec);stroke:none!important}

@@ -30,7 +30,7 @@ function разделТемы(t){
 function видРаздела(sec){ return ВИД_РАЗДЕЛОВ[sec&&sec.id]||ВИД_РАЗДЕЛОВ.intro; }
 /* стиль для элемента с цветом раздела: оба оттенка, CSS выберет по теме */
 function стильРаздела(sec){ const в=видРаздела(sec); return `--sec-l:${в.с};--sec-d:${в.т}`; }
-function значокРаздела(sec,кл){ return sec&&ЛОГО[sec.id]?логотипРаздела(sec.id,кл||'sec-ic'):`<svg class="${кл||'sec-ic'}" viewBox="0 0 24 24" aria-hidden="true">${видРаздела(sec).значок}</svg>`; }
+function значокРаздела(sec,кл){ return sec&&ЛОГО[sec.id]?логотипРаздела(sec.id,кл||'sec-ic'):точкаРаздела(кл); }
 
 /* ---------------- шапка темы ----------------
    Полоса цвета раздела, значок и короткая сводка: сколько читать, сколько
@@ -165,21 +165,17 @@ function открытьЗадачу(тема,i){
     const inp=el.querySelector('input'); if(inp&&!(typeof isNarrow==='function'&&isNarrow())) setTimeout(()=>inp.focus({preventScroll:true}),400); },160);
 }
 
-/* ---------------- значки разделов (6.1.0) ----------------
-   Минималистичные и одноцветные: тонкая линия цвета раздела, без плиток и
-   градиентов — одинаково хорошо на светлой и тёмной теме. Бросок, газ в
-   сосуде, диполь, волна сквозь виток, линза, световой конус, волновой пакет. */
-const ЛОГО={
-  mech:`<path d="M3 20.5h18"/><path d="M4 18.5C6.5 9 13 6 19.5 12" stroke-dasharray="1.2 2.6"/><circle cx="12.6" cy="8.4" r="2.3" fill="currentColor" stroke="none"/><path d="M15 8.2h4m-1.6-1.6L19 8.2l-1.6 1.6"/>`,
-  thermo:`<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.5" cy="8.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.6" cy="7.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="7.8" cy="16.2" r="1.5" fill="currentColor" stroke="none"/><circle cx="16.2" cy="15.8" r="1.5" fill="currentColor" stroke="none"/><path d="M10.2 9.8l-1-.7M17.5 9.5l-.9-.9M13.6 14.1l.9.6" stroke-width="1.3"/>`,
-  electro:`<circle cx="5.5" cy="12" r="2.8"/><circle cx="18.5" cy="12" r="2.8"/><path d="M4.3 12h2.4M5.5 10.8v2.4M17.3 12h2.4" stroke-width="1.4"/><path d="M8 10.4C10.3 6.6 13.7 6.6 16 10.4M8 13.6C10.3 17.4 13.7 17.4 16 13.6M8.4 12h7.2"/>`,
-  em:`<ellipse cx="12" cy="12" rx="3.6" ry="8.2"/><path d="M2 12c1.7-5 3.3-5 5 0s3.3 5 5 0 3.3-5 5 0 3.3 5 5 0"/>`,
-  optics:`<path d="M10.5 3c2.4 3.2 2.4 14.8 0 18-2.4-3.2-2.4-14.8 0-18z"/><path d="M2 7.5h8.5L21 12M2 16.5h8.5L21 12M2 12h19"/>`,
-  rel:`<path d="M4 4l16 16M20 4L4 20"/><path d="M12 21.5c-2-3 2.2-5.5 0-9.5s1.8-6 0-9.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>`,
-  quantum:`<path d="M2 18.5h20" stroke-width="1.2" opacity=".45"/><path d="M2.00 12.03 L2.25 12.03 L2.50 12.02 L2.75 12.01 L3.00 11.99 L3.25 11.95 L3.50 11.90 L3.75 11.85 L4.00 11.80 L4.25 11.79 L4.50 11.82 L4.75 11.91 L5.00 12.07 L5.25 12.29 L5.50 12.54 L5.75 12.79 L6.00 12.97 L6.25 13.00 L6.50 12.84 L6.75 12.44 L7.00 11.81 L7.25 11.01 L7.50 10.17 L7.75 9.43 L8.00 8.98 L8.25 8.99 L8.50 9.55 L8.75 10.68 L9.00 12.28 L9.25 14.12 L9.50 15.91 L9.75 17.30 L10.00 17.97 L10.25 17.73 L10.50 16.52 L10.75 14.46 L11.00 11.85 L11.25 9.12 L11.50 6.72 L11.75 5.08 L12.00 4.50 L12.25 5.08 L12.50 6.72 L12.75 9.12 L13.00 11.85 L13.25 14.46 L13.50 16.52 L13.75 17.73 L14.00 17.97 L14.25 17.30 L14.50 15.91 L14.75 14.12 L15.00 12.28 L15.25 10.68 L15.50 9.55 L15.75 8.99 L16.00 8.98 L16.25 9.43 L16.50 10.17 L16.75 11.01 L17.00 11.81 L17.25 12.44 L17.50 12.84 L17.75 13.00 L18.00 12.97 L18.25 12.79 L18.50 12.54 L18.75 12.29 L19.00 12.07 L19.25 11.91 L19.50 11.82 L19.75 11.79 L20.00 11.80 L20.25 11.85 L20.50 11.90 L20.75 11.95 L21.00 11.99 L21.25 12.01 L21.50 12.02 L21.75 12.03 L22.00 12.03"/>`
-};
-function логотипРаздела(id,кл){ const р=ЛОГО[id]||ЛОГО.quantum;
-  return `<svg class="${кл||'sec-logo'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${р}</svg>`; }
+/* ---------------- значки разделов (6.3.0) ----------------
+   Пока у разделов нет своих логотипов, вместо значка — простой знак цвета
+   раздела: квадратик на карточке главной и точка в оглавлении. Логотипы
+   автор нарисует сам. Чтобы поставить логотип, положите в ЛОГО[id раздела]
+   SVG-разметку на сетке 24×24 (линии stroke="currentColor") — и он
+   появится и на главной, и в оглавлении, без других правок. */
+const ЛОГО={};
+function логотипРаздела(id,кл){ const р=ЛОГО[id];
+  if(р) return `<svg class="${кл||'sec-logo'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${р}</svg>`;
+  return `<svg class="${кл||'sec-logo'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor" stroke="none"/></svg>`; }
+function точкаРаздела(кл){ return `<svg class="${кл||'sec-ic'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg>`; }
 
 /* ---------------- мыльная плёнка: живая шапка главной (6.2.0) ----------------
    Цвета мыльного пузыря — интерференция в тонкой плёнке. Свет отражается

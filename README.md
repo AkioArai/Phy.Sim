@@ -8,7 +8,7 @@ are what you read when the simulation surprises you.
 This is not a course that teaches physics from zero — it is a **full revision** of one,
 from kinematics to quarks. Every topic opens with three things to try in a live
 simulation, five points worth remembering, and the derivations behind the formulas.
-88 simulations, 106 derivations and 448 problems, in a single HTML file that runs
+93 simulations, 113 derivations and 467 problems, in a single HTML file that runs
 offline, with no install and no account.
 
 > The course content is in **Russian** (it follows J. Orear's *Physics*, vols. 1–2).
@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-6.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-6.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-6.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-6.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-6.3.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-6.3.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-6.3.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-6.3.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -89,19 +89,19 @@ KaTeX and its fonts ship inside the repository.
 | **My path** | the handbook remembers what you solved and when: a map of all topics and what each stands on, a 12-problem diagnostic, spaced review, and a trainer for the skill behind your mistakes |
 | **why the answer is wrong** | a wrong answer is checked against the answers that typical slips produce — sin for cos, degrees in radian mode, centimetres left unconverted, forgotten friction, a lost sign — and the slip is named |
 | **50** questions to start from | "why doesn't a satellite fall?" — each opens the topic and the simulation where you can see the answer |
-| **88** interactive simulations | mechanics · thermodynamics · electricity · magnetism · alternating current · waves & optics · relativity · quantum · nuclear |
+| **93** interactive simulations | mechanics · thermodynamics · electricity · magnetism · alternating current · waves & optics · relativity · quantum · nuclear |
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
 | **40** topics in **8** sections | each one opens with what to try, then five points to remember; the full notes are one click below, collapsed |
 | **106** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
 | **161** points to remember | the five sentences per topic you would want on an exam morning |
-| **106** derivations, **409** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
+| **113** derivations, **432** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
 | **calculator with units** | 72 км/ч в м/с, (2,5 ± 0,1) м / (3,0 ± 0,2) с, h c / (500 нм) в эВ — every number carries its dimension, adding metres to seconds is refused, uncertainty propagates |
 | **220** course formulas, solvable | any of them for any of its quantities: T = 2π√(L/g) solved for g, with units and uncertainty; the rearranged formula is shown, not just the number |
 | **40** math techniques, on the steps | every step is tagged with the mathematics it uses; a tag opens what the technique is, when it is legitimate, where it breaks — and every other derivation in the course that uses it |
 | **prerequisites, stated** | a topic names what you must know first and offers a one-minute check before you start reading |
-| **313** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
-| **448** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
+| **331** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
+| **467** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
 | **96** interesting facts | three per topic at the end of the notes: where the physics shows up in life, how it was discovered, what surprises in it |
 | **university level** | a «School / University» switch adds sections with vectors, derivatives, integrals and Maxwell's equations; five topics so far, more being added |
 | **100** self-checks | three questions per topic, answers hidden until you have tried |
@@ -111,6 +111,25 @@ KaTeX and its fonts ship inside the repository.
 | **85** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 6.3: real gases, transport, current in media; two fixes
+
+- **Three new topics.** «Real gas, vapour and liquid»: the van der Waals equation, saturated
+  vapour, the critical point, boiling, humidity, surface tension. «Transport phenomena»: mean
+  free path, diffusion and Brownian motion, heat conduction, viscosity of a gas, radiation.
+  «Current in different media»: metals, electrolytes and Faraday's law, gases, vacuum,
+  semiconductors.
+- **Five new simulations**: van der Waals isotherms with Maxwell's equal areas and a piston
+  under which liquid appears; a rod that cools and warms (copper against glass); Brownian motion
+  checked against Einstein's formula; an electron beam deflected by capacitor plates; electrolysis.
+- **University level for thermodynamics and electricity**: Mayer, the adiabat and the polytrope,
+  entropy and Boltzmann's formula, thermodynamic potentials, Clapeyron–Clausius, critical
+  exponents, the diffusion equation and Einstein's relation, Gauss and Poisson in differential
+  form, multipoles, the method of images, D and polarisation, Ohm's law j = σE and the Drude
+  model, continuity, Child–Langmuir, intrinsic carriers.
+- **Section icons** are plain coloured squares and dots until the author draws real logos.
+- **Fixes**: the energy diagram in «Work and energy» can be hidden (its checkbox did nothing,
+  and the panel now has ×); switching School / University no longer throws you out of full screen.
 
 ### New in 6.2: a soap film, momentum and fluids, university-level mechanics
 
@@ -398,7 +417,7 @@ does those three things, with nothing leaving the device.
   radian mode, centimetres or grams plugged in unconverted, a forgotten ×10²⁴, friction
   left out, two quantities swapped, a checkbox of the model ignored — and, from the
   number itself, a lost sign, a lost prefix, a lost ½ or 2π, g = 10 instead of 9.8. It
-  needs no per-problem markup, so it works for all 448 problems. `npm run learn`
+  needs no per-problem markup, so it works for all 467 problems. `npm run learn`
   reproduces 495 such slips across 163 problems and requires every one to be named,
   the correct answer never to be called a slip, and a random wrong number to get an
   explanation less than 10 % of the time (it is 1.8 %).
@@ -563,7 +582,7 @@ the sign on the EMF and the check fails at 200 %.
 
 Most answers are computed from the **current parameters of the linked simulation**.
 Change the mass and the answer changes — so your neighbour's answer is different.
-An audit (`npm run audit`) runs all 448 problems against 40 randomised parameter
+An audit (`npm run audit`) runs all 467 problems against 40 randomised parameter
 sets each and checks that none of them throws, returns a non-number, is unanswerable
 for every input, compares a switch against a value the simulation doesn't have, or —
 above level 1 — simply equals a number already shown in the readouts panel.
@@ -792,7 +811,7 @@ email, put on a flash drive, or open by double-clicking.
 index.html            markup and script order — this is the dependency graph
 tests/regress.js      pre-release suite: every simulation, formulas, layout
 tests/physics.mjs     627 checks of readouts against closed-form solutions
-tests/answers.mjs     all 448 problems against 40 random parameter sets each
+tests/answers.mjs     all 467 problems against 40 random parameter sets each
 tests/curriculum.mjs  the prerequisite graph, lesson blocks, technique tags
 tests/calc.mjs        the calculator, and every course formula solved both ways
 tests/graphs.mjs      every graph marked as a derivative of another, checked in numbers
@@ -801,7 +820,7 @@ tests/lab.mjs         the lab's least-squares fit, scatter and number formatting
 tests/compat.js       the engine floor: ES2017, an ES5 watchdog, CSS fallbacks
 css/style.css         all styles: light/dark themes, desktop and phone layouts
 js/core.js            helpers and the empty SIMS registry
-js/sims/*.js          the 88 simulations, grouped by branch of physics
+js/sims/*.js          the 93 simulations, grouped by branch of physics
 js/topics.js          course content: notes, derivations, formulas, worked
                       examples, mistakes, self-checks, links, problems
 js/ops.js             the 40 math techniques the derivation steps are tagged with

@@ -1,0 +1,5 @@
+6.3.0 — real gases, transport, current in media.
+• Three new topics and five simulations: van der Waals isotherms, heat conduction, Brownian motion, an electron beam, electrolysis.
+• University level for thermodynamics and electricity.
+• Section icons are plain coloured marks.
+• Fixed: the energy diagram can be hidden; School / University keeps full screen.

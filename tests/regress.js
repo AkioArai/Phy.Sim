@@ -255,7 +255,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('88 симуляций', counts.sims === 88, counts);
+    ok('93 симуляции', counts.sims === 93, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -317,7 +317,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 51, оси.схем);
+    ok('схемы размечены', оси.схем === 53, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -519,7 +519,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 77 && разв.времени === 46 && разв.никак.length <= 3, разв);
+        разв.параметром >= 80 && разв.времени === 51 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1132,7 +1132,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 34 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 37 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1695,7 +1695,9 @@ async function сторож(b) {
         const фон = getComputedStyle(document.querySelector('.hm7-hero')).backgroundColor.match(/\d+/g).map(Number);
         r.светлая = фон[0] > 200 && фон[1] > 200 && фон[2] > 200;
         const лого = [...document.querySelectorAll('#home .hm7-logo')];
-        r.значки = лого.length === 7 && лого.every(svg => !svg.querySelector('rect[fill="#0e1118"], linearGradient') && svg.getAttribute('stroke') === 'currentColor');
+        // 6.3.0: до авторских логотипов — квадратик цвета раздела, без плиток
+        r.значки = лого.length === 7 && лого.every(svg => svg.classList.contains('sec-mark') && !svg.querySelector('linearGradient') && getComputedStyle(svg).backgroundColor.match(/\d+/g).slice(3).join() === '0')
+          && document.querySelectorAll('#tree .sec-ic.sec-mark circle, .sec>.hd .sec-mark circle').length >= 7;
         закрытьГлавную(); openTopic('mech.energy'); await жди(150);
         const sp = document.querySelector('#simpane'); sp.style.width = '500px'; sp.style.flex = '0 0 500px';
         document.querySelector('#btn-simfull').click(); await жди(200);
@@ -1740,6 +1742,43 @@ async function сторож(b) {
         return r;
       });
       ok('6.2: мыльная плёнка на главной, темы «Импульс» и «Гидромеханика», вузовский уровень механики',
+        Object.values(т).every(Boolean), т);
+    }
+
+    /* ============ 6.3.0 ============
+       Диаграмму энергии прячут крестиком и флажком «Диаграмма энергии»
+       (раньше флажок ни на что не влиял). Смена любой настройки больше не
+       выводит из полноэкранного режима. Новые темы по термодинамике и
+       электричеству на своих местах, их сцены открываются. */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {};
+        закрытьГлавную(); openTopic('mech.work'); openSim('energy'); S.playing = true; await жди(250);
+        const box = document.getElementById('energybox');
+        r.показана = !box.classList.contains('hidden');
+        document.getElementById('energy-close').click(); await жди(150);
+        r.скрытаКрестиком = box.classList.contains('hidden') && A().params.bars === false;
+        A().params.bars = true; await жди(150);
+        r.вернулась = !box.classList.contains('hidden');
+        A().params.bars = false; await жди(150);
+        r.скрытаФлажком = box.classList.contains('hidden');
+        A().params.bars = true;
+        // полный экран: подменяем состояние документа и следим, не зовут ли выход
+        let вышли = 0; const старый = document.exitFullscreen;
+        Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => document.documentElement });
+        document.exitFullscreen = () => { вышли++; return Promise.resolve(); };
+        prefSet('level', 'uni'); prefSet('level', 'school'); applySettings();
+        r.полныйЭкран = вышли === 0;
+        delete document.fullscreenElement; document.exitFullscreen = старый;
+        const ид = ALL.map(t => t.id);
+        r.темы = ид.indexOf('th.phase') === ид.indexOf('th.thermo') + 1 && ид.indexOf('th.transport') === ид.indexOf('th.second') + 1
+          && ид.indexOf('el.media') === ид.indexOf('el.current') + 1;
+        r.сцены = ['vdw', 'heat', 'diffusion', 'beam', 'electrolysis'].every(id => { openSim(id); return S.active === id && A().state; });
+        r.вуз = ['th.kinetic', 'th.thermo', 'th.second', 'th.phase', 'th.transport', 'el.force', 'el.statics', 'el.current', 'el.media'].every(id => естьВуз({ id }));
+        return r;
+      });
+      ok('6.3: диаграмма энергии прячется, полный экран не сбрасывается, темы и сцены термодинамики и электричества',
         Object.values(т).every(Boolean), т);
     }
 
