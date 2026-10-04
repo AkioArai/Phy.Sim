@@ -255,7 +255,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('93 симуляции', counts.sims === 93, counts);
+    ok('102 симуляции', counts.sims === 102, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -317,7 +317,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 53, оси.схем);
+    ok('схемы размечены', оси.схем === 60, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -519,7 +519,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 80 && разв.времени === 51 && разв.никак.length <= 3, разв);
+        разв.параметром >= 90 && разв.времени === 56 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1132,7 +1132,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 37 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 40 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1562,7 +1562,7 @@ async function сторож(b) {
         S.settings.rot3dInvX = было;
         openSim('minkowski'); const мк = typeof A().def.rotate3d === 'function' && A().def.rotate3d(A().params);
         openSim('emwave'); const эм = A().def.rotate3d(A().params);
-        openTopic('mech.2d'); const вМеню = [...document.querySelectorAll('#simsel option')].some(o => o.value === 'rigid3d');
+        openTopic('mech.rot'); const вМеню = [...document.querySelectorAll('#simsel option')].some(o => o.value === 'rigid3d');
         return { правая, инв, прямо, мк, эм, вМеню };
       });
       ok('3.3: проекция — правая тройка, поворот по вертикали инвертируется настройкой, Минковский и ЭМ-волна объёмные, сцены из «попробовать» в меню темы',
@@ -1733,7 +1733,7 @@ async function сторож(b) {
         r.плёнка = cv.width > 0 && c[0] + c[1] + c[2] > 60;
         закрытьГлавную();
         const мех = SECTIONS.find(s => s.id === 'mech').topics.map(t => t.id);
-        r.порядок = мех.indexOf('mech.momentum') === мех.indexOf('mech.grav') + 1 && мех.indexOf('mech.fluids') === мех.indexOf('mech.energy') + 1;
+        r.порядок = мех.indexOf('mech.momentum') === мех.indexOf('mech.energy') + 1 && мех.indexOf('mech.fluids') === мех.indexOf('mech.momentum') + 1;
         r.сцены = ['impact', 'torricelli', 'drag'].every(id => { openSim(id); return S.active === id && A().state; });
         S.settings.level = 'uni'; openTopic('mech.fluids'); await жди(150);
         r.вуз = !!document.querySelector('#pane .uni') && !document.querySelector('#t-lvl').classList.contains('hidden')
@@ -1773,13 +1773,44 @@ async function сторож(b) {
         delete document.fullscreenElement; document.exitFullscreen = старый;
         const ид = ALL.map(t => t.id);
         r.темы = ид.indexOf('th.phase') === ид.indexOf('th.thermo') + 1 && ид.indexOf('th.transport') === ид.indexOf('th.second') + 1
-          && ид.indexOf('el.media') === ид.indexOf('el.current') + 1;
+          && ид.indexOf('el.media') === ид.indexOf('el.circuits') + 1;
         r.сцены = ['vdw', 'heat', 'diffusion', 'beam', 'electrolysis'].every(id => { openSim(id); return S.active === id && A().state; });
         r.вуз = ['th.kinetic', 'th.thermo', 'th.second', 'th.phase', 'th.transport', 'el.force', 'el.statics', 'el.current', 'el.media'].every(id => естьВуз({ id }));
         return r;
       });
       ok('6.3: диаграмма энергии прячется, полный экран не сбрасывается, темы и сцены термодинамики и электричества',
         Object.values(т).every(Boolean), т);
+    }
+
+    /* ============ 6.4.0 ============
+       Каждая сцена живёт ровно в одной теме: повторы (магнетизм, давление
+       света, ракета, Архимед, Бернулли и др.) разнесены. Новые темы
+       «Твёрдые тела», «Цепи и измерения», «Трёхфазный ток» стоят после своих
+       соседей, их сцены и сцены колебаний и машин открываются. */
+    {
+      const т = await p.evaluate(() => {
+        const r = {};
+        const где = {};
+        for (const t of ALL) {
+          if (t.kind === 'recap') continue;
+          const s = new Set();
+          (t.explore || []).forEach(e => e.sim && s.add(e.sim));
+          (t.derivations || []).forEach(e => e.sim && s.add(e.sim));
+          (t.formulas || []).forEach(e => e.sim && s.add(e.sim));
+          (t.problems || []).forEach(e => e.sim && s.add(e.sim));
+          for (const id of s) (где[id] = где[id] || []).push(t.id);
+        }
+        const повторы = Object.entries(где).filter(([, v]) => v.length > 1);
+        r.безПовторов = повторы.length === 0 || повторы.map(([k, v]) => k + ':' + v.join('+')).join(' ');
+        const ид = ALL.map(t => t.id);
+        r.темы = ид.indexOf('th.solid') === ид.indexOf('th.phase') + 1 && ид.indexOf('el.circuits') === ид.indexOf('el.current') + 1
+          && ид.indexOf('em.threephase') === ид.indexOf('em.ac') + 1 && ид.indexOf('mech.momentum') > ид.indexOf('mech.energy');
+        r.сцены = ['capillary', 'tensile', 'otto', 'metal', 'diode', 'bridge', 'lc', 'dcmotor', 'threephase']
+          .every(id => { openSim(id); return S.active === id && A().state; });
+        r.вуз = ['th.solid', 'el.circuits', 'em.fields', 'em.induction', 'em.ac', 'em.threephase'].every(id => естьВуз({ id }));
+        return r;
+      });
+      ok('6.4: у каждой сцены одна тема, новые темы и сцены по книгам на месте', Object.values(т).every(v => v === true), т);
     }
 
     await p.close();

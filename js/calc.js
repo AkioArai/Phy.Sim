@@ -1008,7 +1008,14 @@ const ВЫЧ = (function () {
         case '*': { const a = р(n.a), b = р(n.b); return { a: dСлож(a.a, b.a), b: a.b + b.b }; }
         case 'jux': return n.items.map(р).reduce((a, b) => ({ a: dСлож(a.a, b.a), b: a.b + b.b }));
         case '/': { const a = р(n.a), b = р(n.b); return { a: dВыч(a.a, b.a), b: a.b - b.b }; }
-        case '^': { const a = р(n.a); const p = числом(n.b, значения); return { a: dУмн(a.a, p), b: a.b * p }; }
+        case '^': {
+          // неизвестное в показателе: показатель безразмерен, значит и само неизвестное
+          if (сколько(n.b, x) > 0) {
+            if (найдено && !dРавны(найдено, ноль())) throw Ошибка('размерности в формуле не сходятся при этих единицах', 0);
+            найдено = ноль(); р(n.a); return { a: ноль(), b: 0 };
+          }
+          const a = р(n.a); const p = числом(n.b, значения); return { a: dУмн(a.a, p), b: a.b * p };
+        }
         case 'fn': if (n.f === 'sqrt') { const a = р(n.a); return { a: dУмн(a.a, 0.5), b: a.b * 0.5 }; }
           if (n.f === 'abs') return р(n.a);
           return { a: ноль(), b: 0 };

@@ -1,0 +1,5 @@
+6.4.0 — one simulation, one topic; solids, circuits, machines.
+• No simulation opens from two topics any more.
+• New topics: solids, circuits and measurements, three-phase current.
+• Nine simulations: capillaries, stretching and heating a rod, Otto and Diesel cycles, electrons in a wire, diodes, Wheatstone bridge, LC circuit, DC motor, three-phase current.
+• University level for six more topics.

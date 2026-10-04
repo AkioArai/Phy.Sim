@@ -144,9 +144,18 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 93 live simulations,
-          45 topics, 113 step-by-step derivations, 331 formulas and 467 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 102 live simulations,
+          48 topics, 119 step-by-step derivations, 351 formulas and 499 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 6.4.0 — one simulation per topic; solids, circuits, machines, three-phase current
+
+          No simulation opens from two topics any more, and a test keeps it so. Three new topics — solids,
+          circuits and measurements, three-phase current — and nine simulations: capillary rise, a rod
+          stretched and heated, the Otto and Diesel cycles, electron drift in a wire, p–n and vacuum
+          diodes, a Wheatstone bridge with ammeter and voltmeter, a damped LC circuit, a DC motor, and
+          three-phase star/delta with a rotating field. More notes in thermodynamics and electromagnetism
+          and university-level sections for six more topics.
 
           ## 6.3.0 — real gases, transport phenomena, current in different media
 
