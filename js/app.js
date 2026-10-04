@@ -3936,6 +3936,9 @@ $$('#btn-simhide').onclick=()=>{
   }
   if(was) requestAnimationFrame(resize); else resize();
 };
+/* Полноэкранный режим браузера (F11, кнопка окна) меняет размер без
+   события resize в некоторых оболочках — пересчитываем сцену явно. */
+document.addEventListener('fullscreenchange',()=>requestAnimationFrame(()=>{ try{ resize(); fitView(); }catch(_){} }));
 $$('#btn-simfull').onclick=()=>{
   if(!S.active){ toast('Сначала откройте симуляцию из формулы'); return; }
   const on=$('#app').classList.toggle('simfull');
@@ -3946,7 +3949,7 @@ $$('#btn-simfull').onclick=()=>{
   const закрыть= on || $('#app').classList.contains('mid');   // на средней ширине панель поверх и так закрыта
   sb.classList.toggle('hidden',закрыть);
   $('#btn-rail').setAttribute('aria-pressed',String(!закрыть));
-  if(on) toast('Список тем — кнопка ☰ слева вверху или клавиша B');
+  if(on) toast('Список тем — кнопка слева вверху или клавиша B');
   requestAnimationFrame(resize);
 };
 $$('#btn-play').onclick=()=>{
@@ -6009,6 +6012,7 @@ const CMDS=[
   {k:'Навигация',t:'Главная',run:()=>открытьГлавную()},
   {k:'Вид',t:'Режим чтения: только текст',run:()=>режимЧтения()},
   {k:'Словарь',t:'Словарь терминов: определения с поиском',run:()=>открытьСловарь()},
+  {k:'Опыт',t:'Ссылка на этот опыт: симуляция с текущими параметрами',run:()=>поделитьсяОпытом()},
   {k:'Урок',t:'Режим урока: тема слайдами рядом со сценой',run:()=>начатьУрок()},
   {k:'Мой путь',t:'Мой путь: что сегодня',hint:'Ctrl+M',run:()=>открытьПуть('today')},
   {k:'Мой путь',t:'Карта тем и предпосылок',run:()=>открытьПуть('map')},
@@ -7704,6 +7708,7 @@ $$('#btn-calc').onclick=()=>вычислительОткрыт()?закрыть�
 $$('#m-calc').onclick=()=>открытьВычислитель();
 { const мп=document.getElementById('m-search'); if(мп) мп.onclick=()=>cmdkOpen(); }
 $$('#mi-calc').onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьВычислитель(); };
+{ const сс=document.getElementById('mi-share'); if(сс) сс.onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); поделитьсяОпытом(); }; }
 { const у=document.getElementById('mi-lesson'); if(у) у.onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); if(isNarrow()) setSheetTab('notes'); начатьУрок(); }; }
 { const сл=document.getElementById('mi-gloss'); if(сл) сл.onclick=()=>{ $('#pop-simmenu').classList.add('hidden'); открытьСловарь(); }; }
 
@@ -7726,6 +7731,8 @@ function запуск(){
   if(typeof подключитьГлавную==='function') try{ подключитьГлавную(); }catch(e){ console.error('главная',e); }
   if(typeof подключитьТермины==='function') try{ подключитьТермины(); }catch(e){ console.error('словарь',e); }
   if(typeof подключитьМ6==='function') try{ подключитьМ6(); }catch(e){ console.error('телефон 6.0',e); }
+  if(typeof открытьОпытИзСсылки==='function'){ try{ открытьОпытИзСсылки(); }catch(e){ console.error('ссылка на опыт',e); }
+    addEventListener('hashchange',()=>{ try{ открытьОпытИзСсылки(); }catch(_){} }); }
   if(typeof подключитьСлои==='function') try{ подключитьСлои(); }catch(e){ console.error('слои',e); }
   if(typeof подключитьЛабу==='function') try{ подключитьЛабу(); }catch(e){ console.error('лаборатория',e); }
   if(typeof подписатьКнопки==='function') try{ подписатьКнопки(); экономияПриЗапуске(); }catch(e){ console.error('доступность',e); }
@@ -7750,7 +7757,9 @@ function запуск(){
   }
   /* Главный экран (2.1.0) ложится поверх уже открытой темы: «Продолжить»
      и выбор раздела уводят с него, а тема под ним готова сразу. */
-  if(typeof открытьГлавную==='function'&&prefGet('startScreen')!=='last') try{ открытьГлавную(); }catch(e){ console.error('главная',e); }
+  // ссылка на опыт (6.1.0) важнее стартового экрана: по ней пришли за конкретной симуляцией
+  const поСсылке=typeof ПО_ССЫЛКЕ!=='undefined'&&ПО_ССЫЛКЕ;
+  if(typeof открытьГлавную==='function'&&prefGet('startScreen')!=='last'&&!поСсылке) try{ открытьГлавную(); }catch(e){ console.error('главная',e); }
   resize();
   addEventListener('load',()=>{ typeset($('#pane')); resize(); });
 }
@@ -7762,5 +7771,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '6.0.0';
+window.PHYSIM_BUILD = '6.1.0';
 window.PHYSIM_READY = true;

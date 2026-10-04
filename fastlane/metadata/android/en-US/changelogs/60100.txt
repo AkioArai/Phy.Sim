@@ -1,0 +1,6 @@
+6.1.0 — light home screen, real thermodynamics.
+• The home screen follows the light theme.
+• Hot and cold walls: heat flows through the gas on screen; a live Maxwell speed histogram.
+• Minimal one-colour section icons.
+• Link to this experiment: share a simulation with its parameters.
+• Full-screen simulation always takes the whole width.

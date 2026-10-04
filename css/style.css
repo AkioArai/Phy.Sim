@@ -3125,3 +3125,31 @@ details.deep>summary{font-family:var(--head)}
 .uni{margin-top:34px;padding:22px 24px 8px;border-radius:18px;background:var(--panel);border:1px solid var(--hair);box-shadow:inset 4px 0 0 #8b5cf6}
 .uni>h2.sect{margin-top:0}
 .uni-b h3{font-family:var(--head);font-size:1.12em;margin:18px 0 6px}
+
+/* 6.1: в полном экране сцена берёт всю ширину, даже если раньше ширину
+   задали перетаскиванием разделителя (инлайновый width побеждал правило,
+   и справа оставалась пустая полоса). Низ с графиками — не больше трети. */
+#app.simfull .simpane{flex:1 1 auto!important;width:auto!important;max-width:none!important}
+#app.simfull #simbottom:not(.collapsed){max-height:36vh}
+
+/* =====================================================================
+   6.1: шапка главной следует теме. В светлой — тёплая бумага и тёмный
+   текст, в тёмной — чернила, как раньше. Значки разделов — одноцветные.
+   ===================================================================== */
+:root{--hero-bg:#f6f4ef;--hero-ink:#0d1017;--hero-ink2:#5a6273;--hero-hot:#e8590c;--hero-card:rgba(255,255,255,.82);--hero-line:rgba(13,16,23,.1)}
+[data-theme="dark"]{--hero-bg:#0e1118;--hero-ink:#eef0f6;--hero-ink2:#9aa2b5;--hero-hot:#ffb27a;--hero-card:rgba(18,21,30,.8);--hero-line:rgba(255,255,255,.1)}
+.hm7 .hm7-hero{background:var(--hero-bg);box-shadow:inset 0 0 0 1px var(--hero-line)}
+.hm7-h{color:var(--hero-ink)}
+.hm7-h em{color:var(--hero-hot)}
+.hm7 .hm5-search{background:var(--hero-card);border-color:var(--hero-line);color:var(--hero-ink2)}
+.hm7 .hm5-search:hover{color:var(--hero-ink);border-color:var(--hero-hot)}
+.hm7 .hm5-search kbd{border-color:var(--hero-line);color:var(--hero-ink2)}
+.hm7 .hm7-card{background:var(--hero-card)!important;border-color:var(--hero-line)!important;color:var(--hero-ink)}
+.hm7 .hm7-card .hm5-l,.hm7 .hm7-card .hm-s{color:var(--hero-ink2)}
+.hm7 .hm7-card .hm4-stmt,.hm7 .hm7-card b{color:var(--hero-ink)!important}
+.hm7 button.hm7-card:hover{border-color:var(--hero-hot)!important;background:var(--hero-card)!important}
+/* значки разделов: линия цвета раздела на лёгкой подложке того же цвета */
+.hm7-logo{width:48px;height:48px;padding:11px;border-radius:14px;color:var(--sec);background:var(--panel-2);
+  background:color-mix(in srgb,var(--sec) 11%,transparent)}
+.sec>.hd .sec-ic{color:var(--sec);stroke:currentColor!important;border-radius:0!important}
+[data-ui="mobile"] .hm7-logo{width:40px;height:40px;padding:9px;border-radius:12px}

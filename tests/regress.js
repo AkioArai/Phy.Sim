@@ -803,7 +803,7 @@ async function сторож(b) {
     });
     ok('меню сцены разложено по вкладкам',
         menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
-        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 8 && menu.обычная.ещё.includes('Мой путь') && menu.обычная.ещё.includes('Урок по слайдам')
+        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 9 && menu.обычная.ещё.includes('Мой путь') && menu.обычная.ещё.includes('Ссылка на этот опыт') && menu.обычная.ещё.includes('Урок по слайдам')
         && menu.всего > menu.обычная.сцена.length, menu.обычная);
     ok('конструктор получает свою вкладку и открывает её сразу',
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
@@ -1679,6 +1679,39 @@ async function сторож(b) {
         return r;
       });
       ok('5.0–5.1: панель и знак Φ, шрифты, живое поле и разделы без анимаций, задача дня, лишнее убрано, термины по настройке, урок клавишами',
+        Object.values(т).every(Boolean), т);
+    }
+
+    /* ============ 6.1.0 ============ */
+    /* Светлая тема — светлая шапка главной; значки разделов одноцветные,
+       без тёмных плиток; в полном экране сцена берёт всю ширину, даже если
+       ширину задали разделителем; ссылка на опыт собирает изменённые
+       параметры и по ней симуляция открывается с ними же. */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {};
+        S.settings.theme = 'light'; applySettings(); открытьГлавную(); await жди(300);
+        const фон = getComputedStyle(document.querySelector('.hm7-hero')).backgroundColor.match(/\d+/g).map(Number);
+        r.светлая = фон[0] > 200 && фон[1] > 200 && фон[2] > 200;
+        const лого = [...document.querySelectorAll('#home .hm7-logo')];
+        r.значки = лого.length === 7 && лого.every(svg => !svg.querySelector('rect[fill="#0e1118"], linearGradient') && svg.getAttribute('stroke') === 'currentColor');
+        закрытьГлавную(); openTopic('mech.energy'); await жди(150);
+        const sp = document.querySelector('#simpane'); sp.style.width = '500px'; sp.style.flex = '0 0 500px';
+        document.querySelector('#btn-simfull').click(); await жди(200);
+        const w = sp.getBoundingClientRect(), тело = document.querySelector('.body').getBoundingClientRect();
+        r.полныйЭкран = w.right >= тело.right - 2 && w.width > 800;
+        document.querySelector('#btn-simfull').click(); await жди(150);
+        openTopic('mech.2d'); openSim('proj2d'); commit('a01', 60); commit('v01', 30);
+        const url = ссылкаНаОпыт();
+        r.ссылка = /#sim=proj2d&topic=mech\.2d/.test(url) && /a01=60/.test(url) && /v01=30/.test(url) && !/x01=/.test(url);
+        commit('a01', 45); commit('v01', 25);
+        location.hash = url.split('#')[1]; await жди(300);
+        r.открылась = S.active === 'proj2d' && A().params.a01 === 60 && A().params.v01 === 30;
+        commit('a01', 45); commit('v01', 25);
+        return r;
+      });
+      ok('6.1: светлая шапка главной, одноцветные значки разделов, полный экран без пустой полосы, ссылка на опыт',
         Object.values(т).every(Boolean), т);
     }
 

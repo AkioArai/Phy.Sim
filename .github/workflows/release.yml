@@ -148,6 +148,13 @@ jobs:
           40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 6.1.0 — a light home screen, real thermodynamics, links to experiments
+
+          The home screen follows the light and dark themes. The gas sits between a hot and a cold wall:
+          a temperature gradient settles and heat flows on screen; a live speed histogram is drawn
+          against Maxwell's curve. Section icons are minimal one-colour lines. *Link to this experiment*
+          shares a simulation with its parameters. Full-screen simulation always takes the whole width.
+
           ## 6.0.0 — the phone redesigned, a gas on the home screen
 
           **Phone:** the simulation screen follows the author's sketch — notes, simulation picker in a

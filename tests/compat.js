@@ -41,7 +41,7 @@ function обойти(узел, f) {
   }
 }
 
-const файлы = ['js/core.js', 'js/topics.js', 'js/ops.js', 'js/learn.js', 'js/path.js', 'js/home.js', 'js/facts.js', 'js/uni.js', 'js/glossary.js', 'js/lesson.js', 'js/m6.js', 'js/scene.js', 'js/lab.js', 'js/app.js', 'sw.js',
+const файлы = ['js/core.js', 'js/topics.js', 'js/ops.js', 'js/learn.js', 'js/path.js', 'js/home.js', 'js/facts.js', 'js/uni.js', 'js/glossary.js', 'js/lesson.js', 'js/m6.js', 'js/share.js', 'js/scene.js', 'js/lab.js', 'js/app.js', 'sw.js',
   ...fs.readdirSync(path.join(ROOT, 'js/sims')).map(f => 'js/sims/' + f)]
   .concat(fs.existsSync(path.join(ROOT, 'js/calc.js')) ? ['js/calc.js'] : []);
 

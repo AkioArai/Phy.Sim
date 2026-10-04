@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="6.0.0">
+<meta name="physim-build" content="6.1.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -162,6 +162,7 @@
 <script defer src="js/glossary.js"></script>
 <script defer src="js/lesson.js"></script>
 <script defer src="js/m6.js"></script>
+<script defer src="js/share.js"></script>
 <script defer src="js/scene.js"></script>
 <script defer src="js/lab.js"></script>
 <script defer src="js/app.js"></script>
@@ -571,6 +572,7 @@
       <button class="item" id="mi-path"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg>Мой путь</button>
       <button class="item" id="mi-lesson"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg>Урок по слайдам</button>
       <button class="item" id="mi-gloss"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>Словарь терминов</button>
+      <button class="item" id="mi-share"><svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></svg>Ссылка на этот опыт</button>
       <button class="item" id="mi-cmdk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg>Командная палитра</button>
       <button class="item" id="mi-teacher"><svg viewBox="0 0 24 24"><path d="M4 5h12a2 2 0 0 1 2 2v13H6a2 2 0 0 1-2-2z"/><path d="M8 9h6M8 13h6"/></svg>Собрать контрольную</button>
       <button class="item" id="mi-keys"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>Горячие клавиши</button>
