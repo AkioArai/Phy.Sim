@@ -144,9 +144,18 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 85 live simulations,
-          40 topics, 97 step-by-step derivations, 295 formulas and 430 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 88 live simulations,
+          42 topics, 106 step-by-step derivations, 313 formulas and 448 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 6.2.0 — a soap film, momentum and fluids, university-level mechanics
+
+          The home screen is a soap film whose colours are computed from thin-film interference and the
+          CIE colour-matching functions; a finger stirs it. Two new topics — «Momentum. Jet propulsion»
+          and «Fluid mechanics» — with three new simulations (a ball hitting a wall and a mat, a draining
+          vessel, a ball in a viscous liquid). Jerk, angular kinematics, inertial forces, the
+          parallel-axis theorem and self-sustained oscillations are added to the notes, and every
+          mechanics topic gets a university-level section.
 
           ## 6.1.0 — a light home screen, real thermodynamics, links to experiments
 

@@ -255,7 +255,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('85 симуляций', counts.sims === 85, counts);
+    ok('88 симуляций', counts.sims === 88, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -519,7 +519,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 74 && разв.времени === 43 && разв.никак.length <= 3, разв);
+        разв.параметром >= 77 && разв.времени === 46 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1132,7 +1132,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 32 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 34 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1712,6 +1712,34 @@ async function сторож(b) {
         return r;
       });
       ok('6.1: светлая шапка главной, одноцветные значки разделов, полный экран без пустой полосы, ссылка на опыт',
+        Object.values(т).every(Boolean), т);
+    }
+
+    /* ============ 6.2.0 ============
+       Шапка главной — мыльная плёнка: цвета посчитаны по спектру, и верх
+       плёнки, стёкший до десятков нанометров, тёмный, а ниже — яркие порядки.
+       Новые темы «Импульс» и «Гидромеханика» стоят в механике по порядку
+       книги, их сцены открываются, у механики — вузовский уровень. */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {};
+        const Т = цветаПлёнки(), ярк = d => { const i = Math.round(d / Т.Dmax * (Т.N - 1)) * 3; return Т.т[i] + Т.т[i + 1] + Т.т[i + 2]; };
+        r.спектр = ярк(5) < 0.05 && ярк(300) > 0.5 && ярк(110) > ярк(5);
+        S.settings.theme = 'dark'; applySettings(); открытьГлавную(); await жди(400);
+        const cv = document.querySelector('#hm-cv'), c = cv.getContext('2d').getImageData(Math.floor(cv.width * 0.8), Math.floor(cv.height * 0.6), 1, 1).data;
+        r.плёнка = cv.width > 0 && c[0] + c[1] + c[2] > 60;
+        закрытьГлавную();
+        const мех = SECTIONS.find(s => s.id === 'mech').topics.map(t => t.id);
+        r.порядок = мех.indexOf('mech.momentum') === мех.indexOf('mech.grav') + 1 && мех.indexOf('mech.fluids') === мех.indexOf('mech.energy') + 1;
+        r.сцены = ['impact', 'torricelli', 'drag'].every(id => { openSim(id); return S.active === id && A().state; });
+        S.settings.level = 'uni'; openTopic('mech.fluids'); await жди(150);
+        r.вуз = !!document.querySelector('#pane .uni') && !document.querySelector('#t-lvl').classList.contains('hidden')
+          && ['mech.1d', 'mech.2d', 'mech.dyn', 'mech.grav', 'mech.momentum', 'mech.work', 'mech.energy', 'mech.fluids', 'mech.rot', 'mech.osc'].every(id => естьВуз({ id }));
+        S.settings.level = 'school'; S.settings.theme = 'light'; applySettings(); renderPane();
+        return r;
+      });
+      ok('6.2: мыльная плёнка на главной, темы «Импульс» и «Гидромеханика», вузовский уровень механики',
         Object.values(т).every(Boolean), т);
     }
 

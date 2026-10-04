@@ -1,0 +1,5 @@
+6.2.0 — a soap film, momentum and fluids.
+• The home screen is a soap film: colours computed from thin-film interference; a finger stirs it.
+• New topics «Momentum. Jet propulsion» and «Fluid mechanics», three new simulations.
+• Notes add jerk, angular kinematics, inertial forces, the parallel-axis theorem, self-sustained oscillations.
+• University level for all of mechanics.

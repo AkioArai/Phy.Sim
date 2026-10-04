@@ -1,9 +1,9 @@
 Phy.Sim is an interactive handbook for revising school and first-year university physics, from kinematics to quarks. The course content is in Russian.
 
-• 85 live simulations: mechanics, thermodynamics, electricity, magnetism and alternating current, waves and optics, special relativity, quantum and nuclear physics.
-• 40 topics in 8 sections, each opening with things to try in a simulation and five points to remember.
-• 97 step-by-step derivations, every step tagged with the mathematics it uses.
-• 430 problems whose answers are computed from the simulation's current parameters; a wrong answer is checked against typical slips and the slip is named.
+• 88 live simulations: mechanics, thermodynamics, electricity, magnetism and alternating current, waves and optics, special relativity, quantum and nuclear physics.
+• 42 topics in 8 sections, each opening with things to try in a simulation and five points to remember.
+• 106 step-by-step derivations, every step tagged with the mathematics it uses.
+• 448 problems whose answers are computed from the simulation's current parameters; a wrong answer is checked against typical slips and the slip is named.
 • My path: a map of topics, a diagnostic, spaced review and a skills trainer — stored on the device only.
 • A calculator with units and uncertainties; any course formula solved for any quantity.
 • A lab: noisy readings, a least-squares line with uncertainties, CSV export.

@@ -181,125 +181,121 @@ const ЛОГО={
 function логотипРаздела(id,кл){ const р=ЛОГО[id]||ЛОГО.quantum;
   return `<svg class="${кл||'sec-logo'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${р}</svg>`; }
 
-/* ---------------- газ: живая шапка главной (6.1.0) ----------------
-   Идеальный газ между двумя стенками: левая горячая, правая холодная.
-   Молекула, ударившись о стенку, уходит с тепловой скоростью этой стенки,
-   а между стенками молекулы упруго сталкиваются — и в газе сам собой
-   устанавливается перепад температуры: слева быстрые «тёплые» молекулы,
-   справа медленные «холодные». Тепло течёт от горячего к холодному прямо
-   на глазах. Цвет молекулы — её скорость.
-   В углу — распределение молекул по скоростям, живое: столбики набирает
-   газ, линия — формула Максвелла для средней температуры.
-   Палец или курсор — тёплая рука: рядом с ним газ нагревается.
-   Карточки задачи дня и пути лежат в газе: молекулы отскакивают от них, а
-   сами карточки чуть вздрагивают от ударов — броуновское движение.
-   Без анимации — один застывший кадр. Цвета берутся из темы. */
-function газГлавной(cv){
+/* ---------------- мыльная плёнка: живая шапка главной (6.2.0) ----------------
+   Цвета мыльного пузыря — интерференция в тонкой плёнке. Свет отражается
+   от передней и задней поверхности воды толщиной d; два луча расходятся
+   по фазе на δ = 4πnd/λ (плюс полволны при отражении от воды), и доля
+   отражённого света для длины волны λ — sin²(2πnd/λ). Цвет здесь не
+   подобран, а посчитан: спектр отражения складывается с функциями
+   сложения цветов CIE 1931 и переводится в sRGB. Поэтому вверху, где плёнка
+   стекла до десятков нанометров, она чёрная, ниже идут серебро, золото,
+   пурпур, синь — порядки интерференции, как на настоящем пузыре.
+   Толщина течёт: вода стекает вниз (сверху тоньше), а поверхность
+   закручивают вихри — так ведёт себя плёнка от слабой конвекции воздуха.
+   Палец или курсор продавливает плёнку и мешает её; вокруг касания
+   встают кольца — линии равной толщины.
+   В светлой теме плёнка видна на просвет: проходящий свет — дополнение
+   к отражённому, поэтому цвета бледные и тёплые. Без анимации — один
+   застывший кадр. */
+const ПЛЁНКА={таблица:null};
+function цветаПлёнки(){
+  if(ПЛЁНКА.таблица) return ПЛЁНКА.таблица;
+  // аналитическая аппроксимация функций CIE 1931 (Wyman, Sloan, Shirley, 2013)
+  const g=(l,m,s1,s2)=>{ const t=(l-m)/(l<m?s1:s2); return Math.exp(-0.5*t*t); };
+  const X=l=>1.056*g(l,599.8,37.9,31)+0.362*g(l,442,16,26.7)-0.065*g(l,501.1,20.4,26.2);
+  const Y=l=>0.821*g(l,568.8,46.9,40.5)+0.286*g(l,530.9,16.3,31.1);
+  const Z=l=>1.217*g(l,437,11.8,36)+0.681*g(l,459,26,13.8);
+  const вRGB=(x,y,z)=>[3.2406*x-1.5372*y-0.4986*z,-0.9689*x+1.8758*y+0.0415*z,0.0557*x-0.204*y+1.057*z];
+  const n=1.33, N=1024, Dmax=2000, т=new Float32Array(N*3);
+  const спектр=f=>{ let x=0,y=0,z=0; for(let l=380;l<=780;l+=5){ const r=f(l); x+=r*X(l); y+=r*Y(l); z+=r*Z(l); } return вRGB(x,y,z); };
+  const белый=спектр(()=>1);   // нормируем так, чтобы полное отражение было белым
+  for(let i=0;i<N;i++){
+    const d=i/(N-1)*Dmax, c=спектр(l=>{ const s=Math.sin(2*Math.PI*n*d/l); return s*s; });
+    for(let k=0;k<3;k++) т[i*3+k]=Math.max(0,c[k]/белый[k]);
+  }
+  ПЛЁНКА.таблица={т,N,Dmax};
+  return ПЛЁНКА.таблица;
+}
+function плёнкаГлавной(cv){
   if(!cv||cv._живёт) return; cv._живёт=true;
-  const ctx=cv.getContext('2d'), dpr=Math.min(devicePixelRatio||1,2), шапка=cv.parentElement;
-  const цв=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  let W=0,H=0,P=[],кадров=0;
-  const Vг=125, Vх=26;                       // тепловые скорости стенок, пикс/с
-  const рука={x:0,y:0,есть:false};
-  const где=e=>{ const r=cv.getBoundingClientRect(); рука.x=e.clientX-r.left; рука.y=e.clientY-r.top; рука.есть=true; };
+  const ctx=cv.getContext('2d'), шапка=cv.parentElement;
+  const буф=document.createElement('canvas'), бк=буф.getContext('2d');
+  const {т:ЦВ,N:ЦN,Dmax}=цветаПлёнки();
+  let W=0,H=0,gw=0,gh=0,img=null,кадров=0,время=Math.random()*100;
+  const рука={x:0,y:0,px:0,py:0,есть:false,сила:0};
+  const вихри=[];               // {x,y,s} в долях высоты шапки
+  const где=e=>{ const r=cv.getBoundingClientRect(); рука.x=e.clientX-r.left; рука.y=e.clientY-r.top;
+    if(!рука.есть){ рука.px=рука.x; рука.py=рука.y; } рука.есть=true; };
   шапка.addEventListener('pointermove',где,{passive:true}); шапка.addEventListener('pointerdown',где,{passive:true});
   шапка.addEventListener('pointerleave',()=>{ рука.есть=false; });
   шапка.addEventListener('pointerup',e=>{ if(e.pointerType!=='mouse') рука.есть=false; });
   шапка.addEventListener('pointercancel',()=>{ рука.есть=false; });
-  const препятствия=()=>Array.from(шапка.querySelectorAll('.hm7-obst')).map(el=>{
-    if(!el._б) el._б={x:0,y:0,vx:0,vy:0};
-    const r=el.getBoundingClientRect(), c=cv.getBoundingClientRect();
-    return {el, l:r.left-c.left-el._б.x, t:r.top-c.top-el._б.y, r:r.right-c.left-el._б.x, b:r.bottom-c.top-el._б.y};
-  });
-  const гаусс=()=>{ let u=0,v=0; while(!u) u=Math.random(); v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
-  // тепловая скорость по одной оси для стенки с параметром V (σ = V/√2)
-  const тепло=V=>гаусс()*V/Math.SQRT2;
+  // гладкий шум: значения в узлах решётки, между ними — кубическое сглаживание
+  const П=new Uint8Array(512); { const p=[...Array(256).keys()]; for(let i=255;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [p[i],p[j]]=[p[j],p[i]]; } for(let i=0;i<512;i++) П[i]=p[i&255]; }
+  const шум=(x,y)=>{ const xi=Math.floor(x), yi=Math.floor(y), fx=x-xi, fy=y-yi, u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy);
+    const a=П[(xi&255)+П[yi&255]], b=П[((xi+1)&255)+П[yi&255]], c=П[(xi&255)+П[(yi+1)&255]], d=П[((xi+1)&255)+П[(yi+1)&255]];
+    return ((a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v)/127.5-1; };
+  const фбм=(x,y)=>шум(x,y)*0.62+шум(x*2.03+5.2,y*2.03+1.3)*0.38;
   const размер=()=>{ const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h) return false;
-    if(w!==W||h!==H){ W=w; H=h; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
-      const n=Math.round(Math.max(170,Math.min(560,W*H/1400))); P=[];
-      for(let i=0;i<n;i++){ const r=1.8+Math.random()*1.5, V=(Vг+Vх)/2; P.push({x:Math.random()*W,y:Math.random()*H,vx:тепло(V),vy:тепло(V),r}); } }
+    if(w!==W||h!==H){ W=w; H=h; const dpr=Math.min(devicePixelRatio||1,2);
+      cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+      const ячеек=W<700?11000:22000; gw=Math.max(40,Math.round(Math.sqrt(ячеек*W/H))); gh=Math.max(30,Math.round(ячеек/gw));
+      буф.width=gw; буф.height=gh; img=бк.createImageData(gw,gh); }
     return true; };
   const тёмная=()=>document.documentElement.dataset.theme==='dark';
-  /* цвет по скорости: холодный синий → фиолетовый → оранжевый → горячий */
-  const ШК_Т=[[0,[84,112,255]],[0.75,[160,140,255]],[1.5,[255,150,90]],[2.4,[255,232,170]]];
-  const ШК_С=[[0,[40,80,220]],[0.75,[112,72,220]],[1.5,[232,96,32]],[2.4,[205,30,30]]];
-  const цвет=v=>{ const Ш=тёмная()?ШК_Т:ШК_С, s=v/((Vг+Vх)/2); let i=0; while(i<Ш.length-2&&s>Ш[i+1][0]) i++;
-    const [a,ca]=Ш[i],[b,cb]=Ш[i+1], k=Math.max(0,Math.min(1,(s-a)/(b-a)));
-    return `rgb(${ca.map((c,j)=>Math.round(c+(cb[j]-c)*k)).join(',')})`; };
+  const фон=()=>{ const s=getComputedStyle(document.documentElement).getPropertyValue('--hero-bg').trim()||(тёмная()?'#0e1118':'#f6f4ef');
+    const m=s.match(/^#([0-9a-f]{6})$/i); return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):(тёмная()?[14,17,24]:[246,244,239]); };
   const шаг=dt=>{
-    const O=препятствия(), N=P.length;
-    for(const p of P){
-      if(рука.есть){ const d=Math.hypot(p.x-рука.x,p.y-рука.y); if(d<90){ const k=1+0.05*(1-d/90); p.vx*=k; p.vy*=k; } }
-      p.x+=p.vx*dt; p.y+=p.vy*dt;
-      // стенки: левая горячая, правая холодная — молекула уходит с их тепловой скоростью
-      if(p.x<p.r){ p.x=p.r; p.vx=Math.abs(тепло(Vг))+4; p.vy=тепло(Vг); }
-      if(p.x>W-p.r){ p.x=W-p.r; p.vx=-Math.abs(тепло(Vх))-4; p.vy=тепло(Vх); }
-      if(p.y<p.r){ p.y=p.r; p.vy=Math.abs(p.vy); } if(p.y>H-p.r){ p.y=H-p.r; p.vy=-Math.abs(p.vy); }
-      for(const o of O){
-        if(p.x<o.l-p.r||p.x>o.r+p.r||p.y<o.t-p.r||p.y>o.b+p.r) continue;
-        const dl=p.x-(o.l-p.r), dr=(o.r+p.r)-p.x, dt2=p.y-(o.t-p.r), db=(o.b+p.r)-p.y, m=Math.min(dl,dr,dt2,db);
-        const б=o.el._б, удар=0.0014*p.r*p.r;
-        if(m===dl){ p.x=o.l-p.r; б.vx+=удар*Math.abs(p.vx); p.vx=-Math.abs(p.vx); }
-        else if(m===dr){ p.x=o.r+p.r; б.vx-=удар*Math.abs(p.vx); p.vx=Math.abs(p.vx); }
-        else if(m===dt2){ p.y=o.t-p.r; б.vy+=удар*Math.abs(p.vy); p.vy=-Math.abs(p.vy); }
-        else { p.y=o.b+p.r; б.vy-=удар*Math.abs(p.vy); p.vy=Math.abs(p.vy); }
-      }
-    }
-    // попарные упругие удары (массы ~ r²)
-    for(let i=0;i<N;i++){ const a=P[i];
-      for(let j=i+1;j<N;j++){ const b=P[j], dx=b.x-a.x; if(dx>7||dx<-7) continue; const dy=b.y-a.y, R=a.r+b.r;
-        if(dy>R||dy<-R) continue; const d2=dx*dx+dy*dy; if(d2>=R*R||d2===0) continue;
-        const d=Math.sqrt(d2), nx=dx/d, ny=dy/d, vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny; if(vn>0) continue;
-        const ma=a.r*a.r, mb=b.r*b.r, J=-2*vn/(ma+mb);
-        a.vx-=J*mb*nx; a.vy-=J*mb*ny; b.vx+=J*ma*nx; b.vy+=J*ma*ny;
-        const сдвиг=(R-d)/2; a.x-=nx*сдвиг; a.y-=ny*сдвиг; b.x+=nx*сдвиг; b.y+=ny*сдвиг; } }
-    // карточки: пружина возвращает их на место, вязкость гасит дрожь
-    for(const o of O){ const б=o.el._б; б.vx+=(-40*б.x-6*б.vx)*dt; б.vy+=(-40*б.y-6*б.vy)*dt; б.x+=б.vx*dt; б.y+=б.vy*dt;
-      б.x=Math.max(-3,Math.min(3,б.x)); б.y=Math.max(-3,Math.min(3,б.y));
-      o.el.style.transform=`translate(${б.x.toFixed(2)}px,${б.y.toFixed(2)}px)`; }
+    время+=dt;
+    // палец: продавливает плёнку и закручивает её по ходу движения
+    рука.сила+=((рука.есть?1:0)-рука.сила)*Math.min(1,dt*(рука.есть?2.5:0.8));
+    if(рука.есть&&H){ const vx=(рука.x-рука.px)/H, vy=(рука.y-рука.py)/H, ход=Math.hypot(vx,vy);
+      if(ход>0.002){ let в=вихри.find(в=>Math.hypot(в.x-рука.x/H,в.y-рука.y/H)<0.12);
+        if(!в){ в={x:рука.x/H,y:рука.y/H,s:0}; вихри.push(в); if(вихри.length>6) вихри.shift(); }
+        в.x+=(рука.x/H-в.x)*0.3; в.y+=(рука.y/H-в.y)*0.3;
+        в.s=Math.max(-4,Math.min(4,в.s+(vx>=0?1:-1)*ход*6)); }
+      рука.px=рука.x; рука.py=рука.y; }
+    for(const в of вихри){ в.s*=Math.exp(-dt/5); в.y+=dt*0.004; }
+    for(let i=вихри.length-1;i>=0;i--) if(Math.abs(вихри[i].s)<0.02) вихри.splice(i,1);
   };
   const рисовать=()=>{
-    const тм=тёмная();
-    ctx.fillStyle=цв('--hero-bg')||(тм?'#0e1118':'#f6f4ef'); ctx.fillRect(0,0,W,H);
-    // стенки: тёплое свечение слева, холодное справа
-    for(const [x0,x1,c] of [[0,26,тм?'255,120,60':'235,90,30'],[W,W-26,тм?'90,130,255':'50,90,230']]){
-      const g=ctx.createLinearGradient(x0,0,x1,0); g.addColorStop(0,`rgba(${c},${тм?0.55:0.4})`); g.addColorStop(1,`rgba(${c},0)`);
-      ctx.fillStyle=g; ctx.fillRect(Math.min(x0,x1),0,26,H); }
-    ctx.lineCap='round';
-    for(const p of P){ const v=Math.hypot(p.vx,p.vy), c=цвет(v);
-      ctx.strokeStyle=c; ctx.globalAlpha=тм?0.35:0.3; ctx.lineWidth=p.r*1.3;
-      ctx.beginPath(); ctx.moveTo(p.x-p.vx*0.06,p.y-p.vy*0.06); ctx.lineTo(p.x,p.y); ctx.stroke();
-      ctx.globalAlpha=тм?0.95:0.85; ctx.fillStyle=c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
-    ctx.globalAlpha=1;
-    гистограмма(тм);
-    if(рука.есть){ ctx.strokeStyle='#ff9a5a'; ctx.globalAlpha=0.3; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(рука.x,рука.y,90,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+    const тм=тёмная(), б=фон(), д=img.data, t=время, k=H/gh, рx=рука.x/H, рy=рука.y/H, рс=рука.сила;
+    for(let j=0;j<gh;j++){ for(let i=0;i<gw;i++){
+      let x=(i+0.5)*k/H, y=(j+0.5)*k/H;
+      for(const в of вихри){ const dx=x-в.x, dy=y-в.y, r2=dx*dx+dy*dy, a=в.s*Math.exp(-r2/0.03);
+        if(a>0.002||a<-0.002){ const c=Math.cos(a), s=Math.sin(a); x=в.x+dx*c-dy*s; y=в.y+dx*s+dy*c; } }
+      // двойное искажение координат даёт вихри; сильнее всего они вверху,
+      // где плёнка тонкая и лёгкая, внизу она лежит почти ровными полосами
+      const qx=фбм(x*2.2+t*0.05,y*2.2-t*0.03), qy=фбм(x*2.2+3.1-t*0.04,y*2.2+7.7+t*0.02);
+      const wx=фбм(x*1.8+1.8*qx+t*0.06,y*1.8+1.8*qy), wy=фбм(x*1.8+1.8*qx+9.2,y*1.8+1.8*qy-t*0.05);
+      const v=Math.max(0,y+(0.11*(1-y)+0.025)*wy);
+      let d=20+1650*Math.pow(v,1.3)+30*wx;
+      if(рс>0.01){ const r2=(x-рx)*(x-рx)+(y-рy)*(y-рy); d-=рс*420*Math.exp(-r2/0.012); }
+      d=Math.max(0,Math.min(Dmax,d));
+      const n=Math.round(d/Dmax*(ЦN-1))*3, o=(j*gw+i)*4;
+      let r=ЦВ[n], g=ЦВ[n+1], b=ЦВ[n+2];
+      if(тм){ д[o]=Math.min(255,б[0]+r*175); д[o+1]=Math.min(255,б[1]+g*175); д[o+2]=Math.min(255,б[2]+b*175); }
+      else { // на просвет: проходит то, что не отразилось
+        const a=0.62; д[o]=б[0]*(1-a*r); д[o+1]=б[1]*(1-a*g); д[o+2]=б[2]*(1-a*b); }
+      д[o+3]=255;
+    } }
+    бк.putImageData(img,0,0);
+    const dpr=cv.width/W; ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.imageSmoothingEnabled=true; try{ ctx.imageSmoothingQuality='high'; }catch(_){}
+    ctx.drawImage(буф,0,0,W,H);
+    // подложка под текст: слева плёнка уходит в фон
+    const узко=W<700, гр=узко?ctx.createLinearGradient(0,0,0,H):ctx.createLinearGradient(0,0,W,0), ф=`${б[0]},${б[1]},${б[2]}`;
+    гр.addColorStop(0,`rgba(${ф},${узко?0.55:0.82})`); гр.addColorStop(узко?0.6:0.42,`rgba(${ф},${узко?0.35:0.45})`); гр.addColorStop(1,`rgba(${ф},${узко?0.1:0})`);
+    ctx.fillStyle=гр; ctx.fillRect(0,0,W,H);
   };
-  /* Распределение по скоростям: столбики из газа и кривая Максвелла
-     (двумерная, f(v) ∝ v·e^(−v²/⟨v²⟩)) для текущей средней энергии. */
-  const гист=new Array(18).fill(0);
-  const гистограмма=тм=>{
-    if(W<700) return;
-    const w=190, h=70, x0=W-w-44, y0=40, V=240, n=гист.length, dv=V/n;
-    const сейчас=new Array(n).fill(0); let E=0;
-    for(const p of P){ const v=Math.hypot(p.vx,p.vy); E+=v*v; const k=Math.min(n-1,Math.floor(v/dv)); сейчас[k]++; }
-    for(let k=0;k<n;k++) гист[k]+= (сейчас[k]/P.length-гист[k])*0.06;
-    const v2=E/P.length, f=v=>2*v/v2*Math.exp(-v*v/v2)*dv;
-    let макс=0; for(let k=0;k<n;k++) макс=Math.max(макс,гист[k],f((k+0.5)*dv)); макс=макс||1;
-    const основа=тм?'255,255,255':'20,24,34';
-    ctx.fillStyle=`rgba(${основа},0.05)`; ctx.fillRect(x0-10,y0-10,w+20,h+20);
-    for(let k=0;k<n;k++){ const hh=гист[k]/макс*h; ctx.fillStyle=цвет((k+0.5)*dv); ctx.globalAlpha=0.55;
-      ctx.fillRect(x0+k*w/n+1,y0+h-hh,w/n-2,hh); }
-    ctx.globalAlpha=0.9; ctx.strokeStyle=`rgba(${основа},0.75)`; ctx.lineWidth=1.4; ctx.beginPath();
-    for(let i=0;i<=60;i++){ const v=i/60*V, y=y0+h-f(v)/макс*h; i?ctx.lineTo(x0+i/60*w,y):ctx.moveTo(x0,y); } ctx.stroke();
-    ctx.globalAlpha=1;
-  };
-  let прошлое=performance.now();
+  let прошлое=performance.now(), чёт=0, тм0=null;
   const цикл=now=>{
     if(!document.body.contains(cv)||!главнаяОткрыта()){ cv._живёт=false; return; }
-    const dt=Math.min(0.033,(now-прошлое)/1000); прошлое=now;
+    const dt=Math.min(0.05,(now-прошлое)/1000); прошлое=now;
     if(document.visibilityState==='visible'&&размер()){
-      if(document.documentElement.dataset.motion==='full'||рука.есть){ шаг(dt); рисовать(); }
-      else if(кадров<1){ for(let i=0;i<600;i++){ шаг(1/60); if(i>540) рисовать(); } рисовать(); кадров++; }
+      if(document.documentElement.dataset.motion==='full'||рука.есть||рука.сила>0.02||вихри.length){
+        шаг(dt); if((чёт++&1)===0) рисовать(); }
+      else if(кадров<1||тм0!==тёмная()){ тм0=тёмная(); рисовать(); кадров++; }
     }
     requestAnimationFrame(цикл);
   };
@@ -363,7 +359,7 @@ function рисоватьГлавную(h){
   const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
-  газГлавной(h.querySelector('#hm-cv'));
+  плёнкаГлавной(h.querySelector('#hm-cv'));
 }
 function подключитьГлавную(){
   собратьГлавную();
