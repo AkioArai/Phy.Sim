@@ -3159,3 +3159,138 @@ details.deep>summary{font-family:var(--head)}
 .hm7-logo.sec-mark{width:16px;height:16px;padding:0;border-radius:0;background:none;color:var(--sec)}
 [data-ui="mobile"] .hm7-logo.sec-mark{width:14px;height:14px;padding:0}
 .sec>.hd .sec-ic.sec-mark{width:12px!important;height:12px!important;color:var(--sec);stroke:none!important}
+
+/* =====================================================================
+   7.0: КОМПЬЮТЕР — «СЦЕНА В ЦЕНТРЕ» (js/desk7.js)
+   Сцена на всё окно; темы — выпадающим списком; конспект — справа;
+   управление — пульт под сценой; параметры — карточка у правого края.
+   Всё под [data-lay="scene"]: телефон и раскладка «колонки» не меняются.
+   ===================================================================== */
+.d7-crumb,.d7-simslot,.d7-seg,.d7-only,.d7-dock,.d7-phead,.d7-dh{display:none}
+
+/* ---- верхняя панель ---- */
+[data-lay="scene"] #btn-rail,[data-lay="scene"] #tab-topics,[data-lay="scene"] #tab-search,
+[data-lay="scene"] #btn-reading,[data-lay="scene"] #btn-simhide,[data-lay="scene"] .topbar>.sep{display:none}
+[data-lay="scene"] .topbar{gap:4px}
+[data-lay="scene"] .topbar>.spacer:first-of-type{order:9}
+[data-lay="scene"] .topbar>.tsearch{order:10}
+[data-lay="scene"] .topbar>.spacer:last-of-type{order:11}
+[data-lay="scene"] .d7-seg{order:19}
+[data-lay="scene"] .topbar>.tnav{order:20}
+[data-lay="scene"] #tab-marks{order:21}
+[data-lay="scene"] #btn-calc{order:22}
+[data-lay="scene"] #d7-settings{order:23;display:grid}
+[data-lay="scene"] #btn-simmenu{order:24}
+[data-lay="scene"] #btn-simfull{order:25}
+[data-lay="scene"] .tsearch{width:250px;max-width:22vw}
+@media (max-width:1499px){
+  [data-lay="scene"] .tsearch{width:34px;padding:0;justify-content:center}
+  [data-lay="scene"] .tsearch span,[data-lay="scene"] .tsearch kbd{display:none}
+}
+[data-lay="scene"] .d7-crumb{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 9px 0 11px;margin-left:6px;
+  border:0;border-radius:var(--radius);background:rgba(255,255,255,.06);color:var(--bar-ink);font:500 13px var(--sans);cursor:pointer;
+  max-width:34vw;min-width:0;transition:background .15s}
+[data-lay="scene"] .d7-crumb:hover{background:rgba(255,255,255,.12)}
+[data-bar="light"][data-lay="scene"] .d7-crumb{background:var(--panel-2)}
+[data-lay="scene"] .d7-crumb .d7-sec{color:var(--bar-ink-2);white-space:nowrap}
+[data-lay="scene"] .d7-crumb .d7-sl{color:var(--bar-ink-2);opacity:.6}
+[data-lay="scene"] .d7-crumb .d7-t{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+[data-lay="scene"] .d7-crumb svg{width:14px;height:14px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;opacity:.75}
+[data-lay="scene"] .d7-simslot{display:flex;align-items:center;min-width:0}
+[data-lay="scene"] .d7-simslot .simhead{border:0;padding:0 0 0 4px;background:none;text-transform:none;letter-spacing:0;font:inherit;gap:4px;min-width:0}
+[data-lay="scene"] .d7-simslot .simhead>:not(#simsel):not(#btn-graph):not(#btn-makeout){display:none!important}
+[data-lay="scene"] .d7-simslot #btn-graph{display:none!important}
+[data-lay="scene"] .d7-simslot #simsel{height:30px;max-width:300px;min-width:120px;padding:0 28px 0 10px;border-radius:var(--radius);
+  border:1px solid rgba(255,255,255,.12);background-color:transparent;color:var(--bar-ink);font:500 12.5px var(--sans);text-transform:none;letter-spacing:0}
+[data-bar="light"][data-lay="scene"] .d7-simslot #simsel{border-color:var(--line);color:var(--ink)}
+[data-lay="scene"] .d7-simslot #simsel option{color:var(--ink);background:var(--panel)}
+[data-lay="scene"] .d7-seg{display:inline-flex;gap:2px;padding:3px;border-radius:calc(var(--radius) + 3px);background:rgba(255,255,255,.06);margin-right:4px}
+[data-bar="light"][data-lay="scene"] .d7-seg{background:var(--panel-2)}
+[data-lay="scene"] .d7-sb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 9px;border:0;border-radius:var(--radius);
+  background:none;color:var(--bar-ink-2);font:500 12.5px var(--sans);cursor:pointer;transition:background .15s,color .15s}
+[data-lay="scene"] .d7-sb:hover{color:var(--bar-ink);background:rgba(255,255,255,.08)}
+[data-lay="scene"] .d7-sb.on{background:var(--accent);color:#fff}
+[data-lay="scene"] .d7-sb.hidden{display:none}
+[data-lay="scene"] .d7-sb svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-lay="scene"] .d7-n{font:600 10.5px var(--mono);font-style:normal;opacity:.75}
+[data-lay="scene"] .d7-n:empty{display:none}
+[data-lay="scene"] #d7-settings svg{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+
+/* ---- тело: сцена, разделитель, конспект ---- */
+[data-lay="scene"] .rail{position:fixed;display:none;z-index:150;width:auto;height:auto;flex:none;flex-direction:row;align-items:center;
+  gap:3px;padding:6px;border:1px solid var(--line);border-radius:14px;background:var(--panel);
+  box-shadow:0 14px 40px rgba(10,12,20,.22);overflow:visible}
+html.d7-tools[data-lay="scene"] .rail{display:flex}
+[data-lay="scene"] .rail .sep-h{width:1px;height:22px;margin:0 3px}
+[data-lay="scene"] .rail .railgrp{flex-direction:row;width:auto;gap:3px}
+[data-lay="scene"] .rail .railgrp .grphead{display:none}
+[data-lay="scene"] .rail .railgrp .grpbody,[data-lay="scene"] .rail .railgrp.closed .grpbody{display:flex;flex-direction:row;gap:3px}
+[data-lay="scene"] .sidebar{position:absolute;left:10px;top:10px;bottom:10px;width:340px;flex:none;z-index:95;height:auto;
+  border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel);box-shadow:0 22px 60px rgba(10,12,20,.25)}
+[data-lay="scene"] .sidebar.hidden{display:none}
+[data-lay="scene"] .side-close{display:grid;flex:0 0 auto}
+[data-lay="scene"] .simpane{order:1}
+[data-lay="scene"] .splitter{order:2}
+[data-lay="scene"] .content{order:3;display:none;flex:0 0 var(--d7-nw,560px);width:var(--d7-nw,560px);border-left:1px solid var(--line);background:var(--panel)}
+[data-lay="scene"] #app.d7-notes .content,[data-lay="scene"] .content.wide{display:flex}
+[data-lay="scene"] .content.wide{flex:1 1 auto;width:auto;border-left:0}
+[data-lay="scene"] #app:not(.d7-notes) .splitter{display:none}
+[data-lay="scene"] .simpane:not(.hidden){flex:1 1 auto;width:auto;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;
+  grid-template-rows:minmax(0,1fr) auto;position:relative;background:var(--canvas)}
+[data-lay="scene"] .simpane>.canvas-wrap{grid-column:1;grid-row:1;min-height:0}
+[data-lay="scene"] .simpane>.hsplit{display:none}
+[data-lay="scene"] .simpane>.warnbar{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:45;border-radius:10px;max-width:70%}
+[data-lay="scene"] .d7-dh{display:flex;gap:2px;position:absolute;right:12px;top:12px;z-index:6}
+[data-lay="scene"] .d7-dh .iconbtn svg{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-lay="scene"] .chead{padding-right:96px}
+
+/* ---- карточка параметров и графиков ---- */
+[data-lay="scene"] .simbottom{grid-column:2;grid-row:1/3;width:310px;height:auto!important;max-height:none;margin:10px 10px 10px 0;
+  display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow-y:auto;
+  box-shadow:0 8px 26px rgba(10,12,20,.08)}
+[data-lay="scene"] .simbottom.collapsed{display:flex}
+[data-lay="scene"] #app.d7-nop .simbottom{display:none}
+[data-lay="scene"] .simbottom .msheet-head{display:none}
+[data-lay="scene"] .d7-phead{display:flex;align-items:center;order:0;position:sticky;top:0;z-index:3;background:var(--panel);
+  padding:10px 8px 4px 14px;font:650 13.5px var(--head);color:var(--ink)}
+[data-lay="scene"] .d7-phead .iconbtn svg{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+[data-lay="scene"] .simbottom .pbox{order:1}
+[data-lay="scene"] .simbottom .gbox{order:2}
+[data-lay="scene"] .simbottom .pbox-head>span:first-child{display:none}
+
+/* ---- пульт под сценой ---- */
+[data-lay="scene"] .d7-dock{display:flex;flex-direction:column;grid-column:1;grid-row:2;justify-self:center;margin:2px 0 10px;z-index:40;
+  width:max-content;max-width:calc(100% - 24px);padding:3px 8px 4px;border:1px solid var(--line);border-radius:18px;
+  background:var(--panel);background:color-mix(in srgb,var(--panel) 90%,transparent);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:0 12px 34px rgba(10,12,20,.16)}
+.home-on[data-lay="scene"] .d7-dock{visibility:hidden}
+[data-lay="scene"] .d7-row{display:flex;align-items:center;gap:4px;min-width:0}
+[data-lay="scene"] .d7-dock .timeline{border:0;background:none;padding:2px 2px 0;flex:1 1 auto;min-width:0}
+[data-lay="scene"] .d7-dock .timeline.hidden{display:none}
+[data-lay="scene"] .d7-dock .statusbar{border:0;background:none;height:40px;padding:0;flex:0 1 auto;gap:2px;visibility:visible}
+[data-lay="scene"] .d7-dock .statusbar>#btn-settings,[data-lay="scene"] .d7-dock .statusbar>.sep,
+[data-lay="scene"] .d7-dock .statusbar>.spacer,[data-lay="scene"] .d7-dock #fps{display:none}
+[data-lay="scene"] .d7-dock .group{gap:1px;padding:0 4px;border-left:1px solid var(--line-soft)}
+[data-lay="scene"] .d7-dock .group:first-of-type{border-left:0}
+[data-lay="scene"] .d7-dock #btn-play{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;margin:0 4px}
+[data-lay="scene"] .d7-dock #btn-play:hover{filter:brightness(1.08)}
+[data-lay="scene"] .d7-dock #btn-play svg{width:17px;height:17px}
+[data-lay="scene"] .d7-tools,[data-lay="scene"] .d7-pbtn{display:grid;width:36px;height:36px;border-radius:12px}
+[data-lay="scene"] .d7-tools{margin-right:6px}
+[data-lay="scene"] .d7-pbtn{margin-left:6px}
+[data-lay="scene"] .d7-tools svg,[data-lay="scene"] .d7-pbtn svg{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-lay="scene"] .d7-tools.on,[data-lay="scene"] .d7-pbtn.on{color:var(--accent);background:var(--accent-soft)}
+[data-lay="scene"] .toast{bottom:124px}
+[data-lay="scene"] #cwrap.narrow .d7-dock .group:nth-of-type(3){display:none}
+.home-on[data-lay="scene"] .d7-seg,.home-on[data-lay="scene"] .d7-simslot{display:none}
+[data-lay="scene"] #app.d7-nosim .d7-dh{display:none}
+[data-lay="scene"] #app.d7-nosim .chead{padding-right:34px}
+/* 7.0 на планшете боком: цели под палец */
+[data-touch="1"][data-lay="scene"] .d7-sb{height:36px;padding:0 13px 0 11px}
+[data-touch="1"][data-lay="scene"] .d7-crumb{height:36px}
+[data-touch="1"][data-lay="scene"] .d7-tools,[data-touch="1"][data-lay="scene"] .d7-pbtn{width:42px;height:42px}
+[data-touch="1"][data-lay="scene"] .d7-dock #btn-play{width:44px;height:44px}
+[data-touch="1"][data-lay="scene"] .d7-dock .statusbar{height:48px}
+[data-lay="scene"] .tnav .tbtn{white-space:nowrap}
+@media (max-width:1439px){ [data-lay="scene"] #btn-path>span{display:none} [data-lay="scene"] #btn-path{padding:0 9px} }
+[data-lay="scene"] #app.simfull #simbottom:not(.collapsed){max-height:none}

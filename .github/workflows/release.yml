@@ -144,9 +144,19 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 102 live simulations,
-          48 topics, 119 step-by-step derivations, 351 formulas and 499 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 114 live simulations,
+          51 topics, 135 step-by-step derivations, 399 formulas and 562 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 7.0.0 — the scene in the middle, a ripple tank, waves, optics and modern physics
+
+          On a computer the simulation now fills the window: topics drop down from the top, the notes slide in
+          from the right, playback is a console under the scene, parameters are a card at the edge and the
+          tools fan out above the pencil (the old column layout is a setting). The home screen is a ripple
+          tank with two sources. Three new topics — sound, thermal radiation and photometry, nuclear
+          reactions — and twelve simulations: sound and beats, a resonating pipe, Fresnel zones, polarisation
+          and Brewster's angle, a spherical mirror, Planck's spectrum, illuminance, relativistic acceleration,
+          Rutherford scattering, a chain reaction, radiation shielding and a cloud chamber.
 
           ## 6.4.0 — one simulation per topic; solids, circuits, machines, three-phase current
 

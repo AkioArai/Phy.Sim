@@ -3905,7 +3905,7 @@ $$('#btn-rail').onclick=()=>toggleSidebar();
 $$('#side-close').onclick=()=>toggleSidebar(true);
 /* в полноэкранном режиме накладная панель тем закрывается сразу после выбора темы */
 function autoCloseRail(){
-  if($('#app').classList.contains('simfull')||$('#app').classList.contains('mid')){
+  if($('#app').classList.contains('simfull')||$('#app').classList.contains('mid')||document.documentElement.dataset.lay==='scene'){
     $('#sidebar').classList.add('hidden');
     $('#btn-rail').setAttribute('aria-pressed','false');
   }
@@ -4050,6 +4050,10 @@ hsplit.addEventListener('dblclick',()=>{
     /* Запоминаем долю, а не пиксели: пиксели, выставленные в альбомной
        ориентации, переживали поворот — сцена в 740 px оставалась на экране
        в 820, а на iPad Pro конспект сжимался в ноль. */
+    if(document.documentElement.dataset.lay==='scene'){      // 7.0: конспект справа от разделителя
+      const w=clamp(innerWidth-e.clientX,380,Math.max(380,innerWidth-420));
+      LS.set('d7NotesW',w); $('#content').style.setProperty('--d7-nw',w+'px'); return;
+    }
     const к=колонки(); if(!к) return;
     const w=clamp(innerWidth-e.clientX-к.справа,300,Math.max(300,к.доступно-360));
     LS.set('simFrac',w/к.доступно);
@@ -4087,6 +4091,12 @@ function колонки(){
 }
 function разложитьКолонки(){
   const app=$('#app'), sp=$('#simpane'); if(!app||!sp) return;
+  /* раскладка 7.0: сцена тянется сама, ширину конспекта задаёт desk7.js */
+  if(document.documentElement.dataset.lay==='scene'){
+    app.classList.remove('mid'); sp.style.flex=''; sp.style.width='';
+    const н=$('#simbottom'); if(н) н.style.height='';
+    return;
+  }
   const средняя=!isNarrow()&&innerWidth<1200;
   if(app.classList.contains('mid')!==средняя){
     app.classList.toggle('mid',средняя);
@@ -4298,7 +4308,7 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   handles:'hover',
   // кастомизация окружения
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,hudRows:6,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
-  panelAlpha:93,railSide:'left',
+  panelAlpha:93,railSide:'left',deskLayout:'scene',
   // 2.0.0: персонализация
   palette:'std',accentCustom:'#5b48e8',radius:6,uiFont:'sans',readW:'norm',lineH:1.65,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
@@ -4459,6 +4469,9 @@ const PREFS=[
   {cat:'look',key:'uiMode',type:'select',def:'auto',
    name:'Вид интерфейса',desc:'Телефонный вид — тонкая шапка, ящик тем и плавающая панель — включается сам, когда управление идёт пальцем на маленьком экране. Узкое окно на компьютере телефоном не считается. Здесь вид можно задать вручную.',
    options:[['auto','Определять автоматически'],['desktop','Компьютерный'],['mobile','Телефонный']]},
+  {cat:'look',key:'deskLayout',type:'select',def:'scene',
+   name:'Раскладка на компьютере',desc:'«Сцена в центре» (7.0): симуляция на всё окно, темы — выпадающим списком сверху, конспект и задачи выезжают справа, управление — пульт под сценой. «Колонки» — прежний вид: инструменты, список тем, конспект и сцена рядом.',
+   options:[['scene','Сцена в центре'],['classic','Колонки (как до 7.0)']]},
   {cat:'look',key:'railSide',type:'select',def:'left',
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
@@ -5510,6 +5523,7 @@ popup($('#mb-tools'),$('#pop-tools'));
 let lastNarrow=isNarrow();
 function onViewportChange(){
   applyUiMode();                       // мышь подключили, окно растянули — режим мог смениться
+  if(typeof обновитьРаскладку==='function') try{ обновитьРаскладку(); }catch(_){}
   const now=isNarrow();
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
@@ -5623,6 +5637,7 @@ function applySettings(){
   // нужно пересчитать, иначе после «покрупнее» формулы снова вылезают
   try{ fitFormulas($('#pane')); }catch(_){}
   try{ applyWindowMode(!S.__ready); }catch(_){}
+  if(typeof обновитьРаскладку==='function') try{ обновитьРаскладку(); }catch(e){ console.error(e); }
   LS.set('settings',s); resize();
 }
 // тема «как в системе» реагирует на смену темы устройства на лету
@@ -7791,5 +7806,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '6.4.0';
+window.PHYSIM_BUILD = '7.0.0';
 window.PHYSIM_READY = true;

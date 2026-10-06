@@ -1,0 +1,4 @@
+7.0.0 — the scene in the middle; waves, optics, modern physics.
+• The home screen is a ripple tank with two sources.
+• Three new topics: sound, thermal radiation and photometry, nuclear reactions.
+• Twelve simulations: sound and beats, a resonating pipe, Fresnel zones, polarisation, a spherical mirror, Planck's spectrum, illuminance, Rutherford scattering, a chain reaction, radiation shielding, a cloud chamber and more.

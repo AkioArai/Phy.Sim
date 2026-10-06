@@ -177,120 +177,78 @@ function логотипРаздела(id,кл){ const р=ЛОГО[id];
   return `<svg class="${кл||'sec-logo'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor" stroke="none"/></svg>`; }
 function точкаРаздела(кл){ return `<svg class="${кл||'sec-ic'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg>`; }
 
-/* ---------------- мыльная плёнка: живая шапка главной (6.2.0) ----------------
-   Цвета мыльного пузыря — интерференция в тонкой плёнке. Свет отражается
-   от передней и задней поверхности воды толщиной d; два луча расходятся
-   по фазе на δ = 4πnd/λ (плюс полволны при отражении от воды), и доля
-   отражённого света для длины волны λ — sin²(2πnd/λ). Цвет здесь не
-   подобран, а посчитан: спектр отражения складывается с функциями
-   сложения цветов CIE 1931 и переводится в sRGB. Поэтому вверху, где плёнка
-   стекла до десятков нанометров, она чёрная, ниже идут серебро, золото,
-   пурпур, синь — порядки интерференции, как на настоящем пузыре.
-   Толщина течёт: вода стекает вниз (сверху тоньше), а поверхность
-   закручивают вихри — так ведёт себя плёнка от слабой конвекции воздуха.
-   Палец или курсор продавливает плёнку и мешает её; вокруг касания
-   встают кольца — линии равной толщины.
-   В светлой теме плёнка видна на просвет: проходящий свет — дополнение
-   к отражённому, поэтому цвета бледные и тёплые. Без анимации — один
-   застывший кадр. */
-const ПЛЁНКА={таблица:null};
-function цветаПлёнки(){
-  if(ПЛЁНКА.таблица) return ПЛЁНКА.таблица;
-  // аналитическая аппроксимация функций CIE 1931 (Wyman, Sloan, Shirley, 2013)
-  const g=(l,m,s1,s2)=>{ const t=(l-m)/(l<m?s1:s2); return Math.exp(-0.5*t*t); };
-  const X=l=>1.056*g(l,599.8,37.9,31)+0.362*g(l,442,16,26.7)-0.065*g(l,501.1,20.4,26.2);
-  const Y=l=>0.821*g(l,568.8,46.9,40.5)+0.286*g(l,530.9,16.3,31.1);
-  const Z=l=>1.217*g(l,437,11.8,36)+0.681*g(l,459,26,13.8);
-  const вRGB=(x,y,z)=>[3.2406*x-1.5372*y-0.4986*z,-0.9689*x+1.8758*y+0.0415*z,0.0557*x-0.204*y+1.057*z];
-  const n=1.33, N=1024, Dmax=2000, т=new Float32Array(N*3);
-  const спектр=f=>{ let x=0,y=0,z=0; for(let l=380;l<=780;l+=5){ const r=f(l); x+=r*X(l); y+=r*Y(l); z+=r*Z(l); } return вRGB(x,y,z); };
-  const белый=спектр(()=>1);   // нормируем так, чтобы полное отражение было белым
-  for(let i=0;i<N;i++){
-    const d=i/(N-1)*Dmax, c=спектр(l=>{ const s=Math.sin(2*Math.PI*n*d/l); return s*s; });
-    for(let k=0;k<3;k++) т[i*3+k]=Math.max(0,c[k]/белый[k]);
-  }
-  ПЛЁНКА.таблица={т,N,Dmax};
-  return ПЛЁНКА.таблица;
-}
-function плёнкаГлавной(cv){
+/* ---------------- рябь: живая шапка главной (7.0.0) ----------------
+   Два точечных источника качают воду в одной фазе — как вибратор в
+   волновой ванне. Круговые волны складываются: там, где разность хода
+   r₁ − r₂ равна целому числу длин волн, гребни встречаются с гребнями,
+   а вдоль гипербол r₁ − r₂ = (m + ½)λ вода стоит — это узловые линии.
+   Каждая волна в плоскости слабеет как 1/√r: энергия кольца размазана по
+   длине 2πr. Яркость, как на экране под настоящей ванной, следует за
+   высотой воды: гребень собирает свет, впадина рассеивает.
+   Касание бросает в воду третий источник: его волна расходится со
+   скоростью c, меняет картину и через несколько секунд затихает.
+   Без анимации — один застывший кадр. */
+function рябьГлавной(cv){
   if(!cv||cv._живёт) return; cv._живёт=true;
   const ctx=cv.getContext('2d'), шапка=cv.parentElement;
   const буф=document.createElement('canvas'), бк=буф.getContext('2d');
-  const {т:ЦВ,N:ЦN,Dmax}=цветаПлёнки();
-  let W=0,H=0,gw=0,gh=0,img=null,кадров=0,время=Math.random()*100;
-  const рука={x:0,y:0,px:0,py:0,есть:false,сила:0};
-  const вихри=[];               // {x,y,s} в долях высоты шапки
-  const где=e=>{ const r=cv.getBoundingClientRect(); рука.x=e.clientX-r.left; рука.y=e.clientY-r.top;
-    if(!рука.есть){ рука.px=рука.x; рука.py=рука.y; } рука.есть=true; };
-  шапка.addEventListener('pointermove',где,{passive:true}); шапка.addEventListener('pointerdown',где,{passive:true});
-  шапка.addEventListener('pointerleave',()=>{ рука.есть=false; });
-  шапка.addEventListener('pointerup',e=>{ if(e.pointerType!=='mouse') рука.есть=false; });
-  шапка.addEventListener('pointercancel',()=>{ рука.есть=false; });
-  // гладкий шум: значения в узлах решётки, между ними — кубическое сглаживание
-  const П=new Uint8Array(512); { const p=[...Array(256).keys()]; for(let i=255;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [p[i],p[j]]=[p[j],p[i]]; } for(let i=0;i<512;i++) П[i]=p[i&255]; }
-  const шум=(x,y)=>{ const xi=Math.floor(x), yi=Math.floor(y), fx=x-xi, fy=y-yi, u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy);
-    const a=П[(xi&255)+П[yi&255]], b=П[((xi+1)&255)+П[yi&255]], c=П[(xi&255)+П[(yi+1)&255]], d=П[((xi+1)&255)+П[(yi+1)&255]];
-    return ((a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v)/127.5-1; };
-  const фбм=(x,y)=>шум(x,y)*0.62+шум(x*2.03+5.2,y*2.03+1.3)*0.38;
+  let W=0,H=0,gw=0,gh=0,img=null,кадров=0,время=0;
+  const капли=[];                 // {x,y,t0} в пикселях шапки
+  шапка.addEventListener('pointerdown',e=>{
+    if(e.target.closest&&e.target.closest('button,a,input,.hm-card')) return;
+    const r=cv.getBoundingClientRect(); капли.push({x:e.clientX-r.left,y:e.clientY-r.top,t0:время});
+    if(капли.length>3) капли.shift(); },{passive:true});
   const размер=()=>{ const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h) return false;
     if(w!==W||h!==H){ W=w; H=h; const dpr=Math.min(devicePixelRatio||1,2);
       cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
-      const ячеек=W<700?11000:22000; gw=Math.max(40,Math.round(Math.sqrt(ячеек*W/H))); gh=Math.max(30,Math.round(ячеек/gw));
+      const шагП=W<700?4:5; gw=Math.ceil(W/шагП); gh=Math.ceil(H/шагП);
       буф.width=gw; буф.height=gh; img=бк.createImageData(gw,gh); }
     return true; };
   const тёмная=()=>document.documentElement.dataset.theme==='dark';
-  const фон=()=>{ const s=getComputedStyle(document.documentElement).getPropertyValue('--hero-bg').trim()||(тёмная()?'#0e1118':'#f6f4ef');
-    const m=s.match(/^#([0-9a-f]{6})$/i); return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):(тёмная()?[14,17,24]:[246,244,239]); };
-  const шаг=dt=>{
-    время+=dt;
-    // палец: продавливает плёнку и закручивает её по ходу движения
-    рука.сила+=((рука.есть?1:0)-рука.сила)*Math.min(1,dt*(рука.есть?2.5:0.8));
-    if(рука.есть&&H){ const vx=(рука.x-рука.px)/H, vy=(рука.y-рука.py)/H, ход=Math.hypot(vx,vy);
-      if(ход>0.002){ let в=вихри.find(в=>Math.hypot(в.x-рука.x/H,в.y-рука.y/H)<0.12);
-        if(!в){ в={x:рука.x/H,y:рука.y/H,s:0}; вихри.push(в); if(вихри.length>6) вихри.shift(); }
-        в.x+=(рука.x/H-в.x)*0.3; в.y+=(рука.y/H-в.y)*0.3;
-        в.s=Math.max(-4,Math.min(4,в.s+(vx>=0?1:-1)*ход*6)); }
-      рука.px=рука.x; рука.py=рука.y; }
-    for(const в of вихри){ в.s*=Math.exp(-dt/5); в.y+=dt*0.004; }
-    for(let i=вихри.length-1;i>=0;i--) if(Math.abs(вихри[i].s)<0.02) вихри.splice(i,1);
-  };
+  const цвет=(имя,зап)=>{ const s=getComputedStyle(document.documentElement).getPropertyValue(имя).trim();
+    const m=s.match(/^#([0-9a-f]{6})$/i); return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):зап; };
+  // источники стоят у правого края один над другим: узловые гиперболы
+  // расходятся влево веером, под текст, и картина читается целиком
+  const источники=λ=>{ const узко=W<700, d=λ*(узко?3.2:4.6)*(1+0.12*Math.sin(время*0.09));
+    return узко?[{x:0.5*W-d/2,y:0.9*H},{x:0.5*W+d/2,y:0.9*H}]:[{x:0.9*W,y:0.46*H-d/2},{x:0.9*W,y:0.46*H+d/2}]; };
   const рисовать=()=>{
-    const тм=тёмная(), б=фон(), д=img.data, t=время, k=H/gh, рx=рука.x/H, рy=рука.y/H, рс=рука.сила;
-    for(let j=0;j<gh;j++){ for(let i=0;i<gw;i++){
-      let x=(i+0.5)*k/H, y=(j+0.5)*k/H;
-      for(const в of вихри){ const dx=x-в.x, dy=y-в.y, r2=dx*dx+dy*dy, a=в.s*Math.exp(-r2/0.03);
-        if(a>0.002||a<-0.002){ const c=Math.cos(a), s=Math.sin(a); x=в.x+dx*c-dy*s; y=в.y+dx*s+dy*c; } }
-      // двойное искажение координат даёт вихри; сильнее всего они вверху,
-      // где плёнка тонкая и лёгкая, внизу она лежит почти ровными полосами
-      const qx=фбм(x*2.2+t*0.05,y*2.2-t*0.03), qy=фбм(x*2.2+3.1-t*0.04,y*2.2+7.7+t*0.02);
-      const wx=фбм(x*1.8+1.8*qx+t*0.06,y*1.8+1.8*qy), wy=фбм(x*1.8+1.8*qx+9.2,y*1.8+1.8*qy-t*0.05);
-      const v=Math.max(0,y+(0.11*(1-y)+0.025)*wy);
-      let d=20+1650*Math.pow(v,1.3)+30*wx;
-      if(рс>0.01){ const r2=(x-рx)*(x-рx)+(y-рy)*(y-рy); d-=рс*420*Math.exp(-r2/0.012); }
-      d=Math.max(0,Math.min(Dmax,d));
-      const n=Math.round(d/Dmax*(ЦN-1))*3, o=(j*gw+i)*4;
-      let r=ЦВ[n], g=ЦВ[n+1], b=ЦВ[n+2];
-      if(тм){ д[o]=Math.min(255,б[0]+r*175); д[o+1]=Math.min(255,б[1]+g*175); д[o+2]=Math.min(255,б[2]+b*175); }
-      else { // на просвет: проходит то, что не отразилось
-        const a=0.62; д[o]=б[0]*(1-a*r); д[o+1]=б[1]*(1-a*g); д[o+2]=б[2]*(1-a*b); }
-      д[o+3]=255;
+    const тм=тёмная(), б=цвет('--hero-bg',тм?[14,17,24]:[246,244,239]);
+    const ак=тм?[150,160,215]:[48,44,110], сила=тм?0.6:0.3;
+    const λ=Math.max(24,Math.min(40,H*0.068)), k=2*Math.PI/λ, ω=2*Math.PI*0.3, c=ω/k, R=2.5*λ;
+    const ист=источники(λ), д=img.data, кл=W/gw, t=время;
+    const сеп=Math.hypot(ист[0].x-ист[1].x,ист[0].y-ист[1].y), норм=1.6/Math.sqrt(1+сеп/R), cw=Math.cos(ω*t), sw=Math.sin(ω*t);
+    const кп=капли.map(к=>({x:к.x,y:к.y,τ:t-к.t0,a:Math.exp(-(t-к.t0)/7)}));
+    for(let j=0;j<gh;j++){ const y=(j+0.5)*кл; for(let i=0;i<gw;i++){ const x=(i+0.5)*кл;
+      // комплексная амплитуда: |Z| — огибающая (яркие полосы между узловыми
+      // гиперболами), Re(Z·e^(−iωt)) — бегущие по ним гребни
+      let re=0, im=0;
+      for(const s of ист){ const r=Math.hypot(x-s.x,y-s.y), a=1/Math.sqrt(1+r/R); re+=a*Math.cos(k*r); im+=a*Math.sin(k*r); }
+      let ψ=re*cw+im*sw;
+      for(const к of кп){ const r=Math.hypot(x-к.x,y-к.y), фронт=c*к.τ-r;
+        if(фронт>0) ψ+=к.a*Math.min(1,фронт/λ)*Math.cos(k*r-ω*к.τ)/Math.sqrt(1+r/R); }
+      const e=Math.min(1,Math.hypot(re,im)/норм), v=Math.max(-1,Math.min(1,ψ/норм));
+      const m=сила*Math.max(0,Math.min(1,0.62*e*e+0.38*(тм?(1+v)/2:(1-v)/2)*(0.4+0.6*e))), o=(j*gw+i)*4;
+      д[o]=б[0]+(ак[0]-б[0])*m; д[o+1]=б[1]+(ак[1]-б[1])*m; д[o+2]=б[2]+(ак[2]-б[2])*m; д[o+3]=255;
     } }
     бк.putImageData(img,0,0);
     const dpr=cv.width/W; ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.imageSmoothingEnabled=true; try{ ctx.imageSmoothingQuality='high'; }catch(_){}
     ctx.drawImage(буф,0,0,W,H);
-    // подложка под текст: слева плёнка уходит в фон
+    // источники — две точки
+    ctx.fillStyle=`rgb(${ак[0]},${ак[1]},${ак[2]})`;
+    for(const s of ист){ ctx.beginPath(); ctx.arc(s.x,s.y,3,0,7); ctx.fill(); }
+    // подложка под текст: слева вода уходит в фон
     const узко=W<700, гр=узко?ctx.createLinearGradient(0,0,0,H):ctx.createLinearGradient(0,0,W,0), ф=`${б[0]},${б[1]},${б[2]}`;
-    гр.addColorStop(0,`rgba(${ф},${узко?0.55:0.82})`); гр.addColorStop(узко?0.6:0.42,`rgba(${ф},${узко?0.35:0.45})`); гр.addColorStop(1,`rgba(${ф},${узко?0.1:0})`);
+    гр.addColorStop(0,`rgba(${ф},${узко?0.75:0.8})`); гр.addColorStop(узко?0.5:0.45,`rgba(${ф},${узко?0.5:0.35})`); гр.addColorStop(узко?0.75:0.7,`rgba(${ф},0)`);
     ctx.fillStyle=гр; ctx.fillRect(0,0,W,H);
   };
-  let прошлое=performance.now(), чёт=0, тм0=null;
+  let прошлое=performance.now(), тм0=null, чёт=0;
   const цикл=now=>{
     if(!document.body.contains(cv)||!главнаяОткрыта()){ cv._живёт=false; return; }
     const dt=Math.min(0.05,(now-прошлое)/1000); прошлое=now;
     if(document.visibilityState==='visible'&&размер()){
-      if(document.documentElement.dataset.motion==='full'||рука.есть||рука.сила>0.02||вихри.length){
-        шаг(dt); if((чёт++&1)===0) рисовать(); }
+      for(let i=капли.length-1;i>=0;i--) if(время-капли[i].t0>20) капли.splice(i,1);
+      if(document.documentElement.dataset.motion==='full'||капли.length){ время+=dt; if((чёт++&1)===0) рисовать(); }
       else if(кадров<1||тм0!==тёмная()){ тм0=тёмная(); рисовать(); кадров++; }
     }
     requestAnimationFrame(цикл);
@@ -355,7 +313,7 @@ function рисоватьГлавную(h){
   const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
-  плёнкаГлавной(h.querySelector('#hm-cv'));
+  рябьГлавной(h.querySelector('#hm-cv'));
 }
 function подключитьГлавную(){
   собратьГлавную();
