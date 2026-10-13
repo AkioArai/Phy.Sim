@@ -3905,7 +3905,7 @@ $$('#btn-rail').onclick=()=>toggleSidebar();
 $$('#side-close').onclick=()=>toggleSidebar(true);
 /* в полноэкранном режиме накладная панель тем закрывается сразу после выбора темы */
 function autoCloseRail(){
-  if($('#app').classList.contains('simfull')||$('#app').classList.contains('mid')||document.documentElement.dataset.lay==='scene'){
+  if($('#app').classList.contains('simfull')||$('#app').classList.contains('mid')){
     $('#sidebar').classList.add('hidden');
     $('#btn-rail').setAttribute('aria-pressed','false');
   }
@@ -4050,9 +4050,9 @@ hsplit.addEventListener('dblclick',()=>{
     /* Запоминаем долю, а не пиксели: пиксели, выставленные в альбомной
        ориентации, переживали поворот — сцена в 740 px оставалась на экране
        в 820, а на iPad Pro конспект сжимался в ноль. */
-    if(document.documentElement.dataset.lay==='scene'){      // 7.0: конспект справа от разделителя
-      const w=clamp(innerWidth-e.clientX,380,Math.max(380,innerWidth-420));
-      LS.set('d7NotesW',w); $('#content').style.setProperty('--d7-nw',w+'px'); return;
+    if(document.documentElement.dataset.lay==='studio'){     // 8.0: редактор свойств справа от разделителя
+      const w=clamp(innerWidth-e.clientX,300,Math.max(300,innerWidth-560));
+      LS.set('s8RW',w); $('#s8-right').style.setProperty('--s8-rw',w+'px'); return;
     }
     const к=колонки(); if(!к) return;
     const w=clamp(innerWidth-e.clientX-к.справа,300,Math.max(300,к.доступно-360));
@@ -4091,8 +4091,8 @@ function колонки(){
 }
 function разложитьКолонки(){
   const app=$('#app'), sp=$('#simpane'); if(!app||!sp) return;
-  /* раскладка 7.0: сцена тянется сама, ширину конспекта задаёт desk7.js */
-  if(document.documentElement.dataset.lay==='scene'){
+  /* студия 8.0: сцена тянется сама, ширину редактора свойств задаёт studio.js */
+  if(document.documentElement.dataset.lay==='studio'){
     app.classList.remove('mid'); sp.style.flex=''; sp.style.width='';
     const н=$('#simbottom'); if(н) н.style.height='';
     return;
@@ -4308,9 +4308,9 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   handles:'hover',
   // кастомизация окружения
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,hudRows:6,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
-  panelAlpha:93,railSide:'left',deskLayout:'scene',
+  panelAlpha:93,railSide:'left',deskLayout:'studio',
   // 2.0.0: персонализация
-  palette:'std',accentCustom:'#5b48e8',radius:6,uiFont:'sans',readW:'norm',lineH:1.65,
+  palette:'std',accentCustom:'#5b48e8',radius:4,uiFont:'sans',readW:'norm',lineH:1.65,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true,
   // 4.0.0
@@ -4331,7 +4331,7 @@ const PREFS=[
   {cat:'look',key:'bar',type:'select',def:'ink',
    name:'Верхняя панель',desc:'«Чернильная» — тёмная полоса с логотипом, отделяет управление от содержания (4.0.0). «Светлая» — как до 4.0, в цвет страницы.',
    options:[['ink','Чернильная'],['light','Светлая']]},
-  {cat:'look',key:'radius',type:'range',def:6,min:0,max:14,step:1,unit:' px',
+  {cat:'look',key:'radius',type:'range',def:4,min:0,max:14,step:1,unit:' px',
    name:'Скругление углов',desc:'От строгих прямых углов до мягких «таблеток». Меняет кнопки, карточки, поля и панели.'},
   {cat:'look',key:'uiFont',type:'select',def:'sans',
    name:'Шрифт интерфейса',desc:'Шрифты берутся из системы — ничего не скачивается. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
@@ -4469,9 +4469,9 @@ const PREFS=[
   {cat:'look',key:'uiMode',type:'select',def:'auto',
    name:'Вид интерфейса',desc:'Телефонный вид — тонкая шапка, ящик тем и плавающая панель — включается сам, когда управление идёт пальцем на маленьком экране. Узкое окно на компьютере телефоном не считается. Здесь вид можно задать вручную.',
    options:[['auto','Определять автоматически'],['desktop','Компьютерный'],['mobile','Телефонный']]},
-  {cat:'look',key:'deskLayout',type:'select',def:'scene',
-   name:'Раскладка на компьютере',desc:'«Сцена в центре» (7.0): симуляция на всё окно, темы — выпадающим списком сверху, конспект и задачи выезжают справа, управление — пульт под сценой. «Колонки» — прежний вид: инструменты, список тем, конспект и сцена рядом.',
-   options:[['scene','Сцена в центре'],['classic','Колонки (как до 7.0)']]},
+  {cat:'look',key:'deskLayout',type:'select',def:'studio',
+   name:'Раскладка на компьютере',desc:'«Студия» (8.0): слева лента и дерево тем, в центре сцена со столбиком инструментов, справа редактор свойств с вкладками «Параметры», «Конспект», «Задачи», внизу шкала времени. «Колонки» — прежний вид: инструменты, список тем, конспект и сцена рядом.',
+   options:[['studio','Студия'],['classic','Колонки (как до 7.0)']]},
   {cat:'look',key:'railSide',type:'select',def:'left',
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
@@ -5601,9 +5601,9 @@ function applySettings(){
   const ШРИФТЫ={sans:'var(--sans)',humanist:'"Segoe UI","Noto Sans","Open Sans","Helvetica Neue",Arial,sans-serif',
     readable:'Verdana,"DejaVu Sans","Tahoma",sans-serif',serif:'Georgia,"Noto Serif","Times New Roman",serif',mono:'var(--mono)'};
   root.style.setProperty('--ui-font',ШРИФТЫ[prefGet('uiFont')]||ШРИФТЫ.sans);
-  // заголовки (5.0.0): плотный Inter Tight — только при основном шрифте; выбрал
-  // читатель другой — заголовки идут тем же, чтобы страница не стала пёстрой
-  root.style.setProperty('--head',(prefGet('uiFont')||'sans')==='sans'?'"Inter Tight",var(--sans)':'var(--ui-font)');
+  // заголовки (8.0.0): тем же шрифтом, что и текст, только жирнее — как в
+  // Obsidian; плотный Inter Tight с 5.0 давал рекламный, «плакатный» вид
+  root.style.setProperty('--head','var(--ui-font)');
   root.style.setProperty('--read-w',({narrow:'620px',norm:'760px',wide:'960px',full:'none'})[prefGet('readW')]||'760px');
   // та же ширина числом — для расчёта полей (none в calc() не годится)
   root.style.setProperty('--read-wc',({narrow:'620px',norm:'760px',wide:'960px',full:'100%'})[prefGet('readW')]||'760px');
@@ -7806,5 +7806,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '7.0.0';
+window.PHYSIM_BUILD = '8.0.0';
 window.PHYSIM_READY = true;

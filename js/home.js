@@ -210,10 +210,10 @@ function рябьГлавной(cv){
   // источники стоят у правого края один над другим: узловые гиперболы
   // расходятся влево веером, под текст, и картина читается целиком
   const источники=λ=>{ const узко=W<700, d=λ*(узко?3.2:4.6)*(1+0.12*Math.sin(время*0.09));
-    return узко?[{x:0.5*W-d/2,y:0.9*H},{x:0.5*W+d/2,y:0.9*H}]:[{x:0.9*W,y:0.46*H-d/2},{x:0.9*W,y:0.46*H+d/2}]; };
+    return узко?[{x:0.5*W-d/2,y:0.16*H},{x:0.5*W+d/2,y:0.16*H}]:[{x:0.9*W,y:0.46*H-d/2},{x:0.9*W,y:0.46*H+d/2}]; };
   const рисовать=()=>{
-    const тм=тёмная(), б=цвет('--hero-bg',тм?[14,17,24]:[246,244,239]);
-    const ак=тм?[150,160,215]:[48,44,110], сила=тм?0.6:0.3;
+    const тм=тёмная(), б=цвет('--hero-bg',тм?[32,32,32]:[243,243,243]);
+    const ак=цвет('--accent',тм?[157,133,247]:[120,82,232]), сила=тм?0.55:0.32;
     const λ=Math.max(24,Math.min(40,H*0.068)), k=2*Math.PI/λ, ω=2*Math.PI*0.3, c=ω/k, R=2.5*λ;
     const ист=источники(λ), д=img.data, кл=W/gw, t=время;
     const сеп=Math.hypot(ист[0].x-ист[1].x,ист[0].y-ист[1].y), норм=1.6/Math.sqrt(1+сеп/R), cw=Math.cos(ω*t), sw=Math.sin(ω*t);
@@ -238,7 +238,7 @@ function рябьГлавной(cv){
     ctx.fillStyle=`rgb(${ак[0]},${ак[1]},${ак[2]})`;
     for(const s of ист){ ctx.beginPath(); ctx.arc(s.x,s.y,3,0,7); ctx.fill(); }
     // подложка под текст: слева вода уходит в фон
-    const узко=W<700, гр=узко?ctx.createLinearGradient(0,0,0,H):ctx.createLinearGradient(0,0,W,0), ф=`${б[0]},${б[1]},${б[2]}`;
+    const узко=W<700, гр=узко?ctx.createLinearGradient(0,H,0,0):ctx.createLinearGradient(0,0,W,0), ф=`${б[0]},${б[1]},${б[2]}`;
     гр.addColorStop(0,`rgba(${ф},${узко?0.75:0.8})`); гр.addColorStop(узко?0.5:0.45,`rgba(${ф},${узко?0.5:0.35})`); гр.addColorStop(узко?0.75:0.7,`rgba(${ф},0)`);
     ctx.fillStyle=гр; ctx.fillRect(0,0,W,H);
   };
@@ -264,42 +264,46 @@ function рисоватьГлавную(h){
   const симРаздела=sec=>new Set([].concat(...sec.topics.map(t=>[...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)))).size;
   const первая=ALL.find(t=>t.id==='mech.1d')||ALL[1];
   let номер=1;
-  const поиск=`<button class="hm5-search" id="hm-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Найти тему или формулу</span><kbd>Ctrl P</kbd></button>`;
+  const ic=(d)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const поиск=`<button class="hm8-row" id="hm-search">${ic('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>')}<span><b>Найти тему или формулу</b></span><kbd>Ctrl P</kbd></button>`;
   const кнопка=тП
-    ? `<button class="btn primary hm5-go hm7-go hm7-obst" data-topic="${тП.id}">Продолжить · ${esc(тП.title)}</button>`
-    : `<button class="btn primary hm5-go hm7-go hm7-obst" data-topic="${первая.id}">Начать с механики</button>`;
+    ? `<button class="hm8-row hm8-go" data-topic="${тП.id}">${ic('<path d="M8 5v14l11-7z"/>')}<span><b>Продолжить</b><i>${esc(тП.title)}</i></span></button>`
+    : `<button class="hm8-row hm8-go" data-topic="${первая.id}">${ic('<path d="M8 5v14l11-7z"/>')}<span><b>Начать с механики</b><i>${esc(первая.title)}</i></span></button>`;
   const зд=задачаДня(сост);
-  const задача=зд?`<div class="hm-card hm5-task hm7-card hm7-obst"><span class="hm5-l">Задача дня · ${esc(зд.t.title)}</span>
+  const задача=зд?`<div class="hm8-task"><span class="hm8-l">Задача дня · ${esc(зд.t.title)}</span>
       <div class="hm4-stmt">${зд.pr.statement}</div>
       <button class="btn primary" id="hm-task-go" data-t="${зд.t.id}" data-i="${зд.i}">Решить</button></div>`:'';
   let путь='';
   if(сост){
     const ж=журнал(), рем=УЧ.навыкиКРемонту(ж), пусто=!Object.keys(ж.задачи).length&&!ж.диагн;
+    const з=ic('<path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/>');
     путь=пусто
-      ? `<button class="hm-card hm5-path hm7-card hm7-obst" data-path="diag"><span class="hm5-l">Мой путь</span>
-          <b>Диагностика за 10 минут</b><span class="hm-s">12 задач — и станет ясно, с какой темы начать</span></button>`
-      : `<button class="hm-card hm5-path hm7-card hm7-obst" data-path="today"><span class="hm5-l">Мой путь</span>
-          <b>${сост.повторить.length} ${plural(сост.повторить.length,'тема','темы','тем').replace(/^\d+\s/,'')} повторить · ${рем.length} ${plural(рем.length,'навык','навыка','навыков').replace(/^\d+\s/,'')} починить</b>
-          <span class="hm-s">Открыть план на сегодня</span></button>`;
+      ? `<button class="hm8-row" data-path="diag">${з}<span><b>Диагностика за 10 минут</b><i>12 задач — и станет ясно, с какой темы начать</i></span></button>`
+      : `<button class="hm8-row" data-path="today">${з}<span><b>План на сегодня</b><i>${сост.повторить.length} ${plural(сост.повторить.length,'тема','темы','тем').replace(/^\d+\s/,'')} повторить · ${рем.length} ${plural(рем.length,'навык','навыка','навыков').replace(/^\d+\s/,'')} починить</i></span></button>`;
   }
-  h.innerHTML=`<div class="hm hm5 hm7">
-    <header class="hm-hero hm5-hero hm7-hero"><canvas id="hm-cv" aria-hidden="true"></canvas>
-      <div class="hm7-in">
-        <h1 class="hm7-h hm7-obst">Не смог представить?<br><em>Сейчас исправим.</em></h1>
-        <div class="hm5-act">${кнопка}${поиск}</div>
-        <div class="hm7-cards">${задача}${путь}</div>
-      </div></header>
-    <h2 class="hm-h">Разделы</h2>
-    <div class="hm-secs hm5-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
-      const темы=темыРаздела(sec), n=освоено(sec);
-      return `<button class="hm-sec sx${sec.hard?' hard':''}" style="${стильРаздела(sec)}" data-sec="${sec.id}">
-        <span class="hm6-top">${логотипРаздела(sec.id,'hm7-logo')}<span class="hm7-n">${String(номер++).padStart(2,'0')}</span></span>
-        <span class="hm-sec-t">${esc(sec.title)}</span>
-        <span class="hm6-ts">${темы.slice(0,3).map(t=>esc(t.title)).join(' · ')}${темы.length>3?' …':''}</span>
-        <span class="hm6-f"><span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'модель','модели','моделей')}</span>
-          ${n?`<span class="hm6-p">${n}/${темы.length}</span>`:''}</span>
-        ${n?`<span class="hm-bar"><i style="width:${Math.round(100*n/темы.length)}%"></i></span>`:''}
-      </button>`; }).join('')}</div>
+  const лого=document.querySelector('#tbrand svg');
+  h.innerHTML=`<div class="hm hm8">
+    <div class="hm8-splash">
+      <header class="hm8-banner"><canvas id="hm-cv" aria-hidden="true"></canvas>
+        <div class="hm8-mark">${лого?лого.outerHTML.replace(/id="tb-g"/,'id="hm8-g"').replace(/url\(#tb-g\)/g,'url(#hm8-g)'):''}<b>Phy.Sim</b></div>
+        <span class="hm8-ver">${esc((document.querySelector('meta[name=physim-build]')||{}).content||window.PHYSIM_BUILD||'')}</span>
+        <h1 class="hm8-h">Не смог представить? <em>Сейчас исправим.</em></h1>
+      </header>
+      <div class="hm8-cols">
+        <section class="hm8-col"><h2 class="hm8-ct">Начать</h2>${кнопка}${поиск}${путь}${задача}</section>
+        <section class="hm8-col"><h2 class="hm8-ct">Разделы</h2>
+          <div class="hm-secs hm8-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
+            const темы=темыРаздела(sec), n=освоено(sec);
+            return `<button class="hm-sec hm8-sec sx${sec.hard?' hard':''}" style="${стильРаздела(sec)}" data-sec="${sec.id}">
+              ${логотипРаздела(sec.id,'hm8-logo')}<span class="hm8-n">${String(номер++).padStart(2,'0')}</span>
+              <span class="hm-sec-t">${esc(sec.title)}</span>
+              <span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'модель','модели','моделей')}</span>
+              <span class="hm8-p">${n?`${n}/${темы.length}`:''}</span>
+              ${n?`<span class="hm-bar"><i style="width:${Math.round(100*n/темы.length)}%"></i></span>`:''}
+            </button>`; }).join('')}</div>
+        </section>
+      </div>
+    </div>
   </div>`;
   h.querySelectorAll('[data-topic]').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.topic); закрытьГлавную(); });
   h.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{

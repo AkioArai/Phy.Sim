@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-7.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-7.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-7.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-7.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-8.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-8.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-8.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-8.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -111,6 +111,36 @@ KaTeX and its fonts ship inside the repository.
 | **86** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 8.0: a Blender + Obsidian look; twelve simulations redrawn to move
+
+- **A studio layout on the desktop**, built like Blender and Obsidian: a ribbon on the left
+  (topics, bookmarks, calculator, glossary, lesson, settings at the bottom); the topic tree
+  docked beside it like a file explorer; the scene in the middle with its own header and a
+  vertical tool column inside it, like Blender's toolbar; on the right a properties editor
+  with vertical tabs — *Parameters*, *Notes*, *Problems* — that folds away when you click the
+  open tab again; under them a full-width timeline with play, steps, speed and zoom; at the
+  very bottom a status bar with a hint for the current tool, frames per second and the
+  version. A topic without a simulation opens as a full-window note. The column layout is
+  still one setting away; the phone keeps its layout and only takes the new colours.
+- **A new look.** Light theme like Obsidian — a white sheet, grey side panels, hairlines;
+  dark theme like Blender — neutral greys, editors separated by dark seams. One accent,
+  Obsidian violet. Corners of 4 px, no shadows or gradients except on menus, compact
+  widgets: parameters are laid out as in Blender's properties editor, label on the left,
+  number field on the right. Headings use the same Inter as the text.
+- **The home screen is a splash**, like Blender's: a banner with the live ripple tank and the
+  version number, then two columns — *Start* (continue, search, your path, the problem of
+  the day) and *Sections*.
+- **The twelve simulations of 7.0 are redrawn** — each is now one memorable model, and it
+  moves: air as a scatter of particles where compressions glow and run while three marked
+  particles only sway in place; a standing wave swinging inside the pipe with sound leaving
+  its open ends; Fresnel zones that add up one by one while the vector sum winds along its
+  spiral and the spot on the screen brightens and dims; light as a rope passing through the
+  slit of a polaroid; light pulses running along the three rays of a mirror and meeting at
+  the image; a hot body showering photons sampled from Planck's spectrum; a lamp sprinkling
+  light onto a table — denser where it is brighter; a race against light; a scintillation
+  ring around the nucleus; fission flashes; a Geiger counter that blinks; vapour trails in
+  a cloud chamber. Labels are cut to one per part; the numbers live in the readouts.
 
 ### New in 7.0: the scene in the middle; a ripple tank; waves, optics and modern physics
 

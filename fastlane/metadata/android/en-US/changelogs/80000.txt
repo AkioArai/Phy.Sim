@@ -1,0 +1,5 @@
+8.0.0 — a Blender + Obsidian look.
+• Desktop: a studio layout — ribbon, topic tree, scene with tools, properties editor, timeline.
+• Light theme like Obsidian, dark theme like Blender.
+• The home screen is a splash with the live ripple tank.
+• The twelve simulations of 7.0 are redrawn as moving, uncluttered models.

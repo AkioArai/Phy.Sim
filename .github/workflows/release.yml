@@ -148,6 +148,16 @@ jobs:
           51 topics, 135 step-by-step derivations, 399 formulas and 562 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 8.0.0 — a Blender + Obsidian look; twelve simulations redrawn to move
+
+          A studio layout on the desktop: a ribbon and a docked topic tree on the left, the scene with a tool
+          column in the middle, a properties editor with Parameters / Notes / Problems tabs on the right, a
+          full-width timeline and a status bar below. Light theme like Obsidian, dark like Blender: neutral
+          greys, 4 px corners, compact widgets. The home screen is a splash with the live ripple tank. The
+          twelve simulations added in 7.0 are redrawn as moving models: compressions running through air, a
+          swinging standing wave, Fresnel zones adding up one by one, light as a rope through a polaroid
+          slit, pulses along mirror rays, photons from Planck's spectrum, light sprinkled on a table.
+
           ## 7.0.0 — the scene in the middle, a ripple tank, waves, optics and modern physics
 
           On a computer the simulation now fills the window: topics drop down from the top, the notes slide in

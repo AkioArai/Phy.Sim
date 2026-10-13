@@ -37,9 +37,9 @@ async function boot(b, url, ui) {
   await p.waitForTimeout(600);
   // с 2.1.0 пособие открывается главным экраном; тесты работают с темой под ним
   await p.evaluate(() => { if (typeof закрытьГлавную === 'function') закрытьГлавную(); });
-  /* 7.0: на компьютере по умолчанию «сцена в центре». Проверки ниже писались
-     для раскладки колонками — она осталась настройкой и должна работать, —
-     поэтому гоняем их на ней; новая раскладка проверяется своим блоком 7.0. */
+  /* 8.0: на компьютере по умолчанию «студия». Проверки ниже писались для
+     раскладки колонками — она осталась настройкой и должна работать, —
+     поэтому гоняем их на ней; студия проверяется своим блоком 8.0. */
   if (ui !== 'mobile') { await p.evaluate(() => prefSet('deskLayout', 'classic')); await p.waitForTimeout(200); }
   return { p, errs };
 }
@@ -114,13 +114,13 @@ async function планшеты(b, url, label) {
     портрет.ui === 'mobile' && назад.ui === 'mobile' && назад.styleСцены === '' && назад.сцена === 820,
     { портрет, назад });
   ok('планшет боком: кнопки под палец не меньше 34 px', альбом.мелкие.length === 0, альбом.мелкие);
-  // 7.0: та же проверка для «сцены в центре» — пульт и верхняя панель под палец
+  // 8.0: та же проверка для «студии» — лента, инструменты, вкладки и шкала времени под палец
   await p.setViewportSize({ width: 1180, height: 820 }); await p.waitForTimeout(400);
-  const сцена7 = await p.evaluate(async () => { prefSet('deskLayout', 'scene'); openTopic('mech.2d'); await new Promise(r => setTimeout(r, 400));
-    return { lay: document.documentElement.dataset.lay, мелкие: [...document.querySelectorAll('#d7-dock button,.d7-seg button,#d7-topics')]
+  const студия8 = await p.evaluate(async () => { prefSet('deskLayout', 'studio'); openTopic('mech.2d'); await new Promise(r => setTimeout(r, 400));
+    return { lay: document.documentElement.dataset.lay, мелкие: [...document.querySelectorAll('#s8-ribbon button,#rail .tool,#s8-tabs button,#s8-time .iconbtn')]
       .filter(x => { const b = x.getBoundingClientRect(); return getComputedStyle(x).display !== 'none' && b.width > 0 && (b.width < 34 || b.height < 34); })
       .map(x => x.id || x.className) }; });
-  ok('7.0 планшет боком: пульт и кнопки «сцены в центре» под палец', сцена7.lay === 'scene' && сцена7.мелкие.length === 0, сцена7);
+  ok('8.0 планшет боком: лента, инструменты, вкладки и шкала времени «студии» под палец', студия8.lay === 'studio' && студия8.мелкие.length === 0, студия8);
   await ctx.close();
 
   /* Настройки на Android-планшете. Поле поиска получало фокус, выезжала
@@ -1300,11 +1300,11 @@ async function сторож(b) {
       await hp.goto(url); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm-sec').length,
         цвета: [...document.querySelectorAll('#home .hm-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
-        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm7-logo').length }));
+        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm8-logo').length }));
       await hp.click('#home .hm-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
       const тема = await hp.evaluate(() => ({ тема: S.topic.id, скрыта: !главнаяОткрыта() }));
       await hp.click('#tbrand'); await hp.waitForTimeout(200);
-      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm7-go') || {}).textContent || '' }));
+      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm8-go') || {}).textContent || '' }));
       await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
       await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
@@ -1658,12 +1658,14 @@ async function сторож(b) {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {};
         const бар = getComputedStyle(document.querySelector('.topbar')).backgroundColor;
-        r.панель = document.documentElement.dataset.bar === 'ink' && /rgb\(14, 17, 24\)/.test(бар) && !!document.querySelector('#tbrand');
+        // 8.0: полоса — цвета --bar (светлая у Obsidian, тёмно-серая у Blender)
+        const цвБар = getComputedStyle(document.querySelector('.topbar')).getPropertyValue('--bar').trim().replace('#', '');
+        r.панель = document.documentElement.dataset.bar === 'ink' && бар === `rgb(${[0, 2, 4].map(i => parseInt(цвБар.substr(i, 2), 16)).join(', ')})` && !!document.querySelector('#tbrand');
         await document.fonts.ready;
-        r.шрифты = document.fonts.check('700 20px "Inter Tight"') && document.fonts.check('16px Inter') && document.fonts.check('12px "JetBrains Mono"');
+        r.шрифты = document.fonts.check('700 20px Inter') && document.fonts.check('16px Inter') && document.fonts.check('12px "JetBrains Mono"');
         открытьГлавную(); await жди(400);
         const cv = document.querySelector('#hm-cv');
-        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm7-logo').length === 7 && !document.querySelector('#home canvas[data-mini]');
+        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm8-logo').length === 7 && !document.querySelector('#home canvas[data-mini]');
         r.знак = !!document.querySelector('#tbrand svg ellipse') && /svg/.test(document.querySelector('link[rel=icon]').href);
         r.безЛишнего = !document.querySelector('#home .hm-q, #home .hm-tools, #home .hm4-heat, #home .hm-foot');
         const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
@@ -1707,9 +1709,9 @@ async function сторож(b) {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {};
         S.settings.theme = 'light'; applySettings(); открытьГлавную(); await жди(300);
-        const фон = getComputedStyle(document.querySelector('.hm7-hero')).backgroundColor.match(/\d+/g).map(Number);
+        const фон = getComputedStyle(document.querySelector('.hm8-banner')).backgroundColor.match(/\d+/g).map(Number);
         r.светлая = фон[0] > 200 && фон[1] > 200 && фон[2] > 200;
-        const лого = [...document.querySelectorAll('#home .hm7-logo')];
+        const лого = [...document.querySelectorAll('#home .hm8-logo')];
         // 6.3.0: до авторских логотипов — квадратик цвета раздела, без плиток
         r.значки = лого.length === 7 && лого.every(svg => svg.classList.contains('sec-mark') && !svg.querySelector('linearGradient') && getComputedStyle(svg).backgroundColor.match(/\d+/g).slice(3).join() === '0')
           && document.querySelectorAll('#tree .sec-ic.sec-mark circle, .sec>.hd .sec-mark circle').length >= 7;
@@ -1830,61 +1832,72 @@ async function сторож(b) {
       ok('6.4: у каждой сцены одна тема, новые темы и сцены по книгам на месте', Object.values(т).every(v => v === true), т);
     }
 
-    /* ============ 7.0.0: раскладка «сцена в центре» ============
-       Сцена занимает окно; темы — выпадающим списком из «Раздел › Тема»;
-       конспект выезжает справа и сдвигает сцену; управление — пульт под
-       сценой; инструменты — веер над карандашом; параметры — карточка у
-       правого края. Переключение на «колонки» возвращает узлы на место. */
+    /* ============ 8.0.0: «студия» — Blender + Obsidian ============
+       Слева лента и пристёгнутое дерево тем; в центре окно сцены с шапкой и
+       столбиком инструментов; справа редактор свойств с вкладками
+       «Параметры», «Конспект», «Задачи»; внизу шкала времени во всю ширину и
+       строка состояния. Тема без сцены — конспект во всё окно. «Колонки»
+       возвращают узлы на место. Двенадцать сцен 7.0 перерисованы и живут:
+       кадр меняется со временем даже у сцен без часов. */
     {
       const т = await p.evaluate(async () => {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {}, $ = s => document.querySelector(s), видно = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none';
-        prefSet('deskLayout', 'scene'); закрытьГлавную(); openTopic('mech.work'); await жди(300);
-        const app = $('#app'), sp = $('#simpane').getBoundingClientRect();
-        r.раскладка = document.documentElement.dataset.lay === 'scene';
-        r.сценаШирокая = sp.width > innerWidth * 0.9 && !видно($('#content')) && !видно($('#sidebar')) && !видно($('#rail'));
-        r.крошки = $('#d7-topics .d7-sec').textContent === 'Механика' && $('#d7-topics .d7-t').textContent === 'Работа и энергия' && !!$('#d7-simslot #simsel');
-        r.пульт = !!$('#d7-dock #btn-play') && !!$('#d7-dock #tl-range') && видно($('#d7-dock'));
-        const пр = $('#d7-dock').getBoundingClientRect(), сц = $('#cwrap').getBoundingClientRect();
-        r.пультПодСценой = Math.abs((пр.left + пр.right) / 2 - (сц.left + сц.right) / 2) < 2 && пр.top >= сц.bottom - 1;
-        // темы: открыть, выбрать — закрылось
-        $('#d7-topics').click(); await жди(80); r.темыОткрылись = видно($('#sidebar'));
-        openTopic('mech.osc'); await жди(200); r.темыЗакрылись = !видно($('#sidebar')) && $('#d7-topics .d7-t').textContent === 'Колебательное движение';
-        // конспект и задачи
-        $('#d7-notes').click(); await жди(250);
-        const sp2 = $('#simpane').getBoundingClientRect(), c2 = $('#content').getBoundingClientRect();
-        r.конспект = видно($('#content')) && c2.left >= sp2.right - 1 && sp2.width > 300 && $('#d7-notes').classList.contains('on');
-        $('#d7-probs').click(); await жди(150); r.задачи = S.tab === 'problems' && $('#d7-probs').classList.contains('on') && видно($('#content'));
-        $('#d7-close').click(); await жди(150); r.закрыт = !видно($('#content')) && !app.classList.contains('d7-notes');
-        // инструменты: веер над карандашом, выбор закрывает
-        $('#d7-tools').click(); await жди(80);
-        const рейка = $('#rail').getBoundingClientRect(), кн = $('#d7-tools').getBoundingClientRect();
-        r.веер = видно($('#rail')) && рейка.bottom <= кн.top + 1;
-        $('#rail [data-tool="pencil"]').click(); await жди(80); r.выбор = S.tool === 'pencil' && !видно($('#rail'));
-        setTool('pan');
-        // карточка параметров
-        $('#d7-pclose').click(); await жди(150); const шире = $('#cwrap').getBoundingClientRect().width;
-        r.параметры = !видно($('#simbottom')) && шире > сц.width + 200;
-        $('#d7-params').click(); await жди(150); r.параметрыВернулись = видно($('#simbottom')) && !!$('#simbottom #params .prow, #simbottom #params input, #simbottom #params select');
-        // тема без сцены — конспект во всю ширину, пульта нет
+        LS.set('s8Tab', 'params'); LS.set('s8Fold', false); LS.set('s8Exp', true);
+        prefSet('deskLayout', 'studio'); закрытьГлавную(); openTopic('mech.work'); await жди(300);
+        const app = $('#app'), sp = $('#simpane').getBoundingClientRect(), пр = $('#s8-right').getBoundingClientRect();
+        r.раскладка = document.documentElement.dataset.lay === 'studio';
+        r.лента = видно($('#s8-ribbon')) && !!$('#s8-ribbon #tab-marks') && !!$('#s8-ribbon #btn-calc') && !!$('#s8-rb-foot #btn-settings');
+        r.дерево = видно($('#sidebar')) && $('#sidebar').getBoundingClientRect().right <= sp.left + 1;
+        r.шапкаСцены = !!$('#simpane > .simhead #simsel') && $('#s8-crumb .s8-t').textContent === 'Работа и энергия';
+        r.инструменты = !!$('#cwrap > #rail') && видно($('#rail [data-tool="pencil"]'));
+        r.свойства = видно($('#s8-right')) && пр.left >= sp.right - 1 && !!$('#s8-panel > #simbottom') && видно($('#simbottom')) && !видно($('#content'));
+        const вр = $('#s8-time').getBoundingClientRect();
+        r.шкала = !!$('#s8-time #btn-play') && !!$('#s8-time #tl-range') && вр.top >= sp.bottom - 1 && вр.right >= пр.right - 2;
+        r.строка = видно($('#s8-status')) && /Phy\.Sim/.test($('#s8-ver').textContent) && !!$('#s8-status #fps');
+        // вкладки редактора
+        $('#s8-t-notes').click(); await жди(200);
+        r.конспект = видно($('#content')) && !видно($('#simbottom')) && $('#s8-t-notes').classList.contains('on') && $('#s8-ptitle').textContent === 'Конспект';
+        $('#s8-t-problems').click(); await жди(150); r.задачи = S.tab === 'problems' && видно($('#content'));
+        $('#s8-t-problems').click(); await жди(200); r.свёрнут = app.classList.contains('s8-fold') && !видно($('#s8-panel')) && $('#cwrap').getBoundingClientRect().width > sp.width + 200;
+        $('#s8-t-params').click(); await жди(200); r.параметры = видно($('#simbottom')) && !app.classList.contains('s8-fold');
+        // дерево пристёгнуто: выбор темы его не закрывает
+        openTopic('mech.osc'); await жди(200); r.деревоОсталось = видно($('#sidebar')) && $('#s8-crumb .s8-t').textContent === 'Колебательное движение';
+        $('#s8-explorer').click(); await жди(150); r.деревоСпрятано = !видно($('#sidebar'));
+        $('#s8-explorer').click(); await жди(150);
+        // тема без сцены — конспект во всё окно
         openTopic('intro'); await жди(250);
-        r.безСцены = видно($('#content')) && !видно($('#d7-dock')) && $('#content').getBoundingClientRect().width > innerWidth * 0.9;
+        r.безСцены = app.classList.contains('s8-read') && видно($('#content')) && !видно($('#s8-time')) && $('#content').getBoundingClientRect().width > innerWidth * 0.5;
         openTopic('mech.work'); await жди(250);
-        r.вернулась = видно($('#d7-dock')) && !!S.active;
-        // назад к колонкам: узлы на своих местах
-        // темы и сцены по книгам «волны и оптика» и «квантовая физика»
+        r.вернулась = !app.classList.contains('s8-read') && видно($('#s8-time')) && !!S.active;
+        // двенадцать сцен 7.0: открываются, рисуются и меняются со временем
         const ид = ALL.map(t => t.id);
         r.темыКниг = ид.indexOf('mech.sound') === ид.indexOf('mech.osc') + 1 && ид.indexOf('q.thermal') === ид.indexOf('q.wave') - 1
           && ид.indexOf('q.reactions') === ид.indexOf('q.nuclear') + 1;
-        r.сценыКниг = ['sound', 'pipe', 'fresnel', 'polar', 'mirror', 'blackbody', 'photometry', 'relforce', 'rutherford', 'chain', 'shield', 'tracks']
-          .every(id => { openSim(id); return S.active === id && A().state && видно($('#d7-dock')); });
+        const кадр = () => { const c = $('#scene'), x = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < x.length; i += 97) h = (h * 31 + x[i]) | 0; return h; };
+        const живые = [];
+        for (const id of ['sound', 'pipe', 'fresnel', 'polar', 'mirror', 'blackbody', 'photometry', 'relforce', 'rutherford', 'chain', 'shield', 'tracks']) {
+          openSim(id); S.playing = true; await жди(350); const a = кадр(); await жди(450); const b = кадр();
+          if (S.active === id && A().state && a !== b) живые.push(id); }
+        r.сценыЖивые = живые.length === 12 || живые;
         r.вузКниг = ['mech.sound', 'op.matter', 'op.interf', 'op.optics', 'rel.sr', 'q.thermal', 'q.wave', 'q.hydrogen', 'q.nuclear', 'q.reactions', 'q.particles'].every(id => естьВуз({ id }));
+        // заставка главной: баннер с рябью, номер выпуска, две колонки
+        открытьГлавную(); await жди(300);
+        r.заставка = !!$('#home .hm8-banner #hm-cv') && $('#home .hm8-ver').textContent === document.querySelector('meta[name=physim-build]').content
+          && document.querySelectorAll('#home .hm8-col').length === 2 && document.querySelectorAll('#home .hm8-sec').length === 7
+          && $('#home').getBoundingClientRect().left >= $('#s8-ribbon').getBoundingClientRect().right - 1;
+        закрытьГлавную();
+        // облик: скругления 4 px, заголовки Inter без Inter Tight
+        r.облик = getComputedStyle(document.documentElement).getPropertyValue('--radius').trim() === '4px'
+          && !/Inter Tight/.test(getComputedStyle($('.chead h1')).fontFamily);
+        // назад к колонкам: узлы на своих местах
         prefSet('deskLayout', 'classic'); await жди(250);
         r.колонки = document.documentElement.dataset.lay === 'classic' && $('#app > .statusbar') !== null && $('#simpane > #timeline') !== null
-          && $('#simpane > .simhead') !== null && видно($('#content')) && !видно($('#d7-dock'));
+          && $('#simpane > .simhead') !== null && $('#simpane > #simbottom') !== null && $('.body > #content') !== null && $('.body > #rail') !== null
+          && $('.statusbar > #btn-settings') !== null && $('.statusbar > #fps') !== null && видно($('#content')) && !видно($('#s8-ribbon')) && !видно($('#s8-time'));
         return r;
       });
-      ok('7.0: сцена в центре — темы выпадают, конспект выезжает справа, пульт под сценой, веер инструментов, карточка параметров; колонки возвращаются',
+      ok('8.0: студия — лента, дерево, окно сцены с инструментами, редактор свойств с вкладками, шкала времени; главная-заставка; 12 сцен живые; колонки возвращаются',
         Object.values(т).every(v => v === true), т);
     }
 
@@ -1894,9 +1907,9 @@ async function сторож(b) {
     console.log('--- ' + label + ' (телефон) ---');
     const m = await boot(b, url, 'mobile');
     ok('мобильная загрузка без ошибок', m.errs.length === 0, m.errs.slice(0, 3));
-    ok('7.0: телефон не задет раскладкой «сцена в центре»',
-      await m.p.evaluate(() => document.documentElement.dataset.lay === 'classic' && getComputedStyle(document.querySelector('#d7-dock')).display === 'none'
-        && getComputedStyle(document.querySelector('#d7-topics')).display === 'none'), null);
+    ok('8.0: телефон не задет «студией»',
+      await m.p.evaluate(() => document.documentElement.dataset.lay === 'classic' && getComputedStyle(document.querySelector('#s8-ribbon')).display === 'none'
+        && getComputedStyle(document.querySelector('#s8-time')).display === 'none' && getComputedStyle(document.querySelector('#s8-status')).display === 'none'), null);
 
     const mob = await m.p.evaluate(() => ({
       ui: document.documentElement.dataset.ui,

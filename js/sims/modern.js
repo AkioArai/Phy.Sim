@@ -63,27 +63,36 @@ relforce:{
     {name:'Сильное поле ускорителя: 20 МВ/м',values:{part:'e',E:20,cls:true}}
   ],
   пояснения(p,s){ const β=this.β(p,s?s.t:0);
-    return [[`импульс растёт как Ft, а скорость — нет: v/c = ${числоНаСцене(β,4)}`,css('--ink-2'),true],
-      [p.cls?'пунктир — классическая частица: она «обгоняет свет», чего не бывает':'энергия растёт без предела, скорость — до c',css('--ink-3')]]; },
-  fit(p,vp){ return fitСПояснением(vp,11.5,6,5,0.3,this.пояснения(p),36); },
+    return [[`импульс p = Ft растёт без предела, а скорость — нет: v = ${числоНаСцене(β,4)}c`,css('--ink-2'),true]]; },
+  fit(p,vp){ return fitСПояснением(vp,12,5.4,4.7,0.75,this.пояснения(p),32); },
+  /* Модель: три дорожки. По верхней бежит свет, по средней — частица, по
+     нижней — «классическая» частица с v = Ft/m. Частица гонится за светом
+     всё быстрее, но отстаёт от него навсегда — ровно на L₀ = mc²/F; классика
+     обгоняет свет, чего не бывает. Внизу — спидометр до c. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), sec=v.c('--second'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger');
+    const acc=v.c('--accent'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger');
     const строки=this.пояснения(p,s); v.занятьНиз(строки);
-    const X0=-0.4, Wd=10, Lm=6, k=Wd/Lm;                              // экран: шесть путей L₀
-    const ряд=(y,x,подп,цв,пунктир)=>{ ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(X0,y); ctx.lineTo(X0+Wd,y); ctx.stroke();
-      const xx=X0+Math.min(x,Lm*1.05)*k; if(пунктир){ ctx.setLineDash([v.lw(3),v.lw(3)]); }
-      ctx.strokeStyle=цв; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(xx,y,0.22,0,7); ctx.stroke(); ctx.setLineDash([]);
-      if(!пунктир){ ctx.fillStyle=цв; ctx.beginPath(); ctx.arc(xx,y,0.16,0,7); ctx.fill(); }
-      v.text(ctx,подп,X0,y+0.5,цв,10.5,'left'); };
-    const u=this.u(p,s.t), xr=this.x(p,s.t)/this.L0(p), xc=u*u/2;
-    ряд(1.4,xr,`${this.ч(p).имя}: v = ${числоНаСцене(this.β(p,s.t),4)}c, γ = ${числоНаСцене(this.γ(p,s.t),3)}`,acc,false);
-    if(p.cls) ряд(-0.4,xc,`классика: v = ${числоНаСцене(u,3)}c${u>1?' — быстрее света!':''}`,u>1?dang:ink2,true);
-    // поле: стрелки сверху
-    for(let i=0;i<6;i++) v.arrow(ctx,X0+0.6+i*1.7,2.7,X0+1.3+i*1.7,2.7,sec);
-    v.text(ctx,`E = ${p.E} МВ/м — сила F = eE постоянна`,X0+Wd/2,3.2,sec,10.5,'center');
-    // шкала путей в L₀ = mc²/F
-    for(let i=0;i<=Lm;i++){ const x=X0+i*k; ctx.strokeStyle=ink3; ctx.beginPath(); ctx.moveTo(x,-1.3); ctx.lineTo(x,-1.15); ctx.stroke();
-      v.text(ctx,`${числоНаСцене(i*this.L0(p),2)} м`,x,-1.55,ink3,9,'center'); }
+    const X0=-0.2, Wd=9.8, Lm=6, k=Wd/Lm, u=this.u(p,s.t), β=this.β(p,s.t);
+    const дорожка=(y,подп)=>{ ctx.strokeStyle=ink3; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(X0,y); ctx.lineTo(X0+Wd,y); ctx.stroke(); ctx.globalAlpha=1;
+      v.text(ctx,подп,X0,y+0.32,ink3,10,'left'); };
+    const бегун=(y,x,цв,хвост,полый)=>{ const xx=X0+Math.min(x,Lm*1.04)*k;
+      if(хвост>0){ const г=ctx.createLinearGradient(xx-хвост,y,xx,y); г.addColorStop(0,'rgba(0,0,0,0)'); г.addColorStop(1,цв);
+        ctx.strokeStyle=г; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(Math.max(X0,xx-хвост),y); ctx.lineTo(xx,y); ctx.stroke(); ctx.globalAlpha=1; }
+      if(полый){ ctx.strokeStyle=цв; ctx.lineWidth=v.lw(1.8); ctx.setLineDash([v.lw(3),v.lw(2)]); ctx.beginPath(); ctx.arc(xx,y,v.lw(6),0,7); ctx.stroke(); ctx.setLineDash([]); }
+      else ВОЛНЫ7.искра(ctx,v,xx,y,4.5,цв); };
+    дорожка(2.9,'свет'); дорожка(1.9,'частица'); if(p.cls) дорожка(0.9,'классика');
+    бегун(2.9,u,meas,1.2,false);
+    бегун(1.9,this.x(p,s.t)/this.L0(p),acc,1.2*β,false);
+    if(p.cls) бегун(0.9,u*u/2,u>1?dang:ink2,Math.min(1.6,0.8*u),true);
+    // спидометр 0…c; классика проскакивает за c
+    const yb=-0.35, xc=X0+Wd*0.8, ш=xc-X0;
+    ctx.fillStyle=ink3; ctx.globalAlpha=.18; ctx.fillRect(X0,yb-0.16,Wd,0.32); ctx.globalAlpha=1;
+    ctx.fillStyle=acc; ctx.fillRect(X0,yb-0.16,ш*β,0.32);
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.moveTo(xc,yb-0.42); ctx.lineTo(xc,yb+0.42); ctx.stroke();
+    v.text(ctx,'c',xc,yb+0.66,ink2,12,'center');
+    v.text(ctx,`v = ${числоНаСцене(β,4)}c`,X0+ш*β,yb-0.5,acc,11,'center');
+    if(p.cls){ const xu=X0+ш*Math.min(u,1.24); ctx.strokeStyle=u>1?dang:ink2; ctx.lineWidth=v.lw(2); ctx.setLineDash([v.lw(3),v.lw(2)]);
+      ctx.beginPath(); ctx.moveTo(xu,yb-0.25); ctx.lineTo(xu,yb+0.25); ctx.stroke(); ctx.setLineDash([]); }
     v.пояснение(ctx,строки);
   }
 },
@@ -106,7 +115,7 @@ rutherford:{
   b90(p){ return this.d(p)/2; },
   θ(p,b){ return 2*Math.atan(this.d(p)/(2*Math.abs(b))); },
   ОКНО:900,                                                            // фм от ядра до края
-  init(p){ return {t:0,event:null,__stop:null,ч:[],бины:new Array(18).fill(0),всего:0,назад:0,след:0,г:МОД7.гсч(20240917)}; },
+  init(p){ return {t:0,event:null,__stop:null,ч:[],бины:new Array(18).fill(0),всего:0,назад:0,след:0,г:МОД7.гсч(20240917),удары:[]}; },
   step(s,dt,p){
     s.t+=dt;
     const V=520, d=this.d(p), W=this.ОКНО;
@@ -127,7 +136,8 @@ rutherford:{
         // счётчик стоит «на бесконечности»: невидимо доводим копию траектории до 60 окон
         const к={x:q.x,y:q.y,vx:q.vx,vy:q.vy}; for(let i=0;i<4000&&Math.hypot(к.x,к.y)<60*W;i++) шаг(к,0.1*Math.hypot(к.x,к.y)/V);
         const θ=Math.atan2(Math.abs(к.vy),к.vx); q.θ=θ; const i=Math.min(17,Math.floor(θ*180/Math.PI/10));
-        s.бины[i]++; s.всего++; if(θ>Math.PI/2) s.назад++; q.t=s.t; } }
+        s.бины[i]++; s.всего++; if(θ>Math.PI/2) s.назад++; q.t=s.t;
+        if(s.удары){ s.удары.push({ψ:Math.atan2(к.vy,к.vx),t:s.t}); if(s.удары.length>500) s.удары.shift(); } } }
     s.ч=s.ч.filter(q=>q.жив||s.t-q.t<1.2);
     if(s.ч.length>240) s.ч.splice(0,s.ч.length-240);
   },
@@ -153,34 +163,42 @@ rutherford:{
   fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     if(this.узко(W,H)) return {x:0,y:p.hist?-650:0,scale:clamp(Math.min((W-16)/(1900*PX_PER_M),(H-20)/((p.hist?3200:1850)*PX_PER_M)),1e-6,30)};
     return {x:p.hist?260:0,y:0,scale:clamp(Math.min((W-20)/((p.hist?2500:1850)*PX_PER_M),(H-20)/(1850*PX_PER_M)),1e-6,30)}; },
+  /* Модель: экран-кольцо вокруг ядра, как у Гейгера и Марсдена. Частицы
+     пролетают, оставляя короткие хвосты, и вспыхивают на кольце там, куда
+     улетели. Почти все вспышки — впереди, справа; изредка одна загорается
+     сзади — частица подлетела к ядру почти в лоб и отскочила. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), sec=v.c('--second'), ink=v.c('--ink'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger');
+    const acc=v.c('--accent'), ink=v.c('--ink'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), dang=v.c('--danger');
     const W=this.ОКНО, d=this.d(p);
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.arc(0,0,W,0,7); ctx.stroke(); ctx.globalAlpha=1;
-    // ядро и окрестность d
-    ctx.strokeStyle=meas; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.arc(0,0,d,0,7); ctx.stroke(); ctx.setLineDash([]);
+    // кольцо-экран и вспышки на нём
+    ctx.strokeStyle=ink3; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(6); ctx.beginPath(); ctx.arc(0,0,W,0,7); ctx.stroke(); ctx.globalAlpha=1;
+    for(const у of s.удары||[]){ const а=Math.max(0,1-(s.t-у.t)/8), назад=Math.abs(у.ψ)>Math.PI/2;
+      ВОЛНЫ7.искра(ctx,v,W*Math.cos(у.ψ),W*Math.sin(у.ψ),назад?3.6:2.2,назад?dang:acc,а*(назад?1:0.7)); }
+    // пучок слева
+    ctx.fillStyle=acc; ctx.globalAlpha=.06; ctx.fillRect(-W,-Math.min(p.bmax,W),W*0.35,2*Math.min(p.bmax,W)); ctx.globalAlpha=1;
+    // ядро: зона, куда частице с энергией K не подойти ближе d
+    const г=ctx.createRadialGradient(0,0,0,0,0,Math.max(d,30)); г.addColorStop(0,'rgba(220,80,60,.35)'); г.addColorStop(1,'rgba(220,80,60,0)');
+    ctx.fillStyle=г; ctx.beginPath(); ctx.arc(0,0,Math.max(d,30),0,7); ctx.fill();
     ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(0,0,Math.max(v.lw(4),7),0,7); ctx.fill();
-    v.label(ctx,`ядро Z = ${p.Z}; пунктир — d = ${числоНаСцене(d,3)} фм`,0,0,10,-14,dang);
-    // траектории
-    for(const q of s.ч){ const возраст=q.жив?0:s.t-q.t, θ=q.θ!=null?q.θ:Math.atan2(Math.abs(q.vy),q.vx);
-      ctx.strokeStyle=θ>Math.PI/2?dang:acc; ctx.globalAlpha=(q.жив?0.75:0.75*(1-возраст/1.2))*(θ>Math.PI/2?1:0.7); ctx.lineWidth=v.lw(1.1);
-      ctx.beginPath(); q.путь.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.lineTo(q.x,q.y); ctx.stroke();
-      if(q.жив){ ctx.globalAlpha=1; ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(2.5),0,7); ctx.fill(); } }
+    // траектории: короткие хвосты
+    for(const q of s.ч){ if(!q.жив&&s.t-q.t>0.4) continue; const п=q.путь, n=п.length, от=Math.max(0,n-14), а=q.жив?1:1-(s.t-q.t)/0.4;
+      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.3); ctx.globalAlpha=0.55*а; ctx.beginPath();
+      for(let i=от;i<n;i++) i>от?ctx.lineTo(п[i][0],п[i][1]):ctx.moveTo(п[i][0],п[i][1]); ctx.lineTo(q.x,q.y); ctx.stroke();
+      if(q.жив){ ctx.globalAlpha=1; ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(2.4),0,7); ctx.fill(); } }
     ctx.globalAlpha=1;
-    v.text(ctx,'пучок альфа-частиц →',-W,W*0.62,ink2,10.5,'left');
+    v.text(ctx,'α →',-W,Math.min(p.bmax,W)+60,ink3,10.5,'left');
     if(!p.hist) return;
     // счётчик по углам: столбики — опыт, точки — формула Резерфорда
     const уз=typeof CW!=='undefined'&&this.узко(CW,CH);
-    const gx=уз?-W*0.95:W*1.12, gy=уз?-W*2.35:-W*0.75, gw=уз?W*1.9:W*0.95, gh=уз?W*1.05:W*1.5, N=Math.max(1,s.всего);
+    const gx=уз?-W*0.95:W*1.18, gy=уз?-W*2.35:-W*0.7, gw=уз?W*1.9:W*0.9, gh=уз?W*1.05:W*1.4, N=Math.max(1,s.всего);
     const ожид=i=>{ const a=this.доля(p,Math.max(1e-6,i*Math.PI/18)), b=i===17?0:this.доля(p,(i+1)*Math.PI/18); return N*(a-b); };
     const мах=Math.max(5,...s.бины.map(x=>x),...[1,2,3].map(ожид)), лог=x=>Math.log10(1+x)/Math.log10(1+мах);
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
-    for(let i=0;i<18;i++){ const x=gx+gw*i/18, w=gw/18*0.8;
-      ctx.fillStyle=i>=9?dang:acc; ctx.globalAlpha=.75; ctx.fillRect(x,gy,w,gh*лог(s.бины[i])); ctx.globalAlpha=1;
-      if(i>0){ ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(x+w/2,gy+gh*лог(ожид(i)),v.lw(2.6),0,7); ctx.fill(); } }
-    v.text(ctx,'угол рассеяния θ: 0° … 180°',gx+gw/2,gy-W*0.09,ink3,9.5,'center');
-    v.text(ctx,'число частиц (логарифм.)',gx,gy+gh+W*0.07,ink2,10,'left');
-    v.text(ctx,'• формула Резерфорда',gx+gw,gy+gh+W*0.07,ink,9.5,'right');
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
+    for(let i=0;i<18;i++){ const x=gx+gw*i/18, w=gw/18*0.78;
+      ctx.fillStyle=i>=9?dang:acc; ctx.globalAlpha=.7; ctx.fillRect(x,gy,w,gh*лог(s.бины[i])); ctx.globalAlpha=1;
+      if(i>0){ ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(x+w/2,gy+gh*лог(ожид(i)),v.lw(2.2),0,7); ctx.fill(); } }
+    v.text(ctx,'0°',gx,gy-W*0.08,ink3,9.5,'left'); v.text(ctx,'180°',gx+gw,gy-W*0.08,ink3,9.5,'right');
+    v.text(ctx,'• формула Резерфорда',gx+gw,gy+gh+W*0.06,ink2,9.5,'right');
   }
 },
 
@@ -248,20 +266,31 @@ chain:{
     {name:'Тот же шар, стержни введены',values:{R:7,rods:85,lf:6,lc:30,n0:30}},
     {name:'Сильный поглотитель: k∞ < 1 при любом размере',values:{R:20,rods:0,lf:6,lc:3.5,n0:30}}
   ],
-  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320; return {x:0,y:0,scale:clamp(Math.min((W-40)/((2*p.R+8)*PX_PER_M),(H-40)/((2*p.R+8)*PX_PER_M)),1e-4,30)}; },
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320; return {x:0,y:0.3,scale:clamp(Math.min((W-40)/((2*p.R+5)*PX_PER_M),(H-40)/((2*p.R+6)*PX_PER_M)),1e-4,30)}; },
+  /* Модель: шар топлива, усыпанный ядрами. Нейтрон — искра с хвостиком;
+     попав в ядро, он раскалывает его: вспышка, два осколка разлетаются, и
+     из точки деления вылетают новые нейтроны. Из маленького шара искры
+     успевают вылететь наружу — цепочка рвётся. */
+  _ядра:{},
+  ядра(R){ const к=String(R); if(this._ядра[к]) return this._ядра[к]; const г=МОД7.гсч(31337+Math.round(R*10)), out=[], n=Math.round(14*R*R/4);
+    while(out.length<n){ const x=(2*г()-1)*R, y=(2*г()-1)*R; if(x*x+y*y<R*R*0.97) out.push([x,y]); } return this._ядра[к]=out; },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger');
-    ctx.fillStyle=sec; ctx.globalAlpha=.1; ctx.beginPath(); ctx.arc(0,0,p.R,0,7); ctx.fill(); ctx.globalAlpha=1;
-    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.arc(0,0,p.R,0,7); ctx.stroke();
-    // стержни
-    if(p.rods>0){ const низ=p.R-2*p.R*p.rods/100; ctx.fillStyle=ink2;
-      for(const xr of [-p.R*0.5,0,p.R*0.5]){ const w=p.R*0.07; ctx.fillRect(xr-w/2,низ,w,p.R+3-низ); } }
-    const рв=p.R*0.05;
-    for(const f of s.вспышки){ const a=1-(s.t-f.t)/0.5; ctx.strokeStyle=dang; ctx.globalAlpha=a*0.8; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.arc(f.x,f.y,рв*(0.4+1.6*(1-a)),0,7); ctx.stroke(); }
-    ctx.globalAlpha=1; ctx.fillStyle=acc;
-    for(const q of s.n){ ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(2.1),0,7); ctx.fill(); }
-    v.text(ctx,`R = ${p.R} см · k∞ = ${числоНаСцене(this.kинф(p),3)} · ${this.режим(s,p)}`,0,-p.R-1.6,ink2,10.5,'center');
-    v.text(ctx,'точки — нейтроны, вспышки — деления ядер',0,p.R+1.3,ink3,10,'center');
+    ctx.fillStyle=sec; ctx.globalAlpha=.07; ctx.beginPath(); ctx.arc(0,0,p.R,0,7); ctx.fill(); ctx.globalAlpha=1;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.arc(0,0,p.R,0,7); ctx.stroke();
+    ctx.fillStyle=ink3; ctx.globalAlpha=.4; for(const [x,y] of this.ядра(p.R)){ ctx.beginPath(); ctx.arc(x,y,v.lw(1.6),0,7); ctx.fill(); } ctx.globalAlpha=1;
+    if(p.rods>0){ const низ=p.R-2*p.R*p.rods/100, w=p.R*0.07; ctx.fillStyle=ink2;
+      for(const xr of [-p.R*0.5,0,p.R*0.5]){ ctx.beginPath(); ctx.rect(xr-w/2,низ,w,p.R+1.2-низ); ctx.fill(); } }
+    // деления: вспышка и два осколка
+    for(const f of s.вспышки){ const τ=(s.t-f.t)/0.5, a=1-τ, ф=(Math.sin(f.x*12.9898+f.y*78.233)*43758.5)%Math.PI, r=Math.min(0.45,p.R*0.05)*τ;
+      ctx.fillStyle=meas; ctx.globalAlpha=a*0.35; ctx.beginPath(); ctx.arc(f.x,f.y,v.lw(7*(1-0.5*τ)),0,7); ctx.fill();
+      ctx.fillStyle=dang; ctx.globalAlpha=a*0.9; for(const z of [1,-1]){ ctx.beginPath(); ctx.arc(f.x+z*r*Math.cos(ф),f.y+z*r*Math.sin(ф),v.lw(1.8),0,7); ctx.fill(); } }
+    ctx.globalAlpha=1;
+    // нейтроны
+    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.2); ctx.globalAlpha=.45; ctx.beginPath();
+    for(const q of s.n){ const хв=p.R*0.05; ctx.moveTo(q.x-q.ux*хв,q.y-q.uy*хв); ctx.lineTo(q.x,q.y); } ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillStyle=acc; for(const q of s.n){ ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(2),0,7); ctx.fill(); }
+    v.text(ctx,s.k==null?`k∞ = ${числоНаСцене(this.kинф(p),3)}`:`k ≈ ${числоНаСцене(s.k,3)} — ${this.режим(s,p).split(':')[0]}`,0,p.R+1.1,ink2,11,'center');
   }
 },
 
@@ -318,27 +347,32 @@ shield:{
     {name:'Без защиты: только расстояние',values:{src:'cs',A:100,r:2,mat:'none',d:0}},
     {name:'Кобальт: нужно больше свинца',values:{src:'co',A:100,r:1,mat:'pb',d:50}}
   ],
-  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320; return {x:3,y:0.2,scale:clamp(Math.min((W-30)/(8.6*PX_PER_M),(H-30)/(5.2*PX_PER_M)),1e-3,30)}; },
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320; return {x:3,y:0,scale:clamp(Math.min((W-30)/(8.4*PX_PER_M),(H-30)/(4.8*PX_PER_M)),1e-3,30)}; },
+  /* Модель: источник стреляет частицами в счётчик через экран. Альфа —
+     тяжёлые шарики, застревают в бумаге; бета — мелкие, застревают в
+     алюминии; гамма — волны, свинец их только прореживает. Счётчик
+     вспыхивает на каждую дошедшую частицу. */
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger');
-    const X=6, ex=X*0.5, ew=Math.max(0.06,Math.min(1.6,p.d/40)), цв=p.src==='a'?dang:p.src==='b'?acc:sec;
-    // источник
-    ctx.fillStyle=ink2; ctx.fillRect(-0.45,-0.35,0.45,0.7); v.text(ctx,{a:'α',b:'β',cs:'γ ¹³⁷Cs',co:'γ ⁶⁰Co'}[p.src],-0.22,0.7,ink2,11,'center');
+    const X=6, ex=X*0.5, ew=Math.max(0.06,Math.min(1.6,p.d/40)), цв=p.src==='a'?dang:p.src==='b'?acc:meas;
+    // источник — капсула
+    ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(-0.25,0,0.32,Math.PI/2,3*Math.PI/2); ctx.lineTo(0.02,-0.32); ctx.lineTo(0.02,0.32); ctx.closePath(); ctx.fill();
+    v.text(ctx,{a:'α',b:'β',cs:'γ',co:'γ'}[p.src],-0.25,0.62,ink2,12,'center');
     // экран
-    if(p.mat!=='none'&&p.d>0){ ctx.fillStyle=ink3; ctx.globalAlpha=p.mat==='pb'?.55:.3; ctx.fillRect(ex-ew/2,-1.6,ew,3.2); ctx.globalAlpha=1;
-      v.text(ctx,`${{paper:'бумага',water:'вода',al:'алюминий',conc:'бетон',pb:'свинец'}[p.mat]}, ${p.d} мм`,ex,1.95,ink2,10.5,'center'); }
-    // счётчик Гейгера
-    const яр=s.щелчки.length>0;
-    ctx.fillStyle=яр?dang:ink2; ctx.globalAlpha=яр?.9:.6; ctx.fillRect(X,-0.6,0.5,1.2); ctx.globalAlpha=1;
-    v.text(ctx,'счётчик',X+0.25,-0.95,ink2,10,'center');
+    if(p.mat!=='none'&&p.d>0){ const тон={paper:[ink3,.18],water:[acc,.18],al:[ink3,.32],conc:[ink3,.42],pb:[ink2,.6]}[p.mat];
+      ctx.fillStyle=тон[0]; ctx.globalAlpha=тон[1]; ctx.fillRect(ex-ew/2,-1.5,ew,3); ctx.globalAlpha=1;
+      v.text(ctx,`${{paper:'бумага',water:'вода',al:'алюминий',conc:'бетон',pb:'свинец'}[p.mat]} ${p.d} мм`,ex,-1.82,ink2,10.5,'center'); }
+    // счётчик и его вспышка
+    const щ=s.щелчки.length?s.t-s.щелчки[s.щелчки.length-1]:1;
+    if(щ<0.25){ ctx.strokeStyle=dang; ctx.globalAlpha=1-щ/0.25; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(X+0.25,0,0.75+щ*2.2,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+    ctx.fillStyle=ink2; ctx.beginPath(); ctx.rect(X,-0.6,0.5,1.2); ctx.fill();
     // частицы
-    for(const q of s.ч){ const a=q.стоп==null?1:1-(s.t-q.стоп)/0.6; ctx.globalAlpha=a;
-      if(p.src==='cs'||p.src==='co'){ ctx.strokeStyle=цв; ctx.lineWidth=v.lw(1.2); ctx.beginPath();
-        for(let i=0;i<=8;i++){ const t=-0.35*i/8, x=q.x+q.ux*t-q.uy*0.06*Math.sin(i*2), y=q.y+q.uy*t+q.ux*0.06*Math.sin(i*2); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); }
-      else { ctx.fillStyle=цв; ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(p.src==='a'?3.4:2),0,7); ctx.fill(); } }
+    for(const q of s.ч){ const a=q.стоп==null?1:1-(s.t-q.стоп)/0.6; ctx.globalAlpha=Math.max(0,a);
+      if(p.src==='cs'||p.src==='co'){ ctx.strokeStyle=цв; ctx.lineWidth=v.lw(1.4); ctx.beginPath();
+        for(let i=0;i<=28;i++){ const t=-0.42*i/28, w=0.07*Math.sin(i/28*4*Math.PI)*(1-i/28), x=q.x+q.ux*t-q.uy*w, y=q.y+q.uy*t+q.ux*w; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); }
+      else { ctx.fillStyle=цв; ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(p.src==='a'?3.6:2),0,7); ctx.fill(); } }
     ctx.globalAlpha=1;
-    v.text(ctx,`r = ${p.r} м`,X/2,-1.95,meas,10.5,'center');
-    v.text(ctx,`прошло ${числоНаСцене(100*this.T(p),3)} %${p.src==='cs'||p.src==='co'?` · доза ${числоНаСцене(this.доза(p),3)} мкЗв/ч`:''}`,X/2,-2.4,ink2,10.5,'center');
+    v.text(ctx,`прошло ${числоНаСцене(100*this.T(p),3)} %${p.src==='cs'||p.src==='co'?` · ${числоНаСцене(this.доза(p),3)} мкЗв/ч`:''}`,X+0.25,-0.95,ink2,10.5,'center');
   }
 },
 
@@ -386,19 +420,22 @@ tracks:{
     {name:'Электрон теряет энергию — спираль',values:{part:'e',P:20,B:1,loss:true}},
     {name:'Альфа-частица: толстый короткий трек',values:{part:'a',P:200,B:2,loss:true}}
   ],
-  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320; return {x:0,y:0,scale:clamp(Math.min((W-30)/(44*PX_PER_M),(H-30)/(30*PX_PER_M)),1e-4,30)}; },
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320; return {x:0,y:-0.5,scale:clamp(Math.min((W-30)/(44*PX_PER_M),(H-30)/(31*PX_PER_M)),1e-4,30)}; },
+  /* Модель: туман камеры, в котором частица оставляет цепочку капель.
+     Поле закручивает её в дугу: чем больше импульс, тем дуга прямее; знак
+     заряда — в какую сторону. Старые следы расплываются и гаснут. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure');
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2); ctx.strokeRect(-21,-14,42,28);
-    // B от нас — крестики
-    ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1);
-    for(let x=-18;x<=18;x+=6) for(let y=-11;y<=11;y+=5.5){ ctx.beginPath(); ctx.moveTo(x-0.4,y-0.4); ctx.lineTo(x+0.4,y+0.4); ctx.moveTo(x-0.4,y+0.4); ctx.lineTo(x+0.4,y-0.4); ctx.stroke(); }
-    ctx.globalAlpha=1;
-    const капли=(arr,a)=>{ ctx.fillStyle=ink2; ctx.globalAlpha=a; for(const [x,y] of arr){ ctx.beginPath(); ctx.arc(x,y,v.lw(1.5),0,7); ctx.fill(); } };
-    s.старые.forEach((tr,i)=>капли(tr,0.18+0.15*i));
-    капли(s.след,0.9); ctx.globalAlpha=1;
-    ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(s.x,s.y,v.lw(3),0,7); ctx.fill();
-    v.text(ctx,`B = ${p.B} Тл, от нас: ${this.ч(p).имя}, r = ${числоНаСцене(this.r(p),3)} см`,0,15,ink2,10.5,'center');
+    const acc=v.c('--accent'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3');
+    ctx.fillStyle=ink3; ctx.globalAlpha=.06; ctx.fillRect(-21,-14,42,28); ctx.globalAlpha=.4;
+    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.strokeRect(-21,-14,42,28); ctx.globalAlpha=1;
+    // B от нас — один знак в углу
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.arc(19.2,12.2,0.8,0,7); ctx.moveTo(18.65,11.65); ctx.lineTo(19.75,12.75); ctx.moveTo(18.65,12.75); ctx.lineTo(19.75,11.65); ctx.stroke();
+    v.text(ctx,`B = ${p.B} Тл`,18,12.2,ink2,10.5,'right');
+    const капли=(arr,a,r)=>{ ctx.fillStyle=ink2; ctx.globalAlpha=a; for(let i=0;i<arr.length;i++){ const [x,y]=arr[i]; ctx.beginPath(); ctx.arc(x,y,v.lw(r*(0.8+0.4*((i*7)%5)/5)),0,7); ctx.fill(); } };
+    s.старые.forEach((tr,i)=>капли(tr,0.12+0.12*i,2.2-0.25*(s.старые.length-1-i)));
+    капли(s.след,0.85,1.5); ctx.globalAlpha=1;
+    ВОЛНЫ7.искра(ctx,v,s.x,s.y,3,acc);
+    v.text(ctx,`${this.ч(p).имя}: r = p/(qB) = ${числоНаСцене(this.r(p),3)} см`,0,-15.2,ink2,10.5,'center');
   }
 }
 });
