@@ -37,9 +37,9 @@ async function boot(b, url, ui) {
   await p.waitForTimeout(600);
   // с 2.1.0 пособие открывается главным экраном; тесты работают с темой под ним
   await p.evaluate(() => { if (typeof закрытьГлавную === 'function') закрытьГлавную(); });
-  /* 8.0: на компьютере по умолчанию «студия». Проверки ниже писались для
+  /* 9.0: на компьютере по умолчанию «стенд». Проверки ниже писались для
      раскладки колонками — она осталась настройкой и должна работать, —
-     поэтому гоняем их на ней; студия проверяется своим блоком 8.0. */
+     поэтому гоняем их на ней; стенд проверяется своим блоком 9.0. */
   if (ui !== 'mobile') { await p.evaluate(() => prefSet('deskLayout', 'classic')); await p.waitForTimeout(200); }
   return { p, errs };
 }
@@ -114,13 +114,13 @@ async function планшеты(b, url, label) {
     портрет.ui === 'mobile' && назад.ui === 'mobile' && назад.styleСцены === '' && назад.сцена === 820,
     { портрет, назад });
   ok('планшет боком: кнопки под палец не меньше 34 px', альбом.мелкие.length === 0, альбом.мелкие);
-  // 8.0: та же проверка для «студии» — лента, инструменты, вкладки и шкала времени под палец
+  // 9.0: та же проверка для «стенда» — шапка, инструменты и пульт под палец
   await p.setViewportSize({ width: 1180, height: 820 }); await p.waitForTimeout(400);
-  const студия8 = await p.evaluate(async () => { prefSet('deskLayout', 'studio'); openTopic('mech.2d'); await new Promise(r => setTimeout(r, 400));
-    return { lay: document.documentElement.dataset.lay, мелкие: [...document.querySelectorAll('#s8-ribbon button,#rail .tool,#s8-tabs button,#s8-time .iconbtn')]
+  const стенд9 = await p.evaluate(async () => { prefSet('deskLayout', 'bench'); openTopic('mech.2d'); await new Promise(r => setTimeout(r, 400));
+    return { lay: document.documentElement.dataset.lay, мелкие: [...document.querySelectorAll('.topbar .iconbtn,#b9-toc,#rail .tool,#b9-deck .iconbtn')]
       .filter(x => { const b = x.getBoundingClientRect(); return getComputedStyle(x).display !== 'none' && b.width > 0 && (b.width < 34 || b.height < 34); })
       .map(x => x.id || x.className) }; });
-  ok('8.0 планшет боком: лента, инструменты, вкладки и шкала времени «студии» под палец', студия8.lay === 'studio' && студия8.мелкие.length === 0, студия8);
+  ok('9.0 планшет боком: шапка, инструменты и пульт «стенда» под палец', стенд9.lay === 'bench' && стенд9.мелкие.length === 0, стенд9);
   await ctx.close();
 
   /* Настройки на Android-планшете. Поле поиска получало фокус, выезжала
@@ -1300,11 +1300,11 @@ async function сторож(b) {
       await hp.goto(url); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm-sec').length,
         цвета: [...document.querySelectorAll('#home .hm-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
-        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm8-logo').length }));
+        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm9-logo').length }));
       await hp.click('#home .hm-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
       const тема = await hp.evaluate(() => ({ тема: S.topic.id, скрыта: !главнаяОткрыта() }));
       await hp.click('#tbrand'); await hp.waitForTimeout(200);
-      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm8-go') || {}).textContent || '' }));
+      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm9-go') || {}).textContent || '' }));
       await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
       await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
@@ -1658,14 +1658,16 @@ async function сторож(b) {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {};
         const бар = getComputedStyle(document.querySelector('.topbar')).backgroundColor;
-        // 8.0: полоса — цвета --bar (светлая у Obsidian, тёмно-серая у Blender)
+        // 9.0: полоса — цвета --bar (бумага днём, графит вечером)
         const цвБар = getComputedStyle(document.querySelector('.topbar')).getPropertyValue('--bar').trim().replace('#', '');
-        r.панель = document.documentElement.dataset.bar === 'ink' && бар === `rgb(${[0, 2, 4].map(i => parseInt(цвБар.substr(i, 2), 16)).join(', ')})` && !!document.querySelector('#tbrand');
+        r.панель = document.documentElement.dataset.bar === 'light' && бар === `rgb(${[0, 2, 4].map(i => parseInt(цвБар.substr(i, 2), 16)).join(', ')})` && !!document.querySelector('#tbrand');
         await document.fonts.ready;
-        r.шрифты = document.fonts.check('700 20px Inter') && document.fonts.check('16px Inter') && document.fonts.check('12px "JetBrains Mono"');
+        await Promise.all(['600 20px "IBM Plex Sans"', '16px "IBM Plex Sans"', '12px "IBM Plex Mono"', '16px Literata', 'italic 16px Literata'].map(f => document.fonts.load(f, 'Ая')));
+        r.шрифты = document.fonts.check('600 20px "IBM Plex Sans"', 'Ая') && document.fonts.check('12px "IBM Plex Mono"', 'Ая') && document.fonts.check('16px Literata', 'Ая')
+          && [...document.fonts].some(f => /Literata/.test(f.family) && f.status === 'loaded');
         открытьГлавную(); await жди(400);
         const cv = document.querySelector('#hm-cv');
-        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm8-logo').length === 7 && !document.querySelector('#home canvas[data-mini]');
+        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm9-logo').length === 7 && !document.querySelector('#home canvas[data-mini]');
         r.знак = !!document.querySelector('#tbrand svg ellipse') && /svg/.test(document.querySelector('link[rel=icon]').href);
         r.безЛишнего = !document.querySelector('#home .hm-q, #home .hm-tools, #home .hm4-heat, #home .hm-foot');
         const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
@@ -1709,9 +1711,9 @@ async function сторож(b) {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {};
         S.settings.theme = 'light'; applySettings(); открытьГлавную(); await жди(300);
-        const фон = getComputedStyle(document.querySelector('.hm8-banner')).backgroundColor.match(/\d+/g).map(Number);
+        const фон = getComputedStyle(document.querySelector('.hm9-plate')).backgroundColor.match(/\d+/g).map(Number);
         r.светлая = фон[0] > 200 && фон[1] > 200 && фон[2] > 200;
-        const лого = [...document.querySelectorAll('#home .hm8-logo')];
+        const лого = [...document.querySelectorAll('#home .hm9-logo')];
         // 6.3.0: до авторских логотипов — квадратик цвета раздела, без плиток
         r.значки = лого.length === 7 && лого.every(svg => svg.classList.contains('sec-mark') && !svg.querySelector('linearGradient') && getComputedStyle(svg).backgroundColor.match(/\d+/g).slice(3).join() === '0')
           && document.querySelectorAll('#tree .sec-ic.sec-mark circle, .sec>.hd .sec-mark circle').length >= 7;
@@ -1832,45 +1834,42 @@ async function сторож(b) {
       ok('6.4: у каждой сцены одна тема, новые темы и сцены по книгам на месте', Object.values(т).every(v => v === true), т);
     }
 
-    /* ============ 8.0.0: «студия» — Blender + Obsidian ============
-       Слева лента и пристёгнутое дерево тем; в центре окно сцены с шапкой и
-       столбиком инструментов; справа редактор свойств с вкладками
-       «Параметры», «Конспект», «Задачи»; внизу шкала времени во всю ширину и
-       строка состояния. Тема без сцены — конспект во всё окно. «Колонки»
-       возвращают узлы на место. Двенадцать сцен 7.0 перерисованы и живут:
-       кадр меняется со временем даже у сцен без часов. */
+    /* ============ 9.0.0: «тетрадь и прибор» — раскладка «стенд» ============
+       Слева конспект, справа стенд: шапка с выбором сцены и инструментами в
+       строку, сцена, пульт, дека с параметрами (с ползунками), показаниями и
+       графиками. Содержание выдвигается кнопкой «Содержание ▾»; до 1600 px
+       ложится поверх и закрывается после выбора темы. Тема без сцены —
+       конспект во всё окно. Главная — титульный лист. «Колонки» возвращают
+       узлы на место. Двенадцать сцен 7.0 по-прежнему живые. */
     {
       const т = await p.evaluate(async () => {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {}, $ = s => document.querySelector(s), видно = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none';
-        LS.set('s8Tab', 'params'); LS.set('s8Fold', false); LS.set('s8Exp', true);
-        prefSet('deskLayout', 'studio'); закрытьГлавную(); openTopic('mech.work'); await жди(300);
-        const app = $('#app'), sp = $('#simpane').getBoundingClientRect(), пр = $('#s8-right').getBoundingClientRect();
-        r.раскладка = document.documentElement.dataset.lay === 'studio';
-        r.лента = видно($('#s8-ribbon')) && !!$('#s8-ribbon #tab-marks') && !!$('#s8-ribbon #btn-calc') && !!$('#s8-rb-foot #btn-settings');
-        r.дерево = видно($('#sidebar')) && $('#sidebar').getBoundingClientRect().right <= sp.left + 1;
-        r.шапкаСцены = !!$('#simpane > .simhead #simsel') && $('#s8-crumb .s8-t').textContent === 'Работа и энергия';
-        r.инструменты = !!$('#cwrap > #rail') && видно($('#rail [data-tool="pencil"]'));
-        r.свойства = видно($('#s8-right')) && пр.left >= sp.right - 1 && !!$('#s8-panel > #simbottom') && видно($('#simbottom')) && !видно($('#content'));
-        const вр = $('#s8-time').getBoundingClientRect();
-        r.шкала = !!$('#s8-time #btn-play') && !!$('#s8-time #tl-range') && вр.top >= sp.bottom - 1 && вр.right >= пр.right - 2;
-        r.строка = видно($('#s8-status')) && /Phy\.Sim/.test($('#s8-ver').textContent) && !!$('#s8-status #fps');
-        // вкладки редактора
-        $('#s8-t-notes').click(); await жди(200);
-        r.конспект = видно($('#content')) && !видно($('#simbottom')) && $('#s8-t-notes').classList.contains('on') && $('#s8-ptitle').textContent === 'Конспект';
-        $('#s8-t-problems').click(); await жди(150); r.задачи = S.tab === 'problems' && видно($('#content'));
-        $('#s8-t-problems').click(); await жди(200); r.свёрнут = app.classList.contains('s8-fold') && !видно($('#s8-panel')) && $('#cwrap').getBoundingClientRect().width > sp.width + 200;
-        $('#s8-t-params').click(); await жди(200); r.параметры = видно($('#simbottom')) && !app.classList.contains('s8-fold');
-        // дерево пристёгнуто: выбор темы его не закрывает
-        openTopic('mech.osc'); await жди(200); r.деревоОсталось = видно($('#sidebar')) && $('#s8-crumb .s8-t').textContent === 'Колебательное движение';
-        $('#s8-explorer').click(); await жди(150); r.деревоСпрятано = !видно($('#sidebar'));
-        $('#s8-explorer').click(); await жди(150);
+        LS.set('b9Toc', false); LS.set('b9NotesW', null);
+        prefSet('deskLayout', 'bench'); закрытьГлавную(); openTopic('mech.work'); await жди(300);
+        const app = $('#app'), sp = $('#simpane').getBoundingClientRect(), c = $('#content').getBoundingClientRect();
+        r.раскладка = document.documentElement.dataset.lay === 'bench';
+        r.рядом = видно($('#content')) && видно($('#simpane')) && c.right <= sp.left + 6 && sp.width > 500 && c.width >= 340;
+        r.шапка = !!$('.topbar > #btn-settings') && видно($('#b9-toc')) && $('#b9-toc .b9-t').textContent.includes('Работа и энергия');
+        r.инструменты = !!$('#simpane > .simhead #rail') && видно($('#rail [data-tool="pencil"]'));
+        r.пульт = !!$('#b9-deck #btn-play') && !!$('#b9-deck #tl-range') && $('#b9-deck').getBoundingClientRect().top >= $('#cwrap').getBoundingClientRect().bottom - 1;
+        r.дека = видно($('#simbottom')) && !!$('#simbottom > #hud') && видно($('#hud')) && видно($('#simbottom .pbox')) && $('#hud .ro') !== null && !$('#hud .ro-btn');
+        r.ползунки = document.querySelectorAll('#params .p-rng').length > 0;
+        // ползунок двигает параметр, поле — ползунок
+        const пз = $('#params .param.has-rng .p-rng'), кл = пз.closest('.param').dataset.key, нов = +пз.min + (+пз.max - +пз.min) / 2;
+        пз.value = нов; пз.dispatchEvent(new Event('input')); пз.dispatchEvent(new Event('change')); await жди(60);
+        r.ползунокРаботает = Math.abs(A().params[кл] - +пз.value) < 1e-9;
+        // содержание: открыть кнопкой, выбор темы его закрывает (окно уже 1600)
+        $('#b9-toc').click(); await жди(120); r.содержание = видно($('#sidebar')) && app.classList.contains('b9-over');
+        openTopic('mech.osc'); await жди(200); r.содержаниеЗакрылось = !видно($('#sidebar')) && $('#b9-toc .b9-t').textContent.includes('Колебательное');
+        // разделитель меняет ширину конспекта
+        const w0 = $('#content').getBoundingClientRect().width; $('#content').style.setProperty('--b9-nw', (w0 + 80) + 'px'); await жди(80);
+        r.ширина = Math.abs($('#content').getBoundingClientRect().width - w0 - 80) < 2; ширина9();
         // тема без сцены — конспект во всё окно
         openTopic('intro'); await жди(250);
-        r.безСцены = app.classList.contains('s8-read') && видно($('#content')) && !видно($('#s8-time')) && $('#content').getBoundingClientRect().width > innerWidth * 0.5;
+        r.безСцены = app.classList.contains('b9-read') && видно($('#content')) && !видно($('#simpane')) && $('#content').getBoundingClientRect().width > innerWidth * 0.9;
         openTopic('mech.work'); await жди(250);
-        r.вернулась = !app.classList.contains('s8-read') && видно($('#s8-time')) && !!S.active;
-        // двенадцать сцен 7.0: открываются, рисуются и меняются со временем
+        r.вернулась = !app.classList.contains('b9-read') && видно($('#simpane')) && !!S.active;
         const ид = ALL.map(t => t.id);
         r.темыКниг = ид.indexOf('mech.sound') === ид.indexOf('mech.osc') + 1 && ид.indexOf('q.thermal') === ид.indexOf('q.wave') - 1
           && ид.indexOf('q.reactions') === ид.indexOf('q.nuclear') + 1;
@@ -1881,23 +1880,24 @@ async function сторож(b) {
           if (S.active === id && A().state && a !== b) живые.push(id); }
         r.сценыЖивые = живые.length === 12 || живые;
         r.вузКниг = ['mech.sound', 'op.matter', 'op.interf', 'op.optics', 'rel.sr', 'q.thermal', 'q.wave', 'q.hydrogen', 'q.nuclear', 'q.reactions', 'q.particles'].every(id => естьВуз({ id }));
-        // заставка главной: баннер с рябью, номер выпуска, две колонки
+        // титульный лист: заглавие, «Продолжить», оглавление с отточиями, рисунок с рябью
         открытьГлавную(); await жди(300);
-        r.заставка = !!$('#home .hm8-banner #hm-cv') && $('#home .hm8-ver').textContent === document.querySelector('meta[name=physim-build]').content
-          && document.querySelectorAll('#home .hm8-col').length === 2 && document.querySelectorAll('#home .hm8-sec').length === 7
-          && $('#home').getBoundingClientRect().left >= $('#s8-ribbon').getBoundingClientRect().right - 1;
+        r.титул = !!$('#home .hm9-h') && !!$('#home .hm9-go[data-topic]') && document.querySelectorAll('#home .hm9-secs .hm9-sec').length === 7
+          && document.querySelectorAll('#home .hm9-dots').length === 7 && !!$('#home .hm9-plate #hm-cv') && /Рис\. 1/.test($('#home figcaption').textContent)
+          && $('#home .hm9-ver').textContent.includes(document.querySelector('meta[name=physim-build]').content);
         закрытьГлавную();
-        // облик: скругления 4 px, заголовки Inter без Inter Tight
-        r.облик = getComputedStyle(document.documentElement).getPropertyValue('--radius').trim() === '4px'
-          && !/Inter Tight/.test(getComputedStyle($('.chead h1')).fontFamily);
+        // облик: чернила вместо фиолетового, прямые углы, книжный шрифт темы
+        const кс = getComputedStyle(document.documentElement);
+        r.облик = кс.getPropertyValue('--radius').trim() === '3px' && prefGet('accent') === 'ink' && кс.getPropertyValue('--accent').trim().toLowerCase() === '#2346c8'
+          && /Literata/.test(getComputedStyle($('.chead h1')).fontFamily) && /IBM Plex Sans/.test(getComputedStyle(document.body).fontFamily);
         // назад к колонкам: узлы на своих местах
         prefSet('deskLayout', 'classic'); await жди(250);
         r.колонки = document.documentElement.dataset.lay === 'classic' && $('#app > .statusbar') !== null && $('#simpane > #timeline') !== null
-          && $('#simpane > .simhead') !== null && $('#simpane > #simbottom') !== null && $('.body > #content') !== null && $('.body > #rail') !== null
-          && $('.statusbar > #btn-settings') !== null && $('.statusbar > #fps') !== null && видно($('#content')) && !видно($('#s8-ribbon')) && !видно($('#s8-time'));
+          && $('#simpane > .simhead') !== null && $('#cwrap > #hud') !== null && $('.body > #rail') !== null
+          && $('.statusbar > #btn-settings') !== null && видно($('#content')) && !видно($('#b9-deck')) && !видно($('#b9-toc'));
         return r;
       });
-      ok('8.0: студия — лента, дерево, окно сцены с инструментами, редактор свойств с вкладками, шкала времени; главная-заставка; 12 сцен живые; колонки возвращаются',
+      ok('9.0: стенд — конспект слева, прибор справа, инструменты в шапке сцены, пульт, дека с ползунками и показаниями; содержание; титульный лист; 12 сцен живые; колонки возвращаются',
         Object.values(т).every(v => v === true), т);
     }
 
@@ -1907,9 +1907,9 @@ async function сторож(b) {
     console.log('--- ' + label + ' (телефон) ---');
     const m = await boot(b, url, 'mobile');
     ok('мобильная загрузка без ошибок', m.errs.length === 0, m.errs.slice(0, 3));
-    ok('8.0: телефон не задет «студией»',
-      await m.p.evaluate(() => document.documentElement.dataset.lay === 'classic' && getComputedStyle(document.querySelector('#s8-ribbon')).display === 'none'
-        && getComputedStyle(document.querySelector('#s8-time')).display === 'none' && getComputedStyle(document.querySelector('#s8-status')).display === 'none'), null);
+    ok('9.0: телефон не задет «стендом»',
+      await m.p.evaluate(() => document.documentElement.dataset.lay === 'classic' && getComputedStyle(document.querySelector('#b9-toc')).display === 'none'
+        && getComputedStyle(document.querySelector('#b9-deck')).display === 'none'), null);
 
     const mob = await m.p.evaluate(() => ({
       ui: document.documentElement.dataset.ui,

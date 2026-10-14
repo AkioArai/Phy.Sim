@@ -646,7 +646,7 @@ function drawAxes(ctx,step,x0,x1,y0,y1){
   ctx.restore();
 }
 /* Семейство и кегль подписей на сцене — из настроек оформления. */
-const SCENE_FONTS={mono:'ui-monospace,monospace',sans:'system-ui,sans-serif',serif:'Georgia,serif'};
+const SCENE_FONTS={mono:'"IBM Plex Mono",ui-monospace,monospace',sans:'"IBM Plex Sans",system-ui,sans-serif',serif:'"Literata",Georgia,serif'};
 function sceneFont(px){
   const f=SCENE_FONTS[prefGet('sceneFont')]||SCENE_FONTS.mono;
   return (px||prefGet('labelSize')||11)+'px '+f;
@@ -1116,7 +1116,8 @@ function updateHud(a){
   /* 3.4.0: по умолчанию панель показывает первые строки (настройка «hudRows»),
      остальные — по нажатию на «ещё N». Полная панель на узкой сцене
      закрывала половину рисунка. */
-  const лимит=+prefGet('hudRows')||0;
+  // в деке стенда (9.0) места хватает — показания видны все и сразу
+  const лимит=document.documentElement.dataset.lay==='bench'?0:(+prefGet('hudRows')||0);
   let свернуть=false;
   if(!поРазмеру && лимит>0 && rows.length>лимит+1){
     if(!S.hudFull) n=Math.min(n,лимит); else свернуть=true;
@@ -2742,7 +2743,9 @@ function renderParams(){
           <button class="inc" tabindex="-1">+</button>
         </div><div class="unit">${p.unit||''}</div>`;
       const inp=d.querySelector('input');
-      const put=v=>{ if(Number.isNaN(v)) v=p.default; v=clamp(round(v,p.step),p.min,p.max); inp.value=v; commit(p.key,v); };
+      const put=v=>{ if(Number.isNaN(v)) v=p.default; v=clamp(round(v,p.step),p.min,p.max); inp.value=v;
+        const пз=d.querySelector('.p-rng'); if(пз) пз.value=v;                // ползунок следует за полем
+        commit(p.key,v); };
       /* Поле принимает не только число, но и выражение: «2*9.8», «1/3», «5+2».
          Так работают числовые поля в Blender и CAD — считать в уме не нужно. */
       const evalNum=str=>{
@@ -2774,7 +2777,7 @@ function renderParams(){
       /* На телефоне под полем — ползунок во всю ширину (5.1.0): крошечные
          «−» и «+» годятся для одного шага, а не для пути от 10 до 80. Пока
          палец тянет, сцена пересчитывается; в историю — один раз, по отпуску. */
-      if(isNarrow()&&isFinite(p.min)&&isFinite(p.max)&&p.max>p.min){
+      if((isNarrow()||document.documentElement.dataset.lay==='bench')&&isFinite(p.min)&&isFinite(p.max)&&p.max>p.min){
         const rng=document.createElement('input');
         rng.type='range'; rng.className='p-rng'; rng.min=p.min; rng.max=p.max; rng.step=p.step; rng.value=a.params[p.key];
         rng.oninput=()=>{ const v=+rng.value; inp.value=v; a.params[p.key]=v; try{ restart(a); }catch(_){}
@@ -4050,9 +4053,9 @@ hsplit.addEventListener('dblclick',()=>{
     /* Запоминаем долю, а не пиксели: пиксели, выставленные в альбомной
        ориентации, переживали поворот — сцена в 740 px оставалась на экране
        в 820, а на iPad Pro конспект сжимался в ноль. */
-    if(document.documentElement.dataset.lay==='studio'){     // 8.0: редактор свойств справа от разделителя
-      const w=clamp(innerWidth-e.clientX,300,Math.max(300,innerWidth-560));
-      LS.set('s8RW',w); $('#s8-right').style.setProperty('--s8-rw',w+'px'); return;
+    if(document.documentElement.dataset.lay==='bench'){      // 9.0: конспект слева от разделителя, стенд справа
+      const w=clamp(e.clientX-$('#content').getBoundingClientRect().left,340,Math.max(340,innerWidth-560));
+      LS.set('b9NotesW',w); $('#content').style.setProperty('--b9-nw',w+'px'); return;
     }
     const к=колонки(); if(!к) return;
     const w=clamp(innerWidth-e.clientX-к.справа,300,Math.max(300,к.доступно-360));
@@ -4091,10 +4094,11 @@ function колонки(){
 }
 function разложитьКолонки(){
   const app=$('#app'), sp=$('#simpane'); if(!app||!sp) return;
-  /* студия 8.0: сцена тянется сама, ширину редактора свойств задаёт studio.js */
-  if(document.documentElement.dataset.lay==='studio'){
+  /* стенд 9.0: стенд тянется сам, ширину конспекта задаёт bench.js, высоту
+     деки — разделитель над ней (как в колонках) */
+  if(document.documentElement.dataset.lay==='bench'){
     app.classList.remove('mid'); sp.style.flex=''; sp.style.width='';
-    const н=$('#simbottom'); if(н) н.style.height='';
+    const н=$('#simbottom'); if(н&&!н.classList.contains('collapsed')) н.style.height=Math.round(clamp(высотаНиза||Math.max(220,innerHeight*0.3),150,Math.max(160,innerHeight-360)))+'px';
     return;
   }
   const средняя=!isNarrow()&&innerWidth<1200;
@@ -4292,12 +4296,12 @@ const PREF_CATS=[
   {id:'data', name:'Данные',        icon:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'},
   {id:'about',name:'О программе',   icon:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>'}
 ];
-const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
+const PREF_DEFAULTS={theme:'light',accent:'ink',density:'cozy',fs:12,
   quality:'high',bgPause:true,fps:0,videoQ:'med',autoEco:true,
   nums:true,hud:true,events:true,energy:true,grid:true,graphs:true,lineW:1,labelFix:true,timeline:true,
   autoplay:false,restore:true,confirmReset:false,
   // новая волна настроек
-  serifNotes:false,toasts:true,dockSize:'norm',intro:true,winMode:'window',
+  serifNotes:true,toasts:true,dockSize:'norm',intro:true,winMode:'window',
   gridStepMode:'auto',gridKind:'auto',gridLabels:true,axisTicks:true,hudSide:'left',hudScale:1,numPrec:2,
   clockShow:true,fpsShow:true,
   eventPause:true,zoomInvert:false,zoomSens:1,keyZoomStep:1.8,defSpeed:1,
@@ -4308,34 +4312,34 @@ const PREF_DEFAULTS={theme:'light',accent:'violet',density:'cozy',fs:12,
   handles:'hover',
   // кастомизация окружения
   uiMode:'auto',bgStyle:'plain',gridAlpha:1,sceneFont:'mono',labelSize:11,labelHalo:true,arrowScale:1,rot3dInvX:true,rot3dInvY:false,hudRows:6,strobe:false,strobeDt:0.25,ghost:false,follow:false,forceLegend:true,
-  panelAlpha:93,railSide:'left',deskLayout:'studio',
+  panelAlpha:93,railSide:'left',deskLayout:'bench',
   // 2.0.0: персонализация
-  palette:'std',accentCustom:'#5b48e8',radius:4,uiFont:'sans',readW:'norm',lineH:1.65,
+  palette:'std',accentCustom:'#2346c8',radius:3,uiFont:'sans',readW:'norm',lineH:1.65,
   shadows:'soft',btnStyle:'fill',motion:'auto',ripple:false,tips:'fast',labels:'auto',graphPal:'std',
   startScreen:'home',headerTuck:true,
   // 4.0.0
-  bar:'ink',glossary:false,level:'school'};
+  bar:'light',glossary:false,level:'school'};
 const PREFS=[
   {cat:'look',key:'theme',type:'select',def:'light',
    name:'Тема оформления',desc:'Светлая удобнее при проекции на доску, тёмная — при работе в затемнённом классе. «Как в системе» следует за настройкой устройства.',
    options:[['light','Светлая'],['dark','Тёмная'],['auto','Как в системе']]},
-  {cat:'look',key:'accent',type:'select',def:'violet',
-   name:'Акцентный цвет',desc:'Цвет выделения, активных кнопок и первого ряда на графиках.',
-   options:[['violet','Фиолетовый'],['blue','Синий'],['teal','Бирюзовый'],['amber','Янтарный'],['rose','Красный'],
+  {cat:'look',key:'accent',type:'select',def:'ink',
+   name:'Акцентный цвет',desc:'Цвет выделения, активных кнопок и первого ряда на графиках. «Чернила» подстраиваются под тему: густо-синие на бумаге, светлые на графите.',
+   options:[['ink','Чернила'],['violet','Фиолетовый'],['blue','Синий'],['teal','Бирюзовый'],['amber','Янтарный'],['rose','Красный'],
             ['green','Зелёный'],['indigo','Индиго'],['orange','Оранжевый'],['pink','Розовый'],['graphite','Графит'],['custom','Свой цвет']]},
-  {cat:'look',key:'accentCustom',type:'color',def:'#5b48e8',
+  {cat:'look',key:'accentCustom',type:'color',def:'#2346c8',
    name:'Свой акцентный цвет',desc:'Любой цвет — оттенки для текста, заливок и границ приложение подберёт само. Действует, когда выше выбран «Свой цвет».'},
   {cat:'look',key:'palette',type:'select',def:'std',
-   name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага» — тёплая, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
-   options:[['std','Обычная'],['sepia','Бумага'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
-  {cat:'look',key:'bar',type:'select',def:'ink',
+   name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага и графит» (9.0) — тёплая бумага днём и графит вечером; «Сепия» — ещё теплее, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
+   options:[['std','Бумага и графит'],['sepia','Сепия'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
+  {cat:'look',key:'bar',type:'select',def:'light',
    name:'Верхняя панель',desc:'«Чернильная» — тёмная полоса с логотипом, отделяет управление от содержания (4.0.0). «Светлая» — как до 4.0, в цвет страницы.',
    options:[['ink','Чернильная'],['light','Светлая']]},
-  {cat:'look',key:'radius',type:'range',def:4,min:0,max:14,step:1,unit:' px',
+  {cat:'look',key:'radius',type:'range',def:3,min:0,max:14,step:1,unit:' px',
    name:'Скругление углов',desc:'От строгих прямых углов до мягких «таблеток». Меняет кнопки, карточки, поля и панели.'},
   {cat:'look',key:'uiFont',type:'select',def:'sans',
-   name:'Шрифт интерфейса',desc:'Шрифты берутся из системы — ничего не скачивается. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
-   options:[['sans','Системный гротеск'],['humanist','Гуманистический'],['readable','Крупный читаемый'],['serif','С засечками'],['mono','Моноширинный']]},
+   name:'Шрифт интерфейса',desc:'По умолчанию — IBM Plex Sans, он встроен в пособие и работает без сети. Остальные берутся из системы. «Крупный читаемый» — широкий шрифт с открытыми буквами, его легче читать при усталых глазах и дислексии.',
+   options:[['sans','IBM Plex Sans'],['humanist','Гуманистический'],['readable','Крупный читаемый'],['serif','С засечками'],['mono','Моноширинный']]},
   {cat:'look',key:'readW',type:'select',def:'norm',
    name:'Ширина колонки текста',desc:'Длинная строка утомляет: глазу трудно найти начало следующей. Узкая колонка — как в книге.',
    options:[['narrow','Узкая'],['norm','Обычная'],['wide','Широкая'],['full','Во всю ширину']]},
@@ -4366,8 +4370,8 @@ const PREFS=[
   {cat:'look',key:'density',type:'select',def:'cozy',
    name:'Плотность интерфейса',desc:'Компактная умещает больше на экран, просторная удобнее для сенсорного экрана и проектора.',
    options:[['compact','Компактная'],['cozy','Обычная'],['roomy','Просторная']]},
-  {cat:'look',key:'serifNotes',type:'toggle',def:false,
-   name:'Текст с засечками',desc:'Текст тем набирается шрифтом с засечками — ближе к бумажному учебнику.'},
+  {cat:'look',key:'serifNotes',type:'toggle',def:true,
+   name:'Книжный шрифт в темах',desc:'Текст тем набирается книжным шрифтом Literata — как в бумажном учебнике; он встроен в пособие. Выключите, чтобы читать рубленым IBM Plex Sans.'},
   {cat:'look',key:'toasts',type:'toggle',def:true,
    name:'Всплывающие подсказки',desc:'Короткие сообщения внизу экрана: «симуляция сброшена», «привязка: вкл» и подобные.'},
   {cat:'look',key:'winMode',type:'select',def:'window',
@@ -4469,9 +4473,9 @@ const PREFS=[
   {cat:'look',key:'uiMode',type:'select',def:'auto',
    name:'Вид интерфейса',desc:'Телефонный вид — тонкая шапка, ящик тем и плавающая панель — включается сам, когда управление идёт пальцем на маленьком экране. Узкое окно на компьютере телефоном не считается. Здесь вид можно задать вручную.',
    options:[['auto','Определять автоматически'],['desktop','Компьютерный'],['mobile','Телефонный']]},
-  {cat:'look',key:'deskLayout',type:'select',def:'studio',
-   name:'Раскладка на компьютере',desc:'«Студия» (8.0): слева лента и дерево тем, в центре сцена со столбиком инструментов, справа редактор свойств с вкладками «Параметры», «Конспект», «Задачи», внизу шкала времени. «Колонки» — прежний вид: инструменты, список тем, конспект и сцена рядом.',
-   options:[['studio','Студия'],['classic','Колонки (как до 7.0)']]},
+  {cat:'look',key:'deskLayout',type:'select',def:'bench',
+   name:'Раскладка на компьютере',desc:'«Стенд» (9.0): слева конспект, справа прибор — сцена, пульт и дека с параметрами, показаниями и графиками; содержание выдвигается кнопкой в шапке. «Колонки» — прежний вид: инструменты, список тем, конспект и сцена рядом.',
+   options:[['bench','Стенд'],['classic','Колонки']]},
   {cat:'look',key:'railSide',type:'select',def:'left',
    name:'Панель инструментов',desc:'С какой стороны экрана держать колонку инструментов.',
    options:[['left','Слева'],['right','Справа']]},
@@ -4767,16 +4771,16 @@ function renderPrefs(){
    текста — кнопками. Ниже — профили: готовые наборы («Проектор», «Чтение»)
    и свои, которые можно сохранить и передать другому кодом. */
 const ТЕМЫ_ОФОРМЛЕНИЯ=[
-  {id:'light', имя:'Светлая',  theme:'light',palette:'std',     c:['#f3f4f7','#ffffff','#0d1017','#5b48e8']},
-  {id:'dark',  имя:'Тёмная',   theme:'dark', palette:'std',     c:['#0c0e13','#14171f','#e9ecf3','#8e83ff']},
-  {id:'auto',  имя:'Как в системе',theme:'auto',palette:'std',  c:['#f3f4f7','#14171f','#0d1017','#5b48e8']},
-  {id:'sepia', имя:'Бумага',   theme:'light',palette:'sepia',   c:['#f3eee3','#fbf8f0','#2a2318','#8a5a2b']},
+  {id:'light', имя:'Бумага',   theme:'light',palette:'std',     c:['#ecead9','#fbfaf6','#1c1b18','#2346c8']},
+  {id:'dark',  имя:'Графит',   theme:'dark', palette:'std',     c:['#121211','#1b1b19','#ebe8e0','#8ea4ff']},
+  {id:'auto',  имя:'Как в системе',theme:'auto',palette:'std',  c:['#ecead9','#1b1b19','#1c1b18','#2346c8']},
+  {id:'sepia', имя:'Сепия',   theme:'light',palette:'sepia',   c:['#f3eee3','#fbf8f0','#2a2318','#8a5a2b']},
   {id:'mint',  имя:'Мята',     theme:'light',palette:'mint',    c:['#eef4f1','#fbfdfc','#14211b','#0d9488']},
   {id:'nord',  имя:'Северная', theme:'dark', palette:'nord',    c:['#1f2530','#262e3b','#e6ebf2','#88c0d0']},
   {id:'oled',  имя:'Полночь',  theme:'dark', palette:'oled',    c:['#000000','#0a0a0d','#f0f0f4','#9184d9']},
   {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']}
 ];
-const АКЦЕНТЫ={violet:'#5b48e8',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
+const АКЦЕНТЫ={ink:'#2346c8',violet:'#5b48e8',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
   green:'#16a34a',indigo:'#4f46e5',orange:'#ea580c',pink:'#db2777',graphite:'#475569'};
 const ГОТОВЫЕ_ПРОФИЛИ=[
   {имя:'Проектор',что:'крупный текст, толстые линии, контраст',
@@ -4794,7 +4798,7 @@ function темаСейчас(){
   return x?x.id:'';
 }
 function страницаГлавное(){
-  const тм=темаСейчас(), ак=prefGet('accent')||'violet', fs=prefGet('fs');
+  const тм=темаСейчас(), ак=prefGet('accent')||'ink', fs=prefGet('fs');
   const свои=LS.get('profiles',{});
   const сег=(k,опции)=>`<div class="seg" data-seg="${k}">${опции.map(([v,t])=>
     `<button class="${String(prefGet(k))===String(v)?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>`;
@@ -4809,14 +4813,13 @@ function страницаГлавное(){
     <label class="q-sw q-own${ак==='custom'?' on':''}" title="Свой цвет" style="--c:${prefGet('accentCustom')}"><input type="color" id="q-own" value="${prefGet('accentCustom')}"></label></div></section>
   <section class="q-s"><h4>Текст</h4>
     <div class="q-row"><div class="q-fs"><button class="btn" data-fs="-0.5" title="Мельче">A−</button><b>${fs} pt</b><button class="btn" data-fs="0.5" title="Крупнее">A+</button></div>
-      ${сег('serifNotes',[[false,'Без засечек'],[true,'С засечками']])}</div>
+      ${сег('serifNotes',[[true,'Книжный (Literata)'],[false,'Рубленый (Plex)']])}</div>
     <p class="q-sample">Сила, действующая на тело, равна произведению массы на ускорение: $F=ma$.</p></section>
   <section class="q-s"><h4>Интерфейс</h4>
     <div class="q-grid">
+      ${document.documentElement.dataset.ui==='desktop'?`<span>Раскладка</span>${сег('deskLayout',[['bench','Стенд: конспект и прибор'],['classic','Колонки']])}`:''}
       <span>Плотность</span>${сег('density',[['compact','Плотно'],['cozy','Обычно'],['roomy','Просторно']])}
       <span>Анимации</span>${сег('motion',[['auto','Авто'],['full','Все'],['calm','Спокойно'],['off','Нет']])}
-      <span>Подписи у кнопок</span>${сег('labels',[['auto','Авто'],['on','Всегда'],['off','Значки']])}
-      <span>Кнопки</span>${сег('btnStyle',[['fill','Заливка'],['soft','Мягкие'],['outline','Контур']])}
       <span>Углы</span><div class="q-rad"><input type="range" min="0" max="14" step="1" value="${prefGet('radius')}" id="q-rad"><b>${prefGet('radius')} px</b></div>
     </div></section>
   <section class="q-s"><h4>Профили</h4>
@@ -5587,7 +5590,9 @@ function applySettings(){
      менялся только сам акцент, а подписи и заливки оставались фиолетовыми. */
   const тёмная=root.dataset.theme==='dark';
   const ACC=typeof АКЦЕНТЫ!=='undefined'?АКЦЕНТЫ:{};
-  const акц = s.accent==='custom' ? (/^#[0-9a-f]{6}$/i.test(prefGet('accentCustom'))?prefGet('accentCustom'):null) : ACC[s.accent];
+  /* «Чернила» (9.0) — не один цвет, а пара из палитры: густо-синие на бумаге и
+     светлые на графите; поэтому их оттенки задаёт CSS, а не эта функция */
+  const акц = s.accent==='custom' ? (/^#[0-9a-f]{6}$/i.test(prefGet('accentCustom'))?prefGet('accentCustom'):null) : (s.accent==='ink'?null:ACC[s.accent]);
   const оттенки=['--accent','--accent-soft','--accent-300','--accent-700','--accent-800'];
   if(акц){
     root.style.setProperty('--accent',акц);
@@ -7806,5 +7811,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '8.0.0';
+window.PHYSIM_BUILD = '9.0.0';
 window.PHYSIM_READY = true;

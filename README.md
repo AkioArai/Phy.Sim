@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-8.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-8.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-8.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-8.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-9.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-9.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-9.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-9.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -111,6 +111,29 @@ KaTeX and its fonts ship inside the repository.
 | **86** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 9.0: «notebook and instrument» — a design of its own
+
+- **A look that is not a template.** Warm paper by day and graphite in the evening; one colour
+  for everything selected — ink blue — and a red pencil for measurements. The violet accent,
+  rounded cards and soft shadows are gone: square corners, hairlines instead of frames, a shadow
+  only on what pops up. Three typefaces, all built in and working offline: **Literata** for the
+  notes (a book face that sits well with the formulas), **IBM Plex Sans** for the interface and
+  **IBM Plex Mono** for numbers, which are tabular everywhere and no longer jump.
+- **The bench.** On a computer the notes are open on the left and the instrument stands on the
+  right — you can read and turn the knobs at the same time. The instrument has a header with the
+  simulation picker and the drawing tools in one row, the scene, a control strip (play, steps,
+  timeline, speed, zoom) and a deck with three columns: **parameters with sliders**, **readouts**
+  (they no longer cover the drawing) and **graphs**. *Contents ▾* in the header opens the topic
+  tree; on screens narrower than 1600 px it slides over the notes and closes once you pick a topic.
+  A topic without a simulation is a full-width page. The column layout is still a setting.
+- **The home screen is a title page**: the title and an epigraph, *Continue*, a table of contents
+  with dot leaders, topic counts and progress — and a plate, «Fig. 1», with the live ripple tank
+  and a caption. Search, your path and the problem of the day sit under it.
+- **Settings** look like a reference page: themes *Paper*, *Graphite*, *System* and the older
+  palettes, square swatches, the text sample in the chosen face; *Main* now chooses the layout
+  and the book or sans face for the notes.
+- **The phone** keeps its layout and takes the new material, faces and square corners.
 
 ### New in 8.0: a Blender + Obsidian look; twelve simulations redrawn to move
 

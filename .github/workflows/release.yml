@@ -148,6 +148,15 @@ jobs:
           51 topics, 135 step-by-step derivations, 399 formulas and 562 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 9.0.0 — «notebook and instrument»: a design of its own
+
+          Warm paper and graphite, ink blue for what is selected and a red pencil for measurements; square
+          corners and hairlines instead of violet cards and shadows. Literata for the notes, IBM Plex for the
+          interface and numbers, all built in. On a computer the notes are open on the left and the
+          instrument stands on the right: the scene with tools in its header, a control strip and a deck with
+          parameters (now with sliders), readouts and graphs. The home screen is a title page with a table of
+          contents and a live figure; settings were redrawn to match.
+
           ## 8.0.0 — a Blender + Obsidian look; twelve simulations redrawn to move
 
           A studio layout on the desktop: a ribbon and a docked topic tree on the left, the scene with a tool

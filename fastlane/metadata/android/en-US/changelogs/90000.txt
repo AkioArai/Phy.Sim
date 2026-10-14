@@ -1,0 +1,5 @@
+9.0.0 — «notebook and instrument».
+• A design of its own: warm paper and graphite, ink blue, square corners, no violet.
+• Book face Literata for the notes; IBM Plex for the interface and numbers.
+• The home screen is a title page with a table of contents and a live figure.
+• Settings redrawn; parameters got sliders on the computer too.
