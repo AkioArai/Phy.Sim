@@ -36,7 +36,7 @@
   --ink:#171a1f; --ink-2:#5c6570; --ink-3:#6b737d;   /* 4,7:1 на холсте — не ниже AA */
   --accent:#5d5294; --accent-soft:#5d52941a;
   --accent-300:#4b4180; --accent-700:#7a6fc0; --accent-800:#d9d5f0;
-  --second:#7a4fa3; --measure:#c07615; --danger:#b3452f;
+  --second:#7a4fa3; --measure:#c07615; --danger:#b3452f; --third:#a3367f;
   --grid:#dfe3e8; --grid-major:#c9cfd6; --canvas:#fbfcfd;
   --ok:#2e7d4f;                       /* «верно», прирост величины */
   /* Силы в механике (3.0.0): одна сила — один цвет во всех сценах.
@@ -58,7 +58,7 @@
   --ink:#e9e9ed; --ink-2:#b2b6ca; --ink-3:#8f93a6;
   --accent:#9184d9; --accent-soft:#9184d92e;
   --accent-300:#d2cefd; --accent-700:#5d5294; --accent-800:#423a6a;
-  --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62;
+  --second:#b18ad6; --measure:#e0a44a; --danger:#e07a62; --third:#e58cc4;
   --grid:#242739; --grid-major:#2f3346; --canvas:#12141f;
   --ok:#6fcf97;
   --f-grav:#e07a62; --f-norm:#60a5fa; --f-fric:#f0a24b; --f-tens:#f472b6;
@@ -3191,7 +3191,7 @@ details.deep>summary{font-family:var(--head)}
   --ground:#efede6; --well:#f5f3ec; --chrome:#fbfaf6; --rail:#f5f3ec; --canvas:#fefdf9;
   --grid:#ece8dd; --grid-major:#dcd6c8; --divider:#1c1b1826;
   --accent:#2346c8; --accent-soft:#2346c814; --accent-300:#1b3aa8; --accent-700:#4a68dd; --accent-800:#dbe1f7; --f-app:#2346c8;
-  --measure:#b4561b; --danger:#c23b22; --second:#1f7a6d; --ok:#2c7a3f;
+  --measure:#b4561b; --danger:#c23b22; --second:#1f7a6d; --ok:#2c7a3f; --third:#8a3a9e;
   --bar:#fbfaf6; --bar-2:#f1eee6; --bar-ink:#1c1b18; --bar-ink-2:#4b4840; --bar-line:#d9d4c7; --bar-accent:#2346c8;
   --hero-bg:#f3f1ea; --pop-shadow:0 12px 32px -12px rgba(28,27,24,.28),0 2px 6px -2px rgba(28,27,24,.12);
 }
@@ -3201,7 +3201,7 @@ details.deep>summary{font-family:var(--head)}
   --ground:#0f0f0e; --well:#1c1c1a; --chrome:#181816; --rail:#151513; --canvas:#141413;
   --grid:#1f1f1d; --grid-major:#2a2a27; --divider:#ebe8e026;
   --accent:#8ea4ff; --accent-soft:#8ea4ff22; --accent-300:#b8c5ff; --accent-700:#3f5ee0; --accent-800:#25305e; --f-app:#9db0ff;
-  --measure:#ee9a5a; --danger:#ff7a5e; --second:#59c4b3; --ok:#7fd18f;
+  --measure:#ee9a5a; --danger:#ff7a5e; --second:#59c4b3; --ok:#7fd18f; --third:#d59ae6;
   --bar:#181816; --bar-2:#22221f; --bar-ink:#ebe8e0; --bar-ink-2:#bdb9ae; --bar-line:#363530; --bar-accent:#8ea4ff;
   --hero-bg:#151513; --pop-shadow:0 14px 36px -10px rgba(0,0,0,.7),0 2px 8px -2px rgba(0,0,0,.5);
 }

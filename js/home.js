@@ -177,81 +177,81 @@ function логотипРаздела(id,кл){ const р=ЛОГО[id];
   return `<svg class="${кл||'sec-logo'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor" stroke="none"/></svg>`; }
 function точкаРаздела(кл){ return `<svg class="${кл||'sec-ic'} sec-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg>`; }
 
-/* ---------------- рябь: живая шапка главной (7.0.0) ----------------
-   Два точечных источника качают воду в одной фазе — как вибратор в
-   волновой ванне. Круговые волны складываются: там, где разность хода
-   r₁ − r₂ равна целому числу длин волн, гребни встречаются с гребнями,
-   а вдоль гипербол r₁ − r₂ = (m + ½)λ вода стоит — это узловые линии.
-   Каждая волна в плоскости слабеет как 1/√r: энергия кольца размазана по
-   длине 2πr. Яркость, как на экране под настоящей ванной, следует за
-   высотой воды: гребень собирает свет, впадина рассеивает.
-   Касание бросает в воду третий источник: его волна расходится со
-   скоростью c, меняет картину и через несколько секунд затихает.
-   Без анимации — один застывший кадр. */
-function рябьГлавной(cv){
+/* ---------------- веер хаоса: рисунок на главной (9.1.0) ----------------
+   Полсотни двойных маятников отпущены почти одинаково: начальные углы
+   различаются на стотысячные доли градуса. Первые секунды они движутся как
+   один, затем расходятся веером. Законы движения точные, начальные условия
+   почти одинаковые — а будущее непредсказуемо: так выглядит хаос.
+
+   Уравнения — для двух одинаковых грузов на одинаковых невесомых стержнях
+   (лагранжиан, приведённый к двум уравнениям для θ₁, θ₂); интегрирование —
+   Рунге — Кутта 4-го порядка шагом 1/480 с. Касание поднимает маятники в
+   точку касания и отпускает заново; через 28 секунд они начинают сами.
+   Без анимации — один кадр уже разошедшегося веера. */
+const ВЕЕР={N:48, разброс:1.7e-7, g:9.8, L:1};      // 1.7·10⁻⁷ рад ≈ 10⁻⁵ градуса между соседями
+function ускоренияВеера(θ1,θ2,ω1,ω2){
+  const g=ВЕЕР.g, L=ВЕЕР.L, d=θ1-θ2, c=Math.cos(d), s=Math.sin(d), зн=3-Math.cos(2*d);
+  const α1=(-3*g*Math.sin(θ1)-g*Math.sin(θ1-2*θ2)-2*s*(ω2*ω2*L+ω1*ω1*L*c))/(L*зн);
+  const α2=(2*s*(2*ω1*ω1*L+2*g*Math.cos(θ1)+ω2*ω2*L*c))/(L*зн);
+  return [α1,α2];
+}
+function шагВеера(q,h){                         // q = [θ1, θ2, ω1, ω2]
+  const f=y=>{ const a=ускоренияВеера(y[0],y[1],y[2],y[3]); return [y[2],y[3],a[0],a[1]]; };
+  const k1=f(q), y2=q.map((v,i)=>v+h/2*k1[i]), k2=f(y2), y3=q.map((v,i)=>v+h/2*k2[i]), k3=f(y3),
+        y4=q.map((v,i)=>v+h*k3[i]), k4=f(y4);
+  for(let i=0;i<4;i++) q[i]+=h/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]);
+}
+function веерГлавной(cv){
   if(!cv||cv._живёт) return; cv._живёт=true;
-  const ctx=cv.getContext('2d'), шапка=cv.parentElement;
-  const буф=document.createElement('canvas'), бк=буф.getContext('2d');
-  let W=0,H=0,gw=0,gh=0,img=null,кадров=0,время=0;
-  const капли=[];                 // {x,y,t0} в пикселях шапки
-  шапка.addEventListener('pointerdown',e=>{
-    if(e.target.closest&&e.target.closest('button,a,input,.hm-card')) return;
-    const r=cv.getBoundingClientRect(); капли.push({x:e.clientX-r.left,y:e.clientY-r.top,t0:время});
-    if(капли.length>3) капли.shift(); },{passive:true});
-  const размер=()=>{ const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h) return false;
-    if(w!==W||h!==H){ W=w; H=h; const dpr=Math.min(devicePixelRatio||1,2);
-      cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
-      const шагП=W<700?4:5; gw=Math.ceil(W/шагП); gh=Math.ceil(H/шагП);
-      буф.width=gw; буф.height=gh; img=бк.createImageData(gw,gh); }
-    return true; };
+  const ctx=cv.getContext('2d');
+  let W=0,H=0,маятники=[],время=0,цвета=null,тм0=null,кадров=0;
+  const запустить=(θ1,θ2)=>{ время=0;
+    маятники=Array.from({length:ВЕЕР.N},(_,i)=>({q:[θ1+i*ВЕЕР.разброс,θ2,0,0],след:[]})); };
+  const случайно=()=>{ const r=Math.random; запустить(Math.PI*(0.55+0.2*r()),Math.PI*(0.5+0.35*r())); };
+  запустить(Math.PI*0.62,Math.PI*0.7);
   const тёмная=()=>document.documentElement.dataset.theme==='dark';
-  const цвет=(имя,зап)=>{ const s=getComputedStyle(document.documentElement).getPropertyValue(имя).trim();
-    const m=s.match(/^#([0-9a-f]{6})$/i); return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):зап; };
-  // источники стоят у правого края один над другим: узловые гиперболы
-  // расходятся влево веером, под текст, и картина читается целиком
-  const источники=λ=>{ const узко=W<700, d=λ*(узко?3.2:4.6)*(1+0.12*Math.sin(время*0.09));
-    if(cv.dataset.plate) return [{x:0.5*W-λ*1.6,y:0.2*H},{x:0.5*W+λ*1.6,y:0.2*H}];
-    return узко?[{x:0.5*W-d/2,y:0.16*H},{x:0.5*W+d/2,y:0.16*H}]:[{x:0.9*W,y:0.46*H-d/2},{x:0.9*W,y:0.46*H+d/2}]; };
+  const цвет=(имя,зап)=>{ const x=getComputedStyle(document.documentElement).getPropertyValue(имя).trim(), m=x.match(/^#([0-9a-f]{6})$/i);
+    return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):зап; };
+  const размер=()=>{ const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h) return false;
+    if(w!==W||h!==H){ W=w; H=h; const dpr=Math.min(devicePixelRatio||1,2); cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+    return true; };
+  const шагать=dt=>{ const n=Math.max(1,Math.round(dt*480)), h=dt/n;
+    for(const m of маятники) for(let k=0;k<n;k++) шагВеера(m.q,h);
+    время+=dt; };
+  // касание: поднять маятники в точку касания и отпустить
+  cv.addEventListener('pointerdown',e=>{ const r=cv.getBoundingClientRect(), x=e.clientX-r.left-W/2, y=e.clientY-r.top-H*0.5;
+    const θ=Math.atan2(x,y); запустить(θ,θ+0.0001); },{passive:true});
   const рисовать=()=>{
-    const тм=тёмная(), б=цвет('--hero-bg',тм?[32,32,32]:[243,243,243]);
-    const ак=цвет('--accent',тм?[157,133,247]:[120,82,232]), сила=тм?0.55:0.32;
-    const λ=Math.max(24,Math.min(40,H*0.068)), k=2*Math.PI/λ, ω=2*Math.PI*0.3, c=ω/k, R=2.5*λ;
-    const ист=источники(λ), д=img.data, кл=W/gw, t=время;
-    const сеп=Math.hypot(ист[0].x-ист[1].x,ист[0].y-ист[1].y), норм=1.6/Math.sqrt(1+сеп/R), cw=Math.cos(ω*t), sw=Math.sin(ω*t);
-    const кп=капли.map(к=>({x:к.x,y:к.y,τ:t-к.t0,a:Math.exp(-(t-к.t0)/7)}));
-    for(let j=0;j<gh;j++){ const y=(j+0.5)*кл; for(let i=0;i<gw;i++){ const x=(i+0.5)*кл;
-      // комплексная амплитуда: |Z| — огибающая (яркие полосы между узловыми
-      // гиперболами), Re(Z·e^(−iωt)) — бегущие по ним гребни
-      let re=0, im=0;
-      for(const s of ист){ const r=Math.hypot(x-s.x,y-s.y), a=1/Math.sqrt(1+r/R); re+=a*Math.cos(k*r); im+=a*Math.sin(k*r); }
-      let ψ=re*cw+im*sw;
-      for(const к of кп){ const r=Math.hypot(x-к.x,y-к.y), фронт=c*к.τ-r;
-        if(фронт>0) ψ+=к.a*Math.min(1,фронт/λ)*Math.cos(k*r-ω*к.τ)/Math.sqrt(1+r/R); }
-      const e=Math.min(1,Math.hypot(re,im)/норм), v=Math.max(-1,Math.min(1,ψ/норм));
-      const m=сила*Math.max(0,Math.min(1,0.62*e*e+0.38*(тм?(1+v)/2:(1-v)/2)*(0.4+0.6*e))), o=(j*gw+i)*4;
-      д[o]=б[0]+(ак[0]-б[0])*m; д[o+1]=б[1]+(ак[1]-б[1])*m; д[o+2]=б[2]+(ак[2]-б[2])*m; д[o+3]=255;
-    } }
-    бк.putImageData(img,0,0);
+    if(!цвета||тм0!==тёмная()){ тм0=тёмная(); цвета={фон:цвет('--hero-bg',[243,241,234]),а:цвет('--accent',[35,70,200]),б:цвет('--danger',[194,59,34]),ч:цвет('--ink',[28,27,24])}; }
     const dpr=cv.width/W; ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.imageSmoothingEnabled=true; try{ ctx.imageSmoothingQuality='high'; }catch(_){}
-    ctx.drawImage(буф,0,0,W,H);
-    // источники — две точки
-    ctx.fillStyle=`rgb(${ак[0]},${ак[1]},${ак[2]})`;
-    for(const s of ист){ ctx.beginPath(); ctx.arc(s.x,s.y,3,0,7); ctx.fill(); }
-    if(cv.dataset.plate) return;                                   // рисунок-вкладка: текста поверх нет
-    // подложка под текст: слева вода уходит в фон
-    const узко=W<700, гр=узко?ctx.createLinearGradient(0,H,0,0):ctx.createLinearGradient(0,0,W,0), ф=`${б[0]},${б[1]},${б[2]}`;
-    гр.addColorStop(0,`rgba(${ф},${узко?0.75:0.8})`); гр.addColorStop(узко?0.5:0.45,`rgba(${ф},${узко?0.5:0.35})`); гр.addColorStop(узко?0.75:0.7,`rgba(${ф},0)`);
-    ctx.fillStyle=гр; ctx.fillRect(0,0,W,H);
+    const ф=цвета.фон; ctx.fillStyle=`rgb(${ф[0]},${ф[1]},${ф[2]})`; ctx.fillRect(0,0,W,H);
+    const ox=W/2, oy=H*0.5, L=Math.min(H*0.235,W*0.2), N=маятники.length;
+    const смесь=k=>цвета.а.map((v,i)=>Math.round(v+(цвета.б[i]-v)*k));
+    // насколько веер раскрылся: пока маятники идут вместе, стержни плотные;
+    // когда разошлись — стержни бледнеют, и рисунок держат следы концов
+    const ф2=маятники.map(m=>m.q[1]), ср=ф2.reduce((a,b)=>a+b,0)/N, раскрыт=Math.min(1,Math.sqrt(ф2.reduce((a,b)=>a+(b-ср)*(b-ср),0)/N)/1.2);
+    const αстерж=0.5-0.36*раскрыт, αслед=0.1+0.12*раскрыт;
+    // следы концов — тонкие ленты
+    ctx.lineWidth=1;
+    маятники.forEach((m,i)=>{ const c=смесь(i/(N-1)); if(m.след.length<2) return;
+      ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},${αслед.toFixed(3)})`; ctx.beginPath();
+      m.след.forEach(([x,y],k)=>k?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.stroke(); });
+    // стержни — веер
+    маятники.forEach((m,i)=>{ const [θ1,θ2]=m.q, c=смесь(i/(N-1));
+      const x1=ox+L*Math.sin(θ1), y1=oy+L*Math.cos(θ1), x2=x1+L*Math.sin(θ2), y2=y1+L*Math.cos(θ2);
+      ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},${αстерж.toFixed(3)})`; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`; ctx.beginPath(); ctx.arc(x2,y2,1.8,0,7); ctx.fill();
+      m.след.push([x2,y2]); if(m.след.length>48) m.след.shift(); });
+    const ч=цвета.ч; ctx.fillStyle=`rgb(${ч[0]},${ч[1]},${ч[2]})`; ctx.beginPath(); ctx.arc(ox,oy,3,0,7); ctx.fill();
   };
-  let прошлое=performance.now(), тм0=null, чёт=0;
+  let прошлое=performance.now();
   const цикл=now=>{
     if(!document.body.contains(cv)||!главнаяОткрыта()){ cv._живёт=false; return; }
-    const dt=Math.min(0.05,(now-прошлое)/1000); прошлое=now;
+    const dt=Math.min(0.033,(now-прошлое)/1000); прошлое=now;
     if(document.visibilityState==='visible'&&размер()){
-      for(let i=капли.length-1;i>=0;i--) if(время-капли[i].t0>20) капли.splice(i,1);
-      if(document.documentElement.dataset.motion==='full'||капли.length){ время+=dt; if((чёт++&1)===0) рисовать(); }
-      else if(кадров<1||тм0!==тёмная()){ тм0=тёмная(); рисовать(); кадров++; }
+      if(document.documentElement.dataset.motion==='full'){ шагать(dt); рисовать(); if(время>28) случайно(); }
+      else if(кадров<1||тм0!==тёмная()){ if(!кадров) for(let k=0;k<12*60;k++) шагать(1/60); for(const m of маятники) m.след=[]; рисовать(); кадров++; }
     }
     requestAnimationFrame(цикл);
   };
@@ -311,7 +311,7 @@ function рисоватьГлавную(h){
       </section>
       <aside class="hm9-side">
         <figure class="hm9-fig"><div class="hm9-plate"><canvas id="hm-cv" data-plate="1" aria-hidden="true"></canvas></div>
-          <figcaption><b>Рис. 1.</b> Два источника качают воду в одной фазе. Где разность хода — целое число волн, гребни складываются; вдоль гипербол вода стоит. Коснитесь воды — появится третий источник.</figcaption></figure>
+          <figcaption><b>Рис. 1.</b> Сорок восемь двойных маятников отпущены почти одинаково — углы различаются на стотысячные доли градуса. Первые секунды они идут как один, потом расходятся веером. Законы точные, а будущее не предсказать: это хаос. Коснитесь — маятники поднимутся к пальцу и начнут заново.</figcaption></figure>
         <button class="hm9-row hm9-search" id="hm-search">${ic('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>')}<b>Найти тему или формулу</b><kbd>Ctrl P</kbd></button>
         ${путь}
         ${задача}
@@ -330,7 +330,7 @@ function рисоватьГлавную(h){
   const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
-  рябьГлавной(h.querySelector('#hm-cv'));
+  веерГлавной(h.querySelector('#hm-cv'));
 }
 function подключитьГлавную(){
   собратьГлавную();

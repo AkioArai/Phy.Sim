@@ -269,7 +269,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('114 симуляций', counts.sims === 114, counts);
+    ok('116 симуляций', counts.sims === 116, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -533,7 +533,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 90 && разв.времени === 58 && разв.никак.length <= 3, разв);
+        разв.параметром >= 90 && разв.времени === 60 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1004,7 +1004,7 @@ async function сторож(b) {
     ok('из карточки — в другой вывод тем же приёмом, до нужного шага',
         приём.ссылок >= 1 && приём.перешли && приём.закрылась, приём);
     ok('вкладки справочника показывают по одной странице',
-        приём.страниц === 1 && приём.рядов === 40, приём);
+        приём.страниц === 1 && приём.рядов === 41, приём);
     ok('Esc закрывает карточку, а настройки под ней остаются',
         приём.изСправочника && приём.escЗакрыл && приём.настройкиОстались, приём);
 
@@ -1146,7 +1146,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 43 && путьВид.фронт.join() === 'mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 44 && путьВид.фронт.join() === 'intro.dim,mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1745,13 +1745,17 @@ async function сторож(b) {
       const т = await p.evaluate(async () => {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {};
-        // 7.0: плёнку сменила рябь от двух источников — по столбцу пикселей
-        // у источников видны и гребни, и спокойные узловые линии
-        r.спектр = typeof рябьГлавной === 'function';
-        S.settings.theme = 'dark'; applySettings(); открытьГлавную(); await жди(400);
-        const cv = document.querySelector('#hm-cv'), cx = cv.getContext('2d'), ярк = [];
-        for (let i = 0; i < 60; i++) { const c = cx.getImageData(Math.floor(cv.width * 0.86), Math.floor(cv.height * (0.05 + 0.9 * i / 60)), 1, 1).data; ярк.push(c[0] + c[1] + c[2]); }
-        r.плёнка = cv.width > 0 && Math.max(...ярк) - Math.min(...ярк) > 60;
+        // 7.0: плёнку сменила рябь; 9.1: рябь сменил веер двойных маятников —
+        // на рисунке должны быть линии, заметно отличные от фона
+        r.спектр = typeof веерГлавной === 'function';
+        S.settings.theme = 'dark'; applySettings(); открытьГлавную(); await жди(1500);
+        const cv = document.querySelector('#hm-cv'), cx = cv.getContext('2d');
+        const фон = cx.getImageData(1, 1, 1, 1).data, яФон = фон[0] + фон[1] + фон[2];
+        let отличных = 0;
+        for (let i = 0; i < 48; i++) for (let j = 0; j < 36; j++) {
+          const c = cx.getImageData(Math.floor(cv.width * (0.02 + 0.96 * i / 48)), Math.floor(cv.height * (0.02 + 0.96 * j / 36)), 1, 1).data;
+          if (Math.abs(c[0] + c[1] + c[2] - яФон) > 30) отличных++; }
+        r.плёнка = cv.width > 0 && отличных >= 4;
         закрытьГлавную();
         const мех = SECTIONS.find(s => s.id === 'mech').topics.map(t => t.id);
         r.порядок = мех.indexOf('mech.momentum') === мех.indexOf('mech.energy') + 1 && мех.indexOf('mech.fluids') === мех.indexOf('mech.momentum') + 1;
@@ -1762,7 +1766,7 @@ async function сторож(b) {
         S.settings.level = 'school'; S.settings.theme = 'light'; applySettings(); renderPane();
         return r;
       });
-      ok('6.2: мыльная плёнка на главной, темы «Импульс» и «Гидромеханика», вузовский уровень механики',
+      ok('6.2: рисунок на главной (веер маятников), темы «Импульс» и «Гидромеханика», вузовский уровень механики',
         Object.values(т).every(Boolean), т);
     }
 
@@ -1898,6 +1902,59 @@ async function сторож(b) {
         return r;
       });
       ok('9.0: стенд — конспект слева, прибор справа, инструменты в шапке сцены, пульт, дека с ползунками и показаниями; содержание; титульный лист; 12 сцен живые; колонки возвращаются',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    /* ============ 9.1.0: инструменты модели и общая физика ============
+       У сцены свои инструменты: тело в одномерном движении берут и несут
+       вдоль оси, в баллистике целятся стрелкой, корабль двигают по морю.
+       Скорость в одномерном движении бывает неравномерной (участки, рывок),
+       в баллистике до трёх тел, новая сцена «Ракета навстречу кораблю»,
+       новая вводная тема — метод размерностей со своей моделью. */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {}, $ = s => document.querySelector(s);
+        prefSet('deskLayout', 'bench'); закрытьГлавную(); openTopic('mech.1d'); openSim('kin1d'); await жди(200);
+        const кн = [...document.querySelectorAll('.simtool-m')].map(b => b.dataset.tool);
+        r.кнопки = ['sim:pos', 'sim:vel', 'sim:acc'].every(x => кн.includes(x));
+        // тело берут за точку и переносят: параметр, поле и отмена следуют
+        const a = A(); a.state = a.def.init(a.params); const x0 = a.params.x01, u0 = (a.undo || S.undo || []).length;
+        setTool('sim:pos'); const инстр = инструментМодели('sim:pos');
+        const [sx, sy] = toScreen(x0, 0);
+        const т0 = контекстИнструмента(a, sx, sy, null); const взял = инстр.down(т0);
+        инстр.move(контекстИнструмента(a, sx + 60, sy, null)); применитьИнструмент(a, true); await жди(60);
+        r.перенос = взял !== false && Math.abs(A().params.x01 - x0) > 1 && +document.querySelector('#params [data-key="x01"] input[data-num]').value === A().params.x01;
+        const x1 = A().params.x01; const тк = контекстИнструмента(A(), null, null, null);
+        r.клавиши = инстр.key('ArrowRight', тк) === true && (применитьИнструмент(A(), true), Math.abs(A().params.x01 - x1 - 0.5) < 1e-6);
+        setTool('pan');
+        // неравномерное движение по участкам: разгон → равномерно → торможение
+        const d = SIMS.kin1d, пп = d.presets.find(q => /Поездка/.test(q.name)).values, p1 = Object.assign({}, d.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), пп);
+        const s1 = d.init(p1), уч = new Set();
+        for (let i = 0; i < 120 * 14; i++) { d.step(s1, 1 / 120, p1); const ro = d.readouts(s1, p1).find(x => /участок/.test(x[0])); if (ro) уч.add(String(ro[1])); }
+        r.участки = ['разгон', 'равномерно', 'торможение'].every(x => [...уч].some(y => y.includes(x)));
+        // баллистика: три тела, три ряда на графике
+        const b = SIMS.proj2d, pb = Object.assign({}, b.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), b.presets.find(q => /Три угла/.test(q.name)).values);
+        const sb = b.init(pb); for (let i = 0; i < 120; i++) b.step(sb, 1 / 120, pb);
+        r.триТела = b.graphs[0].get(sb, pb).filter(v => typeof v === 'number').length === 3 && b.tools(pb).some(t => t.id === 'aim');
+        // ракета: прицел в сам корабль даёт перелёт, с упреждением — попадание; углов два
+        const R = SIMS.intercept, pr = i => Object.assign({}, R.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), R.presets[i].values);
+        R._кэш = null;
+        r.ракета = !R.init(pr(0)).исход.попал && R.init(pr(1)).исход.попал && R.init(pr(2)).исход.попал && R.углы(pr(0)).length === 2
+          && Math.abs(R.углы(pr(0))[0] - 27.8) < 0.3;
+        openTopic('mech.2d'); openSim('intercept'); await жди(200);
+        r.ракетаИнстр = ['sim:aim', 'sim:ship'].every(x => !!document.querySelector(`.simtool-m[data-tool="${x}"]`));
+        // метод размерностей: вводная тема, весы сходятся при a = ½, c = −½, период ≈ 2π√(L/g)
+        const D = SIMS.dims, pd = { L: 1.6, m: 2, g: 9.8, th0: 4, a: 0.5, b: 0, c: -0.5 }, sd = D.init(pd);
+        for (let i = 0; i < 120 * 6; i++) D.step(sd, 1 / 120, pd);
+        r.размерности = D.сходится(pd) && !D.сходится(Object.assign({}, pd, { a: 1 })) && Math.abs(sd.T - 2 * Math.PI * Math.sqrt(1.6 / 9.8)) < 0.01
+          && SECTIONS[0].topics.some(t => t.id === 'intro.dim') && !!ПРИЁМЫ['размерности'];
+        openTopic('intro.dim'); await жди(250);
+        r.темаРазмерностей = S.active === 'dims' && /X=k/.test(S.topic.formulas[0].tex) && document.querySelector('#t-sub').textContent.includes('вводная');
+        r.сцен = Object.keys(SIMS).length === 116 || Object.keys(SIMS).length;
+        return r;
+      });
+      ok('9.1: инструменты модели (перенос тела, стрелки клавиатуры), участки разгона и торможения, три тела, ракета навстречу кораблю, метод размерностей',
         Object.values(т).every(v => v === true), т);
     }
 

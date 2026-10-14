@@ -1,0 +1,6 @@
+9.1.0 — tools that belong to the model.
+• Each simulation can have its own tools: carry a body, pull velocity arrows, aim, move a ship.
+• 1D motion: stages and growing acceleration for both bodies; projectiles: up to three bodies.
+• New: a rocket against an approaching ship — lead and both hitting angles.
+• New topic: dimensional analysis X = k·Aᵃ·Bᵇ·Cᶜ with a pendulum model.
+• Home figure: forty-eight double pendulums fanning into chaos.

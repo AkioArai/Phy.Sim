@@ -925,6 +925,8 @@ function drawAll(){
     }
     octx.globalAlpha=1;
   }
+  { const им=инструментМодели(S.tool);
+    if(им&&им.overlay){ octx.save(); try{ им.overlay(octx,контекстИнструмента(a,S.ptr?S.ptr.px:null,S.ptr?S.ptr.py:null)); }catch(e){ console.error(e); } octx.restore(); } }
   drawSceneChrome(a);
   updateEnergyBox(a);
   $('#btn-makeout').style.display = a.def.makeOutput ? '' : 'none';
@@ -1142,13 +1144,15 @@ function buildGraphs(){
   box.classList.toggle('off',!бывают || !S.graphOn);
   if(!бывают) return;
   a.def.graphs.forEach((g,i)=>{
-    const two=a.params.bodies==='2';
-    const names=g.series||['тело 1','тело 2'];
+    const nb=+a.params.bodies||1, two=nb>=2;
+    const names=g.series||['тело 1','тело 2','тело 3'];
     const show2 = g.series ? (g.series.length>1) : two;
+    const show3 = g.series ? (g.series.length>2) : nb>=3;
     const t=document.createElement('div'); t.className='gtitle';
     t.innerHTML=`<span>${g.label}, ${g.unit}</span>
       <span class="lg"><span class="sw" style="background:var(--g1,var(--accent))"></span>${names[0]}</span>
-      ${show2?`<span class="lg"><span class="sw" style="background:var(--g2,var(--second))"></span>${names[1]}</span>`:''}`;
+      ${show2?`<span class="lg"><span class="sw" style="background:var(--g2,var(--second))"></span>${names[1]}</span>`:''}
+      ${show3?`<span class="lg"><span class="sw" style="background:var(--g3,var(--third,var(--danger)))"></span>${names[2]}</span>`:''}`;
     const c=document.createElement('canvas');
     c.className='gcv'; c.dataset.g=i;
     box.append(t,c); gcanvas.push(c);
@@ -1159,6 +1163,9 @@ function buildGraphs(){
   анализ=null; последнийРазбор='';
   requestAnimationFrame(resize);
 }
+/* цвет и штрих ряда графика: тело 1 — сплошная, 2 — штрих, 3 — точки (9.1.0) */
+function цветРяда(s){ return s===2?(css('--g3')||css('--third')||css('--danger')):s?(css('--g2')||css('--second')):(css('--g1')||css('--accent')); }
+function штрихРяда(s){ return s===2?[1.5,2.5]:s?[4,3]:[]; }
 function drawGraphs(){
   const a=A(); if(!a||!S.graphOn||!gcanvas.length) return;
   if(S.settings.graphs===false) return;
@@ -1179,10 +1186,10 @@ function drawGraphs(){
     const X=t=>(t-t0)/span*(W-4)+2, Y=y=>Hh-4-(y-lo)/(hi-lo)*(Hh-8);
     if(lo<0&&hi>0){ ctx.strokeStyle=css('--line'); ctx.lineWidth=1;
       ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(W,Y(0)); ctx.stroke(); }
-    for(let s=0;s<2;s++){
-      if(H[H.length-1].v[gi][s]===null) continue;
-      ctx.strokeStyle=s?(css('--g2')||css('--second')):(css('--g1')||css('--accent')); ctx.lineWidth=1.6;
-      if(s) ctx.setLineDash([4,3]);
+    for(let s=0;s<H[H.length-1].v[gi].length&&s<3;s++){
+      if(H[H.length-1].v[gi][s]==null) continue;
+      ctx.strokeStyle=цветРяда(s); ctx.lineWidth=1.6;
+      if(s) ctx.setLineDash(штрихРяда(s));
       ctx.beginPath();
       let started=false;
       for(const h of H){ const y=h.v[gi][s]; if(y===null||!isFinite(y)) continue;
@@ -1310,13 +1317,13 @@ function площадьВ(H,gi,s,t1,t2){
 }
 function рисоватьАнализ(ctx,a,gi,X,Y,W,Hh){
   const H=a.hist, g=a.def.graphs[gi], ан=анализ;
-  const цвет=s=>s?(css('--g2')||css('--second')):(css('--g1')||css('--accent'));
+  const цвет=цветРяда;
   ctx.save();
   ctx.strokeStyle=css('--measure'); ctx.lineWidth=1; ctx.setLineDash([2,3]);
   for(const t of ан.вид==='площадь'?[ан.t1,ан.t2]:[ан.t1]){ ctx.beginPath(); ctx.moveTo(X(t),0); ctx.lineTo(X(t),Hh); ctx.stroke(); }
   ctx.setLineDash([]);
-  for(let s=0;s<2;s++){
-    if(H[H.length-1].v[gi][s]===null) continue;
+  for(let s=0;s<H[H.length-1].v[gi].length&&s<3;s++){
+    if(H[H.length-1].v[gi][s]==null) continue;
     if(ан.вид==='касательная'){
       const л=локально(H,gi,s,ан.t1); if(!л) continue;
       const y=л.y, k=л.k;
@@ -1367,7 +1374,7 @@ function обновитьРазбор(a){
     const чисто=(v,gi,мера)=>Math.abs(v)<1e-9*размах(gi)*(мера||1)?0:v;
     const t=v=>ВЫЧ?ВЫЧ.число(v,3):v.toFixed(2);
     const строки=[];
-    const ряды=gi=>[0,1].filter(s=>H[H.length-1].v[gi][s]!==null).map(s=>({s,имя:(gs[gi].series||[])[s]}));
+    const ряды=gi=>[0,1,2].filter(s=>H[H.length-1].v[gi][s]!=null).map(s=>({s,имя:(gs[gi].series||[])[s]}));
     const хвост=(s,gi)=>ряды(gi).length>1?` (${gs[gi].series?gs[gi].series[s]:'тело '+(s+1)})`:'';
     if(ан.вид==='касательная'){
       строки.push(`<b>Касательная в момент ${t(ан.t1)} с.</b> Наклон касательной — производная: как быстро величина меняется именно сейчас.`);
@@ -1737,7 +1744,7 @@ function openTopic(id){
   LS.set('recent',S.recent);
   $('#t-title').textContent=t.title;
   $('#t-sub').textContent = t.kind==='recap' ? `${t.section} · итог раздела`
-    : t.ch ? `${t.section} · тема ${t.ch}` : `${t.section} · руководство`;
+    : t.ch ? `${t.section} · тема ${t.ch}` : t.id==='intro' ? `${t.section} · руководство` : `${t.section} · вводная тема`;
   $('#crumb').textContent=t.section;
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab==='notes'));
   /* Вкладки нужны, только когда есть между чем переключаться. У введения и
@@ -3050,6 +3057,17 @@ $$('#cwrap').addEventListener('pointerdown',e=>{
   /* Пробник — исключение: его выбирают осознанно, чтобы измерить потенциал
      узла, и рисовать в этот момент не хотят. Без этой оговорки конструктор
      перехватывал бы нажатие всегда, и пробник в нём просто не работал. */
+  // инструмент модели: нажатие отдаётся ему; не попал — сцену можно двигать
+  const им=инструментМодели(S.tool);
+  if(им && e.button===0){
+    const т=контекстИнструмента(a,px,py,e);
+    if(им.down && им.down(т)!==false){
+      drag={mode:'simtool',tool:им,wasPlaying:S.playing};
+      if(S.playing&&им.pause!==false){ S.playing=false; setPlayIcon(); }
+      применитьИнструмент(a,false);
+    } else drag={mode:'pan',px,py,vx:a.view.x,vy:a.view.y};
+    return;
+  }
   if((a.def.clickAt || a.def.wireStart) && e.button===0 && S.tool!=='select'){  // строит ТОЛЬКО левая кнопка; ПКМ — меню
     if(a.def.wireStart){
       const h=a.def.wireStart(a.params,wx,wy);       // попали в узел → тянем провод
@@ -3149,6 +3167,7 @@ addEventListener('pointermove',e=>{
     if(drag.moved){ a.view.x=drag.vx-(px-drag.px)/ppm(); a.view.y=drag.vy+(py-drag.py)/ppm(); }
   }
   else if(drag.mode==='dragpt'){ a.def.dragMove(a.params,drag.idx,wx,wy); a.state=a.def.init(a.params); }
+  else if(drag.mode==='simtool'){ const т=контекстИнструмента(a,px,py,e); if(drag.tool.move) drag.tool.move(т); применитьИнструмент(a,false); if(!S.playing) drawAll(); }
   else if(drag.mode==='draw'&&a.draft){
     const [sx,sy]=snapPt(wx,wy);
     if(a.draft.type==='pencil'){
@@ -3206,6 +3225,11 @@ addEventListener('pointerup',()=>{
       S.sel=[...new Set([...(drag.было||[]),...взяли])];
       if(S.sel.length) toast('Выделено: '+S.sel.length+' — тяните, чтобы передвинуть; Delete удалит');
     }
+  }
+  if(a&&drag&&drag.mode==='simtool'){
+    if(drag.tool.up) drag.tool.up(контекстИнструмента(a,null,null));
+    применитьИнструмент(a,true);
+    if(drag.wasPlaying){ S.playing=true; setPlayIcon(); acc=0; }
   }
   if(drag&&drag.mode==='dragpt'&&drag.wasPlaying){         // возобновляем время, если оно шло до перетаскивания
     S.playing=true; setPlayIcon(); acc=0;
@@ -3797,7 +3821,9 @@ function setTool(t){
   document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
   renderToolbar();
   const CUR={pan:'grab',eraser:'cell',note:'text',select:'default'};
-  $('#cwrap').style.cursor=CUR[t]||'crosshair';
+  const им=инструментМодели(t);
+  $('#cwrap').style.cursor=им?(им.cursor||'pointer'):(CUR[t]||'crosshair');
+  if(им&&им.hint) toast(им.name+': '+им.hint);
   // подсказка, как завершить многоточечный инструмент
   if(t==='select') toast('Выделение: клик по рисунку — выбрать, протяг — обвести рамкой, Delete — удалить');
   else if(t==='area') toast('Площадь: кликайте вершины, двойной клик — замкнуть');
@@ -3855,6 +3881,49 @@ function initRailGroups(){
 initRailGroups();
 
 
+/* ===== ИНСТРУМЕНТЫ МОДЕЛИ (9.1.0) =====
+   Общие инструменты (карандаш, линейка…) работают с любой сценой. Инструмент
+   модели принадлежит одной симуляции и действует на саму модель: выделить
+   тело и передвинуть его, протянуть стрелку скорости, навести ракету.
+   Симуляция объявляет их в def.tools — массив или функция параметров:
+     {id, name, icon (svg-разметка 24×24), hint, cursor,
+      down(т) → false, если нажатие не попало; move(т); up(т);
+      hover(т) — подсветка под курсором; key(клавиша, т) → true, если обработана;
+      overlay(octx, т) — рисунок инструмента поверх сцены}
+   т — контекст: {a, p, s, wx, wy, px, py, ppm, shift, выбор, set(ключ, значение)}.
+   set округляет до шага параметра и держит в его пределах; пока тянут,
+   сцена перезапускается с новыми параметрами, а в историю отмены и в поля
+   параметров значение попадает, когда кнопку отпустили. */
+function инструментыМодели(a){
+  a=a||A(); if(!a||!a.def.tools) return [];
+  try{ const т=typeof a.def.tools==='function'?a.def.tools(a.params):a.def.tools; return т||[]; }catch(_){ return []; }
+}
+function инструментМодели(id){ if(!id||!/^sim:/.test(id)) return null; return инструментыМодели().find(x=>'sim:'+x.id===id)||null; }
+function контекстИнструмента(a,px,py,e){
+  const [wx,wy]=px==null?[NaN,NaN]:toWorld(px,py);
+  a.инстр=a.инстр||{};
+  const тронуто=a.инстр.тронуто||(a.инстр.тронуто=new Set());
+  return {a,p:a.params,s:a.state,wx,wy,px,py,ppm:ppm(),shift:!!(e&&e.shiftKey),выбор:a.инстр,toScreen,
+    set(key,v){ const pd=(a.def.params||[]).find(x=>x.key===key); if(!pd||!isFinite(v)) return;
+      if(isFinite(pd.min)) v=Math.max(pd.min,v); if(isFinite(pd.max)) v=Math.min(pd.max,v);
+      if(pd.step) v=round(Math.round(v/pd.step)*pd.step,pd.step);
+      if(a.params[key]!==v){ a.params[key]=v; тронуто.add(key); } }};
+}
+/* значения, изменённые инструментом, — в поля параметров (без перестройки панели) */
+function полеПараметра(key,v){
+  const d=document.querySelector(`#params .param[data-key="${key}"]`); if(!d) return;
+  const inp=d.querySelector('input[data-num]'); if(inp&&document.activeElement!==inp) inp.value=v;
+  const рз=d.querySelector('.p-rng'); if(рз) рз.value=v;
+}
+function применитьИнструмент(a,итог){
+  const т=a.инстр&&a.инстр.тронуто; if(!т||!т.size) return;
+  for(const k of т) полеПараметра(k,a.params[k]);
+  if(итог){ restart(a); pushUndo(a); т.clear();
+    document.querySelectorAll('#params .param').forEach(d=>{ const pd=(a.def.params||[]).find(x=>x.key===d.dataset.key);
+      if(pd) d.classList.toggle('changed',String(a.params[pd.key])!==String(pd.default)); }); }
+  else { a.state=a.def.init(a.params); a.hist=[]; a.tick=0; }
+}
+
 /* ===== Инструменты конкретной симуляции в левой панели =====
    Раньше ctxTools жили только в меню по правой кнопке — на телефоне туда
    вообще не попасть. Теперь они рисуются кнопками в общей папке. */
@@ -3862,7 +3931,18 @@ function renderSimTools(){
   const box=$('#simtools'), sep=$('#grp-build'); if(!box) return;
   const a=A();
   const items=(a&&a.def.ctxTools)? a.def.ctxTools(a.params) : [];
-  box.innerHTML=''; sep.style.display=items.length?'':'none';
+  const свои=a?инструментыМодели(a):[];
+  box.innerHTML=''; sep.style.display=(items.length||свои.length)?'':'none';
+  for(const т of свои){
+    const b=document.createElement('button');
+    b.className='iconbtn tool simtool simtool-m'+(S.tool==='sim:'+т.id?' on':''); b.dataset.tool='sim:'+т.id;
+    b.title=т.name+(т.hint?' — '+т.hint:''); b.setAttribute('aria-label',т.name);
+    b.innerHTML=`<svg viewBox="0 0 24 24">${т.icon||'<circle cx="12" cy="12" r="5"/>'}</svg>`;
+    b.onclick=()=>setTool('sim:'+т.id);
+    box.appendChild(b);
+  }
+  // выбранный инструмент модели остался от другой сцены — возвращаемся к перемещению
+  if(/^sim:/.test(S.tool||'')&&!свои.some(т=>'sim:'+т.id===S.tool)) setTool('pan');
   items.forEach((it,i)=>{
     const b=document.createElement('button');
     b.className='iconbtn simtool';
@@ -5692,6 +5772,10 @@ addEventListener('keydown',e=>{
   const C=e.code, mod=e.ctrlKey||e.metaKey;                 // e.code не зависит от раскладки
   // настройки открыты — гасим все прочие сочетания, чтобы не управлять сценой вслепую
   const prefsOpen=!$('#prefs').classList.contains('hidden');
+  // инструмент модели слушает клавиши первым: стрелки двигают выделенное
+  if(!typing&&!prefsOpen&&!mod){ const им=инструментМодели(S.tool), a=A();
+    if(им&&им.key&&a){ const т=контекстИнструмента(a,null,null,e);
+      if(им.key(e.key,т)){ e.preventDefault(); применитьИнструмент(a,true); if(!S.playing) drawAll(); return; } } }
   // командная палитра: Ctrl+P — всё подряд, Ctrl+Shift+P — только команды
   if(mod&&C==='KeyP'){ e.preventDefault(); cmdkOpen(e.shiftKey?'>':''); return; }
   if(mod&&C==='KeyD'){ e.preventDefault(); takeSnapshot(); return; }
@@ -6560,13 +6644,13 @@ function собратьРяд(def, params, t0, t1, точек, дробь){
   const МАКС=4e6;
   const нужно=Math.ceil((t1-(st.t||0))/dt);
   const шаг = нужно>МАКС ? (t1-(st.t||0))/МАКС : dt;
-  const ts=[], ys=def.graphs.map(()=>[[],[]]);
+  const ts=[], ys=def.graphs.map(()=>[[],[],[]]);
   let stop=null;
   const снять=t=>{
     ts.push(t);
     def.graphs.forEach((g,gi)=>{
       const v=g.get(st,params);
-      ys[gi][0].push(v[0]); ys[gi][1].push(v.length>1?v[1]:null);
+      ys[gi][0].push(v[0]); ys[gi][1].push(v.length>1?v[1]:null); ys[gi][2].push(v.length>2?v[2]:null);
     });
   };
   const шагПоСетке=(t1-t0)/Math.max(1,точек-1);
@@ -6599,13 +6683,13 @@ function собратьРядПостепенно(def, params, t0, t1, точе�
     const МАКС=4e6;
     const нужно=Math.ceil((t1-(st.t||0))/dt);
     const шаг = нужно>МАКС ? (t1-(st.t||0))/МАКС : dt;
-    const ts=[], ys=def.graphs.map(()=>[[],[]]);
+    const ts=[], ys=def.graphs.map(()=>[[],[],[]]);
     let stop=null, охрана=0;
     const снять=t=>{
       ts.push(t);
       def.graphs.forEach((g,gi)=>{
         const v=g.get(st,params);
-        ys[gi][0].push(v[0]); ys[gi][1].push(v.length>1?v[1]:null);
+        ys[gi][0].push(v[0]); ys[gi][1].push(v.length>1?v[1]:null); ys[gi][2].push(v.length>2?v[2]:null);
       });
     };
     const шагПоСетке=(t1-t0)/Math.max(1,точек-1);
@@ -6693,8 +6777,8 @@ function рисоватьГрафик(dr, o){
   // ось X — время либо параметр развёртки; подпись приходит с рядом
   const xlab=ряд.xlab||'t, с';
   const C = светлая
-    ? {фон:'#ffffff',сетка:'#e6e8ee',ось:'#9aa0ae',текст:'#1b1d24',тихий:'#6b7180',линия:'#4b3fa0',вторая:'#b06a1f',событие:'#c0392b'}
-    : {фон:'#12141f',сетка:'#262a3a',ось:'#6f748a',текст:'#e9e9ed',тихий:'#9397ab',линия:'#9184d9',вторая:'#e0a44a',событие:'#e07a62'};
+    ? {фон:'#ffffff',сетка:'#e7e3d8',ось:'#8a867b',текст:'#1c1b18',тихий:'#6f6b61',линия:'#2346c8',вторая:'#1f7a6d',третья:'#8a3a9e',событие:'#b4561b'}
+    : {фон:'#141413',сетка:'#2a2a27',ось:'#8f8b80',текст:'#ebe8e0',тихий:'#8f8b80',линия:'#8ea4ff',вторая:'#59c4b3',третья:'#d59ae6',событие:'#ee9a5a'};
   /* Поля: слева место числам оси Y, снизу — оси времени, сверху — заголовку
      с легендой, справа — последней подписи на оси времени. */
   const M={l:82,r:34,t:56,b:60};
@@ -6730,13 +6814,14 @@ function рисоватьГрафик(dr, o){
   dr.line(px,py+ph,px+pw,py+ph,C.ось,1.4);
 
   // кривые
-  const имена=график.series||['тело 1','тело 2'];
-  for(let s=0;s<2;s++){
+  const имена=график.series||['тело 1','тело 2','тело 3'];
+  const цв=s=>s===2?C.третья:s?C.вторая:C.линия, шт=s=>s===2?[2,4]:s?[7,5]:null;
+  for(let s=0;s<ряд.ys[gi].length&&s<3;s++){
     const серия=ряд.ys[gi][s];
     if(!серия.some(y=>y!==null&&isFinite(y))) continue;
     const pts=[];
     серия.forEach((y,i)=>{ if(y!==null&&isFinite(y)) pts.push([X(ts[i]),Y(y)]); });
-    dr.poly(pts,s?C.вторая:C.линия,s?2:2.4,s?[7,5]:null);
+    dr.poly(pts,цв(s),s?2:2.4,шт(s));
   }
   // отметка события (падение, удар): дальше кривой просто нет
   if(ряд.stop && ряд.stop.t<=t1+1e-9){
@@ -6747,11 +6832,11 @@ function рисоватьГрафик(dr, o){
   // заголовок, легенда и подпись под осью
   dr.text(`${график.label}, ${график.unit}`,px,py-26,C.текст,17);
   let lx=px;
-  for(let s=0;s<2;s++){
+  for(let s=0;s<ряд.ys[gi].length&&s<3;s++){
     const серия=ряд.ys[gi][s];
     if(!серия.some(y=>y!==null&&isFinite(y))) continue;
     if(!имена[s]) continue;            // у развёртки кривая одна, легенда ей ни к чему
-    dr.line(lx,py-9,lx+22,py-9,s?C.вторая:C.линия,2.4,s?[7,5]:null);
+    dr.line(lx,py-9,lx+22,py-9,цв(s),2.4,шт(s));
     dr.text(имена[s],lx+28,py-5,C.тихий,12);
     lx+=28+имена[s].length*7+18;
   }
@@ -7811,5 +7896,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.0.0';
+window.PHYSIM_BUILD = '9.1.0';
 window.PHYSIM_READY = true;

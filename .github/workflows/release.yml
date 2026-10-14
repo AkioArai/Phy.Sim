@@ -144,9 +144,18 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 114 live simulations,
-          51 topics, 135 step-by-step derivations, 399 formulas and 562 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 116 live simulations,
+          52 topics, 136 step-by-step derivations, 403 formulas and 571 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 9.1.0 — tools that belong to the model
+
+          Each simulation can now carry its own tools that change the model directly: carry a body along the
+          axis, pull its velocity and acceleration arrows, aim a throw by dragging, move a ship across the sea.
+          One-dimensional motion gained non-uniform laws (stages, growing acceleration) for both bodies;
+          projectile motion takes up to three bodies. New simulation: a rocket launched against an approaching
+          ship, with lead and both hitting angles. New introductory topic: dimensional analysis, X = k·Aᵃ·Bᵇ·Cᶜ,
+          with a pendulum and a dimensional balance. The home figure is a fan of forty-eight double pendulums.
 
           ## 9.0.0 — «notebook and instrument»: a design of its own
 
