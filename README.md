@@ -92,22 +92,22 @@ KaTeX and its fonts ship inside the repository.
 | **116** interactive simulations | mechanics · thermodynamics · electricity · magnetism · alternating current · waves & optics · relativity · quantum · nuclear |
 | **circuit constructor** | draw wires, resistors and capacitors on a grid; node potentials, Kirchhoff's laws, equivalent capacitance and stored charge are solved live |
 | **honest axes** | numbered axes only where one grid square really is one metre — never on schematics, PV-diagrams or spectra |
-| **51** topics in **8** sections | each one opens with what to try, then five points to remember; the full notes are one click below, collapsed |
-| **166** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
-| **220** points to remember | the five sentences per topic you would want on an exam morning |
+| **52** topics in **8** sections | each one opens with what to try, then five points to remember; the full notes are one click below, collapsed |
+| **171** things to try | "change this — watch that": the experiment that makes the point, named before any theory |
+| **225** points to remember | the five sentences per topic you would want on an exam morning |
 | **136** derivations, **500** steps | every step revealed one at a time, each with the reason it is allowed — a formula you watched being built is not a formula you memorised |
 | **calculator with units** | 72 км/ч в м/с, (2,5 ± 0,1) м / (3,0 ± 0,2) с, h c / (500 нм) в эВ — every number carries its dimension, adding metres to seconds is refused, uncertainty propagates |
 | **311** course formulas, solvable | any of them for any of its quantities: T = 2π√(L/g) solved for g, with units and uncertainty; the rearranged formula is shown, not just the number |
-| **40** math techniques, on the steps | every step is tagged with the mathematics it uses; a tag opens what the technique is, when it is legitimate, where it breaks — and every other derivation in the course that uses it |
+| **41** math techniques, on the steps | every step is tagged with the mathematics it uses; a tag opens what the technique is, when it is legitimate, where it breaks — and every other derivation in the course that uses it |
 | **prerequisites, stated** | a topic names what you must know first and offers a one-minute check before you start reading |
 | **403** key formulas | each labelled *law*, *definition* or *consequence*, and each opens the simulation that shows it working |
 | **571** problems | five per simulation: one to get oriented, three to think about, one olympiad-grade |
 | **129** interesting facts | three per topic at the end of the notes: where the physics shows up in life, how it was discovered, what surprises in it |
 | **university level** | a «School / University» switch adds sections with vectors, derivatives, integrals and Maxwell's equations; 37 topics so far — from mechanics to particle physics — more being added |
-| **134** self-checks | three questions per topic, answers hidden until you have tried |
-| **179** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
+| **137** self-checks | three questions per topic, answers hidden until you have tried |
+| **181** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **147** glossary terms | short definitions, in search and in the *More* menu; optionally the first mention in the notes is underlined |
-| **reference sheet** | symbols, constants, units and the 40 techniques in Settings — the thing you would otherwise keep a browser tab open for |
+| **reference sheet** | symbols, constants, units and the 41 techniques in Settings — the thing you would otherwise keep a browser tab open for |
 | **86** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
