@@ -269,7 +269,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('116 симуляций', counts.sims === 116, counts);
+    ok('119 симуляций', counts.sims === 119, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -533,7 +533,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 90 && разв.времени === 60 && разв.никак.length <= 3, разв);
+        разв.параметром >= 90 && разв.времени === 63 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1937,13 +1937,9 @@ async function сторож(b) {
         const b = SIMS.proj2d, pb = Object.assign({}, b.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), b.presets.find(q => /Три угла/.test(q.name)).values);
         const sb = b.init(pb); for (let i = 0; i < 120; i++) b.step(sb, 1 / 120, pb);
         r.триТела = b.graphs[0].get(sb, pb).filter(v => typeof v === 'number').length === 3 && b.tools(pb).some(t => t.id === 'aim');
-        // ракета: прицел в сам корабль даёт перелёт, с упреждением — попадание; углов два
-        const R = SIMS.intercept, pr = i => Object.assign({}, R.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), R.presets[i].values);
-        R._кэш = null;
-        r.ракета = !R.init(pr(0)).исход.попал && R.init(pr(1)).исход.попал && R.init(pr(2)).исход.попал && R.углы(pr(0)).length === 2
-          && Math.abs(R.углы(pr(0))[0] - 27.8) < 0.3;
-        openTopic('mech.2d'); openSim('intercept'); await жди(200);
-        r.ракетаИнстр = ['sim:aim', 'sim:ship'].every(x => !!document.querySelector(`.simtool-m[data-tool="${x}"]`));
+        // 9.2: ракету сменило сближение двух тел в потоке — у него свои инструменты
+        openTopic('mech.2d'); openSim('meet2d'); await жди(200);
+        r.сближениеИнстр = ['sim:pos', 'sim:vel', 'sim:flow'].every(x => !!document.querySelector(`.simtool-m[data-tool="${x}"]`));
         // метод размерностей: вводная тема, весы сходятся при a = ½, c = −½, период ≈ 2π√(L/g)
         const D = SIMS.dims, pd = { L: 1.6, m: 2, g: 9.8, th0: 4, a: 0.5, b: 0, c: -0.5 }, sd = D.init(pd);
         for (let i = 0; i < 120 * 6; i++) D.step(sd, 1 / 120, pd);
@@ -1951,10 +1947,57 @@ async function сторож(b) {
           && SECTIONS[0].topics.some(t => t.id === 'intro.dim') && !!ПРИЁМЫ['размерности'];
         openTopic('intro.dim'); await жди(250);
         r.темаРазмерностей = S.active === 'dims' && /X=k/.test(S.topic.formulas[0].tex) && document.querySelector('#t-sub').textContent.includes('вводная');
-        r.сцен = Object.keys(SIMS).length === 116 || Object.keys(SIMS).length;
+        r.сцен = Object.keys(SIMS).length === 119 || Object.keys(SIMS).length;
         return r;
       });
-      ok('9.1: инструменты модели (перенос тела, стрелки клавиатуры), участки разгона и торможения, три тела, ракета навстречу кораблю, метод размерностей',
+      ok('9.1: инструменты модели (перенос тела, стрелки клавиатуры), участки разгона и торможения, три тела, сближение тел, метод размерностей',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    /* ============ 9.2.0: задачи Иродова решаются в моделях ============
+       У задачи из задачника — метка, фильтр «по Иродову» и кнопка «Собрать в
+       модели»: она открывает сцену с параметрами условия. Новые сцены (сближение
+       в потоке, погоня, брусок на доске, петля) живые, у наклонной плоскости —
+       пуск вверх и груз на блоке, у одномерного движения — сопротивление. */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {}, $ = s => document.querySelector(s);
+        закрытьГлавную(); openTopic('mech.2d'); S.tab = 'problems'; S.prFilter = 'all'; renderPane(); await жди(150);
+        const все = document.querySelectorAll('#pane .problem').length;
+        r.метки = document.querySelectorAll('#pane .problem .pr-src').length >= 10;
+        const ф = $('#pane .pr-filter button[data-f="src"]'); r.фильтр = !!ф;
+        if (ф) { ф.click(); await жди(120); }
+        const осталось = document.querySelectorAll('#pane .problem').length;
+        r.фильтрРаботает = осталось > 0 && осталось < все && document.querySelectorAll('#pane .problem .pr-src').length === осталось;
+        // «Собрать в модели»: сцена открыта, параметры — из условия
+        const t = S.topic, кн = $('#pane .problem .btn.setup');
+        const pr = t.problems[+кн.closest('.problem').dataset.i];
+        кн.click(); await жди(250);
+        r.собрано = S.active === pr.sim && Object.keys(pr.setup).every(k => String(A().params[k]) === String(pr.setup[k]) ||
+          Math.abs(+A().params[k] - +pr.setup[k]) < 1e-9);
+        S.prFilter = 'all'; S.tab = 'notes'; renderPane();
+        // новые сцены живые
+        const кадр = () => { const c = $('#scene'), x = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < x.length; i += 97) h = (h * 31 + x[i]) | 0; return h; };
+        const живые = [];
+        for (const [тема, id] of [['mech.2d', 'meet2d'], ['mech.2d', 'pursuit'], ['mech.dyn', 'plank'], ['mech.energy', 'loop']]) {
+          openTopic(тема); openSim(id); S.playing = true; await жди(350); const a = кадр(); await жди(450); const b = кадр();
+          if (S.active === id && a !== b) живые.push(id); }
+        r.сценыЖивые = живые.length === 4 || живые;
+        // модели решают задачи: сопротивление, наклонная с блоком, петля
+        const K = SIMS.kin1d, pk = Object.assign(K.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), { law1:'drag', v01:9, a1:0, al1:0.3, k1:0.5 });
+        const sk = K.init(pk); for (let i = 0; i < 120 * 30; i++) K.step(sk, 1 / 120, pk);
+        r.сопротивление = Math.abs(sk.b[0].x - 2 * 27 / 0.9) < 1e-2 && sk.b[0].v === 0;
+        const I = SIMS.incline, pi = Object.assign(I.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), { th:30, mus:0.1, mud:0.1, start:'bottom', m:2, m2:3, stopBottom:true, stopSlip:false });
+        const si = I.init(pi); for (let i = 0; i < 120 * 2; i++) I.step(si, 1 / 120, pi);
+        r.блок = si.v < 0 && Math.abs(I.forces(si, pi).T - 3 * (9.8 - (3 * 9.8 - 2 * 9.8 * 0.5 - 0.1 * 2 * 9.8 * Math.cos(Math.PI / 6)) / 5)) < 1e-6;
+        const L = SIMS.loop, pl = Object.assign(L.params.reduce((o, q) => (q.key && (o[q.key] = q.default), o), {}), { mode:'sphere', R:1, stopDetach:true });
+        const sl = L.init(pl); for (let i = 0; i < 120 * 6 && !sl.event; i++) L.step(sl, 1 / 120, pl);
+        r.сфера = sl.event && sl.event.type === 'detach' && Math.abs(sl.отрыв.y - 2 / 3) < 2e-3;
+        r.ракетыНет = !SIMS.intercept;
+        return r;
+      });
+      ok('9.2: задачи Иродова — метка, фильтр, «Собрать в модели»; новые сцены живые; сопротивление, блок, отрыв со сферы',
         Object.values(т).every(v => v === true), т);
     }
 

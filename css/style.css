@@ -3663,3 +3663,14 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 .sp-word{color:var(--ink)!important;font-family:var(--sans)!important;font-weight:600!important}
 .sp-word i{color:var(--accent)!important}
 .sp-mark [stroke^="var(--bar"],.sp-mark [stroke="#0e1118"]{stroke:var(--panel)}
+
+/* ===== 9.2: задачи по Иродову ===== */
+.pr-src{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--second);
+  border:1px solid var(--second);border:1px solid color-mix(in srgb,var(--second) 45%,transparent);border-radius:3px;padding:1px 5px}
+.pr-src{margin-left:auto}
+.pr-hard+.pr-src{margin-left:0}
+.pr-filter{display:flex;gap:0;margin:-6px 0 16px;border:1px solid var(--line);border-radius:var(--radius);width:max-content;max-width:100%;overflow:hidden}
+.pr-filter button{font:500 12px/1 var(--sans);padding:7px 12px;color:var(--ink-2);background:transparent;border:0}
+.pr-filter button+button{border-left:1px solid var(--line)}
+.pr-filter button.on{background:var(--ink);color:var(--panel)}
+.problem .btn.setup{border-color:var(--second);color:var(--second)}

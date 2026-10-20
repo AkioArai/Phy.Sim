@@ -113,6 +113,10 @@ const report = await page.evaluate(({ SAMPLES, READOUT_TOL }) => {
     let упал = null, неЧисло = false, неопределённых = 0;
 
     const наборы = [defaults(def)];
+    /* 9.2: у задачи может быть свой набор условия (pr.setup) — его собирает
+       кнопка «Собрать в модели». Это самый законный набор из всех: на нём
+       задача и должна решаться, поэтому он идёт сразу после умолчаний. */
+    if (pr.setup) наборы.push(Object.assign(defaults(def), pr.setup));
     for (let k = 0; k < SAMPLES; k++) наборы.push(sample(def));
 
     for (const p of наборы) {

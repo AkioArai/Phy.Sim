@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="9.1.0">
+<meta name="physim-build" content="9.2.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -3800,6 +3800,17 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 .sp-word{color:var(--ink)!important;font-family:var(--sans)!important;font-weight:600!important}
 .sp-word i{color:var(--accent)!important}
 .sp-mark [stroke^="var(--bar"],.sp-mark [stroke="#0e1118"]{stroke:var(--panel)}
+
+/* ===== 9.2: задачи по Иродову ===== */
+.pr-src{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--second);
+  border:1px solid var(--second);border:1px solid color-mix(in srgb,var(--second) 45%,transparent);border-radius:3px;padding:1px 5px}
+.pr-src{margin-left:auto}
+.pr-hard+.pr-src{margin-left:0}
+.pr-filter{display:flex;gap:0;margin:-6px 0 16px;border:1px solid var(--line);border-radius:var(--radius);width:max-content;max-width:100%;overflow:hidden}
+.pr-filter button{font:500 12px/1 var(--sans);padding:7px 12px;color:var(--ink-2);background:transparent;border:0}
+.pr-filter button+button{border-left:1px solid var(--line)}
+.pr-filter button.on{background:var(--ink);color:var(--panel)}
+.problem .btn.setup{border-color:var(--second);color:var(--second)}
 </style>
 </head>
 <body>
@@ -4530,8 +4541,30 @@ const SIMS={};
                 дальше — без ускорения. На каждом участке ускорение постоянно,
                 поэтому решение точное, а скорость — ломаная.
    Все три решаются в замкнутом виде — ни шагов интегрирования, ни накопления ошибки. */
-const mkBody=(x0,v0,a,t0,law,j,st)=>({x0,v0,a,t0,law:law||'a',j:j||0,st:st||null,x:x0,v:0,acc:0,path:0,started:false,landed:false});
+const mkBody=(x0,v0,a,t0,law,j,st,al,kp)=>({x0,v0,a,t0,law:law||'a',j:j||0,st:st||null,al:al||0,kp:kp==null?1:kp,таб:null,x:x0,v:0,acc:0,path:0,started:false,landed:false});
+/* 9.2.0: закон с сопротивлением a(v) = a₀ − α·|v|ᵏ·sign v. В замкнутом виде не
+   решается, поэтому таблица x(τ), v(τ) строится Рунге — Куттой с шагом 2 мс по
+   мере надобности и хранится в теле. Без постоянного a₀ сопротивление не может
+   развернуть тело: скорость дошла до нуля — тело стоит (при k &lt; 1 это
+   случается за конечное время, при k ≥ 1 — только асимптотически). */
+const ШАГ_СОПР=0.002;
+function ускСопр(b,v){ return b.a-b.al*Math.pow(Math.abs(v),b.kp)*Math.sign(v); }
+function кинСопр(b,τ){
+  if(!b.таб) b.таб={x:[b.x0],v:[b.v0],стоп:false};
+  const T=b.таб, h=ШАГ_СОПР, n=Math.min(Math.ceil(τ/h)+1,600000);
+  while(T.x.length<=n){ const i=T.x.length-1, x=T.x[i], v=T.v[i];
+    if(T.стоп){ T.x.push(x); T.v.push(0); continue; }
+    const k1=ускСопр(b,v), k2=ускСопр(b,v+h/2*k1), k3=ускСопр(b,v+h/2*k2), k4=ускСопр(b,v+h*k3);
+    let v1=v+h/6*(k1+2*k2+2*k3+k4), x1=x+h/6*(v+2*(v+h/2*k1)+2*(v+h/2*k2)+(v+h*k3));
+    if(b.a===0&&v!==0&&Math.sign(v1)!==Math.sign(v)){ const f=v/(v-v1); x1=x+v*h*f/2; v1=0; T.стоп=true; }
+    else if(b.a===0&&Math.abs(v1)<1e-6*Math.max(1,Math.abs(b.v0))){ v1=0; T.стоп=true; }   // докатилось до нуля по касательной
+    T.x.push(x1); T.v.push(v1); }
+  const i=Math.min(Math.floor(τ/h),T.x.length-2), f=clamp(τ/h-i,0,1);
+  const v=T.v[i]+(T.v[i+1]-T.v[i])*f;
+  return {x:T.x[i]+(T.x[i+1]-T.x[i])*f, v, a:T.стоп&&i+1>=T.x.length-1&&v===0?0:(v===0&&b.a===0?0:ускСопр(b,v)), уч:-1};
+}
 function кин1(b,τ){
+  if(b.law==='drag') return кинСопр(b,τ);
   if(b.law==='jerk') return {x:b.x0+b.v0*τ+b.a*τ*τ/2+b.j*τ*τ*τ/6, v:b.v0+b.a*τ+b.j*τ*τ/2, a:b.a+b.j*τ, уч:-1};
   if(b.law==='stages'&&b.st){
     let x=b.x0, v=b.v0, ост=τ;
@@ -4547,7 +4580,7 @@ const УЧАСТКИ1=['разгон','равномерно','торможени
 function телоКин(p,i){
   const k=i+1, law=p['law'+k]||'a';
   const st=law==='stages'?[[+p['T'+k+'1']||0,+p['A'+k+'1']||0],[+p['T'+k+'2']||0,0],[+p['T'+k+'3']||0,+p['A'+k+'3']||0]]:null;
-  return i? mkBody(p.x02,p.v02,p.a2,p.delay,law,p.j2,st) : mkBody(p.x01,p.v01,p.a1,0,law,p.j1,st);
+  return i? mkBody(p.x02,p.v02,p.a2,p.delay,law,p.j2,st,p.al2,p.k2) : mkBody(p.x01,p.v01,p.a1,0,law,p.j1,st,p.al1,p.k1);
 }
 /* первый момент τ > 0, когда f(τ) меняет знак: шагом и делением пополам */
 function первыйКорень(f,τmax,шаг){
@@ -4620,11 +4653,13 @@ kin1d:{
 
     {type:'group',label:'Тело 1'},
     {key:'law1',label:'Закон движения',type:'select',default:'a',
-     options:[{v:'a',t:'равноускоренно (a = const)'},{v:'stages',t:'по участкам: разгон, равномерно, торможение'},{v:'jerk',t:'ускорение растёт равномерно (рывок)'}]},
+     options:[{v:'a',t:'равноускоренно (a = const)'},{v:'stages',t:'по участкам: разгон, равномерно, торможение'},{v:'jerk',t:'ускорение растёт равномерно (рывок)'},{v:'drag',t:'с сопротивлением: a = a₀ − α·vᵏ'}]},
     {key:'x01',label:'Начальная координата x₀',unit:'м',   min:-500,max:500,step:0.5,default:0},
     {key:'v01',label:'Начальная скорость v₀',  unit:'м/с', min:-100,max:100,step:0.5,default:20},
-    {key:'a1', label:'Ускорение a',            unit:'м/с²',min:-50, max:50, step:0.1,default:-9.8,если:p=>p.law1!=='stages'},
+    {key:'a1', label:'Ускорение a (при сопротивлении — постоянная часть a₀)',unit:'м/с²',min:-50, max:50, step:0.1,default:-9.8,если:p=>p.law1!=='stages'},
     {key:'j1', label:'Рывок j = Δa/Δt',        unit:'м/с³',min:-20, max:20, step:0.1,default:1,если:p=>p.law1==='jerk'},
+    {key:'al1',label:'Сопротивление α (в a = a₀ − α·vᵏ)',unit:'СИ',min:0,max:50,step:0.001,default:0.5,если:p=>p.law1==='drag'},
+    {key:'k1', label:'Показатель k',min:0,max:3,step:0.5,default:1,если:p=>p.law1==='drag'},
     {key:'T11',label:'Разгон: длительность',unit:'с',min:0,max:60,step:0.1,default:4,если:p=>true&&p.law1==='stages'},
     {key:'A11',label:'Разгон: ускорение',unit:'м/с²',min:-50,max:50,step:0.1,default:3,если:p=>true&&p.law1==='stages'},
     {key:'T12',label:'Равномерно: длительность',unit:'с',min:0,max:60,step:0.1,default:3,если:p=>true&&p.law1==='stages'},
@@ -4633,11 +4668,13 @@ kin1d:{
 
     {type:'group',label:'Тело 2',если:p=>p.bodies==='2'},
     {key:'law2',label:'Закон движения',type:'select',default:'a',если:p=>p.bodies==='2',
-     options:[{v:'a',t:'равноускоренно (a = const)'},{v:'stages',t:'по участкам: разгон, равномерно, торможение'},{v:'jerk',t:'ускорение растёт равномерно (рывок)'}]},
+     options:[{v:'a',t:'равноускоренно (a = const)'},{v:'stages',t:'по участкам: разгон, равномерно, торможение'},{v:'jerk',t:'ускорение растёт равномерно (рывок)'},{v:'drag',t:'с сопротивлением: a = a₀ − α·vᵏ'}]},
     {key:'x02',  label:'Начальная координата x₀',unit:'м',   min:-500,max:500,step:0.5,default:0},
     {key:'v02',  label:'Начальная скорость v₀',  unit:'м/с', min:-100,max:100,step:0.5,default:20},
-    {key:'a2',   label:'Ускорение a',            unit:'м/с²',min:-50, max:50, step:0.1,default:-9.8,если:p=>p.law2!=='stages'},
+    {key:'a2',   label:'Ускорение a (при сопротивлении — постоянная часть a₀)',unit:'м/с²',min:-50, max:50, step:0.1,default:-9.8,если:p=>p.law2!=='stages'},
     {key:'j2',   label:'Рывок j = Δa/Δt',        unit:'м/с³',min:-20, max:20, step:0.1,default:1,если:p=>p.bodies==='2'&&p.law2==='jerk'},
+    {key:'al2',label:'Сопротивление α (в a = a₀ − α·vᵏ)',unit:'СИ',min:0,max:50,step:0.001,default:0.5,если:p=>p.bodies==='2'&&p.law2==='drag'},
+    {key:'k2', label:'Показатель k',min:0,max:3,step:0.5,default:1,если:p=>p.bodies==='2'&&p.law2==='drag'},
     {key:'T21',label:'Разгон: длительность',unit:'с',min:0,max:60,step:0.1,default:4,если:p=>p.bodies==='2'&&p.law2==='stages'},
     {key:'A21',label:'Разгон: ускорение',unit:'м/с²',min:-50,max:50,step:0.1,default:3,если:p=>p.bodies==='2'&&p.law2==='stages'},
     {key:'T22',label:'Равномерно: длительность',unit:'с',min:0,max:60,step:0.1,default:3,если:p=>p.bodies==='2'&&p.law2==='stages'},
@@ -4687,7 +4724,8 @@ kin1d:{
         b.x=G; b.v=vHit;
         if(p.rest>0 && Math.abs(vHit)>0.2){       // отскок: тело «перезапускается» от плоскости
           // после отскока закон — равноускоренный с тем ускорением, что было в миг удара
-          b.x0=G; b.v0=-p.rest*vHit; b.t0=tl; b.v=b.v0; b.a=kh.a; b.law='a';
+          if(b.law==='drag'){ b.x0=G; b.v0=-p.rest*vHit; b.t0=tl; b.v=b.v0; b.таб=null; }   // сопротивление остаётся
+          else { b.x0=G; b.v0=-p.rest*vHit; b.t0=tl; b.v=b.v0; b.a=kh.a; b.law='a'; }
         } else { b.landed=true; b.v=0; }
         if(p.stopGround && !s.event){
           s.t=tl; s.event={t:tl,type:'ground',x:G};
@@ -4779,6 +4817,10 @@ kin1d:{
      values:{bodies:'2',axis:'x',law1:'a',x01:40,v01:12,a1:0,law2:'stages',x02:0,v02:0,T21:8,A21:3,T22:30,T23:0,A23:0,delay:0,stopMeet:true,ground:false,tStop:0}},
     {name:'Рывок: ускорение нарастает от нуля',
      values:{bodies:'1',axis:'x',law1:'jerk',x01:0,v01:0,a1:0,j1:1.5,ground:false,tStop:8,stopMeet:false}},
+    {name:'Торможение, при котором ускорение равно α√v',
+     values:{bodies:'1',axis:'x',law1:'drag',x01:0,v01:25,a1:0,al1:0.5,k1:0.5,ground:false,tStop:0,stopMeet:false}},
+    {name:'Падение с сопротивлением воздуха ∝ v²',
+     values:{bodies:'2',axis:'y',law1:'drag',x01:150,v01:0,a1:-9.8,al1:0.05,k1:2,law2:'a',x02:150,v02:0,a2:-9.8,delay:0,ground:true,gx:0,rest:0,stopGround:false,stopMeet:false,tStop:8}},
     {name:'Встречные: разгон против торможения',
      values:{bodies:'2',axis:'x',law1:'stages',x01:0,v01:0,T11:5,A11:2,T12:20,T13:0,A13:0,law2:'a',x02:150,v02:-18,a2:1.5,delay:0,stopMeet:true,ground:false,tStop:0}}
   ],
@@ -4937,20 +4979,20 @@ proj2d:{
      options:[{v:'1',t:'Одно тело'},{v:'2',t:'Два тела'},{v:'3',t:'Три тела'}]},
 
     {type:'group',label:'Тело 1'},
-    {key:'x01',label:'Начальная координата x₀',unit:'м',  min:-1000,max:1000,step:0.5,default:0},
+    {key:'x01',label:'Начальная координата x₀',unit:'м',  min:-20000,max:20000,step:0.5,default:0},
     {key:'y01',label:'Начальная высота y₀',    unit:'м',  min:0,    max:1000,step:0.5,default:0},
     {key:'v01',label:'Начальная скорость v₀',  unit:'м/с',min:0,    max:400, step:0.5,default:25},
     {key:'a01',label:'Угол броска θ',          unit:'°',  min:0,    max:360, step:1,  default:45},
 
     {type:'group',label:'Тело 2',если:p=>p.bodies!=='1'},
-    {key:'x02',  label:'Начальная координата x₀',unit:'м',  min:-1000,max:1000,step:0.5,default:40},
+    {key:'x02',  label:'Начальная координата x₀',unit:'м',  min:-20000,max:20000,step:0.5,default:40},
     {key:'y02',  label:'Начальная высота y₀',    unit:'м',  min:0,    max:1000,step:0.5,default:25},
     {key:'v02',  label:'Начальная скорость v₀',  unit:'м/с',min:0,    max:400, step:0.5,default:0},
     {key:'a02',  label:'Угол броска θ',          unit:'°',  min:0,    max:360, step:1,  default:0},
     {key:'delay',label:'Задержка старта Δt',     unit:'с',  min:0,    max:60,  step:0.1,default:0},
 
     {type:'group',label:'Тело 3',если:p=>p.bodies==='3'},
-    {key:'x03',   label:'Начальная координата x₀',unit:'м',  min:-1000,max:1000,step:0.5,default:0},
+    {key:'x03',   label:'Начальная координата x₀',unit:'м',  min:-20000,max:20000,step:0.5,default:0},
     {key:'y03',   label:'Начальная высота y₀',    unit:'м',  min:0,    max:1000,step:0.5,default:0},
     {key:'v03',   label:'Начальная скорость v₀',  unit:'м/с',min:0,    max:400, step:0.5,default:25},
     {key:'a03',   label:'Угол броска θ',          unit:'°',  min:0,    max:360, step:1,  default:60},
@@ -4978,6 +5020,8 @@ proj2d:{
     {key:'tStop',   label:'Остановить в момент t (0 — не останавливать)',unit:'с',min:0,max:600,step:0.1,default:0},
     {key:'stopLand',label:'Останавливать при падении на землю',type:'check',default:true},
     {key:'stopHit', label:'Останавливать при встрече любых двух тел (попадание)',type:'check',default:true},
+    {key:'stopTop', label:'Останавливать в высшей точке тела 1',type:'check',default:false},
+    {key:'stopPerp',label:'Останавливать, когда скорости тел 1 и 2 перпендикулярны',type:'check',default:false,если:p=>p.bodies!=='1'},
     {key:'hitR',    label:'Радиус попадания',unit:'м',min:0.1,max:20,step:0.1,default:0.6}
   ],
 
@@ -5031,6 +5075,12 @@ proj2d:{
             vx:landed?0:vx, vy:landed?0:(vy0+a*tt), vz:landed?0:(vz0+aw*tt),
             started:true, landed, tf, tLand:b.t0+tf};
   },
+  /* касательное и нормальное ускорение, радиус кривизны траектории тела i:
+     aτ = (a·v)/v, aₙ = |a × v|/v, R = v²/aₙ */
+  кривизна(p,i,t){ const r=this.posOf(p,i,t), a=[0,p.ay,p.d3?(p.wind||0):0], v=[r.vx,r.vy,r.vz], vm=Math.hypot(v[0],v[1],v[2]);
+    if(!r.started||r.landed||vm<1e-9) return {at:0,an:0,R:Infinity};
+    const at=(a[0]*v[0]+a[1]*v[1]+a[2]*v[2])/vm, am=Math.hypot(a[0],a[1],a[2]), an=Math.sqrt(Math.max(0,am*am-at*at));
+    return {at,an,R:an>1e-12?vm*vm/an:Infinity}; },
   dist(p,t,i,j){ i=i||0; j=j==null?1:j; const A=this.posOf(p,i,t), B=this.posOf(p,j,t); return Math.hypot(A.x-B.x,A.y-B.y,A.z-B.z); },
   пары(p){ const n=this.n(p); return n===3?[[0,1],[0,2],[1,2]]:n===2?[[0,1]]:[]; },
 
@@ -5080,11 +5130,26 @@ proj2d:{
       }
     }
 
+    // высшая точка тела 1: vy меняет знак с плюса на минус
+    if(p.stopTop){ const a=this.posOf(p,0,s.t), b=this.posOf(p,0,t);
+      if(a.started&&b.started&&!b.landed&&a.vy>0&&b.vy<=0){ let lo=s.t, hi=t;
+        for(let k=0;k<50;k++){ const m=(lo+hi)/2; if(this.posOf(p,0,m).vy>0) lo=m; else hi=m; }
+        this.put(s,p,hi,n); const r=this.posOf(p,0,hi); s.event={t:hi,type:'top',x:r.x,y:r.y};
+        s.__stop=`Тело 1 в высшей точке: t = ${hi.toFixed(3)} с, H = ${r.y.toFixed(2)} м, радиус кривизны ${this.кривизна(p,0,hi).R.toFixed(2)} м`; return; } }
+    // скорости тел 1 и 2 становятся перпендикулярными: скалярное произведение меняет знак
+    if(n>=2&&p.stopPerp){ const пр=τ=>{ const A=this.posOf(p,0,τ), B=this.posOf(p,1,τ); return (A.started&&B.started&&!A.landed&&!B.landed)?A.vx*B.vx+A.vy*B.vy+A.vz*B.vz:NaN; };
+      const f0=пр(s.t), f1=пр(t);
+      if(isFinite(f0)&&isFinite(f1)&&f0!==0&&Math.sign(f0)!==Math.sign(f1)){ let lo=s.t, hi=t;
+        for(let k=0;k<50;k++){ const m=(lo+hi)/2; if(Math.sign(пр(m))===Math.sign(f0)) lo=m; else hi=m; }
+        this.put(s,p,hi,n); s.event={t:hi,type:'perp'};
+        s.__stop=`Скорости тел 1 и 2 перпендикулярны: t = ${hi.toFixed(3)} с, расстояние ${this.dist(p,hi).toFixed(2)} м`; return; } }
+
     // падение на землю
     for(let i=0;i<n;i++){
       const r=this.posOf(p,i,t);
       if(r.started && r.landed && !s.landed[i]){
         s.landed[i]=true;
+        if(!(r.tf>1e-9)) continue;                   // лежит на земле с самого начала (мишень) — это не падение
         const tl=r.tLand;
         this.put(s,p,Math.min(t,tl),n);
         if(p.stopLand){
@@ -5125,6 +5190,9 @@ proj2d:{
                [`t полёта${tag}`,r.tLand,
                  isFinite(r.tLand)?'с':'не приземлится: ускорение направлено вверх']);
     }
+    { const К=this.кривизна(p,0,s.t), tag=n>=2?' 1':'';
+      out.push([`aτ${tag} (вдоль скорости)`,К.at,'м/с²'],[`aₙ${tag} (поперёк скорости)`,К.an,'м/с²'],
+        [`радиус кривизны${tag}`,isFinite(К.R)?К.R:NaN,'м']); }
     if(n===2) out.push(['расстояние',this.dist(p,s.t),'м']);
     if(n===3) for(const [i,j] of this.пары(p)) out.push([`расстояние ${i+1}–${j+1}`,this.dist(p,s.t,i,j),'м']);
     return out;
@@ -5455,190 +5523,319 @@ dims:{
   }
 },
 
-/* ---------------- РАКЕТА НАВСТРЕЧУ КОРАБЛЮ (9.1.0) ----------------
-   С берега высотой h₀ запускают ракету: скорость v₀ под углом θ. Корабль в
-   момент пуска в D метрах от берега и идёт к нему со скоростью u. Без
-   двигателя ракета летит по параболе, с двигателем первые τ секунд ещё и
-   разгоняется ускорением aₜ вдоль скорости. Целиться в корабль бесполезно:
-   за время полёта T он подойдёт на uT — попасть можно только с упреждением.
-   При h₀ = 0 и без двигателя условие попадания пишется в одну строку:
-   (v₀cos θ + u)·T = D, T = 2v₀ sin θ / g — ракета и корабль вместе
-   закрывают расстояние D. Траектория считается заранее (Рунге — Кутта,
-   шаг 5 мс), попадание — по пересечению с корпусом (длина L, высота 10 м). */
-intercept:{
-  title:'Ракета навстречу кораблю',
+/* ---------------- СБЛИЖЕНИЕ ДВУХ ТЕЛ В ПОТОКЕ (9.2.0) ----------------
+   Два тела движутся по плоскости с постоянными скоростями. Скорость каждого
+   задаётся относительно среды (воды, воздуха) или относительно земли; среда
+   сама течёт со скоростью u. Столкнутся ли тела, решает только их
+   относительная скорость w = v₂ − v₁: в системе тела 1 тело 2 идёт по прямой,
+   и наименьшее расстояние — перпендикуляр от тела 1 на эту прямую. Отсюда
+   условие встречи: (r₁ − r₂)/|r₁ − r₂| = w/|w|. Течение, одинаково сносящее
+   оба тела, на встречу не влияет. Тело 1 может развернуться через τ (задача
+   о лодке и плоте). Движение кусочно-равномерное, поэтому всё считается точно:
+   столкновение — корень квадратного уравнения, сближение — вершина параболы. */
+meet2d:{
+  title:'Сближение двух тел в потоке',
   params:[
-    {type:'group',label:'Корабль'},
-    {key:'D',  label:'Расстояние до корабля в момент пуска D',unit:'м',min:300,max:12000,step:10,default:3600},
-    {key:'u',  label:'Скорость корабля к берегу u',unit:'м/с',min:-40,max:40,step:0.5,default:12},
-    {key:'Ls', label:'Длина корабля L',unit:'м',min:20,max:300,step:1,default:80},
-    {type:'group',label:'Ракета'},
-    {key:'v0', label:'Начальная скорость v₀',unit:'м/с',min:20,max:700,step:1,default:200},
-    {key:'th', label:'Угол пуска θ',unit:'°',min:1,max:89,step:0.1,default:30},
-    {key:'h0', label:'Высота берега h₀',unit:'м',min:0,max:400,step:1,default:0},
-    {key:'eng',label:'Двигатель работает после пуска',type:'check',default:false},
-    {key:'aT', label:'Ускорение от двигателя aₜ',unit:'м/с²',min:0,max:120,step:0.5,default:25,если:p=>!!p.eng},
-    {key:'tB', label:'Время работы двигателя τ',unit:'с',min:0,max:40,step:0.1,default:4,если:p=>!!p.eng},
-    {key:'g',  label:'Ускорение свободного падения g',unit:'м/с²',min:1,max:30,step:0.1,default:9.8},
-    {type:'group',label:'Показывать'},
-    {key:'lead', label:'Упреждение: где будет корабль и куда упадёт ракета',type:'check',default:true},
-    {key:'solve',label:'Подсказать углы попадания',type:'check',default:false}
+    {type:'group',label:'Течение (среда)'},
+    {key:'u',   label:'Скорость течения u',unit:'м/с',min:0,max:50,step:0.01,default:0},
+    {key:'uAng',label:'Направление течения (от оси x)',unit:'°',min:-180,max:180,step:1,default:0},
+    {type:'group',label:'Тело 1'},
+    {key:'x1',  label:'Начальная координата x',unit:'м',min:-20000,max:20000,step:1,default:0},
+    {key:'y1',  label:'Начальная координата y',unit:'м',min:-20000,max:20000,step:1,default:0},
+    {key:'v1',  label:'Скорость v₁',unit:'м/с',min:0,max:500,step:0.01,default:5},
+    {key:'a1',  label:'Направление скорости (от оси x)',unit:'°',min:-180,max:180,step:0.1,default:60},
+    {key:'rel1',label:'Скорость задана',type:'select',default:'med',options:[{v:'med',t:'относительно среды'},{v:'gnd',t:'относительно земли'}]},
+    {key:'turn1',label:'Развернуться назад через τ (0 — не разворачиваться)',unit:'с',min:0,max:20000,step:1,default:0},
+    {type:'group',label:'Тело 2'},
+    {key:'x2',  label:'Начальная координата x',unit:'м',min:-20000,max:20000,step:1,default:100},
+    {key:'y2',  label:'Начальная координата y',unit:'м',min:-20000,max:20000,step:1,default:0},
+    {key:'v2',  label:'Скорость v₂',unit:'м/с',min:0,max:500,step:0.01,default:4},
+    {key:'a2',  label:'Направление скорости (от оси x)',unit:'°',min:-180,max:180,step:0.1,default:130},
+    {key:'rel2',label:'Скорость задана',type:'select',default:'med',options:[{v:'med',t:'относительно среды'},{v:'gnd',t:'относительно земли'}]},
+    {type:'group',label:'Смотреть и останавливать'},
+    {key:'frame',label:'Система отсчёта',type:'select',default:'gnd',options:[{v:'gnd',t:'земля (берег)'},{v:'med',t:'среда (вода, воздух)'},{v:'b1',t:'тело 1'}]},
+    {key:'Rh',  label:'Тела сталкиваются на расстоянии',unit:'м',min:0.1,max:200,step:0.1,default:3},
+    {key:'relv',label:'Относительная скорость и прямая сближения',type:'check',default:true},
+    {key:'stopHit',label:'Остановить при столкновении',type:'check',default:true},
+    {key:'stopMin',label:'Остановить в момент наибольшего сближения',type:'check',default:false},
+    {key:'tStop',label:'Остановить в момент t (0 — выкл)',unit:'с',min:0,max:50000,step:0.1,default:0}
   ],
-  ДЕК:10,                                                       // высота корпуса над водой, м
-  /* траектория по параметрам: [{t,x,y,vx,vy}] до воды (или до 400 с) */
-  путь(p,шаг){ шаг=шаг||0.005; const g=p.g, th=p.th*Math.PI/180;
-    let q=[0,p.h0,p.v0*Math.cos(th),p.v0*Math.sin(th)], t=0; const out=[{t,x:q[0],y:q[1],vx:q[2],vy:q[3]}];
-    const f=(t,q)=>{ let ax=0, ay=-g; if(p.eng&&t<p.tB){ const v=Math.hypot(q[2],q[3])||1; ax+=p.aT*q[2]/v; ay+=p.aT*q[3]/v; } return [q[2],q[3],ax,ay]; };
-    while(t<400){
-      const k1=f(t,q), y2=q.map((v,i)=>v+шаг/2*k1[i]), k2=f(t+шаг/2,y2), y3=q.map((v,i)=>v+шаг/2*k2[i]), k3=f(t+шаг/2,y3),
-            y4=q.map((v,i)=>v+шаг*k3[i]), k4=f(t+шаг,y4);
-      const n=q.map((v,i)=>v+шаг/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i])); t+=шаг;
-      if(n[1]<0){ const a=q[1]/(q[1]-n[1]); out.push({t:t-шаг+a*шаг,x:q[0]+a*(n[0]-q[0]),y:0,vx:n[2],vy:n[3]}); break; }
-      q=n; out.push({t,x:q[0],y:q[1],vx:q[2],vy:q[3]});
-    }
+  U(p){ const f=p.uAng*Math.PI/180; return [p.u*Math.cos(f),p.u*Math.sin(f)]; },
+  /* собственная скорость тела i (относительно среды или земли) в момент t */
+  своя(p,i,t){ const v=i?p.v2:p.v1, a=(i?p.a2:p.a1)*Math.PI/180; let w=[v*Math.cos(a),v*Math.sin(a)];
+    if(!i&&p.turn1>0&&t>p.turn1+1e-12) w=[-w[0],-w[1]]; return w; },
+  V(p,i,t){ const w=this.своя(p,i,t), rel=i?p.rel2:p.rel1;
+    if(rel==='gnd') return w; const U=this.U(p); return [w[0]+U[0],w[1]+U[1]]; },
+  pos(p,i,t){ const x0=i?p.x2:p.x1, y0=i?p.y2:p.y1;
+    if(!i&&p.turn1>0&&t>p.turn1){ const A=this.V(p,0,0), B=this.V(p,0,t), T=p.turn1;
+      return [x0+A[0]*T+B[0]*(t-T), y0+A[1]*T+B[1]*(t-T)]; }
+    const V=this.V(p,i,0); return [x0+V[0]*t,y0+V[1]*t]; },
+  /* скорость и смещение выбранной системы отсчёта */
+  Vf(p,t){ return p.frame==='med'?this.U(p):p.frame==='b1'?this.V(p,0,t):[0,0]; },
+  сдвиг(p,t){ if(p.frame==='med'){ const U=this.U(p); return [U[0]*t,U[1]*t]; }
+    if(p.frame==='b1'){ const r=this.pos(p,0,t); return [r[0]-p.x1,r[1]-p.y1]; } return [0,0]; },
+  вСистеме(p,i,t){ const r=this.pos(p,i,t), d=this.сдвиг(p,t); return [r[0]-d[0],r[1]-d[1]]; },
+  D(p,t){ const a=this.pos(p,0,t), b=this.pos(p,1,t); return [b[0]-a[0],b[1]-a[1]]; },
+  W(p,t){ const a=this.V(p,0,t), b=this.V(p,1,t); return [b[0]-a[0],b[1]-a[1]]; },
+  /* разбор участка [ta, tb] с постоянной относительной скоростью:
+     первое вхождение в зону столкновения и вершина сближения */
+  участок(p,ta,tb){ const D=this.D(p,ta), W=this.W(p,(ta+tb)/2), A=W[0]*W[0]+W[1]*W[1], B=D[0]*W[0]+D[1]*W[1], C=D[0]*D[0]+D[1]*D[1];
+    const out={удар:NaN,мин:NaN}, Δ=tb-ta;
+    if(A>1e-18){
+      if(C>p.Rh*p.Rh){ const disc=B*B-A*(C-p.Rh*p.Rh); if(disc>=0){ const τ=(-B-Math.sqrt(disc))/A; if(τ>=0&&τ<=Δ) out.удар=ta+τ; } }
+      if(B<0){ const τ=-B/A; if(τ<=Δ) out.мин=ta+τ; } }
     return out; },
-  xs(p,t){ return p.D-p.u*t; },
-  /* исход полёта: попадание в корпус или падение в воду с промахом Δ (+ перелёт) */
-  исход(p,путь){ const L=p.Ls/2, H=this.ДЕК;
-    for(let i=1;i<путь.length;i++){ const q=путь[i], xs=this.xs(p,q.t);
-      if(q.y<=H&&Math.abs(q.x-xs)<=L) return {попал:true,t:q.t,x:q.x,y:q.y,i}; }
-    const к=путь[путь.length-1];
-    return {попал:false,t:к.t,x:к.x,y:0,Δ:к.x-this.xs(p,к.t),i:путь.length-1}; },
-  /* промах по середине корабля на уровне воды (корпус не учитываем — так корень один и точный) */
-  промах(p,θ){ const q=Object.assign({},p,{th:θ}), пу=this.путь(q,0.05), к=пу[пу.length-1]; return к.x-this.xs(q,к.t); },
-  /* углы попадания: перебор по градусу и деление пополам на смене знака промаха */
-  углы(p){ const к=JSON.stringify([p.D,p.u,p.Ls,p.v0,p.h0,p.eng,p.aT,p.tB,p.g]);
-    if(this._кэш&&this._кэш.к===к) return this._кэш.у;
-    /* пока тянут прицел, считаем не чаще раза в 150 мс — иначе перебор углов
-       на каждое движение мыши тормозит; последний расчёт догоняет таймером */
-    const сейчас=Date.now();
-    if(this._кэш&&сейчас-this._кэш.когда<150){ clearTimeout(this._таймер);
-      this._таймер=setTimeout(()=>{ try{ if(typeof drawAll==='function') drawAll(); if(typeof updateHud==='function'&&A()) updateHud(A()); }catch(_){} },160);
-      return this._кэш.у; }
-    const у=[]; let θ0=1, m0=this.промах(p,1);
-    for(let θ=3;θ<=89;θ+=2){ const m1=this.промах(p,θ);
-      if(Math.sign(m1)!==Math.sign(m0)){ let lo=θ0,hi=θ,mlo=m0;
-        for(let k=0;k<16;k++){ const mid=(lo+hi)/2, mm=this.промах(p,mid); if(Math.sign(mm)===Math.sign(mlo)){ lo=mid; mlo=mm; } else hi=mid; }
-        у.push((lo+hi)/2); }
-      θ0=θ; m0=m1; }
-    this._кэш={к,у,когда:сейчас}; return у; },
-  init(p){ const путь=this.путь(p); return {t:0,event:null,__stop:null,путь,исход:this.исход(p,путь)}; },
-  в(s,t){ const П=s.путь; if(t<=0) return П[0]; const i=Math.min(П.length-1,Math.max(1,Math.ceil(t/0.005)));
-    const a=П[i-1], b=П[i], k=b.t>a.t?clamp((t-a.t)/(b.t-a.t),0,1):1;
-    return {t,x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k,vx:a.vx+(b.vx-a.vx)*k,vy:a.vy+(b.vy-a.vy)*k}; },
-  step(s,dt,p){ if(s.event) return; s.t+=dt; const и=s.исход;
-    if(s.t>=и.t){ s.t=и.t; s.event={t:и.t,type:и.попал?'hit':'splash',x:и.x,y:и.y};
-      s.__stop=и.попал?`Попадание: t = ${и.t.toFixed(2)} с`:`${и.Δ>0?'Перелёт':'Недолёт'} ${Math.abs(и.Δ).toFixed(0)} м: ракета упала в воду через ${и.t.toFixed(2)} с`; } },
-  итог(s){ const и=s.исход; return и.попал?'попадание':`${и.Δ>0?'перелёт':'недолёт'} ${Math.abs(и.Δ).toFixed(0)} м`; },
-  readouts(s,p){ const r=this.в(s,s.t), xs=this.xs(p,s.t);
-    const out=[['t',s.t,'с'],['высота ракеты y',r.y,'м'],['скорость ракеты v',Math.hypot(r.vx,r.vy),'м/с'],
-      ['до корабля',Math.hypot(xs-r.x,r.y),'м'],['время полёта до воды',s.путь[s.путь.length-1].t,'с'],['исход',this.итог(s),'']];
-    if(p.solve){ const у=this.углы(p); out.push(['угол для попадания',у.length?у.map(a=>a.toFixed(1)+'°').join(' или '):'не достать: мала скорость','']); }
+  /* весь путь: первое столкновение и первое наибольшее сближение (до горизонта) */
+  разбор(p,T){ const точки=[0]; if(p.turn1>0&&p.turn1<T) точки.push(p.turn1); точки.push(T);
+    let удар=NaN, мин=NaN;
+    for(let k=0;k<точки.length-1;k++){ const r=this.участок(p,точки[k],точки[k+1]);
+      if(!isFinite(удар)&&isFinite(r.удар)) удар=r.удар;
+      if(!isFinite(мин)){ if(isFinite(r.мин)) мин=r.мин;
+        else if(k<точки.length-2){ const D=this.D(p,точки[k+1]), W0=this.W(p,точки[k+1]-1e-9), W1=this.W(p,точки[k+1]+1e-9);
+          if(D[0]*W0[0]+D[1]*W0[1]<0&&D[0]*W1[0]+D[1]*W1[1]>=0) мин=точки[k+1]; } } }
+    return {удар,мин}; },
+  горизонт(p){ const D=this.D(p,0), W=this.W(p,0), A=W[0]*W[0]+W[1]*W[1];
+    let T=A>1e-18?Math.max(0,-(D[0]*W[0]+D[1]*W[1])/A)*1.6:0;
+    if(p.turn1>0) T=Math.max(T,p.turn1*2.2);
+    const r=this.разбор(p,Math.max(T,1)); if(isFinite(r.удар)) T=Math.max(T,r.удар*1.25);
+    return clamp(T||20,10,1e5); },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){ if(s.event) return; let t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ t=p.tStop; }
+    const т=[s.t]; if(p.turn1>0&&p.turn1>s.t&&p.turn1<t) т.push(p.turn1); т.push(t);
+    for(let k=0;k<т.length-1;k++){ const r=this.участок(p,т[k],т[k+1]);
+      if(p.stopHit&&isFinite(r.удар)){ s.t=r.удар; const a=this.pos(p,0,s.t); s.event={type:'hit',t:s.t,x:a[0],y:a[1]};
+        s.__stop=`Столкновение: t = ${s.t.toFixed(2)} с, точка (${a[0].toFixed(1)}; ${a[1].toFixed(1)}) м`; return; }
+      let tm=r.мин;
+      if(!isFinite(tm)&&k<т.length-2){ const D=this.D(p,т[k+1]), W0=this.W(p,т[k+1]-1e-9), W1=this.W(p,т[k+1]+1e-9);
+        if(D[0]*W0[0]+D[1]*W0[1]<0&&D[0]*W1[0]+D[1]*W1[1]>=0) tm=т[k+1]; }
+      if(p.stopMin&&isFinite(tm)&&tm>s.t+1e-9){ s.t=tm; const D=this.D(p,tm), d=Math.hypot(D[0],D[1]); s.event={type:'min',t:tm,d};
+        s.__stop=`Наибольшее сближение: t = ${tm.toFixed(2)} с, расстояние ${d.toFixed(2)} м`; return; } }
+    s.t=t;
+    if(p.tStop>0&&t>=p.tStop){ s.event={type:'time',t}; s.__stop=`Остановка по времени: t = ${t.toFixed(2)} с`; } },
+  readouts(s,p){ const D=this.D(p,s.t), W=this.W(p,s.t), V1=this.V(p,0,s.t), V2=this.V(p,1,s.t), U=this.U(p);
+    const out=[['t',s.t,'с'],['расстояние между телами',Math.hypot(D[0],D[1]),'м'],
+      ['скорость тела 1 относительно земли',Math.hypot(V1[0],V1[1]),'м/с'],['скорость тела 2 относительно земли',Math.hypot(V2[0],V2[1]),'м/с'],
+      ['скорость тела 2 относительно тела 1',Math.hypot(W[0],W[1]),'м/с']];
+    if(p.u>0) out.push(['течение относительно тела 1',Math.hypot(U[0]-V1[0],U[1]-V1[1]),'м/с']);
+    out.push(['сейчас тела',s.event&&s.event.type==='hit'?'столкнулись':(D[0]*W[0]+D[1]*W[1]<0?'сближаются':'удаляются'),'']);
     return out; },
-  graphs:[
-    {label:'y(t) — высота ракеты',unit:'м',series:['ракета'],get(s){ return [SIMS.intercept.в(s,s.t).y,null]; }},
-    {label:'Расстояние от ракеты до корабля',unit:'м',series:['расстояние'],get(s,p){ const r=SIMS.intercept.в(s,s.t); return [Math.hypot(SIMS.intercept.xs(p,s.t)-r.x,r.y),null]; }},
-    {label:'v(t) — скорость ракеты',unit:'м/с',series:['ракета'],get(s){ const r=SIMS.intercept.в(s,s.t); return [Math.hypot(r.vx,r.vy),null]; }}
-  ],
+  graphs:[{label:'Расстояние между телами',unit:'м',series:['расстояние'],get(s,p){ const D=SIMS.meet2d.D(p,s.t); return [Math.hypot(D[0],D[1]),null]; }}],
   presets:[
-    {name:'Прицелились в сам корабль — перелёт',values:{D:3600,u:12,Ls:80,v0:200,th:30,h0:0,eng:false,g:9.8,lead:true,solve:false}},
-    {name:'С упреждением: настильная траектория',values:{D:3600,u:12,Ls:80,v0:200,th:27.9,h0:0,eng:false,g:9.8,lead:true,solve:true}},
-    {name:'Тот же корабль навесом',values:{D:3600,u:12,Ls:80,v0:200,th:64.7,h0:0,eng:false,g:9.8,lead:true,solve:true}},
-    {name:'С обрыва 200 м по удаляющемуся кораблю',values:{D:4000,u:-15,Ls:100,v0:230,th:23,h0:200,eng:false,g:9.8,lead:true,solve:true}},
-    {name:'Ракета с двигателем: 6 с разгона',values:{D:6000,u:15,Ls:80,v0:120,th:35,h0:0,eng:true,aT:25,tB:6,g:9.8,lead:true,solve:true}}
+    {name:'Встречные курсы: тела столкнутся',values:{u:0,uAng:0,x1:0,y1:0,v1:5,a1:60,rel1:'med',turn1:0,x2:100,y2:0,v2:5,a2:120,rel2:'med',frame:'gnd',Rh:3,stopHit:true,stopMin:false,tStop:0}},
+    {name:'То же в течении: встреча не сорвалась',values:{u:3,uAng:-90,x1:0,y1:0,v1:5,a1:60,rel1:'med',turn1:0,x2:100,y2:0,v2:5,a2:120,rel2:'med',frame:'gnd',Rh:3,stopHit:true,stopMin:false,tStop:0}},
+    {name:'Перпендикулярные курсы: наибольшее сближение',values:{u:0,x1:-300,y1:0,v1:10,a1:0,rel1:'gnd',turn1:0,x2:0,y2:-400,v2:8,a2:90,rel2:'gnd',frame:'b1',Rh:3,stopHit:true,stopMin:true,tStop:0}},
+    {name:'Лодка и плот: разворот через 10 минут',values:{u:0.5,uAng:0,x1:0,y1:0,v1:3,a1:180,rel1:'med',turn1:600,x2:0,y2:0,v2:0,a2:0,rel2:'med',frame:'gnd',Rh:5,stopHit:true,stopMin:false,tStop:0}},
+    {name:'Корабль и ветер: какой ветер чувствует палуба',values:{u:4.17,uAng:120,x1:0,y1:0,v1:8.33,a1:0,rel1:'gnd',turn1:0,x2:600,y2:250,v2:0,a2:0,rel2:'gnd',frame:'b1',Rh:3,stopHit:false,stopMin:false,tStop:60}},
+    {name:'В системе тела 1: прямая сближения',values:{u:2,uAng:30,x1:0,y1:0,v1:6,a1:20,rel1:'med',turn1:0,x2:400,y2:-150,v2:7,a2:150,rel2:'med',frame:'b1',Rh:3,stopHit:true,stopMin:true,tStop:0}}
   ],
-  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, П=this.путь(p,0.05);
-    let x1=Math.max(p.D,p.D-p.u*П[П.length-1].t)+p.Ls, ymax=Math.max(p.h0,60); for(const q of П){ x1=Math.max(x1,q.x); ymax=Math.max(ymax,q.y); }
-    const x0=-0.06*x1, span=x1*1.08-x0, hy=ymax*1.3+0.12*span*H/W;
-    const scale=clamp(Math.min((W-50)/(span*PX_PER_M),(H-50)/(hy*PX_PER_M)),1e-5,30), k=PX_PER_M*scale;
-    return {x:(x0+x1*1.08)/2, y:Math.max(ymax*0.55,H/k/2-40/k), scale}; },
-  anchors(s,p){ const и=s.исход; return [{x:0,y:p.h0},{x:p.D,y:0},{x:и.x,y:и.y}]; },
-  /* корабль: корпус, надстройка, мачта (нос — к берегу). На дальней сцене
-     настоящий корабль — пара пикселей, поэтому силуэт рисуется не короче 44 px,
-     а честная зона попадания (длина L, высота корпуса) — полосой у воды. */
-  корабль(ctx,v,p,x,цв,контур){ const пк=1/ppm(), L=Math.max(p.Ls,44*пк), H=L*0.13;
-    ctx.beginPath(); ctx.moveTo(x-L/2-L*0.06,H); ctx.lineTo(x+L/2,H); ctx.lineTo(x+L/2-L*0.05,-H*0.35); ctx.lineTo(x-L/2+L*0.12,-H*0.35); ctx.closePath();
-    if(контур){ ctx.strokeStyle=цв; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(4),v.lw(3)]); ctx.stroke(); ctx.setLineDash([]); return L; }
-    ctx.fillStyle=цв; ctx.fill();
-    ctx.fillRect(x-L*0.05,H,L*0.25,H*0.8); ctx.fillRect(x+L*0.05,H*1.8,L*0.12,H*0.5);
-    ctx.strokeStyle=цв; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.moveTo(x+L*0.1,H*2.3); ctx.lineTo(x+L*0.1,H*3.4); ctx.stroke();
-    if(L>p.Ls*1.05){ ctx.fillStyle=v.c('--accent'); ctx.fillRect(x-p.Ls/2,0,p.Ls,Math.max(this.ДЕК,3*пк)); }
-    return L; },
+  fit(p,vp){ const W=(vp&&vp.W)||460, H=(vp&&vp.H)||320, T=this.горизонт(p);
+    let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+    for(let i=0;i<2;i++) for(let k=0;k<=60;k++){ const r=this.вСистеме(p,i,T*k/60); x0=Math.min(x0,r[0]); x1=Math.max(x1,r[0]); y0=Math.min(y0,r[1]); y1=Math.max(y1,r[1]); }
+    const sx=Math.max(x1-x0,20)*1.25, sy=Math.max(y1-y0,20)*1.35;
+    const scale=clamp(Math.min((W-60)/(sx*PX_PER_M),(H-60)/(sy*PX_PER_M)),1e-5,30);
+    return {x:(x0+x1)/2,y:(y0+y1)/2,scale}; },
+  anchors(s,p){ return [0,1].map(i=>{ const r=this.вСистеме(p,i,s.t); return {x:r[0],y:r[1]}; }); },
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second');
-    const пк=1/ppm(), П=s.путь, и=s.исход, x1=Math.max(p.D,и.x)*1.6+500, xs=this.xs(p,s.t);
-    // море и волны
-    ctx.fillStyle=sec; ctx.globalAlpha=.09; ctx.fillRect(0,-4000,x1*2,4000); ctx.globalAlpha=1;
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.3); ctx.beginPath();
-    const шаг=14*пк; for(let x=0;x<=x1*1.5;x+=шаг){ const y=2*пк*Math.sin(x/(40*пк)-s.t*1.5); x?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
-    // берег
-    ctx.fillStyle=ink3; ctx.globalAlpha=.28; ctx.beginPath(); ctx.moveTo(-x1,-4000); ctx.lineTo(-x1,p.h0); ctx.lineTo(0,p.h0); ctx.lineTo(Math.max(p.h0*0.25,8*пк),-4000); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
-    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(-x1,p.h0); ctx.lineTo(0,p.h0); ctx.lineTo(Math.max(p.h0*0.25,8*пк),0); ctx.stroke();
-    // пусковая направляющая
-    const th=p.th*Math.PI/180, R=26*пк; ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(0,p.h0); ctx.lineTo(R*Math.cos(th),p.h0+R*Math.sin(th)); ctx.stroke();
-    // упреждение: где будет корабль в момент падения ракеты, и куда она упадёт
-    if(p.lead&&!s.event){
-      ctx.strokeStyle=acc; ctx.globalAlpha=.4; ctx.lineWidth=v.lw(1.4); ctx.setLineDash([v.lw(5),v.lw(4)]); ctx.beginPath();
-      П.forEach((q,i)=>{ if(i%8&&i!==П.length-1) return; i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y); }); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
-      const xT=this.xs(p,и.t); this.корабль(ctx,v,p,xT,ink3,true);
-      v.label(ctx,`здесь через ${и.t.toFixed(1)} с`,xT,0,0,-76,ink3);
-      ctx.fillStyle=и.попал?acc:dang; ctx.beginPath(); ctx.arc(и.x,и.y,v.lw(3.5),0,7); ctx.fill();
-    }
-    if(p.solve&&!s.event){ const у=this.углы(p);
-      if(!this._призраки||this._призраки.у!==у) this._призраки={у,пути:у.map(a=>this.путь(Object.assign({},p,{th:a}),0.05))};
-      for(const пу of this._призраки.пути){
-      ctx.strokeStyle=v.c('--ok'); ctx.globalAlpha=.55; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(2),v.lw(4)]); ctx.beginPath();
-      пу.forEach((r,i)=>i?ctx.lineTo(r.x,r.y):ctx.moveTo(r.x,r.y)); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1; } }
-    // корабль
-    this.корабль(ctx,v,p,xs,ink2,false);
-    // пройденный путь ракеты
-    const r=this.в(s,s.t);
-    ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.moveTo(П[0].x,П[0].y);
-    for(let i=1;i<П.length&&П[i].t<=s.t;i+=4) ctx.lineTo(П[i].x,П[i].y); ctx.lineTo(r.x,r.y); ctx.stroke();
-    // ракета: корпус по скорости, факел, пока работает двигатель
-    if(!s.event){ const ang=Math.atan2(r.vy,r.vx), ux=Math.cos(ang), uy=Math.sin(ang), Lр=20*пк, Wр=3.5*пк;
-      if(p.eng&&s.t<p.tB){ ctx.fillStyle=meas; ctx.beginPath(); ctx.moveTo(r.x-ux*Lр*0.5+uy*Wр,r.y-uy*Lр*0.5-ux*Wр); ctx.lineTo(r.x-ux*Lр*(1.1+0.2*Math.sin(s.t*40)),r.y-uy*Lр*(1.1+0.2*Math.sin(s.t*40))); ctx.lineTo(r.x-ux*Lр*0.5-uy*Wр,r.y-uy*Lр*0.5+ux*Wр); ctx.fill(); }
-      ctx.fillStyle=ink2; ctx.beginPath(); ctx.moveTo(r.x+ux*Lр*0.5,r.y+uy*Lр*0.5); ctx.lineTo(r.x-ux*Lр*0.5+uy*Wр,r.y-uy*Lр*0.5-ux*Wр); ctx.lineTo(r.x-ux*Lр*0.5-uy*Wр,r.y-uy*Lр*0.5+ux*Wр); ctx.closePath(); ctx.fill(); }
-    // исход
-    if(s.event){ const e=s.event;
-      if(e.type==='hit'){ ctx.strokeStyle=dang; ctx.lineWidth=v.lw(2);
-        for(let k=0;k<12;k++){ const a=k*Math.PI/6, r1=6*пк, r2=(k%2?16:24)*пк; ctx.beginPath(); ctx.moveTo(e.x+r1*Math.cos(a),e.y+r1*Math.sin(a)); ctx.lineTo(e.x+r2*Math.cos(a),e.y+r2*Math.sin(a)); ctx.stroke(); }
-        ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(e.x,e.y,v.lw(6),0,7); ctx.fill();
-        v.label(ctx,'попадание',e.x,e.y,14,-30,dang);
-      } else { ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6);
-        for(let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(e.x+k*3*пк,0); ctx.lineTo(e.x+k*5*пк,(18-3*Math.abs(k))*пк); ctx.stroke(); }
-        v.label(ctx,this.итог(s),e.x,0,10,-34,dang); }
-    }
-    // расстояние до корабля в момент пуска
-    if(s.t<0.6){ const y=-26*пк; v.arrow(ctx,0,y,p.D,y,ink3); v.label(ctx,`D = ${p.D} м`,p.D/2,y,0,14,ink3); }
-    if(Math.abs(p.u)>0.01&&!s.event){ const y=30*пк, d=-Math.sign(p.u)*34*пк; v.arrow(ctx,xs,y,xs+d,y,ink3); v.label(ctx,`u = ${Math.abs(p.u)} м/с`,xs+d,y,Math.sign(d)*8,-12,ink3); }
+    const пк=1/ppm(), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), sec=v.c('--second'), cols=[v.c('--accent'),v.c('--third')||v.c('--danger')];
+    const T=this.горизонт(p), U=this.U(p), Vf=this.Vf(p,s.t);
+    // поток: стрелки движутся со скоростью среды в выбранной системе
+    if(p.u>0){ const cv=ctx.canvas, a=toWorld(0,0), b=toWorld(cv.clientWidth||cv.width,cv.clientHeight||cv.height);
+      const шаг=80*пк, w=[U[0]-Vf[0],U[1]-Vf[1]], m=Math.hypot(w[0],w[1]);
+      const ox=((w[0]*s.t)%шаг+шаг)%шаг, oy=((w[1]*s.t)%шаг+шаг)%шаг;
+      ctx.strokeStyle=sec; ctx.fillStyle=sec; ctx.globalAlpha=.22; ctx.lineWidth=v.lw(1.1);
+      const xa=Math.min(a[0],b[0]), xb=Math.max(a[0],b[0]), ya=Math.min(a[1],b[1]), yb=Math.max(a[1],b[1]);
+      const ex=m>1e-9?w[0]/m:0, ey=m>1e-9?w[1]/m:0, L=16*пк;
+      for(let x=Math.floor(xa/шаг)*шаг-шаг;x<xb+шаг;x+=шаг) for(let y=Math.floor(ya/шаг)*шаг-шаг;y<yb+шаг;y+=шаг){
+        const cx=x+ox, cy=y+oy;
+        if(m<1e-9){ ctx.beginPath(); ctx.arc(cx,cy,v.lw(1.4),0,7); ctx.fill(); continue; }
+        ctx.beginPath(); ctx.moveTo(cx-ex*L,cy-ey*L); ctx.lineTo(cx+ex*L,cy+ey*L); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+ex*L,cy+ey*L); ctx.lineTo(cx+ex*L*0.4-ey*L*0.4,cy+ey*L*0.4+ex*L*0.4); ctx.lineTo(cx+ex*L*0.4+ey*L*0.4,cy+ey*L*0.4-ex*L*0.4); ctx.closePath(); ctx.fill(); }
+      ctx.globalAlpha=1; }
+    // будущие пути (бледно) и пройденные (ярко) — в выбранной системе
+    for(let i=0;i<2;i++){ const c=cols[i];
+      const рис=(t0,t1)=>{ const n=80, pts=[]; const ts=[]; for(let k=0;k<=n;k++) ts.push(t0+(t1-t0)*k/n);
+        if(p.turn1>0&&p.turn1>t0&&p.turn1<t1) ts.push(p.turn1); ts.sort((a,b)=>a-b);
+        ctx.beginPath(); ts.forEach((t,k)=>{ const r=this.вСистеме(p,i,t); k?ctx.lineTo(r[0],r[1]):ctx.moveTo(r[0],r[1]); }); ctx.stroke(); };
+      if(!s.event){ ctx.strokeStyle=c; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(1.3); ctx.setLineDash([v.lw(5),v.lw(5)]); рис(s.t,Math.max(T,s.t+1)); ctx.setLineDash([]); }
+      ctx.globalAlpha=1; ctx.strokeStyle=c; ctx.lineWidth=v.lw(2); if(s.t>0) рис(0,s.t);
+      const r0=this.вСистеме(p,i,0); ctx.fillStyle=c; ctx.globalAlpha=.45; ctx.beginPath(); ctx.arc(r0[0],r0[1],v.lw(3),0,7); ctx.fill(); ctx.globalAlpha=1; }
+    // прямая сближения в системе тела 1 и перпендикуляр — наименьшее расстояние
+    const r1=this.вСистеме(p,0,s.t), r2=this.вСистеме(p,1,s.t), W=this.W(p,s.t), Wm=Math.hypot(W[0],W[1]);
+    if(p.relv&&Wm>1e-9&&!(s.event&&(s.event.type==='hit'||s.event.type==='min'))){
+      if(p.frame==='b1'){ const e=[W[0]/Wm,W[1]/Wm], L=1e6;
+        ctx.strokeStyle=meas; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(3),v.lw(4)]);
+        ctx.beginPath(); ctx.moveTo(r2[0],r2[1]); ctx.lineTo(r2[0]+e[0]*L,r2[1]+e[1]*L); ctx.stroke(); ctx.setLineDash([]);
+        const τ=(r1[0]-r2[0])*e[0]+(r1[1]-r2[1])*e[1];
+        if(τ>0){ const f=[r2[0]+e[0]*τ,r2[1]+e[1]*τ], d=Math.hypot(r1[0]-f[0],r1[1]-f[1]);
+          ctx.globalAlpha=1; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.moveTo(r1[0],r1[1]); ctx.lineTo(f[0],f[1]); ctx.stroke();
+          ctx.beginPath(); ctx.arc(f[0],f[1],v.lw(3),0,7); ctx.fillStyle=meas; ctx.fill();
+          v.label(ctx,d<=p.Rh?'прямая проходит через тело 1 — столкнутся':`наименьшее расстояние ${d.toFixed(1)} м`,(r1[0]+f[0])/2,(r1[1]+f[1])/2,10,-12,meas); }
+        else v.label(ctx,'тело 2 уже удаляется',r2[0],r2[1],12,24,meas);
+        ctx.globalAlpha=1; }
+      else { const k=Math.min(6,70/Math.max(Wm,1e-9))*пк; v.arrow(ctx,r2[0],r2[1],r2[0]+W[0]*k,r2[1]+W[1]*k,meas);
+        v.label(ctx,'v₂ − v₁',r2[0]+W[0]*k,r2[1]+W[1]*k,8,-10,meas); } }
+    // скорости тел в выбранной системе
+    const скор=[0,1].map(i=>{ const V=this.V(p,i,s.t); return [V[0]-Vf[0],V[1]-Vf[1]]; });
+    const vmax=Math.max(1e-9,...скор.map(q=>Math.hypot(q[0],q[1])),Math.hypot(U[0]-Vf[0],U[1]-Vf[1]));
+    const kv=Math.min(8,60/vmax)*пк;
+    [r1,r2].forEach((r,i)=>{ const q=скор[i], c=cols[i];
+      if(!s.event&&Math.hypot(q[0],q[1])>1e-6) v.arrow(ctx,r[0],r[1],r[0]+q[0]*kv,r[1]+q[1]*kv,c);
+      ctx.fillStyle=c; ctx.beginPath(); ctx.arc(r[0],r[1],Math.max(p.Rh/2,v.lw(6)),0,7); ctx.fill();
+      v.label(ctx,`тело ${i+1}`,r[0],r[1],12,i?16:-16,c); });
+    if(s.event&&s.event.type==='hit'){ ctx.strokeStyle=v.c('--danger'); ctx.lineWidth=v.lw(2);
+      for(let k=0;k<10;k++){ const a=k*Math.PI/5, a1=9*пк, a2=(k%2?16:22)*пк; ctx.beginPath(); ctx.moveTo(r1[0]+a1*Math.cos(a),r1[1]+a1*Math.sin(a)); ctx.lineTo(r1[0]+a2*Math.cos(a),r1[1]+a2*Math.sin(a)); ctx.stroke(); } }
+    if(s.event&&s.event.type==='min'){ ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(r1[0],r1[1]); ctx.lineTo(r2[0],r2[1]); ctx.stroke();
+      v.label(ctx,`d = ${s.event.d.toFixed(2)} м`,(r1[0]+r2[0])/2,(r1[1]+r2[1])/2,10,-12,meas); }
+    const имя={gnd:'земли',med:'среды',b1:'тела 1'}[p.frame]||'земли';
+    { const cv=ctx.canvas, q=toWorld(14,(cv.clientHeight||cv.height)-18);
+      v.text(ctx,`система отсчёта ${имя}${p.u>0?(p.frame==='med'?' · среда покоится':' · стрелки — течение'):''}`,q[0],q[1],ink3,11,'left'); }
   },
   /* ---- инструменты модели ----
-     «Прицел» — потяните от пусковой: длина стрелки — скорость, направление — угол;
-     «Корабль» — передвиньте корабль по морю (расстояние D в момент пуска). */
-  ПИКС:0.8,                                                    // пикселей стрелки на 1 м/с
+     «Положение» — перенести тело; «Скорость» — вытянуть её стрелку от тела;
+     «Течение» — провести стрелку течения в любом месте сцены. */
+  ПИКС:6,
   tools(p){ const S1=this;
+    const экран=(т,i)=>{ const r=S1.вСистеме(т.p,i,т.s.t); return т.toScreen(r[0],r[1]); };
+    const ближ=т=>{ let луч=-1, мин=28; for(let i=0;i<2;i++){ const q=экран(т,i), d=Math.hypot(q[0]-т.px,q[1]-т.py); if(d<мин){ мин=d; луч=i; } } return луч; };
+    const кольцо=(o,т)=>{ const i=т.выбор.i; if(i==null) return; const r=S1.вСистеме(т.p,i,т.s.t); o.strokeStyle=css('--accent'); o.lineWidth=VIEW.lw(2); o.beginPath(); o.arc(r[0],r[1],VIEW.lw(14),0,7); o.stroke(); };
+    const К=i=>i?['x2','y2','v2','a2']:['x1','y1','v1','a1'];
     return [
-      {id:'aim', name:'Прицел', cursor:'crosshair',
-       icon:'<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>',
-       hint:'потяните от пусковой: длина — скорость, направление — угол; ←/→ — угол, ↑/↓ — скорость',
-       down(т){ const [x,y]=т.toScreen(0,т.p.h0); т.выбор.в=Math.hypot(т.px-x,т.py-y)<60; return т.выбор.в; },
-       move(т){ const [x,y]=т.toScreen(0,т.p.h0), dx=т.px-x, dy=y-т.py; т.set('v0',Math.hypot(dx,dy)/S1.ПИКС); т.set('th',clamp(Math.atan2(dy,dx)*180/Math.PI,1,89)); },
-       key(k,т){ const ш=т.shift?5:1;
-         if(k==='ArrowLeft'||k==='ArrowRight'){ т.set('th',т.p.th+(k==='ArrowLeft'?ш:-ш)*0.5); return true; }
-         if(k==='ArrowUp'||k==='ArrowDown'){ т.set('v0',т.p.v0+(k==='ArrowUp'?ш:-ш)); return true; } return false; },
-       overlay(o,т){ const th=т.p.th*Math.PI/180, L=т.p.v0*S1.ПИКС/т.ppm, x=L*Math.cos(th), y=т.p.h0+L*Math.sin(th);
-         VIEW.arrow(o,0,т.p.h0,x,y,css('--accent')); VIEW.label(o,`v₀ = ${т.p.v0} м/с, θ = ${т.p.th}°`,x,y,10,-12,css('--accent')); }},
-      {id:'ship', name:'Корабль', cursor:'ew-resize',
-       icon:'<path d="M3 15h18l-2.5 4h-13z"/><path d="M8 15v-4h7v4M11 11V7"/>',
-       hint:'передвиньте корабль по морю — так задаётся расстояние D в момент пуска; ←/→ — по 50 м. Силуэт крупнее настоящего, корпус в настоящем масштабе — полоса у воды',
-       down(т){ return true; },
-       move(т){ т.set('D',т.wx); },
-       key(k,т){ const зн={ArrowRight:1,ArrowLeft:-1}[k]; if(!зн) return false; т.set('D',т.p.D+зн*(т.shift?250:50)); return true; },
-       overlay(o,т){ const пк=1/т.ppm; o.strokeStyle=css('--accent'); o.globalAlpha=.6; o.lineWidth=пк; o.setLineDash([3*пк,4*пк]);
-         o.beginPath(); o.moveTo(т.p.D,0); o.lineTo(т.p.D,110*пк); o.stroke(); o.setLineDash([]); o.globalAlpha=1; }}
+      {id:'pos', name:'Положение тела', cursor:'move',
+       icon:'<circle cx="12" cy="12" r="3.2"/><path d="M12 3v4.5M12 16.5V21M3 12h4.5M16.5 12H21"/>',
+       hint:'возьмите тело и перенесите; стрелки клавиатуры сдвигают выделенное (Shift — крупнее)',
+       down(т){ const i=ближ(т); т.выбор.i=i<0?null:i; return i>=0; },
+       move(т){ const к=К(т.выбор.i); т.set(к[0],т.wx); т.set(к[1],т.wy); },
+       key(k,т){ const i=т.выбор.i; if(i==null) return false; const к=К(i), ш=(т.shift?50:5)/Math.max(1e-9,т.ppm/PX_PER_M)/8;
+         const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,1],ArrowDown:[0,-1]}[k]; if(!d) return false;
+         т.set(к[0],т.p[к[0]]+d[0]*ш); т.set(к[1],т.p[к[1]]+d[1]*ш); return true; },
+       overlay(o,т){ кольцо(o,т); }},
+      {id:'vel', name:'Скорость стрелкой', cursor:'crosshair',
+       icon:'<circle cx="5" cy="19" r="2.4"/><path d="M7 17 19 5M13 5h6v6"/>',
+       hint:'потяните от тела: длина стрелки — скорость (относительно среды или земли, как задано), направление — курс',
+       down(т){ const i=ближ(т); т.выбор.i=i<0?null:i; return i>=0; },
+       move(т){ const i=т.выбор.i, [sx,sy]=экран(т,i), dx=т.px-sx, dy=sy-т.py, к=К(i);
+         т.set(к[2],Math.hypot(dx,dy)/S1.ПИКС); т.set(к[3],Math.atan2(dy,dx)*180/Math.PI); },
+       key(k,т){ const i=т.выбор.i; if(i==null) return false; const к=К(i), ш=т.shift?10:1;
+         if(k==='ArrowLeft'||k==='ArrowRight'){ т.set(к[3],т.p[к[3]]+(k==='ArrowLeft'?ш:-ш)); return true; }
+         if(k==='ArrowUp'||k==='ArrowDown'){ т.set(к[2],Math.max(0,т.p[к[2]]+(k==='ArrowUp'?0.1:-0.1)*ш)); return true; } return false; },
+       overlay(o,т){ кольцо(o,т); const i=т.выбор.i; if(i==null) return; const r=S1.вСистеме(т.p,i,0), w=S1.своя(т.p,i,0), k=S1.ПИКС/т.ppm;
+         VIEW.arrow(o,r[0],r[1],r[0]+w[0]*k,r[1]+w[1]*k,css('--accent'));
+         VIEW.label(o,`v = ${т.p[К(i)[2]]} м/с, ${т.p[К(i)[3]]}°`,r[0]+w[0]*k,r[1]+w[1]*k,10,-12,css('--accent')); }},
+      {id:'flow', name:'Течение', cursor:'crosshair',
+       icon:'<path d="M3 8c3-2 5 2 8 0s5-2 8 0M3 13c3-2 5 2 8 0s5-2 8 0M15 17h5M17.5 14.5 20 17l-2.5 2.5"/>',
+       hint:'проведите стрелку в любом месте: её длина — скорость течения, направление — куда течёт',
+       down(т){ т.выбор.с=[т.px,т.py,т.wx,т.wy]; return true; },
+       move(т){ const [px,py]=т.выбор.с, dx=т.px-px, dy=py-т.py; т.set('u',Math.hypot(dx,dy)/S1.ПИКС); т.set('uAng',Math.atan2(dy,dx)*180/Math.PI); },
+       key(k,т){ if(k==='ArrowLeft'||k==='ArrowRight'){ т.set('uAng',т.p.uAng+(k==='ArrowLeft'?5:-5)); return true; }
+         if(k==='ArrowUp'||k==='ArrowDown'){ т.set('u',Math.max(0,т.p.u+(k==='ArrowUp'?0.1:-0.1)*(т.shift?10:1))); return true; } return false; },
+       overlay(o,т){ const с=т.выбор.с; if(!с) return; const U=S1.U(т.p), k=S1.ПИКС/т.ppm;
+         VIEW.arrow(o,с[2],с[3],с[2]+U[0]*k,с[3]+U[1]*k,css('--second'));
+         VIEW.label(o,`u = ${т.p.u} м/с, ${т.p.uAng}°`,с[2]+U[0]*k,с[3]+U[1]*k,10,-12,css('--second')); }}
     ];
   }
+},
+
+/* ---------------- ПОГОНЯ (9.2.0) ----------------
+   Две классические задачи о кривой погони. N точек стоят в вершинах
+   правильного многоугольника со стороной a и с одинаковой по модулю
+   скоростью v всё время идут на соседку. По симметрии фигура остаётся
+   правильным многоугольником, а сторона укорачивается с постоянной
+   скоростью v(1 − cos 2π/N): каждая точка идёт прямо на соседку, а та уходит
+   под углом 2π/N. Встреча — через T = a/(v(1 − cos 2π/N)). Во втором
+   опыте A гонится за B, который идёт по прямой со скоростью u перпендикулярно
+   начальному отрезку AB длиной l; при u < v встреча через T = vl/(v² − u²).
+   Уравнения интегрируются численно (Рунге — Кутта), шаг мельчает у встречи. */
+pursuit:{
+  title:'Погоня: кривая преследования',
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'poly',options:[{v:'poly',t:'точки в вершинах многоугольника'},{v:'chase',t:'A гонится за B, B идёт по прямой'}]},
+    {type:'group',label:'Многоугольник',если:p=>p.mode==='poly'},
+    {key:'N',label:'Число точек N',min:2,max:8,step:1,default:3,если:p=>p.mode==='poly'},
+    {key:'a',label:'Сторона многоугольника a',unit:'м',min:1,max:5000,step:1,default:100,если:p=>p.mode==='poly'},
+    {type:'group',label:'Догонялки',если:p=>p.mode==='chase'},
+    {key:'l',label:'Начальное расстояние AB',unit:'м',min:1,max:5000,step:1,default:100,если:p=>p.mode==='chase'},
+    {key:'u',label:'Скорость B (поперёк AB)',unit:'м/с',min:0,max:100,step:0.1,default:3,если:p=>p.mode==='chase'},
+    {type:'group',label:'Общее'},
+    {key:'v',label:'Скорость преследователя v',unit:'м/с',min:0.1,max:100,step:0.1,default:5},
+    {key:'trail',label:'Следы',type:'check',default:true},
+    {key:'stopMeet',label:'Остановить при встрече',type:'check',default:true},
+    {key:'tStop',label:'Остановить в момент t (0 — выкл)',unit:'с',min:0,max:5000,step:0.1,default:0}
+  ],
+  R(p){ const N=Math.max(2,Math.round(p.N)); return p.a/(2*Math.sin(Math.PI/N)); },
+  нач(p){ if(p.mode==='chase') return [[0,0],[p.l,0]];
+    const N=Math.max(2,Math.round(p.N)), R=this.R(p), out=[];
+    for(let k=0;k<N;k++){ const f=Math.PI/2+2*Math.PI*k/N; out.push([R*Math.cos(f),R*Math.sin(f)]); } return out; },
+  d0(p){ return p.mode==='chase'?p.l:p.a; },
+  /* скорости всех точек при положениях q */
+  скор(p,q,t){ const out=[];
+    if(p.mode==='chase'){ const dx=q[1][0]-q[0][0], dy=q[1][1]-q[0][1], d=Math.hypot(dx,dy)||1;
+      out.push([p.v*dx/d,p.v*dy/d],[0,p.u]); return out; }
+    const N=q.length; for(let k=0;k<N;k++){ const n=q[(k+1)%N], dx=n[0]-q[k][0], dy=n[1]-q[k][1], d=Math.hypot(dx,dy)||1; out.push([p.v*dx/d,p.v*dy/d]); }
+    return out; },
+  dist(p,q){ return Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1]); },
+  init(p){ const q=this.нач(p); return {t:0,q,следы:q.map(r=>[r.slice()]),event:null,__stop:null,мет:0}; },
+  шаг(p,q,t,h){ const сл=(q,k,h)=>q.map((r,i)=>[r[0]+h*k[i][0],r[1]+h*k[i][1]]);
+    const k1=this.скор(p,q,t), k2=this.скор(p,сл(q,k1,h/2),t+h/2), k3=this.скор(p,сл(q,k2,h/2),t+h/2), k4=this.скор(p,сл(q,k3,h),t+h);
+    return q.map((r,i)=>[r[0]+h/6*(k1[i][0]+2*k2[i][0]+2*k3[i][0]+k4[i][0]), r[1]+h/6*(k1[i][1]+2*k2[i][1]+2*k3[i][1]+k4[i][1])]); },
+  step(s,dt,p){ if(s.event) return;
+    let t=s.t, end=s.t+dt; if(p.tStop>0) end=Math.min(end,p.tStop);
+    const eps=this.d0(p)*2e-4;
+    while(t<end-1e-12){ const d=this.dist(p,s.q);
+      if(p.stopMeet&&d<=eps){ s.t=t; s.event={type:'meet',t}; s.__stop=`Встреча: t = ${t.toFixed(2)} с, каждый преследователь прошёл ${(p.v*t).toFixed(1)} м`; return; }
+      const h=Math.min(end-t,Math.max(1e-6,d/(p.v+(p.u||0)+1e-9)/40)); s.q=this.шаг(p,s.q,t,h); t+=h; }
+    s.t=end;
+    if(p.trail&&s.t-s.мет>=0){ s.q.forEach((r,i)=>{ const L=s.следы[i], z=L[L.length-1]; if(Math.hypot(r[0]-z[0],r[1]-z[1])>this.d0(p)*2e-3){ L.push(r.slice()); if(L.length>3000) L.shift(); } }); }
+    if(p.tStop>0&&s.t>=p.tStop){ s.event={type:'time',t:s.t}; s.__stop=`Остановка по времени: t = ${s.t.toFixed(2)} с`; } },
+  readouts(s,p){ const d=this.dist(p,s.q);
+    return [['t',s.t,'с'],[p.mode==='chase'?'расстояние A–B':'расстояние между соседями',d,'м'],
+      [p.mode==='chase'?'путь A':'путь каждой точки',p.v*s.t,'м'],
+      [p.mode==='chase'?'путь B':'расстояние до центра',p.mode==='chase'?(p.u||0)*s.t:Math.hypot(s.q[0][0],s.q[0][1]),'м']]; },
+  graphs:[{label:'Расстояние между преследователем и целью',unit:'м',series:['d'],get(s,p){ return [SIMS.pursuit.dist(p,s.q),null]; }}],
+  presets:[
+    {name:'Три точки в вершинах треугольника',values:{mode:'poly',N:3,a:100,v:5,trail:true,stopMeet:true,tStop:0}},
+    {name:'Четыре черепахи в углах квадрата',values:{mode:'poly',N:4,a:100,v:5,trail:true,stopMeet:true,tStop:0}},
+    {name:'Шесть точек: спираль закручивается сильнее',values:{mode:'poly',N:6,a:100,v:5,trail:true,stopMeet:true,tStop:0}},
+    {name:'Собака гонится за зайцем (u < v)',values:{mode:'chase',l:100,u:3,v:5,trail:true,stopMeet:true,tStop:0}},
+    {name:'Равные скорости: догнать нельзя',values:{mode:'chase',l:100,u:5,v:5,trail:true,stopMeet:true,tStop:200}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460, H=(vp&&vp.H)||320;
+    if(p.mode==='chase'){ const T=p.u<p.v?p.v*p.l/(p.v*p.v-p.u*p.u):(p.tStop||4*p.l/p.v), y1=Math.max(p.l*0.3,Math.min(p.u*T,p.l*4));
+      const sx=p.l*1.35, sy=y1*1.25; const scale=clamp(Math.min((W-60)/(sx*PX_PER_M),(H-60)/(sy*PX_PER_M)),1e-5,30);
+      return {x:p.l*0.5,y:y1*0.45,scale}; }
+    const R=this.R(p), scale=clamp(Math.min(W-60,H-60)/(2.5*R*PX_PER_M),1e-5,30); return {x:0,y:0,scale}; },
+  anchors(s,p){ return s.q.map(r=>({x:r[0],y:r[1]})).concat([{x:0,y:0}]); },
+  draw(ctx,s,v,p){
+    const пк=1/ppm(), ink3=v.c('--ink-3'), meas=v.c('--measure'), cols=[v.c('--accent'),v.c('--second'),v.c('--third')||v.c('--danger'),v.c('--measure')];
+    const q=s.q, n=q.length;
+    if(p.mode==='poly'){ // начальный многоугольник и нынешний
+      const q0=this.нач(p); ctx.strokeStyle=ink3; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(4),v.lw(4)]);
+      ctx.beginPath(); q0.forEach((r,i)=>i?ctx.lineTo(r[0],r[1]):ctx.moveTo(r[0],r[1])); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha=.5; ctx.beginPath(); q.forEach((r,i)=>i?ctx.lineTo(r[0],r[1]):ctx.moveTo(r[0],r[1])); ctx.closePath(); ctx.stroke(); ctx.globalAlpha=1;
+      ctx.fillStyle=ink3; ctx.beginPath(); ctx.arc(0,0,v.lw(2.5),0,7); ctx.fill(); }
+    else { ctx.strokeStyle=ink3; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(5),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(p.l,0); ctx.lineTo(p.l,1e6); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(q[0][0],q[0][1]); ctx.lineTo(q[1][0],q[1][1]); ctx.stroke(); ctx.globalAlpha=1; }
+    if(p.trail) s.следы.forEach((L,i)=>{ ctx.strokeStyle=cols[i%cols.length]; ctx.lineWidth=v.lw(1.8); ctx.beginPath();
+      L.forEach((r,k)=>k?ctx.lineTo(r[0],r[1]):ctx.moveTo(r[0],r[1])); ctx.lineTo(q[i][0],q[i][1]); ctx.stroke(); });
+    const V=this.скор(p,q,s.t), vm=Math.max(p.v,p.u||0,1e-9), k=Math.min(8,40/vm)*пк;
+    q.forEach((r,i)=>{ const c=cols[i%cols.length];
+      if(!s.event&&Math.hypot(V[i][0],V[i][1])>1e-9) v.arrow(ctx,r[0],r[1],r[0]+V[i][0]*k,r[1]+V[i][1]*k,c);
+      ctx.fillStyle=c; ctx.beginPath(); ctx.arc(r[0],r[1],v.lw(5.5),0,7); ctx.fill();
+      if(p.mode==='chase') v.label(ctx,i?'B':'A',r[0],r[1],10,-12,c); });
+    if(s.event&&s.event.type==='meet'){ ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.arc(q[0][0],q[0][1],v.lw(14),0,7); ctx.stroke();
+      v.label(ctx,`встреча через ${s.event.t.toFixed(2)} с`,q[0][0],q[0][1],16,-18,meas); }
+  },
+  /* ---- инструмент модели: «Размер» — потяните точку от центра (или B вдоль оси) ---- */
+  tools(p){ return [{id:'size', name:'Размер фигуры', cursor:'move',
+    icon:'<path d="M12 4 20 18H4z"/><path d="M15 3h6v6"/>',
+    hint:'потяните любую точку: в многоугольнике — от центра (меняется сторона a), в догонялках — B вдоль оси (меняется l)',
+    down(т){ return true; },
+    move(т){ if(т.p.mode==='chase'){ т.set('l',Math.max(1,т.wx)); return; }
+      const N=Math.max(2,Math.round(т.p.N)), R=Math.hypot(т.wx,т.wy); т.set('a',2*R*Math.sin(Math.PI/N)); },
+    key(k,т){ const кл=т.p.mode==='chase'?'l':'a', зн={ArrowUp:1,ArrowRight:1,ArrowDown:-1,ArrowLeft:-1}[k]; if(!зн) return false;
+      т.set(кл,т.p[кл]+зн*(т.shift?50:5)); return true; },
+    overlay(o,т){ const кл=т.p.mode==='chase'?'l':'a'; VIEW.label(o,`${кл} = ${т.p[кл]} м`,т.wx||0,т.wy||0,12,-14,css('--accent')); }}]; }
 },
 
 /* ---------------- ПЕРЕПРАВА ЧЕРЕЗ РЕКУ: СЛОЖЕНИЕ СКОРОСТЕЙ ---------------- */
@@ -5795,16 +5992,18 @@ river:{
 
 /* ---------------- РАВНОМЕРНОЕ ДВИЖЕНИЕ ПО ОКРУЖНОСТИ ---------------- */
 circular:{
-  title:'Равномерное движение по окружности',
+  title:'Движение по окружности',
   params:[
     {key:'mode',label:'Задавать движение',type:'select',default:'v',
-     options:[{v:'v',t:'через скорость v'},{v:'T',t:'через период T'}]},
+     options:[{v:'v',t:'равномерно, через скорость v'},{v:'T',t:'равномерно, через период T'},{v:'acc',t:'с касательным ускорением aτ'}]},
     /* Верхние пределы подняты так, чтобы помещались и планетные масштабы
        (пример «Экватор Земли»). Ползунка нет — только числовое поле с шагом,
        поэтому широкий диапазон не мешает точной установке обычных значений. */
     {key:'R',  label:'Радиус R',   unit:'м',  min:0.2,max:1e7,  step:0.1,default:5},
-    {key:'v',  label:'Скорость v', unit:'м/с',min:0.1,max:1000, step:0.1,default:10},
-    {key:'T',  label:'Период T',   unit:'с',  min:0.1,max:1e5,  step:0.1,default:3.14},
+    {key:'v',  label:'Скорость v', unit:'м/с',min:0.1,max:1000, step:0.1,default:10,если:p=>p.mode==='v'},
+    {key:'T',  label:'Период T',   unit:'с',  min:0.1,max:1e5,  step:0.1,default:3.14,если:p=>p.mode==='T'},
+    {key:'v0', label:'Начальная скорость v₀',unit:'м/с',min:0,max:1000,step:0.1,default:0,если:p=>p.mode==='acc'},
+    {key:'at', label:'Касательное ускорение aτ',unit:'м/с²',min:-100,max:100,step:0.01,default:0.5,если:p=>p.mode==='acc'},
     {key:'dir',label:'Направление',type:'select',default:'ccw',
      options:[{v:'ccw',t:'против часовой'},{v:'cw',t:'по часовой'}]},
     {type:'group',label:'Показывать'},
@@ -5821,27 +6020,44 @@ circular:{
     {name:'Карусель: R = 5 м, v = 10 м/с',
      values:{mode:'v',R:5,v:10,dir:'ccw',turns:0,tStop:0}},
     {name:'Один оборот и стоп',
-     values:{mode:'v',R:5,v:10,dir:'ccw',turns:1,tStop:0}}
+     values:{mode:'v',R:5,v:10,dir:'ccw',turns:1,tStop:0}},
+    {name:'Разгон с места: v = aτt, стоп через 0,1 оборота',
+     values:{mode:'acc',R:5,v0:0,at:0.5,dir:'ccw',turns:0.1,tStop:0}},
+    {name:'Торможение на повороте до остановки',
+     values:{mode:'acc',R:20,v0:15,at:-2,dir:'ccw',turns:0,tStop:0}}
   ],
-  kin(p){                                   // согласованные v, T, ω, a_c
-    const v = p.mode==='v' ? p.v : 2*Math.PI*p.R/p.T;
+  /* путь по дуге и скорость в момент t (при разгоне — v = v₀ + aτt, не ниже нуля) */
+  дуга(p,t){ if(p.mode!=='acc') return null; const v0=p.v0||0, a=p.at||0;
+    const tс=a<0?v0/(-a):Infinity, τ=Math.min(t,tс); return {s:v0*τ+a*τ*τ/2, v:Math.max(0,v0+a*τ), tс}; },
+  kin(p,t){                                 // согласованные v, T, ω, a_c (при разгоне — мгновенные)
+    const д=this.дуга(p,t||0);
+    const v = д ? д.v : p.mode==='v' ? p.v : 2*Math.PI*p.R/p.T;
     const T = 2*Math.PI*p.R/Math.max(v,1e-9);
-    return {v, T, w:v/p.R, ac:v*v/p.R, sgn:p.dir==='cw'?-1:1};
+    const at=д&&!(д.v===0&&(p.at||0)<0)?(p.at||0):0;
+    return {v, T, w:v/p.R, ac:v*v/p.R, at, a:Math.hypot(at,v*v/p.R), path:д?д.s:v*(t||0), sgn:p.dir==='cw'?-1:1};
   },
+  /* момент, когда пройдено n оборотов */
+  tОборотов(p,n){ const L=2*Math.PI*p.R*n;
+    if(p.mode!=='acc') return n*this.kin(p,0).T;
+    const v0=p.v0||0, a=p.at||0;
+    if(Math.abs(a)<1e-12) return v0>0?L/v0:Infinity;
+    const D=v0*v0+2*a*L; if(D<0) return Infinity; const t=(-v0+Math.sqrt(D))/a; return t>0?t:Infinity; },
   init(p){ return {t:0,phi:0,trail:[],event:null,__stop:null}; },
   put(s,p,t){
-    const K=this.kin(p);
-    s.t=t; s.phi=K.sgn*K.w*t;
+    const K=this.kin(p,t);
+    s.t=t; s.phi=p.mode==='acc'?K.sgn*K.path/p.R:K.sgn*K.w*t;
     if(p.trail){ s.trail.push([p.R*Math.cos(s.phi),p.R*Math.sin(s.phi)]);
       if(s.trail.length>4000) s.trail.shift(); }
   },
   step(s,dt,p){
     if(s.event) return;
-    const K=this.kin(p), t=s.t+dt;
+    const t=s.t+dt;
     if(p.tStop>0&&t>=p.tStop&&!(s.done&&s.done.time)){ this.put(s,p,p.tStop);
       s.event={t:p.tStop,type:'time'}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    if(p.mode==='acc'){ const д=this.дуга(p,t); if(isFinite(д.tс)&&t>=д.tс&&s.t<д.tс&&!(s.done&&s.done.stop)){ this.put(s,p,д.tс);
+        s.event={t:д.tс,type:'stop'}; s.__stop=`Тело остановилось: t = ${д.tс.toFixed(3)} с, путь ${д.s.toFixed(2)} м`; return; } }
     if(p.turns>0){
-      const te=p.turns*K.T;
+      const te=this.tОборотов(p,p.turns);
       if(t>=te&&!(s.done&&s.done.turns)){ this.put(s,p,te);
         s.event={t:te,type:'turns'};
         s.__stop=`Пройдено ${p.turns} оборот(а): t = ${te.toFixed(3)} с`; return; }
@@ -5849,11 +6065,12 @@ circular:{
     this.put(s,p,t);
   },
   pos(s,p){
-    const K=this.kin(p);
+    const K=this.kin(p,s.t);
     const x=p.R*Math.cos(s.phi), y=p.R*Math.sin(s.phi);
-    const vx=-K.sgn*K.v*Math.sin(s.phi), vy=K.sgn*K.v*Math.cos(s.phi);
-    const ax=-K.ac*Math.cos(s.phi), ay=-K.ac*Math.sin(s.phi);
-    return {x,y,vx,vy,ax,ay,K};
+    const ex=-K.sgn*Math.sin(s.phi), ey=K.sgn*Math.cos(s.phi);          // касательная по ходу
+    const vx=K.v*ex, vy=K.v*ey;
+    const ax=-K.ac*Math.cos(s.phi)+K.at*ex, ay=-K.ac*Math.sin(s.phi)+K.at*ey;
+    return {x,y,vx,vy,ax,ay,ex,ey,K};
   },
   anchors(s,p){
     const r=this.pos(s,p);
@@ -5861,6 +6078,9 @@ circular:{
   },
   readouts(s,p){
     const r=this.pos(s,p), K=r.K;
+    if(p.mode==='acc') return [['t',s.t,'с'],['R',p.R,'м'],['v',K.v,'м/с'],['путь по дуге s',K.path,'м'],['обороты',K.path/(2*Math.PI*p.R),''],
+      ['aτ (вдоль скорости)',K.at,'м/с²'],['aₙ = v²/R (к центру)',K.ac,'м/с²'],['полное ускорение |a|',K.a,'м/с²'],
+      ['угол между a и v',K.a>1e-12?Math.atan2(K.ac,K.at)*180/Math.PI:NaN,'°'],['ω',K.w,'рад/с']];
     return [['t',s.t,'с'],['R',p.R,'м'],['v',K.v,'м/с'],['период T',K.T,'с'],
             ['частота ν',1/K.T,'Гц'],['ω',K.w,'рад/с'],['aц = v²/R',K.ac,'м/с²'],
             ['угол φ',(s.phi*180/Math.PI)%360,'°'],['обороты',s.t/K.T,''],
@@ -5906,16 +6126,23 @@ circular:{
         p.R*0.28*Math.cos(s.phi/2),p.R*0.28*Math.sin(s.phi/2),6,-4,v.c('--second'));
     }
     // векторы: v — по касательной, a_c — к центру
-    const kv=p.R/Math.max(K.v,1e-6)*0.55, ka=p.R/Math.max(K.ac,1e-6)*0.55;
-    v.arrow(ctx,r.x,r.y,r.x+r.vx*kv,r.y+r.vy*kv,v.c('--measure'));
-    v.label(ctx,`v = ${K.v.toFixed(2)} м/с`,r.x+r.vx*kv,r.y+r.vy*kv,8,-10,v.c('--measure'));
+    const vRef=p.mode==='acc'?Math.max(K.v,(p.v0||0)+Math.abs(p.at||0)*4,1e-6):Math.max(K.v,1e-6);
+    const kv=p.R/vRef*0.55, ka=p.R/Math.max(p.mode==='acc'?Math.max(K.a,Math.abs(p.at||0)):K.ac,1e-6)*0.55;
+    if(K.v>1e-9){ v.arrow(ctx,r.x,r.y,r.x+r.vx*kv,r.y+r.vy*kv,v.c('--measure'));
+      v.label(ctx,`v = ${K.v.toFixed(2)} м/с`,r.x+r.vx*kv,r.y+r.vy*kv,8,-10,v.c('--measure')); }
     if(p.showA){
-      v.arrow(ctx,r.x,r.y,r.x+r.ax*ka,r.y+r.ay*ka,v.c('--danger'));
-      v.label(ctx,`aц = ${K.ac.toFixed(2)} м/с²`,r.x+r.ax*ka*0.9,r.y+r.ay*ka*0.9,8,12,v.c('--danger'));
+      if(p.mode==='acc'){ const nx=-Math.cos(s.phi), ny=-Math.sin(s.phi);
+        ctx.globalAlpha=.55; v.arrow(ctx,r.x,r.y,r.x+nx*K.ac*ka,r.y+ny*K.ac*ka,v.c('--danger'));
+        if(Math.abs(K.at)>1e-9) v.arrow(ctx,r.x,r.y,r.x+r.ex*K.at*ka,r.y+r.ey*K.at*ka,v.c('--danger')); ctx.globalAlpha=1;
+        if(K.a>1e-9){ v.arrow(ctx,r.x,r.y,r.x+r.ax*ka,r.y+r.ay*ka,v.c('--danger'));
+          v.label(ctx,`a = ${K.a.toFixed(2)} м/с²`,r.x+r.ax*ka*0.9,r.y+r.ay*ka*0.9,8,12,v.c('--danger')); } }
+      else { v.arrow(ctx,r.x,r.y,r.x+r.ax*ka,r.y+r.ay*ka,v.c('--danger'));
+        v.label(ctx,`aц = ${K.ac.toFixed(2)} м/с²`,r.x+r.ax*ka*0.9,r.y+r.ay*ka*0.9,8,12,v.c('--danger')); }
     }
     // тело
     ctx.fillStyle=v.c('--accent'); ctx.beginPath(); ctx.arc(r.x,r.y,v.lw(7),0,7); ctx.fill();
-    v.label(ctx,`T = ${K.T.toFixed(2)} с   ω = ${K.w.toFixed(2)} рад/с`,-p.R,-p.R*1.22,0,0,v.c('--ink-3'));
+    if(p.mode!=='acc') v.label(ctx,`T = ${K.T.toFixed(2)} с   ω = ${K.w.toFixed(2)} рад/с`,-p.R,-p.R*1.22,0,0,v.c('--ink-3'));
+    else v.label(ctx,`aτ = ${K.at.toFixed(2)} м/с²   aₙ = ${K.ac.toFixed(2)} м/с²`,-p.R,-p.R*1.22,0,0,v.c('--ink-3'));
   }
 }
 ,
@@ -6178,14 +6405,27 @@ newton2:{
 /* ================= ДИНАМИКА: НАКЛОННАЯ ПЛОСКОСТЬ ================= */
 incline:{
   title:'Наклонная плоскость',
+  /* 9.2.0: брусок можно пустить вверх от основания или вниз с вершины, через
+     блок на вершине перекинуть нить с грузом m₂, а длину плоскости — сделать
+     зависимой от угла при постоянном основании b (задача о самом быстром
+     спуске). Координата s отсчитывается от вершины вниз по склону, скорость v
+     положительна вниз. Трение всегда против скорости, а в покое — трение покоя,
+     пока хватает μs·N. Разворот бруска ловится точно (корень на шаге). */
   params:[
     {type:'group',label:'Тело и плоскость'},
-    {key:'m',   label:'Масса m',unit:'кг',min:0.1,max:1000,step:0.1,default:5},
+    {key:'m',   label:'Масса бруска m',unit:'кг',min:0.1,max:1000,step:0.1,default:5},
     {key:'th',  label:'Угол наклона θ',unit:'°',min:0,max:85,step:0.5,default:20},
     {key:'mus', label:'Статический коэффициент μs',min:0,max:2,step:0.01,default:0.36},
     {key:'mud', label:'Кинетический коэффициент μd',min:0,max:2,step:0.01,default:0.30},
     {key:'g',   label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
-    {key:'L',   label:'Длина плоскости L',unit:'м',min:1,max:200,step:0.5,default:10},
+    {key:'L',   label:'Длина плоскости L',unit:'м',min:1,max:200,step:0.5,default:10,если:p=>!p.baseFix},
+    {key:'baseFix',label:'Держать постоянным основание (длина зависит от угла)',type:'check',default:false},
+    {key:'b',   label:'Основание b',unit:'м',min:0.5,max:200,step:0.1,default:8,если:p=>!!p.baseFix},
+    {type:'group',label:'Пуск'},
+    {key:'start',label:'Откуда',type:'select',default:'top',options:[{v:'top',t:'с вершины вниз'},{v:'bottom',t:'от основания вверх'}]},
+    {key:'v0',  label:'Начальная скорость вдоль плоскости',unit:'м/с',min:0,max:100,step:0.1,default:0},
+    {type:'group',label:'Груз на нити через блок'},
+    {key:'m2',  label:'Масса подвешенного груза m₂ (0 — без нити)',unit:'кг',min:0,max:1000,step:0.1,default:0},
     {type:'group',label:'Режим'},
     {key:'auto',label:'Медленно поднимать плоскость до срыва',type:'check',default:false},
     {key:'rate',label:'Скорость подъёма',unit:'°/с',min:0.5,max:30,step:0.5,default:3},
@@ -6195,6 +6435,7 @@ incline:{
     {type:'group',label:'Остановка таймера'},
     {key:'stopSlip',  label:'В момент срыва (tg θ = μs)',type:'check',default:true},
     {key:'stopBottom',label:'У основания плоскости',type:'check',default:true},
+    {key:'stopTurn',  label:'В верхней точке подъёма (брусок остановился)',type:'check',default:false},
     {key:'tStop',     label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   warn(p){
@@ -6205,129 +6446,137 @@ incline:{
     if(s.thSlip!=null) return s.thSlip;               // после срыва плоскость больше не поднимаем
     return p.auto ? Math.min(p.th + p.rate*s.t, 85) : p.th;
   },
-  forces(s,p){
-    const th=this.ang(s,p)*Math.PI/180;
-    const Fg=p.m*p.g;
-    const along=Fg*Math.sin(th);              // скатывающая составляющая
-    const N=Fg*Math.cos(th);                  // реакция опоры
-    const lim=p.mus*N;                        // порог трения покоя
-    const moving=s.v>1e-6;
-    const stuck = !moving && along<=lim;
-    /* Трение статическое ТОЛЬКО пока тело держится. Как только скатывающая
-       превысила порог, начинается скольжение, и трение сразу кинетическое —
-       даже в тот самый миг, когда скорость ещё нулевая.
-       Раньше в этот миг бралось -min(along, lim) = -μs·N, и показание
-       ускорения выдавало g(sinθ − μs·cosθ) — величину, которой в физике
-       не соответствует ничего: при v→0⁺ трение равно μd·N. На глаз это не
-       видно, потому что при stopSlip симуляция замирает ровно здесь.
-       В newton2 тот же случай изначально считается через μd. */
-    const fr = stuck ? -along : -p.mud*N;
-    return {th,Fg,along,N,lim,fr,stuck,a:stuck?0:(along+fr)/p.m};
+  Lэф(s,p){ const th=this.ang(s,p)*Math.PI/180; return p.baseFix?p.b/Math.max(Math.cos(th),1e-6):p.L; },
+  /* силы при скорости v (вдоль склона, + вниз); груз m₂ тянет вверх по склону */
+  forces(s,p,v){
+    v=v==null?s.v:v;
+    const th=this.ang(s,p)*Math.PI/180, m2=p.m2||0, M=p.m+m2;
+    const Fg=p.m*p.g, along=Fg*Math.sin(th), N=Fg*Math.cos(th), lim=p.mus*N;
+    const drive=along-m2*p.g;                       // движущая сила системы, + вниз по склону
+    const moving=Math.abs(v)>1e-9;
+    const stuck=!moving&&Math.abs(drive)<=lim;
+    const fr=stuck?-drive:moving?-Math.sign(v)*p.mud*N:-Math.sign(drive)*p.mud*N;
+    const a=stuck?0:(drive+fr)/M;
+    return {th,Fg,along,N,lim,fr,stuck,a,drive,T:m2*(p.g+a)};
   },
-  init(p){ return {t:0,s:0,v:0,slipped:false,stopped:false,thSlip:null,event:null,__stop:null}; },
+  init(p){ const s0={t:0,s:0,v:0,slipped:false,stopped:false,thSlip:null,event:null,__stop:null,tUp:NaN,tDown:NaN,tTurn:NaN};
+    const L=this.Lэф(s0,p);
+    if(p.start==='bottom'){ s0.s=L; s0.v=-(p.v0||0); } else { s0.s=0; s0.v=p.v0||0; }
+    s0.s0=s0.s; if(Math.abs(s0.v)>1e-9){ s0.slipped=true; s0.thSlip=p.auto?p.th:null; }
+    return s0; },
   step(s,dt,p){
     if(s.event) return;
-    const t=s.t+dt;
-    if(p.tStop>0&&t>=p.tStop&&!(s.done&&s.done.time)){ s.t=p.tStop; s.event={t:p.tStop,type:'time'};
-      s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
-    if(s.arrived) return;                                 // упёрся в край — стоит
+    let t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop&&!(s.done&&s.done.time)){ t=p.tStop; }
+    if(s.stopped){ s.t=t; if(p.tStop>0&&t>=p.tStop){ s.event={t,type:'time'}; s.__stop=`Остановка по времени: t = ${t.toFixed(2)} с`; } return; }
+    const n=8, h=(t-s.t)/n;
+    for(let k=0;k<n;k++){
+      const t0=s.t;
+      let f=this.forces(s,p);
+      if(f.stuck){ s.t=t0+h; continue; }                     // держится трением покоя
+      if(!s.slipped){ const thd=this.ang(s,p); s.slipped=true; s.thSlip=thd;
+        if(p.stopSlip&&!(s.done&&s.done.slip)&&Math.abs(s.v)<1e-9){ s.t=t0; s.event={t:t0,type:'slip',th:thd};
+          s.__stop=`Срыв при θ = ${thd.toFixed(2)}°  ⇒  μs = tg θ = ${Math.tan(thd*Math.PI/180).toFixed(3)}`; return; } }
+      let v1=s.v+f.a*h;
+      if(Math.abs(s.v)>1e-9&&Math.sign(v1)!==Math.sign(s.v)){     // брусок остановился на шаге
+        const τ=-s.v/f.a; s.s+=s.v*τ+f.a*τ*τ/2; s.t=t0+τ; s.v=0;
+        if(isNaN(s.tTurn)){ s.tTurn=s.t; if(s.s0>this.Lэф(s,p)-1e-9&&p.start==='bottom') s.tUp=s.t; }
+        if(p.stopTurn&&!(s.done&&s.done.turn)){ s.event={t:s.t,type:'turn'};
+          s.__stop=`Брусок остановился: t = ${s.t.toFixed(3)} с, путь ${Math.abs(s.s-s.s0).toFixed(2)} м`; return; }
+        continue; }
+      s.s+=s.v*h+f.a*h*h/2; s.v=v1; s.t=t0+h;
+      const L=this.Lэф(s,p);
+      if(s.s>=L&&s.v>0){ const over=s.s-L, τ=over/Math.max(s.v,1e-9); s.t-=τ; s.v-=f.a*τ; s.s=L;
+        if(!isNaN(s.tTurn)&&isNaN(s.tDown)) s.tDown=s.t-s.tTurn;
+        s.stopped=true; s.v=Math.max(s.v,0);
+        if(p.stopBottom&&!(s.done&&s.done.bottom)){ s.event={t:s.t,type:'bottom'};
+          s.__stop=`Брусок у основания: t = ${s.t.toFixed(3)} с, v = ${s.v.toFixed(2)} м/с`; }
+        s.v=s.event?s.v:0; return; }
+      if(s.s<=0&&s.v<0){ s.s=0; s.stopped=true; s.event={t:s.t,type:'top'}; s.__stop=`Брусок дошёл до вершины: t = ${s.t.toFixed(3)} с, v = ${(-s.v).toFixed(2)} м/с`; return; }
+    }
     s.t=t;
-    const f=this.forces(s,p);
-    if(f.stuck) return;                                   // брусок держится трением покоя
-    if(!s.slipped){
-      const thd=this.ang(s,p);
-      s.slipped=true; s.thSlip=thd;                    // фиксируем угол срыва
-      if(p.stopSlip&&!(s.done&&s.done.slip)){
-        s.event={t,type:'slip',th:thd};
-        s.__stop=`Срыв при θ = ${thd.toFixed(2)}°  ⇒  μs = tg θ = ${Math.tan(thd*Math.PI/180).toFixed(3)}`;
-        return; }
-    }
-    if(s.stopped){ s.v=0; return; }                     // брусок упёрся в край — стоим
-    s.v+=f.a*dt; s.s+=s.v*dt;
-    if(s.s>=p.L){                                       // достиг основания
-      s.s=p.L; s.stopped=true;
-      if(!(s.done&&s.done.bottom)){ s.event={t:s.t,type:'bottom'};
-        if(p.stopBottom) s.__stop=`Брусок у основания: t = ${s.t.toFixed(3)} с, v = ${s.v.toFixed(2)} м/с`;
-        else { s.event=null; s.stopped=false; s.v=0; } }
-      else { s.stopped=false; s.v=0; }
-    }
+    if(p.tStop>0&&t>=p.tStop){ s.event={t,type:'time'}; s.__stop=`Остановка по времени: t = ${t.toFixed(2)} с`; }
   },
   geom(s,p){                       // положение бруска на плоскости (вершина в (0,H))
-    const th=this.ang(s,p)*Math.PI/180, H=p.L*Math.sin(th), X=p.L*Math.cos(th);
+    const th=this.ang(s,p)*Math.PI/180, L=this.Lэф(s,p), H=L*Math.sin(th), X=L*Math.cos(th);
     const x=s.s*Math.cos(th), y=H-s.s*Math.sin(th);
-    return {th,H,X,x,y};
+    return {th,H,X,x,y,L};
   },
   anchors(s,p){ const G=this.geom(s,p); return [{x:0,y:0},{x:0,y:G.H},{x:G.X,y:0},{x:G.x,y:G.y}]; },
   readouts(s,p){
-    const f=this.forces(s,p), th=this.ang(s,p);
-    return [['t',s.t,'с'],['угол θ',th,'°'],['tg θ',Math.tan(th*Math.PI/180),''],
+    const f=this.forces(s,p), th=this.ang(s,p), out=[['t',s.t,'с'],['угол θ',th,'°'],['tg θ',Math.tan(th*Math.PI/180),''],
       ['вес mg',f.Fg,'Н'],['скатывающая mg·sinθ',f.along,'Н'],['реакция N = mg·cosθ',f.N,'Н'],
-      ['порог μs·N',f.lim,'Н'],['модуль трения',Math.abs(f.fr),'Н'],['F рез',f.stuck?0:f.along+f.fr,'Н'],
-      ['a',f.a,'м/с²'],['путь по плоскости',s.s,'м'],['v',s.v,'м/с'],
-      ['θ срыва = arctg μs',Math.atan(p.mus)*180/Math.PI,'°']];
+      ['порог μs·N',f.lim,'Н'],['модуль трения',Math.abs(f.fr),'Н'],
+      ['a (вниз по склону)',f.a,'м/с²'],['путь по плоскости',Math.abs(s.s-s.s0),'м'],['v (вниз по склону)',s.v,'м/с']];
+    if(p.baseFix) out.push(['длина плоскости',this.Lэф(s,p),'м']);
+    if(p.start==='bottom'||!isNaN(s.tTurn)) out.push(['время до остановки',s.tTurn,'с'],['время обратного спуска',s.tDown,'с']);
+    out.push(['θ срыва = arctg μs',Math.atan(p.mus)*180/Math.PI,'°']);
+    return out;
   },
   graphs:[
-    {label:'v(t) — скорость вдоль плоскости',unit:'м/с',series:['v'],get:s=>[s.v,null]},
-    {label:'s(t) — путь по плоскости',unit:'м',series:['s'],get:s=>[s.s,null]},
+    {label:'v(t) — скорость вдоль плоскости (вниз)',unit:'м/с',series:['v'],get:s=>[s.v,null]},
+    {label:'s(t) — координата от вершины',unit:'м',series:['s'],get:s=>[s.s,null]},
     {label:'θ(t) — угол наклона',unit:'°',series:['θ'],get(s,p){ return [SIMS.incline.ang(s,p),null]; }}
   ],
   presets:[
     {name:'Пример 3 (Орир): поднимаем до срыва — найти μs',
-     values:{m:5,th:5,mus:0.36,mud:0.30,g:9.8,L:10,auto:true,rate:3,stopSlip:true,stopBottom:true,tStop:0}},
+     values:{m:5,th:5,mus:0.36,mud:0.30,g:9.8,L:10,baseFix:false,start:'top',v0:0,m2:0,auto:true,rate:3,stopSlip:true,stopBottom:true,stopTurn:false,tStop:0}},
     {name:'Скольжение при θ = 30°',
-     values:{m:5,th:30,mus:0.36,mud:0.30,g:9.8,L:10,auto:false,stopSlip:false,stopBottom:true,tStop:0}},
+     values:{m:5,th:30,mus:0.36,mud:0.30,g:9.8,L:10,baseFix:false,start:'top',v0:0,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0}},
     {name:'Брусок держится: θ = 15°, μs = 0,4',
-     values:{m:5,th:15,mus:0.4,mud:0.3,g:9.8,L:10,auto:false,stopSlip:true,stopBottom:true,tStop:6}},
+     values:{m:5,th:15,mus:0.4,mud:0.3,g:9.8,L:10,baseFix:false,start:'top',v0:0,m2:0,auto:false,stopSlip:true,stopBottom:true,stopTurn:false,tStop:6}},
     {name:'Гладкая плоскость (μ = 0)',
-     values:{m:5,th:30,mus:0,mud:0,g:9.8,L:10,auto:false,stopSlip:false,stopBottom:true,tStop:0}}
+     values:{m:5,th:30,mus:0,mud:0,g:9.8,L:10,baseFix:false,start:'top',v0:0,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0}},
+    {name:'Толчок вверх: подъём и спуск',
+     values:{m:5,th:15,mus:0.2,mud:0.16,g:9.8,L:20,baseFix:false,start:'bottom',v0:6,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0}},
+    {name:'Груз на нити тянет брусок вверх',
+     values:{m:5,th:30,mus:0.15,mud:0.1,g:9.8,L:10,baseFix:false,start:'bottom',v0:0,m2:4,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0}},
+    {name:'Самый быстрый спуск: основание постоянно',
+     values:{m:5,th:49,mus:0.14,mud:0.14,g:9.8,baseFix:true,b:8,start:'top',v0:0,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0}}
   ],
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const spanX=p.L*2.0, spanY=p.L*1.75;
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, L=p.baseFix?p.b/Math.max(Math.cos(p.th*Math.PI/180),0.2):p.L;
+    const spanX=L*2.0, spanY=L*1.75;
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
-    return {x:p.L*0.5,y:p.L*0.5,scale};
+    return {x:L*0.5,y:L*0.5,scale};
   },
   draw(ctx,s,v,p){
-    const f=this.forces(s,p), G=this.geom(s,p);
+    const f=this.forces(s,p), G=this.geom(s,p), L=G.L;
     // клин
     ctx.fillStyle=v.c('--panel-2'); ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(2);
     ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(G.X,0); ctx.lineTo(0,G.H); ctx.closePath();
     ctx.fill(); ctx.stroke();
     ctx.strokeStyle=v.c('--ink-3'); ctx.lineWidth=v.lw(1);
-    for(let k=0;k<G.X;k+=Math.max(p.L/25,0.3)){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k-0.3,-0.3); ctx.stroke(); }
+    for(let k=0;k<G.X;k+=Math.max(L/25,0.3)){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k-0.3,-0.3); ctx.stroke(); }
     // угол
     ctx.strokeStyle=v.c('--second'); ctx.lineWidth=v.lw(1.4);
-    ctx.beginPath(); ctx.arc(G.X,0,p.L*0.22,Math.PI-G.th,Math.PI); ctx.stroke();
-    v.label(ctx,`θ = ${this.ang(s,p).toFixed(1)}°`,G.X-p.L*0.3,p.L*0.06,0,0,v.c('--second'));
+    ctx.beginPath(); ctx.arc(G.X,0,L*0.22,Math.PI-G.th,Math.PI); ctx.stroke();
+    v.label(ctx,`θ = ${this.ang(s,p).toFixed(1)}°`,G.X-L*0.3,L*0.06,0,0,v.c('--second'));
+    // блок и груз на нити
+    const hb=0.25*L/10+0.2;
+    if((p.m2||0)>0){ const r=Math.max(hb*0.7,0.15), px=-r*0.2, py=G.H+r*0.9;
+      ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.arc(px,py,r,0,7); ctx.stroke();
+      const y2=G.H-hb*3+(s.s-s.s0)-(p.start==='bottom'?0:L);   // груз висит вдоль края стола и идёт навстречу бруску
+      ctx.beginPath(); ctx.moveTo(G.x-Math.sin(G.th)*0+hb*0,G.y+0.8*hb); ctx.lineTo(px+r*Math.sin(G.th),py+r*Math.cos(G.th)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px-r,py); ctx.lineTo(px-r,y2+hb); ctx.stroke();
+      ctx.fillStyle=v.c('--second'); ctx.fillRect(px-r-hb*0.8,y2-hb*0.6,1.6*hb,1.6*hb);
+      v.label(ctx,`m₂ = ${p.m2} кг`,px-r,y2,-14,0,v.c('--second')); }
     // брусок (повёрнутый)
-    const hb=0.25*p.L/10+0.2;
     ctx.save();
     ctx.translate(G.x,G.y); ctx.rotate(-G.th);
     ctx.fillStyle=v.c('--accent'); ctx.fillRect(-hb,0,2*hb,1.6*hb);
     ctx.restore();
     v.label(ctx,`m = ${p.m} кг`,G.x,G.y,10,-14,v.c('--accent'));
-    v.label(ctx,f.stuck?'покой':'скольжение',G.x,G.y,10,-2,f.stuck?v.c('--ink-3'):v.c('--accent'));
-    // ПРОЙДЕННЫЙ ПУТЬ вдоль наклонной плоскости: от старта до текущего положения
-    if(p.dist!==false && s.s>1e-6){
-      const meas=v.c('--measure'), off=0.55*p.L/10+0.5;
-      // старт бруска — вершина склона
-      const sx=0, sy=G.H, ex=G.x, ey=G.y;
-      const nx=Math.sin(G.th), ny=Math.cos(G.th);          // нормаль к плоскости
-      const ax=sx-nx*off, ay=sy-ny*off, bx=ex-nx*off, by=ey-ny*off;
+    v.label(ctx,f.stuck&&Math.abs(s.v)<1e-9?'покой':(s.v<0?'вверх по склону':'вниз по склону'),G.x,G.y,10,-2,f.stuck?v.c('--ink-3'):v.c('--accent'));
+    // пройденный путь вдоль плоскости
+    if(p.dist!==false && Math.abs(s.s-s.s0)>1e-6){
+      const meas=v.c('--measure'), off=0.55*L/10+0.5;
+      const s0x=s.s0*Math.cos(G.th), s0y=G.H-s.s0*Math.sin(G.th), ex=G.x, ey=G.y;
+      const nx=Math.sin(G.th), ny=Math.cos(G.th);
+      const ax=s0x-nx*off, ay=s0y-ny*off, bx=ex-nx*off, by=ey-ny*off;
       ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6);
-      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
-      // засечки поперёк линии
-      const tx=Math.cos(G.th), ty=-Math.sin(G.th), tick=0.18*p.L/10+0.14;
-      ctx.beginPath();
-      ctx.moveTo(ax-tx*tick,ay-ty*tick); ctx.lineTo(ax+tx*tick,ay+ty*tick);
-      ctx.moveTo(bx-tx*tick,by-ty*tick); ctx.lineTo(bx+tx*tick,by+ty*tick);
-      ctx.stroke();
       v.arrow(ctx,ax,ay,bx,by,meas);
-      // пунктир от бруска к линии
-      ctx.strokeStyle=meas; ctx.globalAlpha=.35; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(bx,by); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,`s = ${s.s.toFixed(2)} м из ${p.L} м`,(ax+bx)/2,(ay+by)/2,-40,-10,meas);
+      v.label(ctx,`${Math.abs(s.s-s.s0).toFixed(2)} м`,(ax+bx)/2,(ay+by)/2,-40,-10,meas);
     }
     // диаграмма сил в точке бруска
     if(p.fbd){
@@ -6338,10 +6587,265 @@ incline:{
         {fx:n[0]*f.N,fy:n[1]*f.N,label:'N',color:v.c('--second')},
         {fx:tvec[0]*f.fr,fy:tvec[1]*f.fr,label:'Fтр',color:v.c('--measure')}
       ];
-      v.fbd(ctx,{x:G.x,y:G.y+0.45,forces:F,len:p.L*0.20,resultant:!f.stuck,
+      if((p.m2||0)>0) F.push({fx:-tvec[0]*f.T,fy:-tvec[1]*f.T,label:'T',color:v.c('--ink')});
+      v.fbd(ctx,{x:G.x,y:G.y+0.45,forces:F,len:L*0.20,resultant:!f.stuck,
                  sum:p.poly?{x:G.X*0.62,y:G.H*1.12}:null});
     }
   }
+},
+
+/* ================= ДИНАМИКА: БРУСОК НА ДОСКЕ (9.2.0) =================
+   Доска m₁ лежит на столе (трение о стол μ₀), на ней брусок m₂ (трение о
+   доску μ). Сила F — постоянная или растущая как F = αt — приложена к доске
+   или к бруску. Пока тела едут вместе, у них общее ускорение, а трение между
+   ними ровно такое, какое нужно бруску (доске) для этого ускорения. Когда
+   нужное трение превышает μm₂g, брусок проскальзывает, и трение становится
+   кинетическим, против относительной скорости. Камера следит за доской:
+   движение стола видно по уплывающим штрихам. */
+plank:{
+  title:'Брусок на доске',
+  params:[
+    {type:'group',label:'Доска и брусок'},
+    {key:'m1', label:'Масса доски m₁',unit:'кг',min:0.1,max:500,step:0.1,default:3},
+    {key:'m2', label:'Масса бруска m₂',unit:'кг',min:0.1,max:500,step:0.1,default:1},
+    {key:'mu', label:'Трение бруска о доску μ',min:0,max:2,step:0.01,default:0.3},
+    {key:'mu0',label:'Трение доски о стол μ₀',min:0,max:2,step:0.01,default:0},
+    {key:'Lp', label:'Длина доски l',unit:'м',min:0.2,max:50,step:0.1,default:2},
+    {key:'g',  label:'Ускорение g',unit:'м/с²',min:1,max:30,step:0.1,default:9.8},
+    {type:'group',label:'Сила'},
+    {key:'on', label:'Приложена',type:'select',default:'plank',options:[{v:'plank',t:'к доске'},{v:'bar',t:'к бруску'}]},
+    {key:'law',label:'Закон',type:'select',default:'const',options:[{v:'const',t:'постоянная F'},{v:'ramp',t:'растёт: F = αt'}]},
+    {key:'F',  label:'Сила F',unit:'Н',min:0,max:5000,step:0.1,default:8,если:p=>p.law==='const'},
+    {key:'al', label:'Скорость роста силы α',unit:'Н/с',min:0.01,max:500,step:0.01,default:2,если:p=>p.law==='ramp'},
+    {type:'group',label:'Остановка таймера'},
+    {key:'stopSlip',label:'В момент начала скольжения',type:'check',default:true},
+    {key:'stopOff', label:'Когда брусок соскользнёт с доски',type:'check',default:true},
+    {key:'tStop',   label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  Fв(p,t){ return p.law==='ramp'?p.al*t:p.F; },
+  /* ускорения доски и бруска, сила трения на брусок и режим */
+  разбор(p,t,v1,v2){
+    const F=this.Fв(p,t), Fp=p.on==='plank'?F:0, Fb=p.on==='bar'?F:0, M=p.m1+p.m2, g=p.g;
+    const тр=p.mu*p.m2*g, N0=M*g, тр0=p.mu0*N0;
+    const стол=(v,нужно)=>Math.abs(v)>1e-9?-Math.sign(v)*тр0:(Math.abs(нужно)<=тр0?-нужно:-Math.sign(нужно)*тр0);
+    if(Math.abs(v2-v1)<1e-9){                         // едут вместе?
+      const f0=стол(v1,F), a=(F+f0)/M, f12=p.m2*a-Fb;
+      if(Math.abs(f0+F)<1e-12&&Math.abs(v1)<1e-9) return {a1:0,a2:0,f:-Fb,вместе:true,F,f0};
+      if(Math.abs(f12)<=тр+1e-12) return {a1:a,a2:a,f:f12,вместе:true,F,f0};
+      const f=Math.sign(f12)*тр, f0b=стол(v1,Fp-f); return {a1:(Fp-f+f0b)/p.m1,a2:(Fb+f)/p.m2,f,вместе:false,F,f0:f0b}; }
+    const f=-Math.sign(v2-v1)*тр, f0=стол(v1,Fp-f);
+    return {a1:(Fp-f+f0)/p.m1,a2:(Fb+f)/p.m2,f,вместе:false,F,f0}; },
+  init(p){ return {t:0,x1:0,v1:0,x2:0,v2:0,скольз:false,tSlip:NaN,event:null,__stop:null}; },
+  step(s,dt,p){ if(s.event) return; let end=s.t+dt; if(p.tStop>0) end=Math.min(end,p.tStop);
+    const n=10, h=(end-s.t)/n;
+    for(let k=0;k<n;k++){ const r=this.разбор(p,s.t+h/2,s.v1,s.v2);
+      const rel0=s.v2-s.v1;
+      let v1=s.v1+r.a1*h, v2=s.v2+r.a2*h;
+      if(Math.abs(rel0)>1e-9&&Math.sign(v2-v1)!==Math.sign(rel0)){ const v=(p.m1*v1+p.m2*v2)/(p.m1+p.m2); v1=v; v2=v; }   // скольжение кончилось
+      if(Math.abs(s.v1)>1e-9&&Math.sign(v1)!==Math.sign(s.v1)&&!r.F) v1=0;
+      s.x1+=(s.v1+v1)/2*h; s.x2+=(s.v2+v2)/2*h; s.v1=v1; s.v2=v2; s.t+=h;
+      if(!r.вместе&&!s.скольз){ s.скольз=true; s.tSlip=s.t-h/2;
+        if(p.stopSlip){ s.event={type:'slip',t:s.tSlip}; s.__stop=`Брусок начал скользить: t = ${s.tSlip.toFixed(3)} с, F = ${this.Fв(p,s.tSlip).toFixed(2)} Н`; return; } }
+      if(Math.abs(s.x2-s.x1)>p.Lp/2){ s.event={type:'off',t:s.t}; s.__stop=`Брусок соскользнул с доски: t = ${s.t.toFixed(3)} с`;
+        if(p.stopOff) return; s.event=null; }
+    }
+    if(p.tStop>0&&s.t>=p.tStop-1e-9){ s.event={type:'time',t:s.t}; s.__stop=`Остановка по времени: t = ${s.t.toFixed(2)} с`; } },
+  readouts(s,p){ const r=this.разбор(p,s.t,s.v1,s.v2);
+    return [['t',s.t,'с'],['сила F',r.F,'Н'],['ускорение доски',r.a1,'м/с²'],['ускорение бруска',r.a2,'м/с²'],
+      ['трение между ними',Math.abs(r.f),'Н'],['скорость доски',s.v1,'м/с'],['скорость бруска',s.v2,'м/с'],
+      ['брусок сместился по доске',s.x2-s.x1,'м'],['сейчас',r.вместе&&Math.abs(s.v2-s.v1)<1e-9?'едут вместе':'брусок скользит','']]; },
+  graphs:[
+    {label:'Ускорения доски и бруска',unit:'м/с²',series:['доска','брусок'],get(s,p){ const r=SIMS.plank.разбор(p,s.t,s.v1,s.v2); return [r.a1,r.a2]; }},
+    {label:'Скорости доски и бруска',unit:'м/с',series:['доска','брусок'],get(s){ return [s.v1,s.v2]; }}
+  ],
+  presets:[
+    {name:'Сила растёт: когда брусок поедет по доске',values:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'plank',law:'ramp',al:2,stopSlip:true,stopOff:true,tStop:0}},
+    {name:'Сила мала: едут вместе',values:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'plank',law:'const',F:8,stopSlip:true,stopOff:true,tStop:4}},
+    {name:'Рывок за доску: брусок соскальзывает',values:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'plank',law:'const',F:25,stopSlip:false,stopOff:true,tStop:0}},
+    {name:'Тянем брусок: доска едет следом',values:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'bar',law:'const',F:6,stopSlip:false,stopOff:true,tStop:0}},
+    {name:'Шероховатый стол',values:{m1:3,m2:1,mu:0.3,mu0:0.1,Lp:2,g:9.8,on:'plank',law:'ramp',al:3,stopSlip:false,stopOff:true,tStop:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, w=p.Lp*1.9, h=p.Lp*1.0;
+    const scale=clamp(Math.min((W-60)/(w*PX_PER_M),(H-60)/(h*PX_PER_M)),0.002,40); return {x:0,y:p.Lp*0.22,scale}; },
+  anchors(s,p){ return [{x:-p.Lp/2,y:0},{x:p.Lp/2,y:0}]; },
+  draw(ctx,s,v,p){
+    const пк=1/ppm(), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure');
+    const r=this.разбор(p,s.t,s.v1,s.v2), L=p.Lp, th=Math.max(L*0.06,4*пк), hb=Math.min(L*0.18,Math.max(L*0.1,14*пк));
+    // стол: штрихи уплывают — камера едет вместе с доской
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(-L*3,0); ctx.lineTo(L*3,0); ctx.stroke();
+    const шаг=L/8, сдв=((s.x1%шаг)+шаг)%шаг; ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
+    for(let x=-L*3-сдв;x<L*3;x+=шаг){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x-шаг*0.4,-шаг*0.4); ctx.stroke(); }
+    // доска и брусок
+    ctx.fillStyle=sec; ctx.globalAlpha=.85; ctx.fillRect(-L/2,0,L,th); ctx.globalAlpha=1;
+    const xb=s.x2-s.x1; ctx.fillStyle=acc; ctx.fillRect(xb-hb/2,th,hb,hb);
+    v.label(ctx,`доска m₁ = ${p.m1} кг`,-L/2,0,0,16,sec); v.label(ctx,`брусок m₂ = ${p.m2} кг`,xb,th+hb,0,-14,acc);
+    // сила и трение: длины стрелок — в одной шкале, самая длинная — 0,4 длины доски
+    const Fmax=Math.max(r.F,Math.abs(r.f),1e-9), Fk=0.4*L/Fmax, Fy=p.on==='plank'?th/2:th+hb/2, Fx=p.on==='plank'?L/2:xb+hb/2;
+    if(r.F>1e-9){ v.arrow(ctx,Fx,Fy,Fx+r.F*Fk,Fy,v.c('--ink')); v.label(ctx,`F = ${r.F.toFixed(1)} Н`,Fx+r.F*Fk,Fy,6,-10,v.c('--ink')); }
+    if(Math.abs(r.f)>1e-9){ const y=th+hb*1.25; v.arrow(ctx,xb,y,xb+r.f*Fk,y,meas); v.label(ctx,`трение на брусок ${Math.abs(r.f).toFixed(2)} Н`,xb+r.f*Fk,y,0,-12,meas); }
+    v.label(ctx,r.вместе&&Math.abs(s.v2-s.v1)<1e-9?'едут вместе':'брусок скользит по доске',0,-L*0.12,0,0,r.вместе?ink3:meas);
+    v.label(ctx,`v доски ${s.v1.toFixed(2)} м/с · v бруска ${s.v2.toFixed(2)} м/с`,0,-L*0.2,0,0,ink3);
+  },
+  /* ---- инструмент модели: «Сила» — потяните от тела, к которому она приложена ---- */
+  tools(p){ return [{id:'force', name:'Сила', cursor:'ew-resize',
+    icon:'<rect x="3" y="12" width="9" height="6"/><path d="M12 15h9M18 12l3 3-3 3"/>',
+    hint:'потяните вправо: длина — сила F (или скорость её роста α); ←/→ — по 1 Н',
+    down(т){ т.выбор.x0=т.px; т.выбор.F0=т.p.law==='ramp'?т.p.al:т.p.F; return true; },
+    move(т){ const кл=т.p.law==='ramp'?'al':'F'; т.set(кл,Math.max(0,т.выбор.F0+(т.px-т.выбор.x0)*(т.p.law==='ramp'?0.02:0.1))); },
+    key(k,т){ const кл=т.p.law==='ramp'?'al':'F', зн={ArrowRight:1,ArrowLeft:-1}[k]; if(!зн) return false; т.set(кл,Math.max(0,т.p[кл]+зн*(т.shift?10:1)*(т.p.law==='ramp'?0.1:1))); return true; },
+    overlay(o,т){ const кл=т.p.law==='ramp'?'α':'F', зн=т.p.law==='ramp'?т.p.al+' Н/с':т.p.F+' Н'; VIEW.label(o,`${кл} = ${зн}`,т.wx||0,т.wy||0,12,-14,css('--accent')); }}]; }
+},
+
+/* ================= ЭНЕРГИЯ: МЁРТВАЯ ПЕТЛЯ, СФЕРА, НИТЬ (9.2.0) =================
+   Три задачи об отрыве от опоры. Тело скользит без трения по окружности
+   радиуса R; скорость в каждой точке даёт закон сохранения энергии, а сила
+   реакции (натяжение) — второй закон для центростремительного ускорения:
+     внутри петли и на нити  N = m(v²/R + g·cos φ), φ от нижней точки;
+     снаружи сферы           N = m(g·cos θ − v²/R), θ от верхней точки.
+   Опора может только толкать (нить — только тянуть): когда N обращается в
+   нуль, тело отрывается и дальше летит как брошенное. В опыте с петлёй тело
+   скатывается с горки высотой h; путь описан одной координатой q: горка —
+   q &lt; 0, петля — 0 ≤ q ≤ 2πR, дальше — ровный пол. */
+loop:{
+  title:'Мёртвая петля, сфера и нить',
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'loop',options:[{v:'loop',t:'горка и мёртвая петля'},{v:'sphere',t:'соскальзывание с вершины сферы'},{v:'thread',t:'шарик на нити'}]},
+    {type:'group',label:'Размеры'},
+    {key:'R',  label:'Радиус петли, сферы или длина нити R',unit:'м',min:0.2,max:50,step:0.1,default:2},
+    {key:'h',  label:'Высота старта на горке h',unit:'м',min:0.1,max:200,step:0.1,default:5,если:p=>p.mode==='loop'},
+    {key:'th0',label:'Начальный угол нити от вертикали',unit:'°',min:0,max:180,step:1,default:90,если:p=>p.mode==='thread'},
+    {key:'v0', label:'Начальная скорость',unit:'м/с',min:0,max:100,step:0.1,default:0},
+    {key:'m',  label:'Масса m',unit:'кг',min:0.01,max:100,step:0.01,default:1},
+    {key:'g',  label:'Ускорение g',unit:'м/с²',min:1,max:30,step:0.1,default:9.8},
+    {type:'group',label:'Остановка таймера'},
+    {key:'stopDetach',label:'В момент отрыва (N = 0)',type:'check',default:true},
+    {key:'stopBottom',label:'В нижней точке (нить, петля)',type:'check',default:false},
+    {key:'tStop',     label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  β:40*Math.PI/180,                                     // угол горки
+  D(p){ return 1.3*p.R; },                               // ровный участок от горки до петли
+  центр(p){ return p.mode==='loop'?[this.D(p),p.R]:[0,0]; },
+  /* положение и единичная касательная по координате q (опыт с петлёй) */
+  точкаПетли(p,q){ const R=p.R, β=this.β, D=this.D(p);
+    if(q<0){ const d=-q; return {x:-d*Math.cos(β),y:d*Math.sin(β),tx:Math.cos(β),ty:-Math.sin(β),уч:'горка'}; }
+    if(q<D) return {x:q,y:0,tx:1,ty:0,уч:'пол'};
+    if(q<=D+2*Math.PI*R){ const f=(q-D)/R; return {x:D+R*Math.sin(f),y:R-R*Math.cos(f),tx:Math.cos(f),ty:Math.sin(f),уч:'петля',f}; }
+    return {x:q-2*Math.PI*R,y:0,tx:1,ty:0,уч:'пол'}; },
+  init(p){
+    const s={t:0,полёт:null,event:null,__stop:null,E0:0};
+    if(p.mode==='loop'){ s.q=-p.h/Math.sin(this.β); s.w=p.v0; }
+    else if(p.mode==='sphere'){ s.f=p.v0>0?0:0.02; s.w=p.v0/p.R; }           // f — угол от верха; без скорости — лёгкий толчок
+    else { s.f=p.th0*Math.PI/180; s.w=-p.v0/p.R; }                         // f — угол от низа
+    const st=this.сост(s,p); s.E0=p.m*(st.v*st.v/2+p.g*st.y); return s; },
+  /* положение, скорость, сила реакции в текущем состоянии */
+  сост(s,p){ const R=p.R, g=p.g, m=p.m;
+    if(s.полёт){ const f=s.полёт; return {x:f.x,y:f.y,vx:f.vx,vy:f.vy,v:Math.hypot(f.vx,f.vy),N:0,угол:NaN,где:'в полёте'}; }
+    if(p.mode==='loop'){ const т=this.точкаПетли(p,s.q), v=s.w;
+      const N=т.уч==='петля'?m*(v*v/R+g*Math.cos(т.f)):т.уч==='горка'?m*g*Math.cos(this.β):m*g;
+      return {x:т.x,y:т.y,vx:т.tx*v,vy:т.ty*v,v:Math.abs(v),N,угол:т.уч==='петля'?т.f*180/Math.PI:NaN,где:т.уч}; }
+    if(p.mode==='sphere'){ const f=s.f, v=R*s.w; return {x:R*Math.sin(f),y:R*Math.cos(f),vx:v*Math.cos(f),vy:-v*Math.sin(f),v:Math.abs(v),N:m*(g*Math.cos(f)-v*v/R),угол:f*180/Math.PI,где:'на сфере'}; }
+    const f=s.f, v=R*s.w; return {x:R*Math.sin(f),y:-R*Math.cos(f),vx:v*Math.cos(f),vy:v*Math.sin(f),v:Math.abs(v),N:m*(v*v/R+g*Math.cos(f)),угол:f*180/Math.PI,где:'на нити'}; },
+  ускор(p,s,q,w){ const g=p.g, R=p.R;
+    if(p.mode==='loop'){ const D=this.D(p); if(q<0) return g*Math.sin(this.β); if(q<D) return 0; if(q<=D+2*Math.PI*R) return -g*Math.sin((q-D)/R); return 0; }
+    if(p.mode==='sphere') return g/R*Math.sin(q);
+    return -g/R*Math.sin(q); },
+  step(s,dt,p){ if(s.event) return; let end=s.t+dt; if(p.tStop>0) end=Math.min(end,p.tStop);
+    const n=20, h=(end-s.t)/n, R=p.R, C=this.центр(p);
+    for(let k=0;k<n;k++){
+      if(s.полёт){ const f=s.полёт; f.x+=f.vx*h; f.vy-=p.g*h; f.y+=f.vy*h; s.t+=h;
+        const r=Math.hypot(f.x-C[0],f.y-C[1]);
+        if(p.mode==='sphere'&&f.y<=-R){ s.event={type:'land',t:s.t}; s.__stop=`Тело упало на землю: t = ${s.t.toFixed(3)} с`; return; }
+        if(p.mode!=='sphere'&&r>=R&&f.vy*(f.y-C[1])+f.vx*(f.x-C[0])>0){ s.event={type:'catch',t:s.t};
+          s.__stop=p.mode==='thread'?`Нить снова натянулась: t = ${s.t.toFixed(3)} с`:`Тело ударилось о петлю: t = ${s.t.toFixed(3)} с`; return; }
+        if(f.y<=0&&p.mode==='loop'){ s.event={type:'land',t:s.t}; s.__stop=`Тело упало на пол: t = ${s.t.toFixed(3)} с`; return; }
+        continue; }
+      const key=p.mode==='loop'?'q':'f', x=s[key], w=s.w;
+      // Рунге — Кутта для x'' = a(x)
+      const a1=this.ускор(p,s,x,w), a2=this.ускор(p,s,x+h/2*w,w+h/2*a1), a3=this.ускор(p,s,x+h/2*(w+h/2*a1),w+h/2*a2), a4=this.ускор(p,s,x+h*(w+h/2*a2),w+h*a3);
+      const x1=x+h*w+h*h/6*(a1+a2+a3), w1=w+h/6*(a1+2*a2+2*a3+a4);
+      const было=this.сост(s,p);
+      s[key]=x1; s.w=w1; s.t+=h;
+      if(p.mode==='loop'&&s.q< -p.h/Math.sin(this.β)){ s.q=-p.h/Math.sin(this.β); s.w=Math.max(0,s.w); }
+      const ст=this.сост(s,p);
+      // нижняя точка: φ меняет знак (нить, петля)
+      if(p.stopBottom&&p.mode!=='sphere'){ const ф0=p.mode==='loop'?x:x, ф1=p.mode==='loop'?x1:x1;
+        const D=this.D(p), пере=p.mode==='loop'?(ф0<D&&ф1>=D)||(ф0<D+2*Math.PI*R&&ф1>=D+2*Math.PI*R):(Math.sign(ф0)!==Math.sign(ф1)&&ф0!==0);
+        if(пере){ s.event={type:'bottom',t:s.t}; s.__stop=`Нижняя точка: v = ${ст.v.toFixed(2)} м/с, ${p.mode==='thread'?'натяжение':'реакция'} ${ст.N.toFixed(2)} Н`; return; } }
+      // отрыв: сила реакции стала отрицательной (на петле — только в её верхней половине)
+      const можно=p.mode==='sphere'||p.mode==='thread'||(ст.где==='петля');
+      if(можно&&ст.N<0){ // уточняем момент линейно по N
+        const d=было.N/(было.N-ст.N), xs=x+(x1-x)*d, ws=w+(w1-w)*d; s[key]=xs; s.w=ws; s.t-=h*(1-d);
+        const о=this.сост(s,p); s.полёт={x:о.x,y:о.y,vx:о.vx,vy:о.vy}; s.отрыв={x:о.x,y:о.y,v:о.v,угол:о.угол,t:s.t};
+        if(p.stopDetach){ s.event={type:'detach',t:s.t};
+          const выс=p.mode==='loop'?о.y:p.mode==='sphere'?о.y:о.y;
+          s.__stop=`Отрыв: t = ${s.t.toFixed(3)} с, высота ${выс.toFixed(3)} м, скорость ${о.v.toFixed(3)} м/с, угол ${о.угол.toFixed(1)}°`; return; }
+      }
+    }
+    if(p.tStop>0&&s.t>=p.tStop-1e-9){ s.event={type:'time',t:s.t}; s.__stop=`Остановка по времени: t = ${s.t.toFixed(2)} с`; } },
+  readouts(s,p){ const с=this.сост(s,p), E=p.m*(с.v*с.v/2+p.g*с.y);
+    return [['t',s.t,'с'],['скорость v',с.v,'м/с'],['высота y',с.y,'м'],
+      [p.mode==='thread'?'натяжение нити T':'сила реакции N',с.N,'Н'],[p.mode==='thread'?'T / mg':'N / mg',с.N/(p.m*p.g),''],
+      [p.mode==='sphere'?'угол от вершины':'угол от нижней точки',с.угол,'°'],['полная энергия',E,'Дж'],['где тело',с.где,'']]; },
+  graphs:[
+    {label:'Сила реакции (натяжение)',unit:'Н',series:['N'],get(s,p){ return [SIMS.loop.сост(s,p).N,null]; }},
+    {label:'Скорость',unit:'м/с',series:['v'],get(s,p){ return [SIMS.loop.сост(s,p).v,null]; }}
+  ],
+  presets:[
+    {name:'Петля пройдена: h чуть выше 2,5R',values:{mode:'loop',R:2,h:5.4,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0}},
+    {name:'Не хватило высоты: отрыв в верхней половине',values:{mode:'loop',R:2,h:4,v0:0,m:1,g:9.8,stopDetach:false,stopBottom:false,tStop:0}},
+    {name:'Слишком низко: тело катается туда-обратно',values:{mode:'loop',R:2,h:1.5,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:8}},
+    {name:'Соскальзывание с вершины сферы',values:{mode:'sphere',R:2,v0:0,m:1,g:9.8,stopDetach:false,stopBottom:false,tStop:0}},
+    {name:'Шарик на нити отпущен из горизонтального положения',values:{mode:'thread',R:2,th0:90,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0}},
+    {name:'Шарик на нити: толкнули слабо — нить провисла',values:{mode:'thread',R:2,th0:0,v0:8.5,m:1,g:9.8,stopDetach:false,stopBottom:false,tStop:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460, H=(vp&&vp.H)||320, R=p.R;
+    let x0,x1,y0,y1;
+    if(p.mode==='loop'){ const d=p.h/Math.tan(this.β); x0=-d-0.3*R; x1=this.D(p)+1.6*R; y0=-0.3*R; y1=Math.max(p.h,2.5*R)*1.12; }
+    else if(p.mode==='sphere'){ x0=-1.3*R; x1=2.6*R; y0=-1.15*R; y1=1.35*R; }
+    else { x0=-1.35*R; x1=1.35*R; y0=-1.3*R; y1=1.3*R; }
+    const scale=clamp(Math.min((W-50)/((x1-x0)*PX_PER_M),(H-50)/((y1-y0)*PX_PER_M)),0.005,40);
+    return {x:(x0+x1)/2,y:(y0+y1)/2,scale}; },
+  anchors(s,p){ const c=this.центр(p), с=this.сост(s,p); return [{x:c[0],y:c[1]},{x:с.x,y:с.y}]; },
+  draw(ctx,s,v,p){
+    const R=p.R, C=this.центр(p), пк=1/ppm(), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second');
+    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2.2);
+    if(p.mode==='loop'){ const d=p.h/Math.tan(this.β);
+      ctx.beginPath(); ctx.moveTo(-d,p.h); ctx.lineTo(0,0); ctx.lineTo(this.D(p)+3*R,0); ctx.stroke();
+      ctx.beginPath(); ctx.arc(C[0],C[1],R,0,7); ctx.stroke();
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(4),v.lw(4)]);
+      ctx.beginPath(); ctx.moveTo(-d-0.3*R,2.5*R); ctx.lineTo(this.D(p)+1.4*R,2.5*R); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,'h = 2,5R',-d-0.3*R,2.5*R,4,-10,ink3); v.label(ctx,`h = ${p.h} м`,-d,p.h,8,-12,ink3); }
+    else if(p.mode==='sphere'){ ctx.fillStyle=v.c('--panel-2'); ctx.beginPath(); ctx.arc(0,0,R,0,7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-1.3*R,-R); ctx.lineTo(2.6*R,-R); ctx.stroke();
+      const c=2/3+(p.v0*p.v0)/(3*p.g*R); if(c<=1){ const a=Math.acos(c); ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(4)]);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(R*1.15*Math.sin(a),R*1.15*Math.cos(a)); ctx.stroke(); ctx.setLineDash([]); } }
+    else { ctx.fillStyle=ink2; ctx.fillRect(-0.4*R,0,0.8*R,0.06*R); ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(4)]);
+      ctx.beginPath(); ctx.arc(0,0,R,0,7); ctx.stroke(); ctx.setLineDash([]); }
+    const с=this.сост(s,p);
+    if(p.mode==='thread'&&!s.полёт){ ctx.strokeStyle=v.c('--ink'); ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(с.x,с.y); ctx.stroke(); }
+    if(p.mode==='thread'&&s.полёт){ ctx.strokeStyle=v.c('--ink'); ctx.lineWidth=v.lw(1.1); ctx.globalAlpha=.6; ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.quadraticCurveTo(с.x*0.4,с.y*0.4-0.3*R,с.x,с.y); ctx.stroke(); ctx.globalAlpha=1; }
+    // точка отрыва
+    if(s.отрыв){ ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(s.отрыв.x,s.отрыв.y,v.lw(4),0,7); ctx.fill();
+      v.label(ctx,`отрыв на высоте ${s.отрыв.y.toFixed(2)} м`,s.отрыв.x,s.отрыв.y,10,-14,dang); }
+    // скорость и сила реакции
+    const k=Math.min(0.35*R/Math.max(с.v,1e-9),8*пк*10);
+    if(с.v>1e-6) v.arrow(ctx,с.x,с.y,с.x+с.vx*k,с.y+с.vy*k,meas);
+    if(!s.полёт&&Math.abs(с.N)>1e-9&&с.где!=='горка'&&с.где!=='пол'){ const nx=(C[0]-с.x)/R, ny=(C[1]-с.y)/R, kN=0.3*R/(p.m*p.g)*Math.sign(p.mode==='sphere'?-1:1);
+      v.arrow(ctx,с.x,с.y,с.x+nx*с.N*kN,с.y+ny*с.N*kN,sec); v.label(ctx,`${p.mode==='thread'?'T':'N'} = ${с.N.toFixed(1)} Н`,с.x+nx*с.N*kN,с.y+ny*с.N*kN,8,10,sec); }
+    ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(с.x,с.y,Math.max(0.07*R,v.lw(6)),0,7); ctx.fill();
+  },
+  /* ---- инструмент модели: «Старт» — тяните тело: по горке — высота, на нити — угол ---- */
+  tools(p){ const S1=this; return [{id:'start', name:'Точка старта', cursor:'grab',
+    icon:'<circle cx="12" cy="12" r="7"/><circle cx="17" cy="7" r="2.2"/>',
+    hint:'потяните тело: на горке — высота старта h, на нити — начальный угол; ↑/↓ — по 0,1 м или 1°',
+    down(т){ return т.p.mode!=='sphere'; },
+    move(т){ if(т.p.mode==='loop'){ т.set('h',Math.max(0.1,т.wy)); return; }
+      if(т.p.mode==='thread'){ т.set('th0',Math.abs(Math.atan2(т.wx,-т.wy))*180/Math.PI); } },
+    key(k,т){ const зн={ArrowUp:1,ArrowRight:1,ArrowDown:-1,ArrowLeft:-1}[k]; if(!зн) return false;
+      if(т.p.mode==='loop'){ т.set('h',Math.max(0.1,т.p.h+зн*(т.shift?1:0.1))); return true; }
+      if(т.p.mode==='thread'){ т.set('th0',т.p.th0+зн*(т.shift?10:1)); return true; } return false; },
+    overlay(o,т){ const t=т.p.mode==='loop'?`h = ${т.p.h} м (порог ${(2.5*т.p.R).toFixed(2)} м)`:т.p.mode==='thread'?`θ₀ = ${т.p.th0}°`:''; if(t) VIEW.label(o,t,т.wx||0,т.wy||0,12,-14,css('--accent')); }}]; }
 },
 
 /* ================= ДИНАМИКА: КОНИЧЕСКИЙ МАЯТНИК ================= */
@@ -25565,7 +26069,51 @@ const T_1d={
      hint:'Сложите время первого падения и времена всех подскоков — снова прогрессия.',
      answer:p=>{ const h=Math.abs(p.x01-p.gx), g=Math.abs(p.a1), e=p.rest;
        if(!(g>0)||!(h>0)) return NaN; if(e>=1) return Infinity;
-       const t1=Math.sqrt(2*h/g); return t1*(1+e)/(1-e); }}
+       const t1=Math.sqrt(2*h/g); return t1*(1+e)/(1-e); }},
+
+    /* ---------- По задачнику Иродова ---------- */
+    {level:3, sim:'kin1d', unit:'с', src:'Иродов',
+     setup:{bodies:'1',axis:'x',law1:'drag',x01:0,v01:25,a1:0,al1:0.5,k1:0.5,ground:false,tStop:0,stopMeet:false},
+     statement:`Тело тормозит так, что модуль ускорения зависит от скорости: $a=\\alpha v^k$ (у Иродова $k=\\tfrac12$,
+       то есть $a=\\alpha\\sqrt v$). Начальная скорость $v_0$. Через какое время тело остановится?
+       Если оно не остановится никогда, так и ответьте.`,
+     hint:'Разделите переменные: $dv/v^k=-\\alpha\\,dt$ и проинтегрируйте от $v_0$ до нуля.',
+     answer:p=>{ if(p.law1!=='drag'||p.a1!==0||!(p.al1>0)||p.k1>=1) return NaN; const v=Math.abs(p.v01);
+       return Math.pow(v,1-p.k1)/((1-p.k1)*p.al1); }},
+
+    {level:3, sim:'kin1d', unit:'м', src:'Иродов',
+     setup:{bodies:'1',axis:'x',law1:'drag',x01:0,v01:25,a1:0,al1:0.5,k1:0.5,ground:false,tStop:0,stopMeet:false},
+     statement:`В том же торможении $a=\\alpha v^k$: какой путь пройдёт тело до остановки? При $k=1$ (сопротивление,
+       пропорциональное скорости, как у катера с выключенным мотором) время бесконечно, а путь конечен.`,
+     hint:'Перейдите к пути: $a=v\\,dv/dx$, и тогда $v^{1-k}\\,dv=-\\alpha\\,dx$.',
+     answer:p=>{ if(p.law1!=='drag'||p.a1!==0||!(p.al1>0)||p.k1>=2) return NaN; const v=Math.abs(p.v01);
+       return Math.pow(v,2-p.k1)/((2-p.k1)*p.al1); }},
+
+    {level:3, sim:'kin1d', unit:'с', src:'Иродов',
+     setup:{bodies:'2',axis:'y',law1:'a',x01:0,v01:0,a1:1.2,law2:'a',x02:5.1,v02:2.4,a2:-9.8,delay:2,ground:false,stopMeet:true,tStop:0},
+     statement:`Кабина лифта высотой 2,7 м начинает подниматься с ускорением 1,2 м/с². Через 2 с от потолка
+       отрывается болт. Тело 1 — пол кабины, тело 2 — болт: он стартует в момент отрыва с высоты потолка и с
+       той скоростью, что была у кабины. Сколько времени болт падает до пола?`,
+     hint:'В системе кабины болт падает с высоты $h$ с ускорением $g+a$: $t=\\sqrt{2h/(g+a)}$.',
+     answer:p=>{ if(p.bodies!=='2'||p.law1!=='a'||p.law2!=='a') return NaN; const t=meetTime(p); return isFinite(t)?t-p.delay:NaN; }},
+
+    {level:4, sim:'kin1d', unit:'м', src:'Иродов',
+     setup:{bodies:'2',axis:'y',law1:'a',x01:0,v01:0,a1:1.2,law2:'a',x02:5.1,v02:2.4,a2:-9.8,delay:2,ground:false,stopMeet:true,tStop:0},
+     statement:`В том же опыте с лифтом: на сколько сместился болт относительно земли за время падения?
+       Смещение вверх считайте положительным.`,
+     hint:'Болт брошен вверх со скоростью кабины в момент отрыва; подставьте время падения в его закон движения.',
+     answer:p=>{ if(p.bodies!=='2'||p.law1!=='a'||p.law2!=='a') return NaN; const t=meetTime(p); if(!isFinite(t)) return NaN;
+       const τ=t-p.delay; return p.v02*τ+p.a2*τ*τ/2; }},
+
+    {level:2, sim:'kin1d', unit:'м', src:'Иродов',
+     setup:{bodies:'1',axis:'x',law1:'a',x01:0,v01:10,a1:-2,ground:false,tStop:8,stopMeet:false},
+     statement:`Проекция скорости тела меняется по закону $v_x=v_0(1-t/\\tau)$ (у Иродова $v_0=10$ см/с, $\\tau=5$ с;
+       в модели — 10 м/с и 5 с, то есть $a=-2$ м/с²). Какой путь пройдёт тело к моменту остановки таймера?
+       Не путайте путь с перемещением.`,
+     hint:'После $t=\\tau$ тело разворачивается: сложите путь до разворота и путь после него.',
+     answer:p=>{ if(p.law1!=='a'||!(p.tStop>0)) return NaN; const v=p.v01, a=p.a1, T=p.tStop;
+       if(a!==0&&v*a<0){ const tt=-v/a; if(tt<T) return Math.abs(v*tt+a*tt*tt/2)+Math.abs(a*(T-tt)*(T-tt)/2); }
+       return Math.abs(v*T+a*T*T/2); }}
   ]
 };
 
@@ -25581,8 +26129,10 @@ const T_2d={
   explore:[
     {sim:'proj2d', do:`Сравните броски под $30^\\circ$ и $60^\\circ$`, see:`дальность одинаковая, а траектории разные`},
     {sim:'proj2d', do:`Включите вектор скорости и остановитесь в верхней точке`, see:`вертикальная составляющая обнулилась, горизонтальная осталась`},
-    {sim:'intercept', do:`Загрузите «Прицелились в сам корабль», потом инструментом «Прицел» опустите ствол на 2°`, see:`перелёт сменяется попаданием: целиться надо туда, где корабль будет через время полёта`},
+    {sim:'meet2d', do:`Загрузите «Встречные курсы», затем «То же в течении»`, see:`течение сносит оба тела одинаково — столкновение всё равно происходит`},
+    {sim:'meet2d', do:`Переключите систему отсчёта на «тело 1»`, see:`тело 2 идёт по прямой, а перпендикуляр на неё и есть наименьшее расстояние`},
     {sim:'proj2d', do:`Выберите три тела и инструментом «Прицел» разведите их углы`, see:`три параболы одновременно; расстояния между телами в показаниях`},
+    {sim:'pursuit', do:`Загрузите «Три точки в вершинах треугольника» и следите за расстоянием между соседями`, see:`оно убывает равномерно, хотя точки идут по спиралям`},
     {sim:'circular', do:`Увеличьте скорость вдвое`, see:`центростремительное ускорение вырастет вчетверо`},
     {sim:'proj2d', do:`Включите «Показать в пространстве», поверните вид пальцем и задайте азимут $30^\\circ$`, see:`траектория — та же парабола, только в наклонной вертикальной плоскости; её тень на земле — прямая`}
   ],
@@ -25640,20 +26190,40 @@ const T_2d={
   боковой ветер с ускорением $a_z$. Тогда $z=v_zt+a_zt^2/2$, а тень на земле изгибается в параболу.
   Включите в симуляции «Показать в пространстве», задайте ветер и поверните вид: сверху это хорошо видно.</div>
 
-  <h3 class="sub">Упреждение: ракета навстречу кораблю</h3>
-  <p>Корабль в $D$ метрах от берега идёт к нему со скоростью $u$. Если направить ракету туда, где корабль
-  <em>сейчас</em>, она упадёт за кормой: пока ракета летит время $T$, корабль подойдёт на $uT$. Прицеливаться
-  нужно в точку встречи. Удобно рассуждать так: по горизонтали ракета и корабль сближаются со скоростью
-  $v_0\\cos\\theta+u$ (скорости складываются, потому что они движутся навстречу), и к моменту падения они
-  должны закрыть всё расстояние $D$:</p>
-  <p>$$(v_0\\cos\\theta+u)\\,T=D,\\qquad T=\\dfrac{2v_0\\sin\\theta}{g}\\quad(\\text{старт с уровня воды}).$$</p>
-  <p>Время полёта, как и прежде, задаёт только вертикаль, а горизонталь отвечает за то, чтобы ракета успела.
-  Уравнение обычно имеет два корня — настильный и навесной. Навесная ракета летит дольше, и корабль за это
-  время проходит больше, поэтому два угла уже не дополняют друг друга до $90^\\circ$, как у неподвижной цели.
-  Если корабль уходит от берега ($u&lt;0$), сближение медленнее, и при малой $v_0$ корней нет вовсе.</p>
-  <div class="callout">Включите двигатель: первые $\\tau$ секунд ракета разгоняется вдоль скорости, и парабола
-  ломается — формулы выше уже не годятся, но принцип «время полёта × скорость сближения = расстояние» остаётся.
-  Симуляция находит углы попадания численно: перебирает угол и уточняет его делением пополам.</div>
+  <h3 class="sub">Столкнутся ли два тела</h3>
+  <p>Два тела движутся по плоскости с постоянными скоростями $\\vec v_1$ и $\\vec v_2$. Следить за обоими сразу
+  неудобно, поэтому пересядем на тело 1. В его системе отсчёта оно стоит, а тело 2 движется с
+  <strong>относительной скоростью</strong> $\\vec w=\\vec v_2-\\vec v_1$ — постоянной, значит, по прямой. Дальше
+  задача чисто геометрическая: проведите из тела 1 перпендикуляр на эту прямую. Его длина — наименьшее
+  расстояние, на которое сблизятся тела, а момент, когда тело 2 окажется у основания перпендикуляра, — время
+  наибольшего сближения:</p>
+  <p>$$t^*=-\\dfrac{(\\vec r_2-\\vec r_1)\\cdot\\vec w}{w^2},\\qquad d_{\\min}=\\left|\\vec r_2-\\vec r_1+\\vec w\\,t^*\\right|.$$</p>
+  <p>Тела столкнутся, если прямая проходит через тело 1, то есть относительная скорость направлена точно
+  от тела 2 к телу 1: $\\dfrac{\\vec r_1-\\vec r_2}{|\\vec r_1-\\vec r_2|}=\\dfrac{\\vec w}{w}$. Если $t^*&lt;0$, тела
+  уже расходятся, и ближе, чем сейчас, они не будут.</p>
+  <p>Пусть оба тела плывут по реке или летят в ветер, а скорости заданы относительно воды или воздуха.
+  Течение $\\vec u$ прибавляется к обеим скоростям и в разности $\\vec v_2-\\vec v_1$ сокращается. Отсюда
+  неожиданный вывод: <em>течение не влияет на то, столкнутся ли тела</em>, оно только сносит место встречи.
+  Тот же приём решает задачу о лодке и плоте. В системе воды плот стоит, лодка уходит от него и
+  возвращается с одной и той же скоростью, поэтому обратный путь длится столько же, сколько прямой, а плот за
+  всё это время проплывает расстояние $2u\\tau$.</p>
+  <div class="callout">Ветер, который чувствуют на палубе, — это скорость воздуха относительно корабля:
+  $\\vec u-\\vec v_{\\text{кор}}$. Когда корабль идёт навстречу ветру, вымпельный ветер сильнее настоящего. Когда
+  ветер попутный и дует со скоростью корабля, на палубе штиль. В симуляции выберите систему отсчёта
+  «тело 1» и посмотрите, куда побегут стрелки течения.</div>
+
+  <h3 class="sub">Погоня</h3>
+  <p>Три точки стоят в вершинах правильного треугольника со стороной $a$ и с одинаковой по модулю скоростью $v$
+  всё время идут каждая на свою соседку. Траектории — спирали, считать их трудно, но они и не нужны. Посмотрите
+  на одну сторону треугольника: её начало идёт вдоль неё со скоростью $v$, а конец уходит под углом $120^\\circ$ к
+  ней, и проекция его скорости на сторону равна $v\\cos120^\\circ=-v/2$. Сторона укорачивается с постоянной
+  скоростью $v+v/2$, поэтому точки встретятся через $T=2a/(3v)$. Для $N$ точек в вершинах правильного
+  $N$-угольника угол между соседними скоростями равен $2\\pi/N$, и $T=\\dfrac{a}{v\\,(1-\\cos\\frac{2\\pi}{N})}$.</p>
+  <p>Во втором опыте точка A всё время целится в точку B, которая идёт по прямой со скоростью $u$, вначале
+  перпендикулярно отрезку AB длиной $l$. Пусть $\\alpha$ — угол между скоростью B и отрезком AB. Скорость сближения
+  равна $v-u\\cos\\alpha$, а проекция скорости A на направление движения B равна $v\\cos\\alpha$. Проинтегрируем обе
+  величины по времени. Первая даёт $vT-u\\int\\cos\\alpha\\,dt=l$, вторая — путь B: $v\\int\\cos\\alpha\\,dt=uT$.
+  Исключив интеграл, получим $T=\\dfrac{vl}{v^2-u^2}$. При $u\\ge v$ A не догонит B никогда.</p>
 
   <h3 class="sub">Относительность движения: переправа через реку</h3>
   <p>Тот же приём — сложение векторов — решает задачу о лодке и течении. Скорость лодки относительно берега
@@ -25806,9 +26376,15 @@ const T_2d={
     {tex:'L=v_0\\cos\\theta\\cdot t_{\\text{пол}}\\;\\xrightarrow{\\;h_0=0\\;}\\;\\dfrac{v_0^2\\sin2\\theta}{g}',
      kind:'следствие',
      note:'Дальность полёта; при $h_0=0$ максимум при $\\theta=45^\\circ$.', sim:'proj2d'},
-    {tex:'(v_0\\cos\\theta+u)\\,T=D,\\qquad T=\\dfrac{2v_0\\sin\\theta}{g}',
+    {tex:'\\vec w=\\vec v_2-\\vec v_1,\\qquad \\dfrac{\\vec r_1-\\vec r_2}{|\\vec r_1-\\vec r_2|}=\\dfrac{\\vec w}{w}',
      kind:'следствие',
-     note:'Условие попадания в корабль, идущий к берегу: ракета и корабль вместе закрывают расстояние $D$ за время полёта.', sim:'intercept'},
+     note:'Относительная скорость и условие столкновения: в системе тела 1 тело 2 идёт прямо на него. Общее течение в разности скоростей сокращается.', sim:'meet2d'},
+    {tex:'t^*=-\\dfrac{(\\vec r_2-\\vec r_1)\\cdot\\vec w}{w^2},\\qquad d_{\\min}=\\left|\\vec r_2-\\vec r_1+\\vec w\\,t^*\\right|',
+     kind:'следствие',
+     note:'Время и расстояние наибольшего сближения — перпендикуляр из тела 1 на прямую относительного движения.', sim:'meet2d'},
+    {tex:'T=\\dfrac{a}{v\\,\\left(1-\\cos\\frac{2\\pi}{N}\\right)},\\qquad T=\\dfrac{vl}{v^2-u^2}',
+     kind:'следствие',
+     note:'Время встречи в погоне: точки в вершинах правильного $N$-угольника; точка, догоняющая цель на прямой ($u&lt;v$).', sim:'pursuit'},
     {tex:'\\vec v_{\\text{бер}}=\\vec v_{\\text{лод}}+\\vec v_{\\text{теч}},\\qquad v_x=v\\cos\\theta+u,\\qquad v_y=v\\sin\\theta',
      kind:'закон',
      note:'Переправа: складываются проекции скоростей.', sim:'river'},
@@ -25904,51 +26480,133 @@ const T_2d={
        if(!g||!v) return NaN; if(h<0) return NaN;
        return Math.asin(1/Math.sqrt(2+2*g*h/(v*v)))*180/Math.PI; }},
 
-    /* ---------- Ракета навстречу кораблю ---------- */
-    {level:1, sim:'intercept', unit:'с',
-     statement:`Двигатель выключен. Сколько секунд ракета пробудет в полёте, прежде чем упадёт в воду
-       (или попадёт в корабль, если он окажется на пути)? Считайте, что до воды.`,
-     hint:'Время полёта задаёт только вертикальное движение: подъём со скоростью $v_0\\sin\\theta$ с высоты $h_0$.',
-     answer:p=>{ if(p.eng) return NaN; const vy=p.v0*Math.sin(p.th*Math.PI/180);
-       return (vy+Math.sqrt(vy*vy+2*p.g*p.h0))/p.g; }},
+    /* ---------- Баллистика по задачнику Иродова ---------- */
+    {level:3, sim:'proj2d', unit:'м', src:'Иродов',
+     setup:{bodies:'2',x01:0,y01:0,v01:25,a01:90,x02:0,y02:0,v02:25,a02:60,delay:0,ay:-9.8,stopLand:false,stopHit:false,stopTop:false,stopPerp:false,tStop:1.7},
+     statement:`Из одной точки одновременно бросили два тела с одинаковой скоростью $v_0$: одно вертикально вверх,
+       другое под углом $\\theta$ к горизонту. На каком расстоянии друг от друга они окажутся в момент остановки таймера?`,
+     hint:'В системе, падающей вместе с телами, тяготения нет: они разлетаются равномерно со скоростью $|\\vec v_{01}-\\vec v_{02}|$.',
+     answer:p=>{ if(p.bodies!=='2'||!(p.tStop>0)) return NaN; return SIMS.proj2d.dist(p,p.tStop); }},
 
-    {level:2, sim:'intercept', unit:'м',
-     statement:`Двигатель выключен. На каком расстоянии от берега окажется корабль в тот момент,
-       когда ракета коснётся уровня воды?`,
-     hint:'Найдите время полёта, затем сдвиньте корабль на $uT$ к берегу.',
-     answer:p=>{ if(p.eng) return NaN; const vy=p.v0*Math.sin(p.th*Math.PI/180);
-       const T=(vy+Math.sqrt(vy*vy+2*p.g*p.h0))/p.g; return p.D-p.u*T; }},
+    {level:4, sim:'proj2d', unit:'м', src:'Иродов',
+     setup:{bodies:'2',x01:0,y01:50,v01:3,a01:180,x02:0,y02:50,v02:4,a02:0,delay:0,ay:-9.8,stopLand:false,stopHit:false,stopTop:false,stopPerp:true,tStop:0},
+     statement:`Две частицы вылетают из одной точки горизонтально в противоположные стороны со скоростями $v_1$ и $v_2$.
+       Каким будет расстояние между ними в момент, когда их скорости станут взаимно перпендикулярными?`,
+     hint:'Условие перпендикулярности: $\\vec v_1\\cdot\\vec v_2=0$, то есть $-v_1v_2+(gt)^2=0$. Расстояние растёт как $(v_1+v_2)t$.',
+     answer:p=>{ if(p.bodies==='1') return NaN; const S=SIMS.proj2d, f=τ=>{ const A=S.posOf(p,0,τ), B=S.posOf(p,1,τ);
+         return (A.started&&B.started&&!A.landed&&!B.landed)?A.vx*B.vx+A.vy*B.vy:NaN; };
+       const tm=первыйКорень(τ=>{ const v=f(τ); return isFinite(v)?v:1; },120,0.01); return isFinite(tm)?S.dist(p,tm):NaN; }},
 
-    {level:3, sim:'intercept', unit:'м',
-     statement:`Двигатель выключен. На сколько метров место падения ракеты окажется дальше от берега,
-       чем середина корабля в тот же момент? Недолёт считайте отрицательным, высотой корпуса пренебрегите.`,
-     hint:'Сравните $v_0\\cos\\theta\\cdot T$ и $D-uT$ — это и есть «перелёт».',
-     answer:p=>{ if(p.eng) return NaN; const th=p.th*Math.PI/180, vy=p.v0*Math.sin(th);
-       const T=(vy+Math.sqrt(vy*vy+2*p.g*p.h0))/p.g; return p.v0*Math.cos(th)*T-(p.D-p.u*T); }},
+    {level:4, sim:'proj2d', unit:'с', src:'Иродов',
+     setup:{bodies:'2',x01:0,y01:0,v01:250,a01:60,x02:0,y02:0,v02:250,a02:45,delay:10.9,ay:-9.8,stopLand:true,stopHit:true,hitR:10,stopTop:false,stopPerp:false,tStop:0},
+     statement:`Пушка стреляет дважды из одной точки с одинаковой скоростью: сначала под углом $\\theta_1$, потом под
+       меньшим углом $\\theta_2$. Через какой промежуток времени нужно сделать второй выстрел, чтобы снаряды
+       столкнулись? В наборе условия задержка уже почти подобрана — уточните её.`,
+     hint:'Найдите точку пересечения парабол и сравните, когда каждый снаряд в неё прилетает. Для равных скоростей $\\Delta t=\\dfrac{2v_0\\sin(\\theta_1-\\theta_2)}{g(\\cos\\theta_1+\\cos\\theta_2)}$.',
+     answer:p=>{ if(p.bodies==='1'||p.x01!==p.x02||p.y01!==p.y02||!(p.ay<0)) return NaN; const g=-p.ay;
+       const c1=Math.cos(p.a01*Math.PI/180), c2=Math.cos(p.a02*Math.PI/180), t1=Math.tan(p.a01*Math.PI/180), t2=Math.tan(p.a02*Math.PI/180);
+       const k=g/2*(1/(p.v01*p.v01*c1*c1)-1/(p.v02*p.v02*c2*c2)); if(Math.abs(k)<1e-15) return NaN;
+       const X=(t1-t2)/k; if(!(X>0)) return NaN; const T1=X/(p.v01*c1), T2=X/(p.v02*c2); const d=T1-T2; return d>0?d:NaN; }},
 
-    {level:4, sim:'intercept', unit:'°',
-     statement:`Двигатель выключен, скорость $v_0$ задана. Под каким <strong>наименьшим</strong> углом к горизонту
-       нужно запустить ракету, чтобы она упала точно в середину корабля? Если корабль не достать, так и ответьте.`,
-     hint:'Скорость сближения по горизонтали $v_0\\cos\\theta+u$, за время полёта $T(\\theta)$ она должна покрыть $D$. Решите численно: найдите смену знака.',
-     answer:p=>{ if(p.eng) return NaN;
-       const f=a=>{ const th=a*Math.PI/180, vy=p.v0*Math.sin(th), T=(vy+Math.sqrt(vy*vy+2*p.g*p.h0))/p.g;
-         return (p.v0*Math.cos(th)+p.u)*T-p.D; };
-       let a0=0.01, f0=f(a0);
-       for(let a=0.5;a<=90;a+=0.5){ const f1=f(a);
-         if(f0<0&&f1>=0){ let lo=a0,hi=a; for(let k=0;k<60;k++){ const m=(lo+hi)/2; if(f(m)<0) lo=m; else hi=m; } return (lo+hi)/2; }
-         a0=a; f0=f1; }
-       return NaN; }},
+    {level:3, sim:'proj2d', unit:'м', src:'Иродов',
+     setup:{bodies:'1',x01:0,y01:0,v01:25,a01:45,ay:-9.8,stopLand:true,stopTop:true,tStop:0},
+     statement:`Мяч брошен со скоростью $v_0$ под углом $\\theta$ к горизонту. Найдите радиус кривизны траектории
+       в её высшей точке.`,
+     hint:'В высшей точке скорость горизонтальна, и всё ускорение $g$ — нормальное: $R=v^2/a_n$.',
+     answer:p=>{ const g=-p.ay; if(!(g>0)) return NaN; const v=p.v01*Math.cos(p.a01*Math.PI/180); return v*v/g; }},
 
-    {level:5, sim:'intercept', unit:'м/с',
-     statement:`Двигатель выключен, ракета стартует с уровня воды. Какова <strong>наименьшая</strong> начальная скорость,
-       при которой ещё можно попасть в корабль (в его середину) хоть под каким-нибудь углом?`,
-     hint:'Для каждой скорости найдите наибольшее $(v_0\\cos\\theta+u)\\cdot2v_0\\sin\\theta/g$ по углу и подберите $v_0$, при котором оно равно $D$.',
-     answer:p=>{ if(p.eng) return NaN;
-       const лучш=v=>{ let m=-Infinity; for(let a=0.25;a<90;a+=0.25){ const th=a*Math.PI/180;
-         m=Math.max(m,(v*Math.cos(th)+p.u)*2*v*Math.sin(th)/p.g); } return m; };
-       let lo=0, hi=1; while(лучш(hi)<p.D&&hi<1e6) hi*=2;
-       for(let k=0;k<50;k++){ const m=(lo+hi)/2; if(лучш(m)<p.D) lo=m; else hi=m; }
-       return (lo+hi)/2; }},
+    {level:2, sim:'proj2d', unit:'м', src:'Иродов',
+     setup:{bodies:'1',x01:0,y01:0,v01:25,a01:45,ay:-9.8,stopLand:true,stopTop:false,tStop:0},
+     statement:`Тот же бросок: каков радиус кривизны траектории в самой первой её точке, сразу после броска?`,
+     hint:'Нормальная составляющая $g$ к скорости, направленной под углом $\\theta$, равна $g\\cos\\theta$.',
+     answer:p=>{ const g=-p.ay, c=Math.cos(p.a01*Math.PI/180); if(!(g>0)||c<=1e-9) return NaN; return p.v01*p.v01/(g*c); }},
+
+    {level:3, sim:'proj2d', unit:'с', src:'Иродов',
+     setup:{bodies:'2',x01:0,y01:0,v01:240,a01:30,x02:5100,y02:0,v02:0,a02:0,delay:0,ay:-9.8,stopLand:true,stopHit:true,hitR:20,stopTop:false,stopPerp:false,tStop:0},
+     statement:`Пушка и цель (тело 2) стоят на одном уровне на расстоянии 5,1 км; скорость снаряда 240 м/с. Попасть
+       можно под двумя углами. Сколько летит снаряд при меньшем из них? Подберите угол в модели и проверьте.`,
+     hint:'Дальность $L=v_0^2\\sin2\\theta/g$ даёт угол, а время полёта $t=2v_0\\sin\\theta/g$.',
+     answer:p=>{ if(p.bodies==='1'||p.y01!==0||p.y02!==0||!(p.ay<0)) return NaN; const g=-p.ay, L=Math.abs(p.x02-p.x01), q=g*L/(p.v01*p.v01);
+       if(q>1) return NaN; const th=Math.asin(q)/2; return 2*p.v01*Math.sin(th)/g; }},
+
+    /* ---------- Сближение двух тел в потоке ---------- */
+    {level:1, sim:'meet2d', unit:'м/с', src:'Иродов',
+     setup:{u:4.17,uAng:120,x1:0,y1:0,v1:8.33,a1:0,rel1:'gnd',turn1:0,x2:600,y2:250,v2:0,a2:0,rel2:'gnd',frame:'b1',Rh:3,stopHit:false,stopMin:false,tStop:60},
+     statement:`Корабль (тело 1) идёт по экватору на восток со скоростью 30 км/ч, а юго-восточный ветер дует
+       со скоростью 15 км/ч под углом 60° к экватору. Соберите условие в модели (ветер — это течение среды) и найдите,
+       с какой скоростью ветер обдувает палубу.`,
+     hint:'Нужна скорость воздуха относительно корабля: $\\vec u-\\vec v_1$.',
+     answer:p=>{ const M=SIMS.meet2d, U=M.U(p), V=M.V(p,0,0); return Math.hypot(U[0]-V[0],U[1]-V[1]); }},
+
+    {level:2, sim:'meet2d', unit:'°', src:'Иродов',
+     setup:{u:4.17,uAng:120,x1:0,y1:0,v1:8.33,a1:0,rel1:'gnd',turn1:0,x2:600,y2:250,v2:0,a2:0,rel2:'gnd',frame:'b1',Rh:3,stopHit:false,stopMin:false,tStop:60},
+     statement:`В том же опыте с кораблём и ветром: какой острый угол составляет ветер на палубе с курсом корабля?`,
+     hint:'Разложите $\\vec u-\\vec v_1$ на проекцию вдоль курса и поперёк него.',
+     answer:p=>{ const M=SIMS.meet2d, U=M.U(p), V=M.V(p,0,0), w=[U[0]-V[0],U[1]-V[1]], m=Math.hypot(w[0],w[1]);
+       const a=p.a1*Math.PI/180, e=[Math.cos(a),Math.sin(a)]; if(m<1e-9) return NaN;
+       return Math.acos(Math.min(1,Math.abs(w[0]*e[0]+w[1]*e[1])/m))*180/Math.PI; }},
+
+    {level:3, sim:'meet2d', unit:'м', src:'Иродов',
+     setup:{u:0.5,uAng:0,x1:0,y1:0,v1:3,a1:180,rel1:'med',turn1:600,x2:0,y2:0,v2:0,a2:0,rel2:'med',frame:'gnd',Rh:5,stopHit:true,stopMin:false,tStop:0},
+     statement:`Лодка (тело 1) проходит мимо плота (тело 2) и идёт против течения. Через время $\\tau$ она разворачивается
+       и плывёт обратно с той же скоростью относительно воды. На каком расстоянии от места первой встречи лодка снова
+       поравняется с плотом?`,
+     hint:'Перейдите в систему воды: плот в ней стоит, а лодка уходит и возвращается за равное время.',
+     answer:p=>{ const M=SIMS.meet2d, r=M.разбор(p,M.горизонт(p)*2); if(!isFinite(r.удар)) return NaN;
+       const q=M.pos(p,1,r.удар); return Math.hypot(q[0]-p.x2,q[1]-p.y2); }},
+
+    {level:3, sim:'meet2d', unit:'с', src:'Иродов',
+     setup:{u:0,x1:-300,y1:0,v1:10,a1:0,rel1:'gnd',turn1:0,x2:0,y2:-400,v2:8,a2:90,rel2:'gnd',frame:'b1',Rh:3,stopHit:true,stopMin:true,tStop:0},
+     statement:`Два тела идут с постоянными скоростями по взаимно перпендикулярным прямым к их точке пересечения.
+       В начальный момент они в $l_1$ и $l_2$ от неё. Через какое время расстояние между ними станет наименьшим?`,
+     hint:'В системе тела 1 тело 2 движется по прямой со скоростью $\\vec v_2-\\vec v_1$; найдите основание перпендикуляра.',
+     answer:p=>{ const M=SIMS.meet2d, D=M.D(p,0), W=M.W(p,0), A=W[0]*W[0]+W[1]*W[1]; if(A<1e-18) return NaN;
+       const t=-(D[0]*W[0]+D[1]*W[1])/A; return t>0?t:NaN; }},
+
+    {level:3, sim:'meet2d', unit:'м', src:'Иродов',
+     setup:{u:0,x1:-300,y1:0,v1:10,a1:0,rel1:'gnd',turn1:0,x2:0,y2:-400,v2:8,a2:90,rel2:'gnd',frame:'b1',Rh:3,stopHit:true,stopMin:true,tStop:0},
+     statement:`В том же опыте с перпендикулярными курсами: каким будет наименьшее расстояние между телами?`,
+     hint:'$d_{\\min}=|\\vec r_2-\\vec r_1+\\vec w\\,t^*|$; для перпендикулярных курсов $d_{\\min}=\\dfrac{|l_1v_2-l_2v_1|}{\\sqrt{v_1^2+v_2^2}}$.',
+     answer:p=>{ const M=SIMS.meet2d, D=M.D(p,0), W=M.W(p,0), A=W[0]*W[0]+W[1]*W[1]; if(A<1e-18) return NaN;
+       const t=-(D[0]*W[0]+D[1]*W[1])/A; if(!(t>0)) return NaN; return Math.hypot(D[0]+W[0]*t,D[1]+W[1]*t); }},
+
+    {level:4, sim:'meet2d', unit:'м/с', src:'Иродов',
+     setup:{u:2,uAng:30,x1:0,y1:0,v1:6,a1:20,rel1:'med',turn1:0,x2:400,y2:-150,v2:7,a2:150,rel2:'med',frame:'b1',Rh:3,stopHit:true,stopMin:true,tStop:0},
+     statement:`Тело 1 идёт своим курсом. С какой скоростью $v_2$ должно идти тело 2 заданным курсом, чтобы тела
+       столкнулись? Скорости заданы так, как выбрано в модели (относительно среды или земли).`,
+     hint:'Столкновение — когда $\\vec v_2-\\vec v_1$ направлена от тела 2 к телу 1. Векторно умножьте это условие на направление $\\vec r_1-\\vec r_2$.',
+     answer:p=>{ const M=SIMS.meet2d, U=M.U(p), V1=M.V(p,0,0), c=p.rel2==='med'?1:0, D=M.D(p,0), d=Math.hypot(D[0],D[1]); if(d<1e-9) return NaN;
+       const n=[-D[0]/d,-D[1]/d], a=p.a2*Math.PI/180, e=[Math.cos(a),Math.sin(a)], B=[c*U[0]-V1[0],c*U[1]-V1[1]];
+       const кр=(x,y)=>x[0]*y[1]-x[1]*y[0], den=кр(e,n); if(Math.abs(den)<1e-12) return NaN;
+       const v=-кр(B,n)/den; if(v<=0) return NaN;
+       const W=[B[0]+v*e[0],B[1]+v*e[1]]; return (W[0]*n[0]+W[1]*n[1])>0?v:NaN; }},
+
+    /* ---------- Погоня ---------- */
+    {level:3, sim:'pursuit', unit:'с', src:'Иродов',
+     setup:{mode:'poly',N:3,a:100,v:5,trail:true,stopMeet:true,tStop:0},
+     statement:`Точки стоят в вершинах правильного многоугольника со стороной $a$ и с одинаковой по модулю скоростью $v$
+       всё время идут каждая на соседку. Через какое время они встретятся? (У Иродова — три точки в вершинах треугольника.)`,
+     hint:'Сторона укорачивается равномерно: начало идёт вдоль неё со скоростью $v$, а конец уходит под углом $2\\pi/N$.',
+     answer:p=>{ if(p.mode!=='poly') return NaN; const N=Math.round(p.N); return p.a/(p.v*(1-Math.cos(2*Math.PI/N))); }},
+
+    {level:2, sim:'pursuit', unit:'м',
+     setup:{mode:'poly',N:4,a:100,v:5,trail:true,stopMeet:true,tStop:0},
+     statement:`В той же погоне: какой путь пройдёт каждая точка до встречи? Удивительно, но у квадрата он равен стороне.`,
+     hint:'Модуль скорости постоянен: путь — это $v$, умноженное на время встречи.',
+     answer:p=>{ if(p.mode!=='poly') return NaN; const N=Math.round(p.N); return p.a/(1-Math.cos(2*Math.PI/N)); }},
+
+    {level:3, sim:'pursuit', unit:'с',
+     setup:{mode:'poly',N:6,a:100,v:5,trail:true,stopMeet:true,tStop:0},
+     statement:`Через какое время после старта расстояние между соседними точками уменьшится вдвое?`,
+     hint:'Расстояние между соседями убывает с постоянной скоростью.',
+     answer:p=>{ if(p.mode!=='poly') return NaN; const N=Math.round(p.N); return p.a/(2*p.v*(1-Math.cos(2*Math.PI/N))); }},
+
+    {level:4, sim:'pursuit', unit:'с', src:'Иродов',
+     setup:{mode:'chase',l:100,u:3,v:5,trail:true,stopMeet:true,tStop:0},
+     statement:`Точка A движется со скоростью $v$, всё время целясь в точку B. Та идёт по прямой со скоростью $u&lt;v$,
+       вначале перпендикулярно отрезку AB длиной $l$. Через какое время A догонит B?`,
+     hint:'Запишите скорость сближения $v-u\\cos\\alpha$ и проекцию скорости A на направление движения B; проинтегрируйте обе по времени.',
+     answer:p=>{ if(p.mode!=='chase'||p.u>=p.v) return NaN; return p.v*p.l/(p.v*p.v-p.u*p.u); }},
 
     /* ---------- Переправа через реку ---------- */
     {level:1, sim:'river', unit:'раз',
@@ -26019,7 +26677,33 @@ const T_2d={
      hint:'Средний вектор ускорения равен изменению вектора скорости, делённому на время.',
      answer:p=>{ const v=p.mode==='T'?2*Math.PI*p.R/p.T:p.v;
        const T=p.mode==='T'?p.T:2*Math.PI*p.R/v;
-       return v*Math.SQRT2/(T/4); }}
+       return v*Math.SQRT2/(T/4); }},
+
+    /* ---------- Окружность с разгоном (по Иродову) ---------- */
+    {level:3, sim:'circular', unit:'м/с²', src:'Иродов',
+     setup:{mode:'acc',R:5,v0:0,at:0.5,dir:'ccw',showA:true,turns:0.1,tStop:0},
+     statement:`Точка начинает двигаться по окружности, и её скорость растёт по закону $v=a_\\tau t$. Найдите модуль
+       полного ускорения в тот момент, когда точка пройдёт заданную долю $n$ окружности (параметр «остановить через
+       N оборотов»; у Иродова $n=0{,}1$).`,
+     hint:'Нормальное ускорение $v^2/R$, где $v^2=2a_\\tau s$ и $s=2\\pi Rn$; полное — гипотенуза.',
+     answer:p=>{ if(p.mode!=='acc'||!(p.turns>0)) return NaN; const L=2*Math.PI*p.R*p.turns, v2=p.v0*p.v0+2*p.at*L;
+       if(v2<0) return NaN; return Math.hypot(p.at,v2/p.R); }},
+
+    {level:3, sim:'circular', unit:'°', src:'Иродов',
+     setup:{mode:'acc',R:5,v0:0,at:1,dir:'ccw',showA:true,turns:0.25,tStop:0},
+     statement:`Точка движется по окружности, и её скорость зависит от пройденного пути как $v=\\alpha\\sqrt s$ — это
+       разгон с постоянным $a_\\tau=\\alpha^2/2$ из состояния покоя. Какой угол составляет полное ускорение со скоростью,
+       когда пройдено $n$ оборотов? Заметьте: ответ не зависит ни от $\\alpha$, ни от радиуса.`,
+     hint:'$\\tg\\varphi=a_n/a_\\tau=2s/R$, а $s=2\\pi Rn$.',
+     answer:p=>{ if(p.mode!=='acc'||!(p.turns>0)) return NaN; const L=2*Math.PI*p.R*p.turns, v2=p.v0*p.v0+2*p.at*L;
+       if(v2<0||p.at===0) return NaN; return Math.atan2(v2/p.R,p.at)*180/Math.PI; }},
+
+    {level:2, sim:'circular', unit:'м',
+     setup:{mode:'acc',R:20,v0:15,at:-2,dir:'ccw',showA:true,turns:0,tStop:0},
+     statement:`Автомобиль входит в поворот радиуса $R$ со скоростью $v_0$ и тормозит с постоянным касательным
+       ускорением. Какой путь по дуге он пройдёт до остановки?`,
+     hint:'По дуге — то же равнозамедленное движение: $s=v_0^2/(2|a_\\tau|)$.',
+     answer:p=>{ if(p.mode!=='acc'||!(p.at<0)) return NaN; return p.v0*p.v0/(-2*p.at); }}
   ]
 };
 
@@ -26120,7 +26804,7 @@ const T_intro={
   <p><strong>Инструменты модели</strong> стоят в той же строке после общих, отделённые чертой, и у каждой
   симуляции свои. Ими меняют саму модель, а не рисуют поверх неё: в одномерном движении тело берут и
   переносят вдоль оси, а скорость и ускорение задают, вытягивая стрелку; в баллистике прицеливаются,
-  потянув от точки старта; в задаче о ракете передвигают корабль по морю. Параметры в панели меняются
+  потянув от точки старта; в задаче о двух телах в потоке проводят стрелку течения. Параметры в панели меняются
   вслед за рукой, а отпущенная модель запускается заново. Выбранное тело двигают и стрелками клавиатуры
   (с <strong>Shift</strong> — крупнее).</p>
 
@@ -26403,6 +27087,7 @@ const T_dyn={
     `Третий закон: силы равны и противоположны, но приложены к <strong>разным</strong> телам — складывать их нельзя.`,
   ],
   explore:[
+    {sim:'plank', do:`Загрузите «Сила растёт» и следите за трением между бруском и доской`, see:`трение растёт вместе с силой, пока не упрётся в $\\mu m_2g$, — тогда брусок поедет по доске`},
     {sim:'incline', do:`Медленно увеличивайте угол, пока брусок не поедет`, see:`это и есть угол, при котором $\\operatorname{tg}\\alpha=\\mu$`},
     {sim:'incline', do:`Поставьте $\\mu=0$ и меняйте массу`, see:`ускорение $g\\sin\\alpha$ не изменится: масса сокращается`},
     {sim:'atwood', do:`Сделайте грузы одинаковыми`, see:`система замрёт при любой массе — важна разность, а не вес`},
@@ -26573,7 +27258,25 @@ const T_dyn={
   <h3 class="sub">Сила Архимеда</h3>
   <p>Тело в жидкости или газе испытывает выталкивающую силу, равную весу вытесненной среды: $F_A=\\rho_{\\text{ж}}gV$.
   Во втором законе это просто ещё одна сила наравне с тяжестью и натяжением. Откуда она берётся, когда тело плавает,
-  тонет или висит, — в теме «Гидромеханика», там же модель с плавающими телами.</p>`,
+  тонет или висит, — в теме «Гидромеханика», там же модель с плавающими телами.</p>
+
+  <h3 class="sub">Брусок на доске: когда трение покоя сдаётся</h3>
+  <p>Доска массы $m_1$ лежит на гладком столе, на ней брусок $m_2$. Тянем доску силой $F$. Пока тела едут вместе,
+  их общее ускорение $a=F/(m_1+m_2)$, и разогнать брусок может только трение со стороны доски: оно равно ровно
+  $m_2a$. Это трение покоя: оно подстраивается под нужное значение, но не больше $\\mu m_2g$. Значит, вместе тела
+  едут, пока $F\\le\\mu g(m_1+m_2)$. Сила больше — брусок отстаёт и скользит, трение становится трением скольжения
+  $\\mu m_2g$, брусок разгоняется с ускорением $\\mu g$, а доска — быстрее.</p>
+  <p>Если сила растёт со временем, $F=\\alpha t$, скольжение начнётся в момент $t_0=\\mu g(m_1+m_2)/\\alpha$. На графике
+  ускорений это излом: до $t_0$ обе линии совпадают и растут, после — брусок застывает на $\\mu g$, а доска уходит вверх.
+  Если тянуть брусок, порог другой: доску разгоняет только трение, и её предельное ускорение $\\mu m_2g/m_1$.</p>
+
+  <h3 class="sub">Наклонная плоскость: вверх, вниз и по нити</h3>
+  <p>Брусок, пущенный вверх по склону, тормозит сильнее, чем потом разгоняется вниз: на подъёме трение и
+  скатывающая сила направлены в одну сторону, $a_\\uparrow=g(\\sin\\theta+\\mu\\cos\\theta)$, на спуске — в разные,
+  $a_\\downarrow=g(\\sin\\theta-\\mu\\cos\\theta)$. Путь туда и обратно одинаков, поэтому $t_\\downarrow/t_\\uparrow=\\sqrt{a_\\uparrow/a_\\downarrow}$.</p>
+  <p>Если основание клина $b$ закреплено, а высоту менять можно, есть угол самого быстрого спуска. Крутой склон
+  короче, но тело на нём сильнее «давит вниз», чем движется вдоль; пологий — длинный и медленный. Время
+  $t^2=\\dfrac{2b}{g\\cos\\theta(\\sin\\theta-\\mu\\cos\\theta)}$ наименьшее при $\\tg2\\theta=-1/\\mu$; без трения — ровно при $45^\\circ$.</p>`,
   time:55,
   needs:['mech.1d','mech.2d'],
   why:`Кинематика описывает движение, динамика отвечает, почему оно такое. Практически вся
@@ -26648,6 +27351,9 @@ const T_dyn={
     {tex:'N=mg\\cos\\theta,\\qquad F_{\\text{скат}}=mg\\sin\\theta,\\qquad \\tan\\theta_{\\text{max}}=\\mu_s',
      kind:'следствие',
      note:'Наклонная плоскость. Угол срыва не зависит от массы — так измеряют $\\mu_s$.', sim:'incline'},
+    {tex:'F_{\\min}=\\mu g\\,(m_1+m_2),\\qquad t_0=\\dfrac{\\mu g\\,(m_1+m_2)}{\\alpha}',
+     kind:'следствие',
+     note:'Брусок на доске: наименьшая сила, при которой он заскользит, и момент начала скольжения при $F=\\alpha t$ (стол гладкий, сила приложена к доске).', sim:'plank'},
     {tex:'a=g\\,(\\sin\\theta-\\mu_d\\cos\\theta)',
      kind:'следствие',
      note:'Ускорение бруска, скользящего вниз по наклонной плоскости.', sim:'incline'},
@@ -26768,7 +27474,8 @@ const T_dyn={
        const s=0.5/R; if(s>1) return NaN;
        return (Math.asin(s)+ph)*180/Math.PI; }},
 
-    {level:4, sim:'incline', unit:'раз',
+    {level:4, sim:'incline', unit:'раз', src:'Иродов',
+     setup:{m:5,th:15,mus:0.2,mud:0.16,g:9.8,L:20,baseFix:false,start:'bottom',v0:6,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0},
      statement:`Брусок толкнули <em>вверх</em> по плоскости. Он поднялся, остановился и съехал
        обратно в ту же точку. Во сколько раз время спуска больше времени подъёма?`,
      hint:'На подъёме трение складывается со скатывающей силой, на спуске — вычитается.',
@@ -26777,6 +27484,7 @@ const T_dyn={
        return Math.sqrt(up/dn); }},
 
     {level:5, sim:'incline', unit:'',
+     setup:{m:5,th:15,mus:0.2,mud:0.16,g:9.8,L:20,baseFix:false,start:'bottom',v0:6,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0},
      statement:`Брусок толкнули вверх по плоскости со скоростью $v_0$. При каком коэффициенте
        трения скольжения он вернётся в исходную точку со скоростью ровно <strong>вдвое
        меньшей</strong> начальной? Ответ выразите числом (сам коэффициент).`,
@@ -26898,7 +27606,88 @@ const T_dyn={
        const зазор=t=>1.5-p.g*t*t/2-σ*SIMS.lift.профиль(q,t).s;
        let lo=0, hi=0.05; while(зазор(hi)>0&&hi<60) hi*=2;
        for(let i=0;i<80;i++){ const m=(lo+hi)/2; if(зазор(m)>0) lo=m; else hi=m; }
-       return (lo+hi)/2; }}
+       return (lo+hi)/2; }},
+
+    /* ---------- По задачнику Иродова: наклонная плоскость ---------- */
+    {level:3, sim:'incline', unit:'', src:'Иродов',
+     setup:{m:5,th:30,mus:0.15,mud:0.1,g:9.8,L:10,baseFix:false,start:'bottom',v0:0,m2:4,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0},
+     statement:`Брусок массы $m$ лежит на наклонной плоскости, а нить от него через блок на вершине держит груз $m_2$.
+       При каком наименьшем отношении $m_2/m$ груз начнёт опускаться, втягивая брусок вверх?`,
+     hint:'Груз тянет с силой $m_2g$; ему мешают скатывающая сила $mg\\sin\\theta$ и трение покоя $\\mu_s mg\\cos\\theta$.',
+     answer:p=>{ const th=p.th*Math.PI/180; return Math.sin(th)+p.mus*Math.cos(th); }},
+
+    {level:3, sim:'incline', unit:'Н', src:'Иродов',
+     setup:{m:5,th:30,mus:0.15,mud:0.1,g:9.8,L:10,baseFix:false,start:'bottom',v0:0,m2:4,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0},
+     statement:`Груз $m_2$ опускается и втягивает брусок вверх по плоскости. Найдите натяжение нити во время движения.
+       (В модели оно видно на диаграмме сил как $T$.)`,
+     hint:'Сначала ускорение системы: $(m+m_2)a=m_2g-mg\\sin\\theta-\\mu mg\\cos\\theta$; потом второй закон для груза.',
+     answer:p=>{ if(!(p.m2>0)) return NaN; const th=p.th*Math.PI/180, g=p.g, m=p.m, m2=p.m2;
+       if(m2<=m*(Math.sin(th)+p.mus*Math.cos(th))) return NaN;
+       const a=(m2*g-m*g*Math.sin(th)-p.mud*m*g*Math.cos(th))/(m+m2); return m2*(g-a); }},
+
+    {level:4, sim:'incline', unit:'°', src:'Иродов',
+     setup:{m:5,th:40,mus:0.14,mud:0.14,g:9.8,baseFix:true,b:8,start:'top',v0:0,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0},
+     statement:`Тело соскальзывает с вершины клина, основание которого $b$ постоянно, а высоту можно менять. Коэффициент
+       трения $\\mu$. При каком угле наклона время соскальзывания будет наименьшим? Проверьте, меняя угол в модели.`,
+     hint:'$t^2=\\dfrac{2b}{g\\cos\\theta(\\sin\\theta-\\mu\\cos\\theta)}$; максимум знаменателя даёт $\\tg2\\theta=-1/\\mu$.',
+     answer:p=>90-Math.atan(1/Math.max(p.mud,1e-9))*90/Math.PI},
+
+    {level:4, sim:'incline', unit:'с', src:'Иродов',
+     setup:{m:5,th:40,mus:0.14,mud:0.14,g:9.8,baseFix:true,b:8,start:'top',v0:0,m2:0,auto:false,stopSlip:false,stopBottom:true,stopTurn:false,tStop:0},
+     statement:`В том же опыте: чему равно это наименьшее время соскальзывания?`,
+     hint:'Подставьте найденный угол в $t^2=2b/(g\\cos\\theta(\\sin\\theta-\\mu\\cos\\theta))$.',
+     answer:p=>{ const mu=p.mud, th=(90-Math.atan(1/Math.max(mu,1e-9))*90/Math.PI)*Math.PI/180, c=Math.cos(th), f=c*(Math.sin(th)-mu*c);
+       return f>0?Math.sqrt(2*p.b/(p.g*f)):NaN; }},
+
+    /* ---------- По задачнику Иродова: сила под углом ---------- */
+    {level:3, sim:'newton2', unit:'°', src:'Иродов',
+     setup:{n:1,m1:10,x1:0,v1:0,r1:true,mus:0.5,mud:0.35,e:1,g:9.8,F:60,alpha:20,applyTo:1,stopHit:false,stopSlip:true,stopRest:false,tStop:0},
+     statement:`Брусок на шероховатом столе тянут силой под углом $\\alpha$ к горизонту. При каком угле $\\alpha$ сдвинуть
+       его легче всего, то есть нужна наименьшая сила? (Подъёмная составляющая уменьшает давление на стол.)`,
+     hint:'Брусок сдвинется, когда $F\\cos\\alpha=\\mu_s(mg-F\\sin\\alpha)$; минимум $F$ — при $\\tg\\alpha=\\mu_s$.',
+     answer:p=>Math.atan(p.mus)*180/Math.PI},
+
+    {level:3, sim:'newton2', unit:'Н', src:'Иродов',
+     setup:{n:1,m1:10,x1:0,v1:0,r1:true,mus:0.5,mud:0.35,e:1,g:9.8,F:45,alpha:26.6,applyTo:1,stopHit:false,stopSlip:true,stopRest:false,tStop:0},
+     statement:`Какую наименьшую силу нужно приложить к бруску 1 (под наилучшим углом), чтобы сдвинуть его с места?`,
+     hint:'При $\\tg\\alpha=\\mu_s$ получается $F_{\\min}=\\dfrac{\\mu_s mg}{\\sqrt{1+\\mu_s^2}}$.',
+     answer:p=>p.mus*p.m1*p.g/Math.sqrt(1+p.mus*p.mus)},
+
+    /* ---------- По задачнику Иродова: брусок на доске ---------- */
+    {level:3, sim:'plank', unit:'с', src:'Иродов',
+     setup:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'plank',law:'ramp',al:2,stopSlip:true,stopOff:true,tStop:0},
+     statement:`На гладком столе лежит доска массы $m_1$, на ней брусок массы $m_2$; коэффициент трения между ними $\\mu$.
+       К доске приложили растущую силу $F=\\alpha t$. В какой момент брусок начнёт скользить по доске?`,
+     hint:'Пока тела едут вместе, бруску нужно трение $m_2a$, где $a=\\alpha t/(m_1+m_2)$. Скольжение — когда оно достигнет $\\mu m_2g$.',
+     answer:p=>{ if(p.on!=='plank'||p.law!=='ramp') return NaN; return (p.mu+p.mu0)*p.g*(p.m1+p.m2)/p.al; }},
+
+    {level:4, sim:'plank', unit:'м/с²', src:'Иродов',
+     setup:{m1:3,m2:1,mu:0.3,mu0:0,Lp:20,g:9.8,on:'plank',law:'ramp',al:2,stopSlip:false,stopOff:true,tStop:11.76},
+     statement:`В том же опыте найдите ускорение доски в момент, вдвое более поздний, чем начало скольжения
+       (в наборе условия таймер остановится как раз тогда).`,
+     hint:'После начала скольжения на доску действуют $F=\\alpha t$ и трение $\\mu m_2g$ назад: $a_1=(\\alpha t-\\mu m_2g)/m_1$.',
+     answer:p=>{ if(p.on!=='plank'||p.law!=='ramp'||p.mu0!==0) return NaN; const t0=p.mu*p.g*(p.m1+p.m2)/p.al; return (p.al*2*t0-p.mu*p.m2*p.g)/p.m1; }},
+
+    {level:2, sim:'plank', unit:'Н',
+     setup:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'plank',law:'const',F:8,stopSlip:true,stopOff:true,tStop:4},
+     statement:`Постоянная сила $F$ приложена к доске. При какой наименьшей силе брусок начнёт скользить по доске?`,
+     hint:'Наибольшее ускорение, которое трение может сообщить бруску, — $\\mu g$. Доска должна ускоряться быстрее.',
+     answer:p=>(p.mu+p.mu0)*p.g*(p.m1+p.m2)},
+
+    {level:3, sim:'plank', unit:'Н',
+     setup:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'bar',law:'const',F:2,stopSlip:true,stopOff:true,tStop:4},
+     statement:`Теперь сила приложена к бруску, а стол гладкий. При какой наименьшей силе брусок поедет по доске?`,
+     hint:'Доску тянет только трение; её наибольшее ускорение $\\mu m_2g/m_1$, и тела едут вместе, пока $F/(m_1+m_2)$ не больше его.',
+     answer:p=>{ if(p.mu0>0) return NaN; return p.mu*p.m2*p.g*(p.m1+p.m2)/p.m1; }},
+
+    {level:4, sim:'plank', unit:'с',
+     setup:{m1:3,m2:1,mu:0.3,mu0:0,Lp:2,g:9.8,on:'plank',law:'const',F:25,stopSlip:false,stopOff:true,tStop:0},
+     statement:`Доску длины $l$ рванули постоянной силой $F$, достаточной для скольжения; брусок лежал посередине.
+       Через какое время он соскользнёт с доски?`,
+     hint:'Относительное ускорение — разность ускорений доски и бруска; путь относительно доски — $l/2$.',
+     answer:p=>{ if(p.on!=='plank'||p.law!=='const') return NaN; const g=p.g, M=p.m1+p.m2;
+       if(p.F<=(p.mu+p.mu0)*g*M) return NaN; const a1=(p.F-p.mu*p.m2*g-p.mu0*M*g)/p.m1, a2=p.mu*g;
+       return a1>a2?Math.sqrt(p.Lp/(a1-a2)):NaN; }}
   ]
 };
 
@@ -27165,7 +27954,29 @@ const T_grav={
        добавочную скорость, направленную <strong>к центру планеты</strong> и равную по модулю
        <em>половине</em> круговой. На какое максимальное расстояние от центра он теперь удалится?`,
      hint:'Радиальный толчок не меняет момент импульса, но меняет энергию. Найдите большую полуось и эксцентриситет.',
-     answer:p=>2*p.r0}
+     answer:p=>2*p.r0},
+
+    /* ---------- По задачнику Иродова: спутники ---------- */
+    {level:3, sim:'orbit', unit:'×10³ км', src:'Иродов',
+     setup:{M:5.97,Rc:6.37,r0:42,v0:3.07,ang:90,circleV:true,trail:true,vecs:true,kepler:false,burn:'none',turns:0,tStop:0},
+     statement:`На каком расстоянии от центра планеты массы $M$ (как в модели) должен обращаться спутник по круговой
+       орбите, чтобы его период был ровно 24 часа? Ответ — в тысячах километров (×10³ км).`,
+     hint:'Сила тяготения даёт центростремительное ускорение: $GM/r^2=4\\pi^2r/T^2$.',
+     answer:p=>{ const GM=6.674e-11*p.M*1e24, T=86400; return Math.cbrt(GM*T*T/(4*Math.PI*Math.PI))/1e6; }},
+
+    {level:2, sim:'orbit', unit:'раз', src:'Иродов',
+     setup:{M:5.97,Rc:6.37,r0:42,v0:3.07,ang:90,circleV:true,trail:true,vecs:true,kepler:false,burn:'none',turns:0,tStop:0},
+     statement:`Во сколько раз первая космическая скорость у поверхности планеты больше скорости спутника на круговой
+       орбите радиуса $r_0$?`,
+     hint:'Круговая скорость $v=\\sqrt{GM/r}$, поэтому отношение — корень из отношения радиусов.',
+     answer:p=>Math.sqrt(p.r0/p.Rc)},
+
+    {level:3, sim:'orbit', unit:'км/с', src:'Иродов',
+     setup:{M:5.97,Rc:6.37,r0:42,v0:3.07,ang:90,circleV:true,trail:true,vecs:true,kepler:false,burn:'apo',dv:1.27,turns:0,tStop:0},
+     statement:`Спутник идёт по круговой орбите радиуса $r_0$. Какую наименьшую прибавку скорости ему нужно дать, чтобы
+       он навсегда покинул планету? Проверьте ответ импульсом двигателя в модели.`,
+     hint:'Нужна вторая космическая на этом расстоянии: $\\sqrt{2GM/r_0}$; круговая там — $\\sqrt{GM/r_0}$.',
+     answer:p=>{ const GM=6.674e-11*p.M*1e24, r=p.r0*1e6; return (Math.SQRT2-1)*Math.sqrt(GM/r)/1e3; }}
   ]
 };
 
@@ -27451,6 +28262,8 @@ const T_econs={
     `Реактивное движение: $v=u\\ln\\dfrac{m_0}{m}$ — скорость растёт логарифмически, а топливо тратится линейно.`,
   ],
   explore:[
+    {sim:'loop', do:`Загрузите «Не хватило высоты» и запустите`, see:`тело отрывается от петли на высоте $(R+2h)/3$ и летит по параболе`},
+    {sim:'loop', do:`Инструментом «Точка старта» поднимайте горку, пока тело не пройдёт петлю`, see:`порог — $h=2{,}5R$: на вершине петли реакция обращается в нуль`},
     {sim:'econs', do:`Прогоните все три опыта подряд`, see:`всюду одна сумма $K+U$, меняется только её распределение`}
   ],
   theory:`
@@ -27533,7 +28346,22 @@ const T_econs={
   Патентные ведомства мира перестали рассматривать заявки на вечные двигатели ещё в XIX веке: не потому,
   что кто-то запретил, а потому, что за двести лет ни одна из тысяч конструкций не проработала. Всякий раз
   находилась незамеченная статья расхода. Если ваш расчёт даёт энергию из ниоткуда — ошибка в расчёте,
-  и её стоит искать до конца.</div>`,
+  и её стоит искать до конца.</div>
+
+  <h3 class="sub">Мёртвая петля, сфера и нить: когда тело отрывается</h3>
+  <p>Закон сохранения энергии даёт скорость в каждой точке пути, но не говорит, удержится ли тело на опоре. Это
+  решает второй закон. Пусть тело скользит без трения внутри окружности радиуса $R$, угол $\\varphi$ отсчитан от
+  нижней точки. Вдоль радиуса к центру действуют реакция $N$ и проекция тяжести $-mg\\cos\\varphi$ (в нижней точке
+  тяжесть направлена от центра). Их сумма даёт центростремительное ускорение: $N-mg\\cos\\varphi=mv^2/R$, то есть $N=m\\left(\\dfrac{v^2}{R}+g\\cos\\varphi\\right)$.
+  Опора может только толкать: как только $N$ обращается в нуль, тело отрывается и дальше летит как брошенное.
+  Нить ведёт себя так же — она может только тянуть.</p>
+  <p>В верхней точке петли $\\cos\\varphi=-1$, и условие $N\\ge0$ требует $v^2\\ge gR$. Энергия, запасённая на горке
+  высотой $h$, даёт $v^2=2g(h-2R)$; отсюда $h\\ge\\tfrac52R$. Если горка ниже, но выше $R$, тело оторвётся в верхней
+  половине петли. Подставив $v^2=2g(h-y)$ в условие $N=0$, получим высоту отрыва $y=(R+2h)/3$.</p>
+  <p>Снаружи сферы всё наоборот: тяжесть прижимает, а для движения по дуге нужна сила к центру, которую даёт
+  только тяжесть, $N=m\\left(g\\cos\\theta-\\dfrac{v^2}{R}\\right)$ ($\\theta$ — от верхней точки). Соскальзывая с вершины без
+  начальной скорости, тело набирает $v^2=2gR(1-\\cos\\theta)$, и $N=0$ при $\\cos\\theta=\\tfrac23$. Отрыв всегда
+  происходит на высоте $\\tfrac23R$ над центром, какой бы ни была сфера.</p>`,
   time:55,
   needs:['mech.work','mech.dyn'],
   why:`Два закона сохранения — импульса и энергии — вместе решают почти любую задачу про
@@ -27562,6 +28390,9 @@ const T_econs={
     }
   ],
   formulas:[
+    {tex:'N=m\\left(\\dfrac{v^2}{R}+g\\cos\\varphi\\right),\\qquad h_{\\min}=\\tfrac52R,\\qquad \\cos\\theta_{\\text{отр}}=\\tfrac23',
+     kind:'следствие',
+     note:'Сила реакции внутри петли (и натяжение нити); наименьшая высота горки для мёртвой петли; угол отрыва тела, соскальзывающего с вершины сферы.', sim:'loop'},
     {tex:'\\vec I=\\int_{t_1}^{t_2}\\vec F\\,dt=\\vec p_2-\\vec p_1',
      kind:'следствие',
      note:'Импульс силы равен изменению импульса тела. Растянуть удар во времени — уменьшить силу.', sim:'econs'},
@@ -27652,7 +28483,54 @@ const T_econs={
        тело останется связанным.`,
      hint:'Вторая космическая в точке $r$ равна $\\sqrt{2GM/r}$.',
      answer:p=>{ const mu=6.674e-11*p.M*1e24, v2=Math.sqrt(2*mu/(p.r0*1e6));
-       if(!isFinite(v2)||!v2) return NaN; return 100*(p.v0*1e3)/v2; }}
+       if(!isFinite(v2)||!v2) return NaN; return 100*(p.v0*1e3)/v2; }},
+
+    /* ---------- По задачнику Иродова: петля, сфера, нить ---------- */
+    {level:3, sim:'loop', unit:'м', src:'Иродов',
+     setup:{mode:'loop',R:2,h:4,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0},
+     statement:`Тело скатывается без трения с горки и попадает в мёртвую петлю радиуса $R$. С какой наименьшей высоты
+       $h$ его нужно отпустить, чтобы оно прошло петлю, не оторвавшись? Начальная скорость на горке — как в модели.`,
+     hint:'В верхней точке петли $v^2\\ge gR$; энергия даёт $v^2=v_0^2+2g(h-2R)$.',
+     answer:p=>{ if(p.mode!=='loop') return NaN; return 2.5*p.R-p.v0*p.v0/(2*p.g); }},
+
+    {level:4, sim:'loop', unit:'м', src:'Иродов',
+     setup:{mode:'loop',R:2,h:4,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0},
+     statement:`Горка ниже нужной: $R&lt;h&lt;\\tfrac52R$. На какой высоте над нижней точкой петли тело от неё оторвётся?`,
+     hint:'Условие отрыва $N=0$: $v^2=-gR\\cos\\varphi$, а энергия даёт $v^2=2g(h-y)$, где $y=R(1-\\cos\\varphi)$.',
+     answer:p=>{ if(p.mode!=='loop') return NaN; const H=p.h+p.v0*p.v0/(2*p.g); if(H<=p.R||H>=2.5*p.R) return NaN; return (p.R+2*H)/3; }},
+
+    {level:3, sim:'loop', unit:'Н', src:'Иродов',
+     setup:{mode:'loop',R:2,h:6,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0},
+     statement:`С какой силой тело давит на петлю в её верхней точке, если горка выше порога?`,
+     hint:'$N=m(v^2/R-g)$ в верхней точке, $v^2=v_0^2+2g(h-2R)$.',
+     answer:p=>{ if(p.mode!=='loop') return NaN; const v2=p.v0*p.v0+2*p.g*(p.h-2*p.R); if(v2<p.g*p.R) return NaN; return p.m*(v2/p.R-p.g); }},
+
+    {level:3, sim:'loop', unit:'м', src:'Иродов',
+     setup:{mode:'sphere',R:2,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0},
+     statement:`Маленькое тело соскальзывает без трения с вершины гладкой сферы радиуса $R$. На какой высоте над
+       центром сферы оно оторвётся от её поверхности?`,
+     hint:'$N=m(g\\cos\\theta-v^2/R)=0$ и $v^2=v_0^2+2gR(1-\\cos\\theta)$.',
+     answer:p=>{ if(p.mode!=='sphere') return NaN; const c=(2+p.v0*p.v0/(p.g*p.R))/3; return c>=1?p.R:p.R*c; }},
+
+    {level:2, sim:'loop', unit:'м/с', src:'Иродов',
+     setup:{mode:'sphere',R:2,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0},
+     statement:`С какой скоростью тело отрывается от сферы в том же опыте?`,
+     hint:'В момент отрыва вся центростремительная сила — проекция тяжести: $v^2=gR\\cos\\theta$.',
+     answer:p=>{ if(p.mode!=='sphere') return NaN; const c=Math.min(1,(2+p.v0*p.v0/(p.g*p.R))/3); return Math.sqrt(p.g*p.R*c); }},
+
+    {level:2, sim:'loop', unit:'Н',
+     setup:{mode:'thread',R:2,th0:90,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:true,tStop:0},
+     statement:`Шарик массы $m$ на нити отклонили на угол $\\theta_0$ от вертикали и отпустили. Каким будет натяжение
+       нити в нижней точке?`,
+     hint:'В нижней точке $T-mg=mv^2/L$, а $v^2=2gL(1-\\cos\\theta_0)$.',
+     answer:p=>{ if(p.mode!=='thread') return NaN; return p.m*p.g*(3-2*Math.cos(p.th0*Math.PI/180))+p.m*p.v0*p.v0/p.R; }},
+
+    {level:4, sim:'loop', unit:'°', src:'Иродов',
+     setup:{mode:'thread',R:2,th0:90,v0:0,m:1,g:9.8,stopDetach:true,stopBottom:false,tStop:0},
+     statement:`Шарик на нити отклонили на угол $\\theta_0$ (у Иродова — до горизонтального положения) и отпустили без
+       толчка. При каком угле нити с вертикалью вертикальная составляющая его скорости наибольшая?`,
+     hint:'Максимизируйте $v\\sin\\theta$ при $v^2=2gL(\\cos\\theta-\\cos\\theta_0)$: получится $3\\cos^2\\theta-2\\cos\\theta_0\\cos\\theta-1=0$.',
+     answer:p=>{ if(p.mode!=='thread'||p.v0!==0) return NaN; const c0=Math.cos(p.th0*Math.PI/180), c=(c0+Math.sqrt(c0*c0+3))/3; return Math.acos(Math.min(1,c))*180/Math.PI; }}
   ]
 };
 
@@ -47521,8 +48399,12 @@ function renderPane(){
       <div class="pr-prog"><div class="pp-bar"><i style="width:${Math.round(100*nSolved/t.problems.length)}%"></i></div>
         <span class="pp-txt">решено ${nSolved} из ${t.problems.length}</span>
         ${nSolved?'<button class="pp-reset">сбросить</button>':''}</div>
+      ${t.problems.some(p=>p.src)?`<div class="pr-filter" role="group" aria-label="Какие задачи показывать">
+        <button data-f="all" class="${S.prFilter!=='src'?'on':''}">все задачи · ${t.problems.length}</button>
+        <button data-f="src" class="${S.prFilter==='src'?'on':''}">по Иродову · ${t.problems.filter(p=>p.src).length}</button></div>`:''}
       ${order.map(sid=>{
-        const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid);
+        const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid&&(S.prFilter!=='src'||x.p.src));
+        if(!grp.length) return '';
         const done=grp.filter(x=>S.solved[идЗадачи(t,x.p)]).length;
         const head=sid&&SIMS[sid]
           ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>решено ${done} из ${grp.length} · <b>Открыть модель</b></span></button>`
@@ -47532,18 +48414,21 @@ function renderPane(){
           <div class="head">${dots(pr.level)}
             <span class="pr-n">задача ${k+1}</span>
             ${pr.level>=5?'<span class="pr-hard">олимпиадная</span>':''}
+            ${pr.src?`<span class="pr-src" title="Условие пересказано по задачнику И. Е. Иродова «Задачи по общей физике»">${pr.src}</span>`:''}
             <span class="pr-done" title="решена">✓</span>
           </div>
           <div class="st">${pr.statement}</div>
           <div class="answer">
             <input type="text" autocomplete="off" spellcheck="false" placeholder="ответ${pr.unit?', '+pr.unit:''} — можно с единицами">
             <button class="btn primary check">Проверить</button>
+            ${pr.setup&&pr.sim?'<button class="btn setup" title="Открыть модель с параметрами из условия">Собрать в модели</button>':''}
             ${pr.hint?'<button class="btn hint">Подсказка</button>':''}
             <button class="btn reveal">Показать ответ</button>
             <span class="verdict" role="status" aria-live="polite"></span>
           </div>
         </div>`).join('');
       }).join('')}`;
+    pane.querySelectorAll('.pr-filter button').forEach(b=>b.onclick=()=>{ S.prFilter=b.dataset.f; renderPane(); });
     pane.querySelectorAll('.pr-grp[data-sim]').forEach(b=>
       b.onclick=()=>{ openSim(b.dataset.sim); autoCloseRail(); });
     const rs=pane.querySelector('.pp-reset');
@@ -47598,6 +48483,9 @@ function renderPane(){
         out.textContent=isFinite(ans)?`${fmt(ans)} ${pr.unit}`:'события не происходит';
       };
       const h=el.querySelector('.hint'); if(h) h.onclick=()=>toast(pr.hint);
+      /* Задача из задачника собирается в модели одним нажатием: сцена
+         открывается с параметрами условия, дальше её запускают и меряют. */
+      const су=el.querySelector('.setup'); if(су) су.onclick=()=>{ собратьУсловие(pr); };
     });
     /* пересчёт полосы прогресса без полной перерисовки — иначе теряется
        введённый в другие задачи текст */
@@ -48938,6 +49826,17 @@ initRailGroups();
    set округляет до шага параметра и держит в его пределах; пока тянут,
    сцена перезапускается с новыми параметрами, а в историю отмены и в поля
    параметров значение попадает, когда кнопку отпустили. */
+/* Собрать условие задачи в модели: открыть сцену, вернуть параметры к
+   умолчаниям и наложить на них значения из условия (pr.setup). */
+function собратьУсловие(pr){
+  if(!pr||!pr.sim||!SIMS[pr.sim]) return;
+  openSim(pr.sim); const a=A(); if(!a) return;
+  const v={}; for(const q of a.def.params) if(q.key) v[q.key]=q.default;
+  Object.assign(v,pr.setup||{});
+  loadPreset(v); S.playing=false;
+  if(typeof isNarrow==='function'&&isNarrow()&&typeof openSimMobile==='function') try{ openSimMobile(); }catch(_){}
+  toast('Условие собрано в модели — запустите её');
+}
 function инструментыМодели(a){
   a=a||A(); if(!a||!a.def.tools) return [];
   try{ const т=typeof a.def.tools==='function'?a.def.tools(a.params):a.def.tools; return т||[]; }catch(_){ return []; }
@@ -52940,7 +53839,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.1.0';
+window.PHYSIM_BUILD = '9.2.0';
 window.PHYSIM_READY = true;
 
 ;

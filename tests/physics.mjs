@@ -2131,6 +2131,81 @@ const EX = {
   ], 'камера Вильсона: альфа-частица');
 }
 
+/* ================= 9.2.0: модели под задачи Иродова =================
+   Каждая проверка — классический ответ задачника, полученный прогоном модели
+   до её события (наибольшее сближение, встреча, остановка, отрыв). */
+{
+  // два тела на перпендикулярных курсах: t* = (l₁v₁+l₂v₂)/(v₁²+v₂²), d = |l₁v₂−l₂v₁|/√(v₁²+v₂²)
+  const l1 = 300, l2 = 400, v1 = 10, v2 = 8;
+  add('meet2d', { u:0, x1:-l1, y1:0, v1, a1:0, rel1:'gnd', turn1:0, x2:0, y2:-l2, v2, a2:90, rel2:'gnd', frame:'gnd', Rh:3, stopHit:true, stopMin:true, tStop:0 }, 120 * 60, [
+    ['t', (l1 * v1 + l2 * v2) / (v1 * v1 + v2 * v2), 1e-9, 't* наибольшего сближения'],
+    ['расстояние между телами', Math.abs(l1 * v2 - l2 * v1) / Math.hypot(v1, v2), 1e-9, 'd_min = |l₁v₂ − l₂v₁|/√(v₁² + v₂²)'],
+  ], 'сближение двух тел: перпендикулярные курсы');
+  // лодка и плот: встреча через 2τ на расстоянии 2uτ (минус радиус столкновения)
+  const u = 0.6, τ = 500, Rh = 2;
+  add('meet2d', { u, uAng:0, x1:0, y1:0, v1:4, a1:180, rel1:'med', turn1:τ, x2:0, y2:0, v2:0, a2:0, rel2:'med', frame:'gnd', Rh, stopHit:true, stopMin:false, tStop:0 }, 120 * 1100, [
+    ['t', 2 * τ - Rh / 4, 1e-6, 'лодка догоняет плот через 2τ (без радиуса столкновения)'],
+  ], 'лодка и плот в течении');
+}
+{
+  // погоня: N точек в вершинах правильного N-угольника, T = a/(v(1 − cos 2π/N))
+  const a = 120, v = 7;
+  add('pursuit', { mode:'poly', N:4, a, v, trail:false, stopMeet:true, tStop:0 }, 120 * 30, [
+    ['t', a / v, 2e-3, 'квадрат: T = a/v'],
+  ], 'погоня: четыре точки в углах квадрата');
+  const l = 150, uu = 4, vv = 6;
+  add('pursuit', { mode:'chase', l, u:uu, v:vv, trail:false, stopMeet:true, tStop:0 }, 120 * 60, [
+    ['t', vv * l / (vv * vv - uu * uu), 2e-3, 'T = vl/(v² − u²)'],
+  ], 'погоня: A догоняет B на прямой');
+}
+{
+  // торможение a = α√v: путь до остановки 2v₀^{3/2}/(3α)
+  const v0 = 16, al = 0.4;
+  add('kin1d', { bodies:'1', axis:'x', law1:'drag', x01:0, v01:v0, a1:0, al1:al, k1:0.5, ground:false, tStop:0, stopMeet:false }, 120 * 30, [
+    ['x', 2 * Math.pow(v0, 1.5) / (3 * al), 1e-4, 's = 2v₀^{3/2}/(3α)'],
+  ], 'торможение с ускорением α√v');
+}
+{
+  // радиус кривизны в высшей точке: (v₀cos θ)²/g
+  const v0 = 30, th = 40, c = Math.cos(th * Math.PI / 180);
+  add('proj2d', { bodies:'1', x01:0, y01:0, v01:v0, a01:th, ay:-C.g, stopLand:true, stopTop:true, tStop:0 }, 120 * 10, [
+    ['радиус кривизны', (v0 * c) ** 2 / C.g, 1e-6, 'R = v₀²cos²θ/g'],
+  ], 'баллистика: кривизна в высшей точке');
+}
+{
+  // окружность с разгоном: |a| = aτ√(1 + (4πn)²) после n оборотов из покоя
+  const at = 0.7, n = 0.15;
+  add('circular', { mode:'acc', R:4, v0:0, at, dir:'ccw', turns:n, tStop:0 }, 120 * 20, [
+    ['полное ускорение', at * Math.sqrt(1 + (4 * Math.PI * n) ** 2), 1e-6, '|a| = aτ√(1 + (4πn)²)'],
+  ], 'окружность с касательным ускорением');
+}
+{
+  // наклонная плоскость: подъём и спуск при толчке вверх
+  const v0 = 7, th = 25, mu = 0.25, s = Math.sin(th * Math.PI / 180), cc = Math.cos(th * Math.PI / 180);
+  const up = C.g * (s + mu * cc), dn = C.g * (s - mu * cc), путь = v0 * v0 / (2 * up);
+  add('incline', { m:2, th, mus:0.3, mud:mu, g:C.g, L:30, baseFix:false, start:'bottom', v0, m2:0, auto:false, stopSlip:false, stopBottom:true, stopTurn:false, tStop:0 }, 120 * 20, [
+    ['время до остановки', v0 / up, 2e-3, 't↑ = v₀/(g(sinθ + μcosθ))'],
+    ['время обратного спуска', Math.sqrt(2 * путь / dn), 2e-3, 't↓ = √(2s/(g(sinθ − μcosθ)))'],
+  ], 'наклонная плоскость: толчок вверх');
+}
+{
+  // брусок на доске: скольжение начинается в t₀ = μg(m₁+m₂)/α
+  const m1 = 2.5, m2 = 1.5, mu = 0.25, al = 3;
+  add('plank', { m1, m2, mu, mu0:0, Lp:2, g:C.g, on:'plank', law:'ramp', al, stopSlip:true, stopOff:true, tStop:0 }, 120 * 10, [
+    ['t', mu * C.g * (m1 + m2) / al, 2e-3, 't₀ = μg(m₁+m₂)/α'],
+  ], 'брусок на доске: начало скольжения');
+}
+{
+  // мёртвая петля при R < h < 2,5R: отрыв на высоте (R + 2h)/3; сфера: 2R/3 над центром
+  const R = 1.5, h = 3;
+  add('loop', { mode:'loop', R, h, v0:0, m:1, g:C.g, stopDetach:true, stopBottom:false, tStop:0 }, 120 * 10, [
+    ['высота y', (R + 2 * h) / 3, 2e-3, 'y = (R + 2h)/3'],
+  ], 'мёртвая петля: высота отрыва');
+  add('loop', { mode:'sphere', R:3, v0:0, m:1, g:C.g, stopDetach:true, stopBottom:false, tStop:0 }, 120 * 10, [
+    ['высота y', 2, 2e-3, 'y = 2R/3 над центром сферы'],
+  ], 'соскальзывание со сферы');
+}
+
 /* ---------------- прогон ---------------- */
 const PORT = 8994;
 await new Promise(r => server.listen(PORT, r));

@@ -1,0 +1,5 @@
+9.2.0 — Irodov's problems, solved by running the model.
+• 39 problems after Irodov with a «Build in the model» button.
+• New: two bodies in a stream, pursuit, block on a plank, loop, sphere and thread.
+• 1D motion with resistance; projectiles with curvature; circular motion with tangential acceleration.
+• Inclined plane: launch upward, pulley, fixed base.

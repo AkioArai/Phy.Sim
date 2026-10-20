@@ -144,9 +144,18 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 116 live simulations,
-          52 topics, 136 step-by-step derivations, 403 formulas and 571 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 119 live simulations,
+          52 topics, 136 step-by-step derivations, 407 formulas and 611 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 9.2.0 — Irodov's problems, solved by running the model
+
+          39 problems after Irodov's «Problems in General Physics» (kinematics, dynamics, energy, gravity), retold in
+          our own words, each with a «Build in the model» button that opens the scene with the problem's data. New
+          scenes: two bodies in a stream (replaces the rocket), pursuit, block on a plank, loop-the-loop with a sphere
+          and a thread. One-dimensional motion with resistance a = a₀ − αvᵏ; projectiles with the radius of
+          curvature; circular motion with tangential acceleration; an inclined plane with a launch upward, a pulley and
+          a fixed base.
 
           ## 9.1.0 — tools that belong to the model
 

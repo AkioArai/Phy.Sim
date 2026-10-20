@@ -2477,8 +2477,12 @@ function renderPane(){
       <div class="pr-prog"><div class="pp-bar"><i style="width:${Math.round(100*nSolved/t.problems.length)}%"></i></div>
         <span class="pp-txt">решено ${nSolved} из ${t.problems.length}</span>
         ${nSolved?'<button class="pp-reset">сбросить</button>':''}</div>
+      ${t.problems.some(p=>p.src)?`<div class="pr-filter" role="group" aria-label="Какие задачи показывать">
+        <button data-f="all" class="${S.prFilter!=='src'?'on':''}">все задачи · ${t.problems.length}</button>
+        <button data-f="src" class="${S.prFilter==='src'?'on':''}">по Иродову · ${t.problems.filter(p=>p.src).length}</button></div>`:''}
       ${order.map(sid=>{
-        const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid);
+        const grp=t.problems.map((p,i)=>({p,i})).filter(x=>(x.p.sim||'')===sid&&(S.prFilter!=='src'||x.p.src));
+        if(!grp.length) return '';
         const done=grp.filter(x=>S.solved[идЗадачи(t,x.p)]).length;
         const head=sid&&SIMS[sid]
           ? `<button class="pr-grp" data-sim="${sid}">${SIMS[sid].title}<span>решено ${done} из ${grp.length} · <b>Открыть модель</b></span></button>`
@@ -2488,18 +2492,21 @@ function renderPane(){
           <div class="head">${dots(pr.level)}
             <span class="pr-n">задача ${k+1}</span>
             ${pr.level>=5?'<span class="pr-hard">олимпиадная</span>':''}
+            ${pr.src?`<span class="pr-src" title="Условие пересказано по задачнику И. Е. Иродова «Задачи по общей физике»">${pr.src}</span>`:''}
             <span class="pr-done" title="решена">✓</span>
           </div>
           <div class="st">${pr.statement}</div>
           <div class="answer">
             <input type="text" autocomplete="off" spellcheck="false" placeholder="ответ${pr.unit?', '+pr.unit:''} — можно с единицами">
             <button class="btn primary check">Проверить</button>
+            ${pr.setup&&pr.sim?'<button class="btn setup" title="Открыть модель с параметрами из условия">Собрать в модели</button>':''}
             ${pr.hint?'<button class="btn hint">Подсказка</button>':''}
             <button class="btn reveal">Показать ответ</button>
             <span class="verdict" role="status" aria-live="polite"></span>
           </div>
         </div>`).join('');
       }).join('')}`;
+    pane.querySelectorAll('.pr-filter button').forEach(b=>b.onclick=()=>{ S.prFilter=b.dataset.f; renderPane(); });
     pane.querySelectorAll('.pr-grp[data-sim]').forEach(b=>
       b.onclick=()=>{ openSim(b.dataset.sim); autoCloseRail(); });
     const rs=pane.querySelector('.pp-reset');
@@ -2554,6 +2561,9 @@ function renderPane(){
         out.textContent=isFinite(ans)?`${fmt(ans)} ${pr.unit}`:'события не происходит';
       };
       const h=el.querySelector('.hint'); if(h) h.onclick=()=>toast(pr.hint);
+      /* Задача из задачника собирается в модели одним нажатием: сцена
+         открывается с параметрами условия, дальше её запускают и меряют. */
+      const су=el.querySelector('.setup'); if(су) су.onclick=()=>{ собратьУсловие(pr); };
     });
     /* пересчёт полосы прогресса без полной перерисовки — иначе теряется
        введённый в другие задачи текст */
@@ -3894,6 +3904,17 @@ initRailGroups();
    set округляет до шага параметра и держит в его пределах; пока тянут,
    сцена перезапускается с новыми параметрами, а в историю отмены и в поля
    параметров значение попадает, когда кнопку отпустили. */
+/* Собрать условие задачи в модели: открыть сцену, вернуть параметры к
+   умолчаниям и наложить на них значения из условия (pr.setup). */
+function собратьУсловие(pr){
+  if(!pr||!pr.sim||!SIMS[pr.sim]) return;
+  openSim(pr.sim); const a=A(); if(!a) return;
+  const v={}; for(const q of a.def.params) if(q.key) v[q.key]=q.default;
+  Object.assign(v,pr.setup||{});
+  loadPreset(v); S.playing=false;
+  if(typeof isNarrow==='function'&&isNarrow()&&typeof openSimMobile==='function') try{ openSimMobile(); }catch(_){}
+  toast('Условие собрано в модели — запустите её');
+}
 function инструментыМодели(a){
   a=a||A(); if(!a||!a.def.tools) return [];
   try{ const т=typeof a.def.tools==='function'?a.def.tools(a.params):a.def.tools; return т||[]; }catch(_){ return []; }
@@ -7896,5 +7917,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.1.0';
+window.PHYSIM_BUILD = '9.2.0';
 window.PHYSIM_READY = true;
