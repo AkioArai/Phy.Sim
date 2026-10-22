@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="9.2.0">
+<meta name="physim-build" content="9.3.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -6178,7 +6178,9 @@ newton2:{
     {key:'g',    label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
 
     {type:'group',label:'Приложенная сила'},
-    {key:'F',      label:'Сила F',unit:'Н',min:0,max:20000,step:1,default:0},
+    {key:'Flaw',   label:'Закон силы',type:'select',default:'const',options:[{v:'const',t:'постоянная F'},{v:'ramp',t:'растёт со временем: F = αt'}]},
+    {key:'F',      label:'Сила F',unit:'Н',min:0,max:20000,step:1,default:0,если:p=>p.Flaw!=='ramp'},
+    {key:'Fa',     label:'Скорость роста силы α',unit:'Н/с',min:0,max:5000,step:0.1,default:10,если:p=>p.Flaw==='ramp'},
     {key:'alpha',  label:'Угол приложения α',unit:'°',min:-89,max:89,step:1,default:0},
     {key:'applyTo',label:'К какому телу приложена',min:1,max:3,step:1,default:1,если:p=>(p.n|0)>=2},
 
@@ -6194,6 +6196,8 @@ newton2:{
     {key:'tStop',   label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   N(p){ return Math.min(3,Math.max(1,p.n|0)); },
+  /* 9.3.0: сила постоянная или растущая F = αt */
+  Fv(p,t){ return p.Flaw==='ramp'?(p.Fa||0)*Math.max(0,t):p.F; },
   /* к какому телу приложена сила: номер больше числа тел — последнее тело,
      иначе при n = 1 и «телу 2» сила молча пропадала бы */
   цель(p){ return Math.min(this.N(p),Math.max(1,p.applyTo|0)); },
@@ -6226,7 +6230,7 @@ newton2:{
     if(p.tStop>0&&t>=p.tStop&&!(s.done&&s.done.time)){ s.t=p.tStop;
       s.event={t:p.tStop,type:'time'}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
     s.t=t;
-    const Fx=p.F*Math.cos(al), Fy=p.F*Math.sin(al);
+    const Fe=this.Fv(p,t), Fx=Fe*Math.cos(al), Fy=Fe*Math.sin(al);
 
     {
       /* --- независимые тела на поверхности + удары --- */
@@ -6243,7 +6247,8 @@ newton2:{
             if(!s.slip){ s.slip=true;
               if(p.stopSlip&&!(s.done&&s.done.slip)){ s.event={t,type:'slip'};
                 s.__stop=`Срыв тела ${i+1}: F·cosα = ${Math.abs(fx).toFixed(1)} Н > μs·N = ${(muS*N).toFixed(1)} Н`;
-                return; } } }
+                return; } }
+            b.v+=a*dt; }                                       // 9.3: из покоя тело трогается (раньше скорость не росла)
         } else {
           fr=-Math.sign(b.v)*muD*N; a=(fx+fr)/m;
           const vn=b.v+a*dt;
@@ -6298,6 +6303,7 @@ newton2:{
   readouts(s,p){
     const n=this.N(p);
     const out=[['t',s.t,'с']];
+    if(p.Flaw==='ramp') out.push(['сила F = αt',this.Fv(p,s.t),'Н']);
     for(let i=0;i<n;i++){
       const b=s.b[i], tag=n>1?` ${i+1}`:'';
       out.push([`x${tag}`,b.x,'м'],[`v${tag}`,b.v,'м/с'],[`a${tag}`,b.a,'м/с²'],
@@ -6319,6 +6325,7 @@ newton2:{
      get(s,p){ return [s.b[0].v, SIMS.newton2.N(p)>1?s.b[1].v:null]; }}
   ],
   presets:[
+    {name:'Сила растёт: брусок трогается и разгоняется',values:{n:1,m1:4,x1:0,v1:0,r1:true,mus:0.4,mud:0.3,e:1,g:9.8,Flaw:'ramp',Fa:5,F:0,alpha:0,applyTo:1,stopHit:false,stopSlip:false,stopRest:false,tStop:10}},
     {name:'Пример 2 (Орир): торможение авто, μ = 0,8',
      values:{n:1,m1:1500,x1:0,v1:16.67,r1:true,F:0,alpha:0,mus:0.8,mud:0.8,
              stopRest:true,stopSlip:false,stopHit:false,tStop:0}},
@@ -6359,7 +6366,7 @@ newton2:{
     ctx.strokeStyle=v.c('--ink-3'); ctx.lineWidth=v.lw(1);
     for(let k=-60;k<300;k+=0.9){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k-0.35,-0.35); ctx.stroke(); }
 
-    const al=p.alpha*Math.PI/180, Fx=p.F*Math.cos(al), Fy=p.F*Math.sin(al);
+    const al=p.alpha*Math.PI/180, Fe=this.Fv(p,s.t), Fx=Fe*Math.cos(al), Fy=Fe*Math.sin(al);
 
     {
       for(let i=0;i<n;i++){
@@ -6390,7 +6397,7 @@ newton2:{
           const F=[{fx:0,fy:-this.mass(p,i)*p.g,label:'Fg',color:v.c('--ink-2')},
                    {fx:0,fy:b.N,label:'N',color:v.c('--second')},
                    {fx:b.fr,fy:0,label:'Fтр',color:v.c('--measure')}];
-          if(p.F>0) F.push({fx:Fx,fy:Fy,label:'F',color:v.c('--accent')});
+          if(Fe>0) F.push({fx:Fx,fy:Fy,label:'F',color:v.c('--accent')});
           v.fbd(ctx,{x:b.x,y:h,forces:F,len:2.6,resultant:true,sum:p.poly?{x:b.x+8,y:6}:null});
         }
       }
@@ -7215,231 +7222,6 @@ orbit:{
 }
 ,
 
-/* ================== РАБОТА И ЭНЕРГИЯ: ПРЕВРАЩЕНИЯ ЭНЕРГИИ ================= */
-energy:{
-  title:'Работа и энергия: превращения',
-  params:[
-    {key:'mode',label:'Сценарий',type:'select',default:'ramp',
-     options:[{v:'ramp', t:'Горка: кинетическая ⇄ потенциальная'},
-              {v:'spring',t:'Пружина: упругая ⇄ кинетическая'},
-              {v:'friction',t:'Трение: работа против движения'}]},
-    {type:'group',label:'Тело'},
-    {key:'m', label:'Масса m',unit:'кг',min:0.1,max:100,step:0.1,default:2},
-    {key:'g', label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
-
-    {type:'group',label:'Горка'},
-    {key:'h0',label:'Начальная высота h₀',unit:'м',min:0,max:50,step:0.5,default:10},
-    {key:'v0',label:'Начальная скорость v₀',unit:'м/с',min:0,max:40,step:0.5,default:0},
-    {key:'muR',label:'Трение горки μ (0 — гладкая)',min:0,max:1,step:0.01,default:0},
-
-    {type:'group',label:'Пружина'},
-    {key:'k', label:'Жёсткость k',unit:'Н/м',min:1,max:2000,step:1,default:200},
-    {key:'x0',label:'Начальное сжатие x₀',unit:'м',min:0.05,max:5,step:0.05,default:1},
-
-    {type:'group',label:'Трение (горизонталь)'},
-    {key:'vf',label:'Начальная скорость v₀',unit:'м/с',min:0.5,max:40,step:0.5,default:12},
-    {key:'muF',label:'Коэффициент трения μ',min:0.01,max:1,step:0.01,default:0.3},
-
-    {type:'group',label:'Остановка таймера'},
-    {key:'stopEnd',label:'В конце процесса (низ горки / остановка)',type:'check',default:true},
-    {key:'tStop',  label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
-  ],
-
-  /* ---- Горка: тело съезжает по наклонному жёлобу высотой h0, длина ската задаётся углом 35° ---- */
-  ramp(p){ const ang=35*Math.PI/180, L=p.h0/Math.sin(ang); return {ang,L}; },
-  init(p){
-    if(p.mode==='ramp'){
-      const {L}=this.ramp(p);
-      return {t:0,mode:'ramp',s:0,v:p.v0,L,E0:0,heat:0,event:null,__stop:null};
-    }
-    if(p.mode==='spring'){
-      return {t:0,mode:'spring',x:-p.x0,v:0,released:true,heat:0,event:null,__stop:null};
-    }
-    return {t:0,mode:'friction',x:0,v:p.vf,heat:0,event:null,__stop:null};
-  },
-
-  step(s,dt,p){
-    if(s.event) return;
-    const t=s.t+dt;
-    if(p.tStop>0&&t>=p.tStop&&!(s.done&&s.done.time)){ s.t=p.tStop;
-      s.event={t:p.tStop,type:'time'}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
-    s.t=t;
-
-    if(s.mode==='ramp'){
-      const {ang,L}=this.ramp(p);
-      const N=p.m*p.g*Math.cos(ang);
-      const fr=p.muR*N;                                   // трение вдоль ската
-      let a=p.g*Math.sin(ang) - (s.v>0?fr/p.m:0);
-      s.v+=a*dt; if(s.v<0)s.v=0;
-      const ds=s.v*dt; s.s+=ds; s.heat+=fr*ds;
-      if(s.s>=L){ s.s=L; 
-        if(!(s.done&&s.done.end)){ s.event={t:s.t,type:'end'};
-          if(p.stopEnd) s.__stop=`Тело внизу горки: v = ${s.v.toFixed(2)} м/с, в тепло ушло ${s.heat.toFixed(1)} Дж`; else s.event=null; }
-      }
-    }
-    else if(s.mode==='spring'){
-      // масса на пружине F = -kx; полушаговый (симплектический) интегратор сохраняет энергию
-      const sub=8, h=dt/sub;
-      for(let i=0;i<sub;i++){
-        let a=-p.k*s.x/p.m; s.v+=a*h/2; s.x+=s.v*h;
-        a=-p.k*s.x/p.m; s.v+=a*h/2;
-      }
-    }
-    else { // friction
-      if(Math.abs(s.v)>1e-4){
-        const fr=p.muF*p.m*p.g, a=-Math.sign(s.v)*fr/p.m;
-        const vN=s.v+a*dt;
-        if(Math.sign(vN)!==Math.sign(s.v)){ s.heat+=0.5*p.m*s.v*s.v; s.x+=s.v*s.v/(2*fr/p.m)*0; 
-          const dx=s.v*s.v/(2*(fr/p.m)); s.x+=Math.sign(s.v)*dx; s.v=0;
-          if(!(s.done&&s.done.end)){ s.event={t:s.t,type:'end'};
-            if(p.stopEnd) s.__stop=`Тело остановилось: путь ${Math.abs(s.x).toFixed(2)} м, вся кинетическая энергия ${s.heat.toFixed(1)} Дж ушла в тепло`; else s.event=null; }
-        } else { const dx=s.v*dt; s.x+=dx; s.heat+=fr*Math.abs(dx); s.v=vN; }
-      }
-    }
-  },
-
-  /* энергии для диаграммы */
-  energies(s,p){
-    if(s.mode==='ramp'){
-      const {ang,L}=this.ramp(p);
-      const h=(L-s.s)*Math.sin(ang);
-      return {kin:0.5*p.m*s.v*s.v, pot:p.m*p.g*h, spr:0, heat:s.heat};
-    }
-    if(s.mode==='spring'){
-      return {kin:0.5*p.m*s.v*s.v, pot:0, spr:0.5*p.k*s.x*s.x, heat:0};
-    }
-    return {kin:0.5*p.m*s.v*s.v, pot:0, spr:0, heat:s.heat};
-  },
-  total(s,p){ const e=this.energies(s,p); return e.kin+e.pot+e.spr+e.heat; },
-
-  anchors(s,p){
-    if(s.mode==='ramp'){ const {ang,L}=this.ramp(p);
-      const x=s.s*Math.cos(ang), y=(L-s.s)*Math.sin(ang);
-      return [{x:0,y:0},{x,y}]; }
-    return [{x:s.x||0,y:0},{x:0,y:0}];
-  },
-  readouts(s,p){
-    const e=this.energies(s,p), tot=this.total(s,p);
-    const out=[['t',s.t,'с'],['скорость v',Math.abs(s.v),'м/с']];
-    out.push(['кинетическая E_к',e.kin,'Дж']);
-    if(s.mode==='ramp') out.push(['потенциальная E_п',e.pot,'Дж']);
-    if(s.mode==='spring') out.push(['упругая E_упр',e.spr,'Дж']);
-    if(e.heat>0||s.mode==='friction') out.push(['ушло в тепло',e.heat,'Дж']);
-    out.push(['ПОЛНАЯ энергия',tot,'Дж']);
-    if(s.mode==='friction') out.push(['работа трения',e.heat,'Дж'],['сила трения',p.muF*p.m*p.g,'Н']);
-    return out;
-  },
-  graphs:[
-    {label:'Энергии во времени',unit:'Дж',series:['кинетич.','потенц./упр.'],
-     get(s,p){ const e=SIMS.energy.energies(s,p); return [e.kin, e.pot+e.spr]; }},
-    {label:'Полная механическая энергия',unit:'Дж',series:['полная','в тепле'],
-     get(s,p){ const e=SIMS.energy.energies(s,p); return [e.kin+e.pot+e.spr, e.heat]; }}
-  ],
-  presets:[
-    {name:'Горка без трения: энергия сохраняется',
-     values:{mode:'ramp',m:2,h0:10,v0:0,muR:0,g:9.8,stopEnd:true}},
-    {name:'Горка с трением: часть уходит в тепло',
-     values:{mode:'ramp',m:2,h0:10,v0:0,muR:0.25,g:9.8,stopEnd:true}},
-    {name:'Пружина: колебания энергии',
-     values:{mode:'spring',m:2,k:200,x0:1,g:9.8,stopEnd:false,tStop:6}},
-    {name:'Трение: вся кинетическая энергия в тепло',
-     values:{mode:'friction',m:2,vf:12,muF:0.3,g:9.8,stopEnd:true}}
-  ],
-  fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    let spanX,spanY,cx,cy;
-    if(p.mode==='ramp'){ const {ang,L}=this.ramp(p);
-      spanX=L*Math.cos(ang)*1.35+3; spanY=p.h0*1.3+3; cx=spanX*0.32; cy=spanY*0.42; }
-    else if(p.mode==='spring'){ spanX=p.x0*4+2; spanY=6; cx=0; cy=1; }
-    else { spanX=Math.max(p.vf*p.vf/(2*p.muF*p.g)*1.3,10); spanY=6; cx=spanX*0.35; cy=1; }
-    const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-70)/(spanY*PX_PER_M)),0.002,30);
-    return {x:cx,y:cy,scale};
-  },
-
-  /* ---- столбчатая диаграмма энергии сбоку (в пикселях поверх сцены) ---- */
-  bars(ctx,s,p){
-    const e=this.energies(s,p), tot=Math.max(this.total(s,p),1e-6);
-    const items=[['E_к',e.kin,'--measure']];
-    if(s.mode==='ramp') items.push(['E_п',e.pot,'--accent']);
-    if(s.mode==='spring') items.push(['E_упр',e.spr,'--second']);
-    if(e.heat>0) items.push(['тепло',e.heat,'--danger']);
-    ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
-    const x0=12, y0=CH-16, w=26, gap=12, Hbar=Math.min(CH*0.5,180);
-    ctx.font='10px ui-monospace,monospace'; ctx.textBaseline='alphabetic';
-    let x=x0;
-    for(const [lbl,val,cvar] of items){
-      const hh=val/tot*Hbar;
-      ctx.fillStyle=css(cvar); ctx.globalAlpha=.85;
-      ctx.fillRect(x,y0-hh,w,hh); ctx.globalAlpha=1;
-      ctx.fillStyle=css('--ink-2');
-      if(S.settings.nums!==false) ctx.fillText(Math.round(val)+'',x-2,y0-hh-4);
-      ctx.fillText(lbl,x-2,y0+12);
-      x+=w+gap;
-    }
-    // рамка «полная энергия»
-    ctx.strokeStyle=css('--ink-3'); ctx.globalAlpha=.4;
-    ctx.strokeRect(x0-4,y0-Hbar-2,x-x0+2,Hbar+2); ctx.globalAlpha=1;
-    ctx.fillStyle=css('--ink-3'); ctx.fillText('энергия, Дж',x0-4,y0-Hbar-8);
-    ctx.restore();
-  },
-  draw(ctx,s,v,p){
-    if(s.mode==='ramp'){
-      const {ang,L}=this.ramp(p);
-      const X=L*Math.cos(ang), Y=p.h0;
-      // горка (жёлоб)
-      ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(2.5);
-      ctx.beginPath(); ctx.moveTo(0,Y); ctx.lineTo(X,0); ctx.lineTo(X+4,0); ctx.stroke();
-      ctx.strokeStyle=v.c('--ink-3'); ctx.lineWidth=v.lw(1);
-      for(let k=0;k<X+4;k+=Math.max(L/30,0.3)){ ctx.beginPath(); ctx.moveTo(k,Math.max(0,Y-k*Math.tan(ang))); ctx.lineTo(k-0.3,Math.max(0,Y-k*Math.tan(ang))-0.3); ctx.stroke(); }
-      // уровень отсчёта
-      ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(4),v.lw(4)]);
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(X+4,0); ctx.stroke(); ctx.setLineDash([]);
-      // тело
-      const px=s.s*Math.cos(ang), py=(L-s.s)*Math.sin(ang), hb=0.4;
-      ctx.fillStyle=v.c('--accent'); ctx.beginPath(); ctx.arc(px,py+hb*0.5,v.lw(7),0,7); ctx.fill();
-      if(s.v>0.02) v.arrow(ctx,px,py+hb*0.5,px+Math.cos(-ang)*s.v*0.2,py+hb*0.5+Math.sin(-ang)*s.v*0.2,v.c('--measure'));
-      v.label(ctx,`h = ${((L-s.s)*Math.sin(ang)).toFixed(1)} м`,px,py,10,-12,v.c('--accent'));
-    }
-    else if(s.mode==='spring'){
-      // стена слева, пружина, тело
-      const wall=-p.x0-1;
-      ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(2.5);
-      ctx.beginPath(); ctx.moveTo(wall,-1.4); ctx.lineTo(wall,1.4); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-4,-1.4); ctx.lineTo(6,-1.4); ctx.stroke();  // пол
-      // пружина (зигзаг) от стены до тела
-      const bx=s.x, coils=14, x1=wall, x2=bx-0.35;
-      ctx.strokeStyle=v.c('--second'); ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(x1,0);
-      for(let i=0;i<=coils;i++){ const t=i/coils; ctx.lineTo(x1+(x2-x1)*t, (i%2?0.35:-0.35)*(i>0&&i<coils?1:0)); }
-      ctx.lineTo(x2,0); ctx.stroke();
-      // положение равновесия
-      ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]);
-      ctx.beginPath(); ctx.moveTo(0,-1.4); ctx.lineTo(0,1.4); ctx.stroke(); ctx.setLineDash([]);
-      v.label(ctx,'равновесие',0,1.4,-30,-4,v.c('--ink-3'));
-      const hb=0.45;
-      ctx.fillStyle=v.c('--accent'); ctx.fillRect(bx-hb,-hb,2*hb,2*hb);
-      v.label(ctx,`x = ${s.x.toFixed(2)} м`,bx,hb,8,10,v.c('--accent'));
-      if(Math.abs(s.v)>0.02) v.arrow(ctx,bx,0,bx+s.v*0.25,0,v.c('--measure'));
-    }
-    else {
-      // горизонталь + тело + метка старта
-      ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.moveTo(-2,0); ctx.lineTo(1e3,0); ctx.stroke();
-      ctx.strokeStyle=v.c('--ink-3'); ctx.lineWidth=v.lw(1);
-      for(let k=-2;k<200;k+=0.6){ ctx.beginPath(); ctx.moveTo(k,0); ctx.lineTo(k-0.25,-0.25); ctx.stroke(); }
-      ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]);
-      ctx.beginPath(); ctx.moveTo(0,-0.6); ctx.lineTo(0,1.5); ctx.stroke(); ctx.setLineDash([]);
-      v.label(ctx,'старт',0,1.2,-10,0,v.c('--ink-3'));
-      const hb=0.45;
-      ctx.fillStyle=v.c('--accent'); ctx.fillRect(s.x-hb,0,2*hb,2*hb);
-      if(Math.abs(s.v)>0.02) v.arrow(ctx,s.x,hb,s.x+s.v*0.2,hb,v.c('--measure'));
-      if(p.muF>0) v.arrow(ctx,s.x,hb,s.x-Math.sign(s.v||1)*0.8,hb,v.c('--danger'));
-      v.label(ctx,`v = ${Math.abs(s.v).toFixed(2)} м/с`,s.x,hb,8,-12,v.c('--measure'));
-    }
-    this.bars(ctx,s,p);
-  }
-}
-,
-
 /* ================== РАБОТА И ЭНЕРГИЯ ================= */
 energy:{
   title:'Работа и энергия: превращения',
@@ -7447,7 +7229,8 @@ energy:{
     {key:'mode',label:'Сценарий',type:'select',default:'hill',
      options:[{v:'hill', t:'Горка: Eкин ⇄ Eпот'},
               {v:'spring',t:'Пружина: Eупр ⇄ Eкин'},
-              {v:'fric',  t:'Трение: работа уходит в тепло'}]},
+              {v:'fric',  t:'Трение: работа уходит в тепло'},
+              {v:'slope', t:'Горка с трением: съехать и остановиться'}]},
     {key:'m', label:'Масса m',unit:'кг',min:0.1,max:100,step:0.1,default:2},
     {key:'g', label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
 
@@ -7462,6 +7245,11 @@ energy:{
     {type:'group',label:'Трение'},
     {key:'v0f',label:'Начальная скорость v₀',unit:'м/с',min:0.5,max:50,step:0.5,default:12},
     {key:'mu', label:'Коэффициент трения μ',min:0.01,max:2,step:0.01,default:0.3},
+
+    {type:'group',label:'Горка с трением',если:p=>p.mode==='slope'},
+    {key:'hs', label:'Высота горки h',unit:'м',min:0.1,max:100,step:0.1,default:3,если:p=>p.mode==='slope'},
+    {key:'alS',label:'Угол склона α',unit:'°',min:5,max:85,step:0.5,default:35,если:p=>p.mode==='slope'},
+    {key:'muS',label:'Коэффициент трения μ (склон и пол)',min:0,max:2,step:0.01,default:0.25,если:p=>p.mode==='slope'},
 
     {type:'group',label:'Показывать'},
     {key:'bars',label:'Диаграмма энергии (столбцы)',type:'check',default:true},
@@ -7482,12 +7270,19 @@ energy:{
       const Ek=0.5*p.m*s.v*s.v, Eel=0.5*p.k*s.x*s.x;
       return {Ek,Ep:0,Eel,Eth:0,tot:Ek+Eel};
     }
+    if(p.mode==='slope'){ const Ek=0.5*p.m*s.v*s.v, Ep=p.m*p.g*Math.max(0,s.y);
+      return {Ek,Ep,Eel:0,Eth:s.heat,tot:Ek+Ep+s.heat}; }
     const Ek=0.5*p.m*s.v*s.v;
     return {Ek,Ep:0,Eel:0,Eth:s.heat,tot:Ek+s.heat};
   },
+  /* горка с трением: s — путь от вершины; склон длиной h/sin α, дальше пол */
+  склон(p){ const a=p.alS*Math.PI/180; return {a,L:p.hs/Math.sin(a)}; },
+  точкаСклона(p,sp){ const {a,L}=this.склон(p);
+    if(sp<=L) return {x:sp*Math.cos(a),y:p.hs-sp*Math.sin(a)}; return {x:L*Math.cos(a)+(sp-L),y:0}; },
   init(p){
     if(p.mode==='hill')   return {t:0,x:0,y:p.h0,v:p.v0h,heat:0,trail:[],E0:null,event:null,__stop:null};
     if(p.mode==='spring') return {t:0,x:p.x0,v:0,heat:0,trail:[],E0:null,event:null,__stop:null};
+    if(p.mode==='slope') return {t:0,x:0,y:p.hs,sp:0,v:0,heat:0,trail:[],E0:null,event:null,__stop:null,наСклоне:true};
     return {t:0,x:0,v:p.v0f,heat:0,trail:[],E0:null,event:null,__stop:null};
   },
   step(s,dt,p){
@@ -7515,6 +7310,24 @@ energy:{
       const a2=-p.k*s.x/p.m;
       s.v+=0.5*(a1+a2)*dt;
     }
+    else if(p.mode==='slope'){
+      const {a,L}=this.склон(p), n=8, h=dt/n;
+      let ост=dt;
+      for(let k=0;k<n*2&&ост>1e-12;k++){
+        const on=s.sp<L-1e-12, acc=on?p.g*(Math.sin(a)-p.muS*Math.cos(a)):-p.muS*p.g, N=on?p.m*p.g*Math.cos(a):p.m*p.g;
+        if(s.v<=1e-12&&acc<=0){ s.v=0; break; }                     // трение держит
+        let hh=Math.min(h,ост);
+        if(acc<0&&s.v+acc*hh<0) hh=s.v/(-acc);                     // остановится внутри шага
+        let ds=s.v*hh+acc*hh*hh/2;
+        if(on&&s.sp+ds>L){ const d=L-s.sp;                          // излом склона: точно до него
+          hh=Math.abs(acc)>1e-12?(-s.v+Math.sqrt(Math.max(0,s.v*s.v+2*acc*d)))/acc:d/Math.max(s.v,1e-12); ds=d; }
+        s.sp+=ds; s.v=Math.max(0,s.v+acc*hh); s.heat+=p.muS*N*ds; ост-=hh;
+        if(s.v===0&&!on) break; }
+      const q=this.точкаСклона(p,s.sp); s.x=q.x; s.y=q.y;
+      if(p.trail){ s.trail.push([s.x,s.y]); if(s.trail.length>2000) s.trail.shift(); }
+      if(s.v===0&&s.t>dt*1.5&&!(s.done&&s.done.rest)){ s.event={t:s.t,type:'rest'};
+        if(p.stopEvent) s.__stop=`Тело остановилось в ${s.x.toFixed(2)} м по горизонтали от вершины; в тепло ушло ${s.heat.toFixed(2)} Дж`; else s.event=null; }
+    }
     else {
       // трение тормозит: a = -μ g, energy → heat
       if(s.v>1e-6){
@@ -7534,6 +7347,7 @@ energy:{
   anchors(s,p){
     if(p.mode==='hill') return [{x:0,y:0},{x:0,y:s.y},{x:0,y:p.h0}];
     if(p.mode==='spring') return [{x:s.x,y:0},{x:0,y:0}];
+    if(p.mode==='slope') return [{x:0,y:p.hs},{x:s.x,y:s.y},{x:this.склон(p).L*Math.cos(this.склон(p).a),y:0}];
     return [{x:0,y:0},{x:s.x,y:0}];
   },
   readouts(s,p){
@@ -7542,10 +7356,12 @@ energy:{
     if(p.mode==='hill') out.push(['высота y',s.y,'м'],['скорость v',s.v,'м/с']);
     if(p.mode==='spring') out.push(['смещение x',s.x,'м'],['скорость v',s.v,'м/с'],['сила пружины',-p.k*s.x,'Н']);
     if(p.mode==='fric') out.push(['путь x',s.x,'м'],['скорость v',s.v,'м/с']);
+    if(p.mode==='slope') out.push(['смещение по горизонтали от вершины',s.x,'м'],['высота y',s.y,'м'],['путь вдоль опоры',s.sp,'м'],['скорость v',s.v,'м/с']);
     out.push(['E кинетическая',E.Ek,'Дж']);
     if(p.mode==='hill')   out.push(['E потенциальная',E.Ep,'Дж']);
     if(p.mode==='spring') out.push(['E упругая',E.Eel,'Дж']);
-    if(p.mode==='fric')   out.push(['ушло в тепло',E.Eth,'Дж']);
+    if(p.mode==='slope')  out.push(['E потенциальная',E.Ep,'Дж']);
+    if(p.mode==='fric'||p.mode==='slope') out.push(['ушло в тепло',E.Eth,'Дж']);
     out.push(['ПОЛНАЯ E',E.tot,'Дж']);
     if(s.E0!==null) out.push(['E в начале',s.E0,'Дж']);
     return out;
@@ -7553,7 +7369,7 @@ energy:{
   graphs:[
     {label:'Энергии во времени',unit:'Дж',series:['кинетическая','потенц./упругая/тепло'],
      get(s,p){ const E=SIMS.energy.energies(s,p);
-       return [E.Ek, p.mode==='hill'?E.Ep:(p.mode==='spring'?E.Eel:E.Eth)]; }},
+       return [E.Ek, p.mode==='hill'||p.mode==='slope'?E.Ep:(p.mode==='spring'?E.Eel:E.Eth)]; }},
     {label:'Полная энергия (проверка сохранения)',unit:'Дж',series:['E полная'],
      get(s,p){ return [SIMS.energy.energies(s,p).tot,null]; }}
   ],
@@ -7563,13 +7379,16 @@ energy:{
     {name:'Пружина: колебания',values:{mode:'spring',m:2,k:80,x0:1.5,g:9.8,stopEvent:false,tStop:0}},
     {name:'Пружина жёстче — быстрее колебания',values:{mode:'spring',m:1,k:400,x0:1,g:9.8,tStop:0}},
     {name:'Трение: тело тормозит',values:{mode:'fric',m:2,v0f:12,mu:0.3,g:9.8,stopEvent:true,tStop:0}},
-    {name:'Трение слабое — едет далеко',values:{mode:'fric',m:2,v0f:12,mu:0.08,g:9.8,stopEvent:true,tStop:0}}
+    {name:'Трение слабое — едет далеко',values:{mode:'fric',m:2,v0f:12,mu:0.08,g:9.8,stopEvent:true,tStop:0}},
+    {name:'Горка с трением: съехала и остановилась',values:{mode:'slope',m:2,hs:3,alS:35,muS:0.25,g:9.8,stopEvent:true,tStop:0}},
+    {name:'Та же горка круче — останавливается там же',values:{mode:'slope',m:2,hs:3,alS:60,muS:0.25,g:9.8,stopEvent:true,tStop:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     let spanX,spanY,cx,cy;
     if(p.mode==='hill'){ spanX=8; spanY=Math.max(p.h0*1.3,4); cx=0; cy=spanY/2; }
     else if(p.mode==='spring'){ spanX=Math.max(Math.abs(p.x0)*3.5,3); spanY=spanX*H/W; cx=0; cy=0; }
+    else if(p.mode==='slope'){ const l=p.muS>0?p.hs/p.muS:p.hs*4; spanX=Math.max(l*1.2,p.hs*1.5,3); spanY=Math.max(p.hs*1.5,spanX*H/W*0.6); cx=l/2; cy=p.hs*0.45; }
     else { const d=p.v0f*p.v0f/(2*p.mu*p.g); spanX=Math.max(d*1.3,6); spanY=spanX*H/W; cx=d/2; cy=1; }
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
     return {x:cx,y:cy,scale};
@@ -7627,6 +7446,19 @@ energy:{
         v.label(ctx,`Eупр = kΔx²/2 = ${(0.5*p.k*s.x*s.x).toFixed(2)} Дж`,bx/2,yd,-42,16,v.c('--ink-3'));
       }
     }
+    else if(p.mode==='slope'){
+      const {a,L}=this.склон(p), X=L*Math.cos(a), far=Math.max(p.muS>0?p.hs/p.muS:p.hs*4,X)*1.3+1;
+      ctx.fillStyle=v.c('--panel-2'); ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(2);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,p.hs); ctx.lineTo(X,0); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0,p.hs); ctx.lineTo(X,0); ctx.lineTo(far,0); ctx.stroke();
+      if(p.trail&&s.trail.length>1){ ctx.strokeStyle=dang; ctx.globalAlpha=.35; ctx.lineWidth=v.lw(2.4); ctx.beginPath();
+        s.trail.forEach((q,k)=>k?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke(); ctx.globalAlpha=1; }
+      const наСклоне=s.sp<L-1e-9, ang=наСклоне?-a:0, r=Math.max(0.08*p.hs,0.12);
+      ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(ang); ctx.fillStyle=acc; ctx.fillRect(-r,0,2*r,1.4*r); ctx.restore();
+      if(s.v>0.05){ const ux=наСклоне?Math.cos(a):1, uy=наСклоне?-Math.sin(a):0; v.arrow(ctx,s.x,s.y+r,s.x+ux*s.v*0.15,s.y+r+uy*s.v*0.15,meas); }
+      v.label(ctx,`h = ${p.hs} м, α = ${p.alS}°`,0,p.hs,8,-12,v.c('--ink-3'));
+      v.label(ctx,`по горизонтали ${s.x.toFixed(2)} м`,s.x,0,0,18,v.c('--ink-3'));
+    }
     else {
       // пол
       ctx.strokeStyle=v.c('--ink-2'); ctx.lineWidth=v.lw(2);
@@ -7647,6 +7479,290 @@ energy:{
   }
 }
 ,
+
+/* ================== ЦЕНТР МАСС И ИМПУЛЬС (9.3.0) =================
+   Три задачи, где внешних сил по горизонтали нет (или они не меняют движение
+   центра масс), поэтому импульс системы сохраняется, а центр масс движется
+   так, как двигался бы без внутренних сил.
+     • Человек идёт по лодке: центр масс «человек + лодка» стоит на месте,
+       лодка отъезжает на mL/(m + M).
+     • Снаряд разрывается в верхней точке: осколки разлетаются по горизонтали,
+       а их центр масс продолжает ту же параболу.
+     • Баллистический маятник: пуля застревает в бруске (импульс сохраняется,
+       энергия — нет), дальше брусок с пулей поднимается (энергия сохраняется). */
+cmass:{
+  title:'Центр масс: лодка, разрыв снаряда, баллистический маятник',
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'boat',options:[{v:'boat',t:'человек идёт по лодке'},{v:'shell',t:'снаряд разрывается в верхней точке'},{v:'pend',t:'баллистический маятник'}]},
+    {type:'group',label:'Лодка',если:p=>p.mode==='boat'},
+    {key:'M', label:'Масса лодки M',unit:'кг',min:1,max:5000,step:1,default:150,если:p=>p.mode==='boat'},
+    {key:'Lb',label:'Длина лодки L',unit:'м',min:0.5,max:50,step:0.1,default:4,если:p=>p.mode==='boat'},
+    {key:'mh',label:'Масса человека m',unit:'кг',min:1,max:500,step:1,default:60,если:p=>p.mode==='boat'},
+    {key:'u', label:'Скорость человека относительно лодки',unit:'м/с',min:0.1,max:10,step:0.1,default:1,если:p=>p.mode==='boat'},
+    {type:'group',label:'Снаряд',если:p=>p.mode==='shell'},
+    {key:'v0',label:'Начальная скорость v₀',unit:'м/с',min:1,max:500,step:1,default:50,если:p=>p.mode==='shell'},
+    {key:'th',label:'Угол выстрела θ',unit:'°',min:5,max:89,step:1,default:60,если:p=>p.mode==='shell'},
+    {key:'fr',label:'Доля массы осколка 1',min:0.05,max:0.95,step:0.05,default:0.5,если:p=>p.mode==='shell'},
+    {key:'k1',label:'Скорость осколка 1 сразу после разрыва (в долях скорости снаряда)',min:-3,max:3,step:0.05,default:0,если:p=>p.mode==='shell'},
+    {type:'group',label:'Баллистический маятник',если:p=>p.mode==='pend'},
+    {key:'mb',label:'Масса пули m',unit:'кг',min:0.001,max:1,step:0.001,default:0.01,если:p=>p.mode==='pend'},
+    {key:'vb',label:'Скорость пули v',unit:'м/с',min:1,max:2000,step:1,default:400,если:p=>p.mode==='pend'},
+    {key:'Mb',label:'Масса бруска M',unit:'кг',min:0.05,max:100,step:0.01,default:2,если:p=>p.mode==='pend'},
+    {key:'Lp',label:'Длина нити l',unit:'м',min:0.1,max:10,step:0.05,default:1,если:p=>p.mode==='pend'},
+    {type:'group',label:'Общее'},
+    {key:'g', label:'Ускорение g',unit:'м/с²',min:1,max:30,step:0.1,default:9.8},
+    {key:'stopEnd',label:'Остановить в конце опыта',type:'check',default:true},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  /* ---- снаряд ---- */
+  снаряд(p){ const th=p.th*Math.PI/180, vx=p.v0*Math.cos(th), vy=p.v0*Math.sin(th), tt=vy/p.g, H=vy*vy/(2*p.g), xt=vx*tt;
+    const v1=p.k1*vx, v2=(vx-p.fr*v1)/(1-p.fr), tf=Math.sqrt(2*H/p.g);
+    return {vx,vy,tt,H,xt,v1,v2,tf,T:tt+tf}; },
+  /* ---- маятник ---- */
+  удар(p){ const V=p.mb*p.vb/(p.mb+p.Mb); return {V,h:V*V/(2*p.g),tI:0.25}; },
+  init(p){ const s={t:0,event:null,__stop:null};
+    if(p.mode==='pend'){ s.th=0; s.w=0; s.удар=false; s.max=0; }
+    return s; },
+  step(s,dt,p){ if(s.event) return; let t=s.t+dt; if(p.tStop>0) t=Math.min(t,p.tStop);
+    if(p.mode==='boat'){ const T=p.Lb/p.u; if(p.stopEnd&&t>=T&&s.t<T){ s.t=T; s.event={type:'end',t:T}; s.__stop=`Человек дошёл до конца лодки: t = ${T.toFixed(2)} с, лодка сместилась на ${this.лодка(p,T).X.toFixed(3)} м`; return; } }
+    if(p.mode==='shell'){ const К=this.снаряд(p); if(p.stopEnd&&t>=К.T&&s.t<К.T){ s.t=К.T; s.event={type:'land',t:К.T};
+      s.__stop=`Осколки упали: t = ${К.T.toFixed(2)} с; первый в ${(К.xt+К.v1*К.tf).toFixed(1)} м, второй в ${(К.xt+К.v2*К.tf).toFixed(1)} м`; return; } }
+    if(p.mode==='pend'){ const У=this.удар(p), n=20, h=(t-s.t)/n;
+      for(let k=0;k<n;k++){ const tk=s.t+h*(k+1);
+        if(!s.удар){ if(tk>=У.tI){ s.удар=true; s.w=У.V/p.Lp; } continue; }
+        const f=(th)=>-p.g/p.Lp*Math.sin(th), a1=f(s.th), a2=f(s.th+h/2*s.w), a3=f(s.th+h/2*(s.w+h/2*a1)), a4=f(s.th+h*(s.w+h/2*a2));
+        const th1=s.th+h*s.w+h*h/6*(a1+a2+a3), w1=s.w+h/6*(a1+2*a2+2*a3+a4);
+        if(p.stopEnd&&s.w>0&&w1<=0){ const d=s.w/(s.w-w1); s.th=s.th+(th1-s.th)*d; s.w=0; s.t=tk-h*(1-d); s.max=s.th;
+          s.event={type:'max',t:s.t}; s.__stop=`Наибольшее отклонение: ${(s.th*180/Math.PI).toFixed(2)}°, подъём ${(p.Lp*(1-Math.cos(s.th))).toFixed(4)} м`; return; }
+        s.th=th1; s.w=w1; s.max=Math.max(s.max,s.th); } }
+    s.t=t; if(p.tStop>0&&t>=p.tStop){ s.event={type:'time',t}; s.__stop=`Остановка по времени: t = ${t.toFixed(2)} с`; } },
+  лодка(p,t){ const sp=Math.min(p.u*t,p.Lb), X=-p.mh*sp/(p.mh+p.M); return {sp,X,xh:X+sp,v:t<p.Lb/p.u?-p.mh*p.u/(p.mh+p.M):0}; },
+  readouts(s,p){ const out=[['t',s.t,'с']];
+    if(p.mode==='boat'){ const Л=this.лодка(p,s.t), cm=(p.M*(Л.X+p.Lb/2)+p.mh*Л.xh)/(p.M+p.mh);
+      out.push(['смещение лодки',Л.X,'м'],['смещение человека относительно земли',Л.xh,'м'],['скорость лодки',Л.v,'м/с'],['центр масс системы x',cm,'м']); }
+    else if(p.mode==='shell'){ const К=this.снаряд(p), t=s.t, oc=[this.осколок(p,0,t),this.осколок(p,1,t)], cmx=p.fr*oc[0].x+(1-p.fr)*oc[1].x, cmy=p.fr*oc[0].y+(1-p.fr)*oc[1].y;
+      out.push(['центр масс x',cmx,'м'],['центр масс y',cmy,'м'],['осколок 1: x',oc[0].x,'м'],['осколок 2: x',oc[1].x,'м'],['высота разрыва',t>=К.tt?К.H:NaN,'м']); }
+    else { const У=this.удар(p), M=p.mb+p.Mb, v=s.удар?Math.abs(s.w)*p.Lp:0, h=p.Lp*(1-Math.cos(s.th));
+      out.push(['угол нити',s.th*180/Math.PI,'°'],['высота подъёма бруска',h,'м'],['скорость бруска',v,'м/с'],
+        ['энергия пули до удара',p.mb*p.vb*p.vb/2,'Дж'],['механическая энергия после удара',s.удар?M*v*v/2+M*p.g*h:NaN,'Дж']); }
+    return out; },
+  осколок(p,i,t){ const К=this.снаряд(p);
+    if(t<=К.tt) return {x:К.vx*t,y:К.vy*t-p.g*t*t/2};
+    const τ=Math.min(t-К.tt,К.tf), v=i?К.v2:К.v1; return {x:К.xt+v*τ,y:Math.max(0,К.H-p.g*τ*τ/2)}; },
+  graphs:[{label:'Центр масс по горизонтали',unit:'м',series:['x ЦМ'],get(s,p){ const r=SIMS.cmass.readouts(s,p).find(q=>/центр масс/.test(q[0])); return [r?r[1]:null,null]; }}],
+  presets:[
+    {name:'Человек проходит по лодке: лодка отъезжает',values:{mode:'boat',M:150,Lb:4,mh:60,u:1,g:9.8,stopEnd:true,tStop:0}},
+    {name:'Лёгкая лодка: отъезжает почти на всю длину',values:{mode:'boat',M:20,Lb:4,mh:80,u:1,g:9.8,stopEnd:true,tStop:0}},
+    {name:'Разрыв в верхней точке: половина падает отвесно',values:{mode:'shell',v0:50,th:60,fr:0.5,k1:0,g:9.8,stopEnd:true,tStop:0}},
+    {name:'Осколок летит назад по той же траектории',values:{mode:'shell',v0:50,th:60,fr:0.5,k1:-1,g:9.8,stopEnd:true,tStop:0}},
+    {name:'Баллистический маятник: пуля в брусок',values:{mode:'pend',mb:0.01,vb:400,Mb:2,Lp:1,g:9.8,stopEnd:true,tStop:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320; let x0,x1,y0,y1;
+    if(p.mode==='boat'){ x0=-p.Lb*0.6; x1=p.Lb*1.6; y0=-p.Lb*0.3; y1=p.Lb*0.5; }
+    else if(p.mode==='shell'){ const К=this.снаряд(p), xs=[0,К.xt+К.v1*К.tf,К.xt+К.v2*К.tf,2*К.xt]; x0=Math.min(...xs); x1=Math.max(...xs); y0=0; y1=К.H*1.2; const d=(x1-x0)*0.08; x0-=d; x1+=d; }
+    else { x0=-p.Lp*1.3; x1=p.Lp*1.3; y0=-p.Lp*1.25; y1=p.Lp*0.3; }
+    const scale=clamp(Math.min((W-60)/((x1-x0)*PX_PER_M),(H-60)/((y1-y0)*PX_PER_M)),0.0005,40); return {x:(x0+x1)/2,y:(y0+y1)/2,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), пк=1/ppm();
+    const цм=(x,y)=>{ ctx.fillStyle=meas; ctx.beginPath(); ctx.moveTo(x,y+6*пк); ctx.lineTo(x-6*пк,y-5*пк); ctx.lineTo(x+6*пк,y-5*пк); ctx.closePath(); ctx.fill(); };
+    if(p.mode==='boat'){ const Л=this.лодка(p,s.t), L=p.Lb, h=L*0.12, cm=(p.M*(Л.X+L/2)+p.mh*Л.xh)/(p.M+p.mh);
+      ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.2); ctx.beginPath(); for(let x=-L;x<=2*L;x+=L/30){ const y=0.012*L*Math.sin(x*12/L+s.t*2); x>-L?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+      ctx.fillStyle=ink2; ctx.beginPath(); ctx.moveTo(Л.X-L*0.03,h); ctx.lineTo(Л.X+L*1.03,h); ctx.lineTo(Л.X+L*0.92,-h*0.4); ctx.lineTo(Л.X+L*0.08,-h*0.4); ctx.closePath(); ctx.fill();
+      const hx=Л.xh, ph=L*0.22; ctx.strokeStyle=acc; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(hx,h); ctx.lineTo(hx,h+ph); ctx.stroke();
+      ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(hx,h+ph+0.05*L,0.05*L,0,7); ctx.fill();
+      ctx.strokeStyle=meas; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(cm,-0.3*L); ctx.lineTo(cm,0.5*L); ctx.stroke(); ctx.setLineDash([]);
+      цм(cm,h*0.4); v.label(ctx,'центр масс стоит',cm,0.45*L,6,-4,meas);
+      ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(0,-0.2*L); ctx.lineTo(0,h); ctx.stroke(); ctx.setLineDash([]);
+      if(Math.abs(Л.X)>1e-6){ v.arrow(ctx,0,-0.2*L,Л.X,-0.2*L,ink2); v.label(ctx,`лодка ${Л.X.toFixed(2)} м`,Л.X/2,-0.2*L,0,14,ink2); } }
+    else if(p.mode==='shell'){ const К=this.снаряд(p);
+      ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(-1e5,0); ctx.lineTo(1e5,0); ctx.stroke();
+      ctx.strokeStyle=meas; ctx.globalAlpha=.55; ctx.setLineDash([v.lw(4),v.lw(4)]); ctx.lineWidth=v.lw(1.2); ctx.beginPath();
+      for(let k=0;k<=80;k++){ const τ=2*К.tt*k/80; const x=К.vx*τ, y=К.vy*τ-p.g*τ*τ/2; k?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      const cols=[acc,sec];
+      for(let i=0;i<2;i++){ ctx.strokeStyle=cols[i]; ctx.lineWidth=v.lw(2); ctx.beginPath(); const n=60;
+        for(let k=0;k<=n;k++){ const τ=Math.min(s.t,К.T)*k/n, q=this.осколок(p,i,τ); k?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y); } ctx.stroke();
+        const q=this.осколок(p,i,Math.min(s.t,К.T)); ctx.fillStyle=cols[i]; ctx.beginPath(); ctx.arc(q.x,q.y,v.lw(5),0,7); ctx.fill();
+        if(s.t>=К.tt) v.label(ctx,`осколок ${i+1}`,q.x,q.y,8,-12,cols[i]); }
+      if(s.t>=К.tt){ ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.5); for(let k=0;k<8;k++){ const a=k*Math.PI/4; ctx.beginPath(); ctx.moveTo(К.xt+5*пк*Math.cos(a),К.H+5*пк*Math.sin(a)); ctx.lineTo(К.xt+12*пк*Math.cos(a),К.H+12*пк*Math.sin(a)); ctx.stroke(); }
+        const a=this.осколок(p,0,Math.min(s.t,К.T)), b=this.осколок(p,1,Math.min(s.t,К.T)); цм(p.fr*a.x+(1-p.fr)*b.x,p.fr*a.y+(1-p.fr)*b.y);
+        v.label(ctx,'центр масс идёт по прежней параболе',К.xt,К.H,10,-26,meas); } }
+    else { const L=p.Lp, У=this.удар(p), bx=L*Math.sin(s.th), by=-L*Math.cos(s.th), r=0.09*L;
+      ctx.fillStyle=ink2; ctx.fillRect(-0.4*L,0,0.8*L,0.05*L);
+      ctx.strokeStyle=v.c('--ink'); ctx.lineWidth=v.lw(1.3); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(bx,by); ctx.stroke();
+      ctx.save(); ctx.translate(bx,by); ctx.rotate(s.th); ctx.fillStyle=acc; ctx.fillRect(-r,-r,2*r,1.6*r); ctx.restore();
+      if(!s.удар){ const xb=-L*1.2+(L*1.2-r)*Math.min(1,s.t/У.tI); ctx.fillStyle=dang; ctx.fillRect(xb-0.04*L,by-0.01*L,0.08*L,0.02*L); v.label(ctx,`пуля ${p.vb} м/с`,xb,by,0,-12,dang); }
+      ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(-0.6*L,-L); ctx.lineTo(0.9*L,-L); ctx.stroke();
+      if(s.th>1e-4){ ctx.beginPath(); ctx.moveTo(bx-0.3*L,by); ctx.lineTo(bx+0.3*L,by); ctx.stroke(); } ctx.setLineDash([]);
+      if(s.th>1e-4) v.label(ctx,`h = ${(L*(1-Math.cos(s.th))).toFixed(3)} м`,bx,by,24,-6,meas); }
+  }
+},
+
+/* ================== ВРАЩЕНИЕ: БЛОК С МАССОЙ, МАХОВИК, МАЯТНИК МАКСВЕЛЛА (9.3.0) ==================
+   У блока, по которому идёт нить, есть масса — значит, есть и момент инерции
+   I = k·m₀R² (диск k = ½, обруч k = 1). Нить не проскальзывает, поэтому
+   угловое ускорение ε = a/R, и натяжения по обе стороны блока разные: их
+   разность раскручивает блок, (T₁ − T₂)R = Iε. Все три опыта — равноускоренные:
+     блок и два груза   a = (m₁ − m₂)g / (m₁ + m₂ + k·m₀);
+     груз на маховике   a = m g / (m + k·m₀);
+     маятник Максвелла  a = g / (1 + k·R²/r²), r — радиус оси с нитью. */
+rotor:{
+  title:'Блок с массой, маховик и маятник Максвелла',
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'atwood',options:[{v:'atwood',t:'блок с массой и два груза'},{v:'unwind',t:'груз на нити, намотанной на маховик'},{v:'maxwell',t:'маятник Максвелла'}]},
+    {type:'group',label:'Блок (маховик, диск)'},
+    {key:'shape',label:'Форма',type:'select',default:'disk',options:[{v:'disk',t:'сплошной диск (k = ½)'},{v:'ring',t:'тонкий обод (k = 1)'}]},
+    {key:'m0',label:'Масса блока m₀',unit:'кг',min:0,max:100,step:0.1,default:2},
+    {key:'R', label:'Радиус блока R',unit:'м',min:0.02,max:2,step:0.01,default:0.2},
+    {key:'r', label:'Радиус оси, на которую намотана нить r',unit:'м',min:0.005,max:2,step:0.005,default:0.2,если:p=>p.mode==='maxwell'},
+    {type:'group',label:'Грузы',если:p=>p.mode!=='maxwell'},
+    {key:'m1',label:'Масса груза m₁',unit:'кг',min:0.01,max:100,step:0.01,default:3,если:p=>p.mode!=='maxwell'},
+    {key:'m2',label:'Масса груза m₂',unit:'кг',min:0.01,max:100,step:0.01,default:1,если:p=>p.mode==='atwood'},
+    {type:'group',label:'Общее'},
+    {key:'g', label:'Ускорение g',unit:'м/с²',min:1,max:30,step:0.1,default:9.8},
+    {key:'h', label:'Путь до остановки таймера',unit:'м',min:0.1,max:20,step:0.05,default:2},
+    {key:'stopH',label:'Остановить, когда груз пройдёт этот путь',type:'check',default:true},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  k(p){ return p.shape==='ring'?1:0.5; },
+  /* ускорение «главного» тела (вниз) и натяжения */
+  дин(p){ const k=this.k(p), g=p.g;
+    if(p.mode==='atwood'){ const a=(p.m1-p.m2)*g/(p.m1+p.m2+k*p.m0); return {a,T1:p.m1*(g-a),T2:p.m2*(g+a),rad:p.R}; }
+    if(p.mode==='unwind'){ const a=p.m1*g/(p.m1+k*p.m0); return {a,T1:p.m1*(g-a),T2:NaN,rad:p.R}; }
+    const a=g/(1+k*p.R*p.R/(p.r*p.r)); return {a,T1:p.m0*(g-a),T2:NaN,rad:p.r}; },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  путь(p,t){ const d=this.дин(p); return {s:d.a*t*t/2, v:d.a*t, φ:d.a*t*t/2/d.rad, ω:d.a*t/d.rad}; },
+  step(s,dt,p){ if(s.event) return; let t=s.t+dt; if(p.tStop>0) t=Math.min(t,p.tStop);
+    const d=this.дин(p);
+    if(p.stopH&&Math.abs(d.a)>1e-12){ const th=Math.sqrt(2*p.h/Math.abs(d.a)); if(t>=th&&s.t<th){ s.t=th; const П=this.путь(p,th);
+      s.event={type:'h',t:th}; s.__stop=`Груз прошёл ${p.h} м: t = ${th.toFixed(3)} с, v = ${Math.abs(П.v).toFixed(3)} м/с`; return; } }
+    s.t=t; if(p.tStop>0&&t>=p.tStop){ s.event={type:'time',t}; s.__stop=`Остановка по времени: t = ${t.toFixed(2)} с`; } },
+  readouts(s,p){ const П=this.путь(p,s.t);
+    return [['t',s.t,'с'],['путь груза',Math.abs(П.s),'м'],['скорость груза',Math.abs(П.v),'м/с'],['угловая скорость блока',Math.abs(П.ω),'рад/с'],['обороты блока',Math.abs(П.φ)/(2*Math.PI),'']]; },
+  graphs:[{label:'Скорость груза',unit:'м/с',series:['v'],get(s,p){ return [Math.abs(SIMS.rotor.путь(p,s.t).v),null]; }}],
+  presets:[
+    {name:'Блок-диск и грузы 3 и 1 кг',values:{mode:'atwood',shape:'disk',m0:2,R:0.2,m1:3,m2:1,g:9.8,h:2,stopH:true,tStop:0}},
+    {name:'Лёгкий блок: обычная машина Атвуда',values:{mode:'atwood',shape:'disk',m0:0,R:0.2,m1:3,m2:1,g:9.8,h:2,stopH:true,tStop:0}},
+    {name:'Тяжёлый обод: грузы еле ползут',values:{mode:'atwood',shape:'ring',m0:20,R:0.2,m1:3,m2:1,g:9.8,h:2,stopH:true,tStop:0}},
+    {name:'Груз раскручивает маховик',values:{mode:'unwind',shape:'disk',m0:8,R:0.3,m1:1,g:9.8,h:2,stopH:true,tStop:0}},
+    {name:'Маятник Максвелла: нить на тонкой оси',values:{mode:'maxwell',shape:'disk',m0:0.5,R:0.1,r:0.01,g:9.8,h:1,stopH:true,tStop:0}},
+    {name:'Цилиндр на собственной нити: a = 2g/3',values:{mode:'maxwell',shape:'disk',m0:0.5,R:0.1,r:0.1,g:9.8,h:1,stopH:true,tStop:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, R=p.R, h=p.h;
+    const top=R*2, bot=p.mode==='atwood'?-(2*h+4*R):-(h+3*R), sx=Math.max(R*5,h*0.9), sy=top-bot;
+    const scale=clamp(Math.min((W-60)/(sx*PX_PER_M),(H-60)/(sy*PX_PER_M)),0.002,80);
+    return {x:0,y:(top+bot)/2,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const R=p.R, d=this.дин(p), П=this.путь(p,s.t), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), пк=1/ppm();
+    const колесо=(x,y,rr,φ,лучи)=>{ ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(x,y,rr,0,7); ctx.stroke();
+      ctx.fillStyle=v.c('--panel-2'); ctx.globalAlpha=.6; ctx.fill(); ctx.globalAlpha=1;
+      ctx.lineWidth=v.lw(1.2); for(let k=0;k<лучи;k++){ const a=φ+k*2*Math.PI/лучи; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+rr*Math.cos(a),y+rr*Math.sin(a)); ctx.stroke(); }
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(x+rr*0.8*Math.cos(φ),y+rr*0.8*Math.sin(φ),v.lw(3),0,7); ctx.fill(); };
+    const груз=(x,y,m,c,txt)=>{ const w=Math.max(R*0.9,0.12)*Math.cbrt(Math.max(m,0.05)/2); ctx.fillStyle=c; ctx.fillRect(x-w/2,y-w,w,w); v.label(ctx,txt,x,y-w/2,w*ppm()/2+8,0,c); return w; };
+    ctx.fillStyle=ink2; ctx.fillRect(-R*2.5,R*1.6,R*5,R*0.25);
+    if(p.mode==='atwood'){ const s1=П.s, y0=-p.h-3*R;
+      ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.5); ctx.beginPath(); ctx.moveTo(0,R*1.6); ctx.lineTo(0,0); ctx.stroke();
+      колесо(0,0,R,-П.φ,6);
+      const y1=y0-s1, y2=y0+s1;
+      ctx.strokeStyle=v.c('--ink'); ctx.lineWidth=v.lw(1.3); ctx.beginPath(); ctx.moveTo(-R,0); ctx.lineTo(-R,y1); ctx.moveTo(R,0); ctx.lineTo(R,y2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI); ctx.stroke();
+      груз(-R,y1,p.m1,acc,`m₁ = ${p.m1} кг`); груз(R,y2,p.m2,sec,`m₂ = ${p.m2} кг`); }
+    else if(p.mode==='unwind'){ const y0=-R*1.5;
+      ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1.5); ctx.beginPath(); ctx.moveTo(0,R*1.6); ctx.lineTo(0,0); ctx.stroke();
+      колесо(0,0,R,-П.φ,8); const y1=y0-П.s;
+      ctx.strokeStyle=v.c('--ink'); ctx.lineWidth=v.lw(1.3); ctx.beginPath(); ctx.moveTo(R,0); ctx.lineTo(R,y1); ctx.stroke();
+      груз(R,y1,p.m1,acc,`m = ${p.m1} кг`); }
+    else { const yc=-R*1.2-П.s;
+      ctx.strokeStyle=v.c('--ink'); ctx.lineWidth=v.lw(1.3); ctx.beginPath(); ctx.moveTo(-p.r,R*1.6); ctx.lineTo(-p.r,yc); ctx.stroke();
+      колесо(0,yc,R,П.φ,6); ctx.strokeStyle=ink3; ctx.beginPath(); ctx.arc(0,yc,p.r,0,7); ctx.stroke(); }
+    // путь
+    ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.2); ctx.setLineDash([v.lw(3),v.lw(4)]);
+    const xm=-R*2.2, ya=p.mode==='maxwell'?-R*1.2:p.mode==='unwind'?-R*1.5:-p.h-3*R;
+    ctx.beginPath(); ctx.moveTo(xm,ya); ctx.lineTo(xm,ya-p.h); ctx.stroke(); ctx.setLineDash([]);
+    v.label(ctx,`h = ${p.h} м`,xm,ya-p.h/2,-10,0,meas);
+    v.label(ctx,`ω = ${Math.abs(П.ω).toFixed(2)} рад/с`,0,R*1.9,0,-14,ink3);
+  }
+},
+
+/* ================== МОМЕНТ ИМПУЛЬСА: СКАМЬЯ ЖУКОВСКОГО И ШАЙБА НА НИТИ (9.3.0) ==================
+   Внешних моментов сил относительно оси нет, поэтому момент импульса L = Iω
+   сохраняется.
+     • Платформа-диск (I₀ = MR²/2) с человеком m на расстоянии r: человек идёт
+       к центру — I уменьшается, ω растёт; кинетическая энергия Iω²/2 = L²/2I
+       растёт, и эту работу совершает человек.
+     • Шайба на гладком столе на нити, продетой в отверстие: нить втягивают, и
+       vr = const (сила натяжения направлена к оси, её момент равен нулю);
+       натяжение T = mv²/r, работа втягивания равна приросту кинетической энергии. */
+spin:{
+  title:'Момент импульса: скамья и шайба на нити',
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'platform',options:[{v:'platform',t:'человек на вращающейся платформе'},{v:'puck',t:'шайба на нити, втягиваемой в отверстие'}]},
+    {type:'group',label:'Платформа',если:p=>p.mode==='platform'},
+    {key:'M', label:'Масса платформы-диска M',unit:'кг',min:1,max:2000,step:1,default:120,если:p=>p.mode==='platform'},
+    {key:'Rd',label:'Радиус платформы R',unit:'м',min:0.3,max:20,step:0.1,default:2,если:p=>p.mode==='platform'},
+    {key:'mh',label:'Масса человека m',unit:'кг',min:1,max:300,step:1,default:60,если:p=>p.mode==='platform'},
+    {key:'w0',label:'Начальная угловая скорость ω₀',unit:'рад/с',min:0.01,max:20,step:0.01,default:1,если:p=>p.mode==='platform'},
+    {key:'ra',label:'Человек стоит на расстоянии от оси (сначала)',unit:'м',min:0,max:20,step:0.05,default:2,если:p=>p.mode==='platform'},
+    {key:'rb',label:'…и переходит на расстояние',unit:'м',min:0,max:20,step:0.05,default:0,если:p=>p.mode==='platform'},
+    {type:'group',label:'Шайба',если:p=>p.mode==='puck'},
+    {key:'m', label:'Масса шайбы m',unit:'кг',min:0.01,max:10,step:0.01,default:0.2,если:p=>p.mode==='puck'},
+    {key:'r0',label:'Начальный радиус r₀',unit:'м',min:0.05,max:10,step:0.01,default:0.8,если:p=>p.mode==='puck'},
+    {key:'v0',label:'Начальная скорость v₀',unit:'м/с',min:0.01,max:50,step:0.01,default:2,если:p=>p.mode==='puck'},
+    {key:'r1',label:'Нить втягивают до радиуса r',unit:'м',min:0.02,max:10,step:0.01,default:0.2,если:p=>p.mode==='puck'},
+    {type:'group',label:'Общее'},
+    {key:'u', label:'Скорость перехода (втягивания)',unit:'м/с',min:0.01,max:5,step:0.01,default:0.25},
+    {key:'stopEnd',label:'Остановить, когда переход закончен',type:'check',default:true},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  T(p){ const a=p.mode==='puck'?p.r0:p.ra, b=p.mode==='puck'?p.r1:p.rb; return Math.abs(b-a)/p.u; },
+  r(p,t){ const a=p.mode==='puck'?p.r0:p.ra, b=p.mode==='puck'?p.r1:p.rb, T=this.T(p); return T>0?a+(b-a)*Math.min(1,t/T):a; },
+  I(p,r){ return 0.5*p.M*p.Rd*p.Rd+p.mh*r*r; },
+  L(p){ return p.mode==='puck'?p.m*p.v0*p.r0:this.I(p,p.ra)*p.w0; },
+  ω(p,t){ const r=this.r(p,t); return p.mode==='puck'?this.L(p)/(p.m*r*r):this.L(p)/this.I(p,r); },
+  init(p){ const r=this.r(p,0); return {t:0,φ:0,event:null,__stop:null,след:[[r,0]]}; },
+  step(s,dt,p){ if(s.event) return; let t=s.t+dt; if(p.tStop>0) t=Math.min(t,p.tStop);
+    const T=this.T(p); if(p.stopEnd&&t>=T&&s.t<T) t=T;
+    const n=10, h=(t-s.t)/n; for(let k=0;k<n;k++){ const tm=s.t+h*(k+0.5); s.φ+=this.ω(p,tm)*h; }
+    s.след.push([this.r(p,t),s.φ]); if(s.след.length>4000) s.след.shift();
+    s.t=t;
+    if(p.stopEnd&&t>=T-1e-12&&!(s.done&&s.done.end)){ s.event={type:'end',t}; s.__stop=`Переход закончен: t = ${t.toFixed(2)} с, ω = ${this.ω(p,t).toFixed(3)} рад/с`; return; }
+    if(p.tStop>0&&t>=p.tStop){ s.event={type:'time',t}; s.__stop=`Остановка по времени: t = ${t.toFixed(2)} с`; } },
+  readouts(s,p){ const r=this.r(p,s.t), w=this.ω(p,s.t);
+    if(p.mode==='puck'){ const v=w*r; return [['t',s.t,'с'],['радиус r',r,'м'],['скорость шайбы v',v,'м/с'],['угловая скорость ω',w,'рад/с'],
+      ['момент импульса L = mvr',p.m*v*r,'кг·м²/с'],['кинетическая энергия',p.m*v*v/2,'Дж'],['натяжение нити',p.m*v*v/r,'Н']]; }
+    const I=this.I(p,r); return [['t',s.t,'с'],['человек от оси r',r,'м'],['момент инерции I',I,'кг·м²'],['угловая скорость ω',w,'рад/с'],
+      ['момент импульса L = Iω',I*w,'кг·м²/с'],['кинетическая энергия',I*w*w/2,'Дж'],['обороты',s.φ/(2*Math.PI),'']]; },
+  graphs:[{label:'Угловая скорость',unit:'рад/с',series:['ω'],get(s,p){ return [SIMS.spin.ω(p,s.t),null]; }}],
+  presets:[
+    {name:'Человек идёт с края в центр платформы',values:{mode:'platform',M:120,Rd:2,mh:60,w0:1,ra:2,rb:0,u:0.25,stopEnd:true,tStop:0}},
+    {name:'Из центра на край: платформа замедляется',values:{mode:'platform',M:120,Rd:2,mh:60,w0:2,ra:0,rb:2,u:0.25,stopEnd:true,tStop:0}},
+    {name:'Шайба на нити: втягиваем вчетверо',values:{mode:'puck',m:0.2,r0:0.8,v0:2,r1:0.2,u:0.1,stopEnd:true,tStop:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, R=p.mode==='puck'?Math.max(p.r0,p.r1):p.Rd;
+    const scale=clamp(Math.min(W-60,H-60)/(2.6*R*PX_PER_M),0.002,80); return {x:0,y:0,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), пк=1/ppm(), r=this.r(p,s.t);
+    if(p.mode==='platform'){ const R=p.Rd;
+      ctx.fillStyle=v.c('--panel-2'); ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.arc(0,0,R,0,7); ctx.fill(); ctx.stroke();
+      ctx.lineWidth=v.lw(1); for(let k=0;k<8;k++){ const a=s.φ+k*Math.PI/4; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(R*Math.cos(a),R*Math.sin(a)); ctx.stroke(); }
+      ctx.fillStyle=ink3; ctx.beginPath(); ctx.arc(0,0,v.lw(3),0,7); ctx.fill();
+      const x=r*Math.cos(s.φ), y=r*Math.sin(s.φ); ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(x,y,Math.max(0.08*R,v.lw(6)),0,7); ctx.fill();
+      v.label(ctx,`человек, r = ${r.toFixed(2)} м`,x,y,10,-12,acc);
+      v.label(ctx,`ω = ${this.ω(p,s.t).toFixed(3)} рад/с`,0,-R*1.15,0,0,meas); }
+    else { const R=Math.max(p.r0,p.r1)*1.1, w=this.ω(p,s.t);
+      ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.beginPath(); ctx.arc(0,0,p.r0,0,7); ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,p.r1,0,7); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(0,0,v.lw(4),0,7); ctx.fill();
+      const x=r*Math.cos(s.φ), y=r*Math.sin(s.φ);
+      ctx.strokeStyle=acc; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1.4); ctx.beginPath();
+      s.след.forEach(([rr,ф],k)=>{ const X=rr*Math.cos(ф), Y=rr*Math.sin(ф); k?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }); ctx.stroke(); ctx.globalAlpha=1;
+      ctx.strokeStyle=v.c('--ink'); ctx.lineWidth=v.lw(1.3); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(x,y); ctx.stroke();
+      ctx.fillStyle=acc; ctx.beginPath(); ctx.arc(x,y,Math.max(0.05*R,v.lw(6)),0,7); ctx.fill();
+      const vv=w*r, k=0.35*R/Math.max(p.v0*p.r0/p.r1,1e-9); v.arrow(ctx,x,y,x-Math.sin(s.φ)*vv*k,y+Math.cos(s.φ)*vv*k,meas);
+      v.label(ctx,`v = ${vv.toFixed(2)} м/с`,x,y,10,-12,meas); }
+  }
+},
 
 /* ================== ЗАКОН СОХРАНЕНИЯ ЭНЕРГИИ ================= */
 econs:{
@@ -9770,6 +9886,13 @@ spring:{
     {key:'m',label:'Масса груза m',unit:'кг',min:0.1,max:20,step:0.1,default:1},
     {key:'k',label:'Жёсткость пружины k',unit:'Н/м',min:1,max:400,step:1,default:20},
     {key:'A',label:'Начальное смещение x₀',unit:'м',min:0.1,max:4,step:0.1,default:2},
+    /* 9.3.0: две пружины и вертикальный подвес. Эффективная жёсткость:
+       последовательно 1/k = 1/k₁ + 1/k₂, параллельно k = k₁ + k₂. Вертикально
+       груз колеблется вокруг нового равновесия, сдвинутого на mg/k, а период тот же. */
+    {key:'springs',label:'Пружины',type:'select',default:'one',options:[{v:'one',t:'одна пружина'},{v:'series',t:'две последовательно'},{v:'parallel',t:'две параллельно'}]},
+    {key:'k2',label:'Жёсткость второй пружины k₂',unit:'Н/м',min:1,max:400,step:1,default:30,если:p=>p.springs&&p.springs!=='one'},
+    {key:'vert',label:'Подвесить вертикально (действует тяжесть)',type:'check',default:false},
+    {key:'g',label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8,если:p=>!!p.vert},
 
     {type:'group',label:'Показывать'},
     {key:'dx',   label:'Отметка смещения Δx',type:'check',default:true},
@@ -9782,8 +9905,12 @@ spring:{
     {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   /* собственная частота: ω = √(k/m), период T = 2π√(m/k) */
-  w(p){ return Math.sqrt(p.k/p.m); },
+  kэф(p){ const k2=p.k2||p.k; return p.springs==='series'?p.k*k2/(p.k+k2):p.springs==='parallel'?p.k+k2:p.k; },
+  w(p){ return Math.sqrt(this.kэф(p)/p.m); },
   T(p){ return 2*Math.PI/this.w(p); },
+  /* формулу периода показываем только для одной горизонтальной пружины —
+     в остальных опытах период и есть ответ, его измеряют счётом колебаний */
+  простой(p){ return (!p.springs||p.springs==='one')&&!p.vert; },
   init(p){ return {t:0,q:p.A,v:0,periods:0,heat:0,event:null,__stop:null}; },
   step(s,dt,p){
     if(s.event) return;
@@ -9809,24 +9936,24 @@ spring:{
   // центр груза поднят на yb=0.5 — там же, где он и рисуется
   anchors(s,p){ return [{x:s.q,y:0.5},{x:0,y:0.5}]; },
   energies(s,p){
-    const Ek=0.5*p.m*s.v*s.v, Eel=0.5*p.k*s.q*s.q, Eth=s.heat||0;
+    const Ek=0.5*p.m*s.v*s.v, Eel=0.5*this.kэф(p)*s.q*s.q, Eth=s.heat||0;
     return {Ek,Ep:0,Eel,Eth,tot:Ek+Eel+Eth};   // тепло входит в полную энергию
   },
   readouts(s,p){
     const E=this.energies(s,p);
-    return [['t',s.t,'с'],
-      ['период T = 2π√(m/k)',this.T(p),'с'],
-      ['частота ν',1/this.T(p),'Гц'],
-      ['круговая частота ω',this.w(p),'рад/с'],
+    const out=[['t',s.t,'с']];
+    if(this.простой(p)) out.push(['период T = 2π√(m/k)',this.T(p),'с'],['частота ν',1/this.T(p),'Гц'],['круговая частота ω',this.w(p),'рад/с']);
+    if(p.vert) out.push(['растяжение в положении равновесия',p.m*(p.g||9.8)/this.kэф(p),'м']);
+    return out.concat([
       ['смещение Δx',s.q,'м'],
       ['скорость v',s.v,'м/с'],
-      ['сила упругости −kx',-p.k*s.q,'Н'],
+      ['сила упругости −kx',-this.kэф(p)*s.q,'Н'],
       ['кинетическая энергия',E.Ek,'Дж'],
       ['потенциальная энергия пружины',E.Eel,'Дж'],
       ['ушло в тепло (трение)',E.Eth, p.damp?'Дж':'Дж — затухание выключено'],
       ['механическая E = K + U',E.Ek+E.Eel,'Дж'],
       ['полная энергия с теплом',E.tot,'Дж — сохраняется'],
-      ['колебаний пройдено',s.periods,'']];
+      ['колебаний пройдено',s.periods,'']]);
   },
   graphs:[
     {label:'Смещение Δx во времени',unit:'м',series:['x'],get:s=>[s.q,null]},
@@ -9841,20 +9968,31 @@ spring:{
     {name:'Жёстче пружина — чаще колебания',values:{m:1,k:100,A:2,tStop:0}},
     {name:'Тяжелее груз — медленнее',values:{m:8,k:20,A:2,tStop:0}},
     {name:'Малая амплитуда — период тот же',values:{m:1,k:20,A:0.5,tStop:0}},
-    {name:'Затухающие колебания',values:{m:1,k:20,A:2,damp:true,tStop:0}}
+    {name:'Затухающие колебания',values:{m:1,k:20,A:2,damp:true,tStop:0}},
+    {name:'Две пружины последовательно: мягче каждой',values:{m:1,k:20,k2:30,springs:'series',vert:false,A:1.5,periods:5,tStop:0}},
+    {name:'Две пружины параллельно: жёстче обеих',values:{m:1,k:20,k2:30,springs:'parallel',vert:false,A:1.5,periods:5,tStop:0}},
+    {name:'Вертикальная пружина: период тот же',values:{m:1,k:20,springs:'one',vert:true,g:9.8,A:1,periods:5,tStop:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     /* в кадр — от стены до крайнего положения груза (до 3.4.0 стена при
        A ≥ 1,6 м оставалась за левым краем и пружина висела в воздухе) */
+    if(p.vert){ const base=Math.max(p.A*2,2.5)+p.m*(p.g||9.8)/this.kэф(p), y0=-(base+p.A+0.8), y1=0.8, spanY=y1-y0, spanX=spanY*W/H;
+      const sc=clamp(Math.min((W-60)/(Math.max(spanX,4)*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30); return {x:0,y:(y0+y1)/2,scale:sc}; }
     const wall=-Math.max(p.A*2,2.5), x0=wall-0.5, x1=p.A+1.5;
     const spanX=x1-x0, spanY=4.4;
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
     return {x:(x0+x1)/2,y:0.2,scale};
   },
+  /* пружина-зигзаг от (x1,y1) до (x2,y2) */
+  зигзаг(ctx,v,x1,y1,x2,y2,cv,шир,витков){ const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1, nx=-dy/L, ny=dx/L;
+    ctx.strokeStyle=cv; ctx.lineWidth=v.lw(1.8); ctx.beginPath(); ctx.moveTo(x1,y1);
+    for(let i=1;i<витков;i++){ const t=i/витков, q=(i%2?1:-1)*шир; ctx.lineTo(x1+dx*t+nx*q,y1+dy*t+ny*q); }
+    ctx.lineTo(x2,y2); ctx.stroke(); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const wall=-Math.max(p.A*2,2.5), sz=0.28+0.06*Math.cbrt(p.m), yb=0.5;
+    if(p.vert||(p.springs&&p.springs!=='one')) return this.draw2(ctx,s,v,p);
     // стена и опора
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
     ctx.beginPath(); ctx.moveTo(wall,-1.4); ctx.lineTo(wall,1.5); ctx.moveTo(wall,0); ctx.lineTo(Math.max(p.A,s.q)+1.2,0); ctx.stroke();
@@ -9907,6 +10045,33 @@ spring:{
     }
     v.label(ctx,`T = 2π√(m/k) = ${this.T(p).toFixed(2)} с`,wall,1.5,10,0,ink3);
     v.label(ctx,'период не зависит от амплитуды',wall,1.5,10,16,ink3);
+  },
+  /* две пружины и/или вертикальный подвес: ось колебаний — по горизонтали или вниз */
+  draw2(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), third=v.c('--third')||v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure');
+    const sz=0.28+0.06*Math.cbrt(p.m), base=Math.max(p.A*2,2.5)+(p.vert?p.m*(p.g||9.8)/this.kэф(p):0);
+    // координата вдоль оси: u — от опоры к грузу; равновесие в u = base
+    const P=u=>p.vert?[0,-u]:[u-base,0.5];
+    const op=P(0), груз=P(base+s.q);
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
+    if(p.vert){ ctx.moveTo(-1.2,0); ctx.lineTo(1.2,0); } else { ctx.moveTo(op[0],-0.9); ctx.lineTo(op[0],1.9); } ctx.stroke();
+    const конец=base+s.q-sz;
+    if(p.springs==='parallel'){ const d=0.32;
+      for(const [o,c] of [[-d,sec],[d,third]]){ const a=P(0), b=P(конец); const off=p.vert?[o,0]:[0,o];
+        this.зигзаг(ctx,v,a[0]+off[0],a[1]+off[1],b[0]+off[0],b[1]+off[1],c,0.14,14); } }
+    else if(p.springs==='series'){ const k1=p.k, k2=p.k2||p.k, доля=k2/(k1+k2);   // первая растягивается сильнее, если мягче
+      const mid=(конец)*доля; const a=P(0), m=P(mid), b=P(конец);
+      this.зигзаг(ctx,v,a[0],a[1],m[0],m[1],sec,0.2,12); this.зигзаг(ctx,v,m[0],m[1],b[0],b[1],third,0.2,12);
+      ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(m[0],m[1],v.lw(3),0,7); ctx.fill(); }
+    else { const a=P(0), b=P(конец); this.зигзаг(ctx,v,a[0],a[1],b[0],b[1],sec,0.22,16); }
+    // равновесие и амплитуда
+    const e=P(base); ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath();
+    if(p.vert){ ctx.moveTo(-1.4,e[1]); ctx.lineTo(1.4,e[1]); } else { ctx.moveTo(e[0],-0.9); ctx.lineTo(e[0],1.9); } ctx.stroke(); ctx.setLineDash([]);
+    v.label(ctx,'равновесие',e[0],e[1],p.vert?40:-30,p.vert?-8:-70,ink3);
+    if(p.vert){ const f=P(Math.max(p.A*2,2.5)); ctx.strokeStyle=meas; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(-1.4,f[1]); ctx.lineTo(1.4,f[1]); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,`конец пружины без груза; растяжение mg/k = ${(p.m*(p.g||9.8)/this.kэф(p)).toFixed(3)} м`,f[0],f[1],40,-8,meas); }
+    ctx.fillStyle=acc; ctx.fillRect(груз[0]-sz,груз[1]-sz,2*sz,2*sz);
+    v.label(ctx,p.springs==='series'?`k₁ = ${p.k}, k₂ = ${p.k2} Н/м последовательно`:p.springs==='parallel'?`k₁ = ${p.k}, k₂ = ${p.k2} Н/м параллельно`:`k = ${p.k} Н/м`,op[0],op[1],10,p.vert?16:-34,ink3);
   }
 },
 
@@ -9918,6 +10083,8 @@ pendulum:{
     {key:'th0',label:'Начальный угол θ₀',unit:'°',min:1,max:80,step:1,default:20},
     {key:'m',  label:'Масса груза m',unit:'кг',min:0.1,max:20,step:0.1,default:1},
     {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
+    /* 9.3.0: маятник в лифте — в системе кабины действует g + a (a вверх) */
+    {key:'aL', label:'Ускорение кабины лифта a (вверх +)',unit:'м/с²',min:-30,max:30,step:0.1,default:0},
 
     {type:'group',label:'Показывать'},
     {key:'arc',  label:'Дуга угла и траектория',type:'check',default:true},
@@ -9929,9 +10096,10 @@ pendulum:{
     {key:'periods',label:'Через N полных колебаний (0 — выкл)',min:0,max:50,step:0.5,default:0},
     {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
-  /* малые колебания: T = 2π√(L/g) */
-  w(p){ return Math.sqrt(p.g/p.L); },
-  T(p){ return 2*Math.PI*Math.sqrt(p.L/p.g); },
+  /* малые колебания: T = 2π√(L/g'), g' = g + a — ускорение свободного падения в кабине */
+  gэф(p){ return Math.max(0,p.g+(p.aL||0)); },
+  w(p){ return Math.sqrt(this.gэф(p)/p.L); },
+  T(p){ const g=this.gэф(p); return g>0?2*Math.PI*Math.sqrt(p.L/g):Infinity; },
   /* поправка на конечную амплитуду (первый член ряда) */
   Texact(p){ const a=p.th0*Math.PI/180; return this.T(p)*(1+a*a/16); },
   init(p){ return {t:0,q:p.th0*Math.PI/180,v:0,periods:0,event:null,__stop:null}; },
@@ -9956,15 +10124,16 @@ pendulum:{
   pos(s,p){ return {x:p.L*Math.sin(s.q), y:-p.L*Math.cos(s.q)}; },
   anchors(s,p){ const c=this.pos(s,p); return [{x:0,y:0},{x:c.x,y:c.y}]; },
   energies(s,p){
-    const I=p.m*p.L*p.L, Ek=0.5*I*s.v*s.v, Ep=p.m*p.g*p.L*(1-Math.cos(s.q));
+    const I=p.m*p.L*p.L, Ek=0.5*I*s.v*s.v, Ep=p.m*this.gэф(p)*p.L*(1-Math.cos(s.q));
     return {Ek,Ep,Eel:0,Eth:0,tot:Ek+Ep};
   },
   readouts(s,p){
     const E=this.energies(s,p);
-    return [['t',s.t,'с'],
+    const лифт=Math.abs(p.aL||0)>1e-12;
+    return [['t',s.t,'с']].concat(лифт?[['g в кабине: g + a',this.gэф(p),'м/с²']]:[
       ['период T = 2π√(L/g)',this.T(p),'с'],
       ['с поправкой на амплитуду',this.Texact(p),'с'],
-      ['частота ν',1/this.T(p),'Гц'],
+      ['частота ν',1/this.T(p),'Гц']],[
       ['угол θ',s.q*180/Math.PI,'°'],
       ['угловая скорость',s.v,'рад/с'],
       ['скорость груза',Math.abs(s.v)*p.L,'м/с'],
@@ -9972,8 +10141,8 @@ pendulum:{
       ['кинетическая энергия',E.Ek,'Дж'],
       ['потенциальная энергия',E.Ep,'Дж'],
       ['полная энергия',E.tot,'Дж'],
-      ['колебаний пройдено',s.periods,''],
-      ['период не зависит от массы',1,'проверьте, меняя m']];
+      ['колебаний пройдено',isFinite(s.periods)?s.periods:0,''],
+      ['период не зависит от массы',1,'проверьте, меняя m']]);
   },
   graphs:[
     {label:'Угол во времени',unit:'°',series:['θ'],get:s=>[s.q*180/Math.PI,null]},
@@ -9987,7 +10156,9 @@ pendulum:{
     {name:'Другая масса — период тот же',values:{L:1,th0:20,m:10,g:9.8,tStop:0}},
     {name:'Часы: период ровно 2 с',values:{L:0.994,th0:10,m:1,g:9.8,tStop:0}},
     {name:'Большой угол — формула уже врёт',values:{L:1,th0:70,m:1,g:9.8,exact:true,tStop:0}},
-    {name:'Маятник на Луне',values:{L:1,th0:20,m:1,g:1.62,tStop:0}}
+    {name:'Маятник на Луне',values:{L:1,th0:20,m:1,g:1.62,tStop:0}},
+    {name:'В лифте, разгоняющемся вверх: качается чаще',values:{L:1,th0:10,m:1,g:9.8,aL:4.9,periods:5,tStop:0}},
+    {name:'В падающем лифте: колебаний нет',values:{L:1,th0:20,m:1,g:9.8,aL:-9.8,periods:0,tStop:4}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -10039,6 +10210,7 @@ pendulum:{
       ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(c.x,c.y-L*0.3); ctx.stroke(); ctx.globalAlpha=1;
     }
+    if(Math.abs(p.aL||0)>1e-12){ v.label(ctx,this.gэф(p)>0?`в кабине g' = g + a = ${this.gэф(p).toFixed(2)} м/с²`:'кабина падает свободно: g\' = 0, маятник не качается',0,-L*1.2,-90,0,ink3); return; }
     v.label(ctx,`T = 2π√(L/g) = ${this.T(p).toFixed(2)} с`,0,-L*1.2,-52,0,ink3);
     if(p.th0>25) v.label(ctx,`при θ₀ = ${p.th0}° точный период уже ${this.Texact(p).toFixed(2)} с`,0,-L*1.2,-70,16,dang);
     else v.label(ctx,'период не зависит ни от массы, ни от амплитуды',0,-L*1.2,-90,16,ink3);
@@ -10053,6 +10225,10 @@ physpend:{
     {key:'mr', label:'Масса стержня',unit:'кг',min:0.1,max:20,step:0.1,default:1},
     {key:'thR',label:'Начальный угол',unit:'°',min:1,max:80,step:1,default:25},
     {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
+    /* 9.3.0: ось не обязательно на конце — на любом расстоянии x от центра:
+       I = m(L²/12 + x²), d = x (теорема Штейнера) */
+    {key:'pivot',label:'Ось',type:'select',default:'end',options:[{v:'end',t:'на конце стержня'},{v:'any',t:'на расстоянии x от центра'}]},
+    {key:'xo', label:'Расстояние от оси до центра x',unit:'м',min:0.01,max:5,step:0.01,default:0.6,если:p=>p.pivot==='any'},
 
     {type:'group',label:'Показывать'},
     {key:'cm',   label:'Центр масс',type:'check',default:true},
@@ -10066,12 +10242,12 @@ physpend:{
   ],
   /* стержень, подвешенный за конец: I = mL²/3, расстояние до центра масс d = L/2.
      ω = √(mgd/I) = √(3g/2L), T = 2π√(2L/3g) */
-  I(p){ return p.mr*p.Lr*p.Lr/3; },
-  d(p){ return p.Lr/2; },
-  w(p){ return Math.sqrt(3*p.g/(2*p.Lr)); },
+  I(p){ if(p.pivot==='any'){ const x=Math.min(p.xo,p.Lr/2); return p.mr*(p.Lr*p.Lr/12+x*x); } return p.mr*p.Lr*p.Lr/3; },
+  d(p){ return p.pivot==='any'?Math.min(p.xo,p.Lr/2):p.Lr/2; },
+  w(p){ return Math.sqrt(p.mr*p.g*this.d(p)/this.I(p)); },
   T(p){ return 2*Math.PI/this.w(p); },
   /* приведённая длина: нитяной маятник с таким же периодом */
-  Lred(p){ return 2*p.Lr/3; },
+  Lred(p){ return this.I(p)/(p.mr*this.d(p)); },
   init(p){ return {t:0,q:p.thR*Math.PI/180,v:0,periods:0,event:null,__stop:null}; },
   step(s,dt,p){
     if(s.event) return;
@@ -10100,9 +10276,9 @@ physpend:{
     const E=this.energies(s,p);
     return [['t',s.t,'с'],
       ['период T = 2π√(I/mgd)',this.T(p),'с'],
-      ['момент инерции I = mL²/3',this.I(p),'кг·м²'],
-      ['до центра масс d = L/2',this.d(p),'м'],
-      ['приведённая длина 2L/3',this.Lred(p),'м'],
+      [p.pivot==='any'?'момент инерции I = m(L²/12 + x²)':'момент инерции I = mL²/3',this.I(p),'кг·м²'],
+      [p.pivot==='any'?'до центра масс d = x':'до центра масс d = L/2',this.d(p),'м'],
+      [p.pivot==='any'?'приведённая длина I/(md)':'приведённая длина 2L/3',this.Lred(p),'м'],
       ['период нитяного той же длины',2*Math.PI*Math.sqrt(p.Lr/p.g),'с'],
       ['угол θ',s.q*180/Math.PI,'°'],
       ['угловая скорость',s.v,'рад/с'],
@@ -10121,7 +10297,9 @@ physpend:{
     {name:'Стержень 2 м',values:{Lr:2,mr:1,thR:25,g:9.8,tStop:0}},
     {name:'Короткий стержень — чаще колебания',values:{Lr:0.6,mr:1,thR:25,g:9.8,tStop:0}},
     {name:'Другая масса — период тот же',values:{Lr:2,mr:12,thR:25,g:9.8,tStop:0}},
-    {name:'Сравнение с нитяным маятником',values:{Lr:3,mr:1,thR:20,compare:true,g:9.8,tStop:0}}
+    {name:'Сравнение с нитяным маятником',values:{Lr:3,mr:1,thR:20,compare:true,g:9.8,tStop:0}},
+    {name:'Ось ближе к центру: период сначала падает…',values:{Lr:2,mr:1,thR:15,g:9.8,pivot:'any',xo:0.58,periods:5,tStop:0}},
+    {name:'…а у самого центра растёт без предела',values:{Lr:2,mr:1,thR:15,g:9.8,pivot:'any',xo:0.08,periods:2,tStop:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -10132,7 +10310,7 @@ physpend:{
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const L=p.Lr, c=this.pos(s,p);
-    const ex=L*Math.sin(s.q), ey=-L*Math.cos(s.q);
+    const d=this.d(p), ex=(L/2+d)*Math.sin(s.q), ey=-(L/2+d)*Math.cos(s.q), sx0=-(L/2-d)*Math.sin(s.q), sy0=(L/2-d)*Math.cos(s.q);
     // потолок
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.4);
     ctx.beginPath(); ctx.moveTo(-L*0.4,0); ctx.lineTo(L*0.4,0); ctx.stroke();
@@ -10152,13 +10330,13 @@ physpend:{
       ctx.fillStyle=sec; ctx.beginPath();
       ctx.arc(Lr2*Math.sin(s.q),-Lr2*Math.cos(s.q),v.lw(5),0,7); ctx.fill();
       ctx.globalAlpha=1;
-      v.label(ctx,`нитяной маятник длиной 2L/3 = ${Lr2.toFixed(2)} м`,
+      v.label(ctx,`нитяной маятник приведённой длины ${Lr2.toFixed(2)} м`,
         Lr2*Math.sin(s.q),-Lr2*Math.cos(s.q),12,0,sec);
       v.label(ctx,'качается совершенно в такт',Lr2*Math.sin(s.q),-Lr2*Math.cos(s.q),12,16,ink3);
     }
     // стержень
     ctx.strokeStyle=acc; ctx.lineWidth=v.lw(6); ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(ex,ey); ctx.stroke(); ctx.lineCap='butt';
+    ctx.beginPath(); ctx.moveTo(sx0,sy0); ctx.lineTo(ex,ey); ctx.stroke(); ctx.lineCap='butt';
     // ось
     ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,v.lw(4),0,7); ctx.fill();
     v.label(ctx,'ось',0,0,-22,-6,ink3);
@@ -10167,7 +10345,7 @@ physpend:{
       ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(c.x,c.y,v.lw(5),0,7); ctx.fill();
       ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.arc(c.x,c.y,v.lw(8),0,7); ctx.stroke();
-      v.label(ctx,'центр масс (L/2)',c.x,c.y,12,0,meas);
+      v.label(ctx,p.pivot==='any'?`центр масс (x = ${d} м от оси)`:'центр масс (L/2)',c.x,c.y,12,0,meas);
       // плечо силы тяжести
       ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(c.x,c.y-L*0.25); ctx.stroke();
@@ -10179,6 +10357,7 @@ physpend:{
     ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.4);
     ctx.beginPath(); ctx.arc(0,0,L*0.28,-Math.PI/2,-Math.PI/2+s.q,s.q<0); ctx.stroke();
     v.label(ctx,`θ = ${(s.q*180/Math.PI).toFixed(1)}°`,0,-L*0.34,12,0,sec);
+    if(p.pivot==='any'){ v.label(ctx,`T = 2π√(I/mgd) = ${this.T(p).toFixed(2)} с; наименьший при x = L/√12 = ${(L/Math.sqrt(12)).toFixed(3)} м`,0,-L*1.15,-120,0,ink3); return; }
     v.label(ctx,`T = 2π√(I/mgd) = ${this.T(p).toFixed(2)} с`,0,-L*1.15,-56,0,ink3);
     v.label(ctx,`нитяной той же длины дал бы ${(2*Math.PI*Math.sqrt(L/p.g)).toFixed(2)} с — стержень быстрее`,
       0,-L*1.15,-116,16,ink3);
@@ -10400,6 +10579,75 @@ damped:{
       ? 'чем больше трение, тем быстрее гаснут колебания; при γ = ω₀ качаний уже нет'
       : 'на резонансе малая сила раскачивает сильно — и тем сильнее, чем меньше трение',
       WALL,-1.5,0,16,ink3);
+  }
+}
+,
+
+/* ================= СЛОЖЕНИЕ КОЛЕБАНИЙ (9.3.0) =================
+   Два гармонических колебания складываются.
+     • Одного направления: x = A₁cos ω₁t + A₂cos(ω₂t + φ). При ω₁ = ω₂ сумма —
+       снова гармоника с амплитудой A = √(A₁² + A₂² + 2A₁A₂cos φ); при близких
+       частотах амплитуда медленно «дышит» — биения с периодом 2π/|ω₁ − ω₂|.
+     • Взаимно перпендикулярных: x = A₁cos ω₁t, y = A₂cos(ω₂t + φ). При равных
+       частотах точка бежит по эллипсу, при кратных — по фигуре Лиссажу. */
+lissajous:{
+  title:'Сложение колебаний: биения и фигуры Лиссажу',
+  params:[
+    {key:'mode',label:'Как сложить',type:'select',default:'perp',options:[{v:'perp',t:'взаимно перпендикулярные (x и y)'},{v:'same',t:'одного направления (одна ось)'}]},
+    {key:'A1',label:'Амплитуда первого A₁',unit:'м',min:0.1,max:5,step:0.1,default:2},
+    {key:'w1',label:'Круговая частота первого ω₁',unit:'рад/с',min:0.1,max:30,step:0.1,default:2},
+    {key:'A2',label:'Амплитуда второго A₂',unit:'м',min:0.1,max:5,step:0.1,default:1.5},
+    {key:'w2',label:'Круговая частота второго ω₂',unit:'рад/с',min:0.1,max:30,step:0.1,default:4},
+    {key:'phi',label:'Сдвиг фаз второго φ',unit:'°',min:-180,max:180,step:1,default:90},
+    {key:'window',label:'Окно графика (одного направления)',unit:'с',min:2,max:60,step:1,default:12,если:p=>p.mode==='same'},
+    {key:'tStop',label:'Остановить в момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  x1(p,t){ return p.A1*Math.cos(p.w1*t); },
+  x2(p,t){ return p.A2*Math.cos(p.w2*t+p.phi*Math.PI/180); },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){ if(s.event) return; let t=s.t+dt; if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; } s.t=t; },
+  readouts(s,p){ const a=this.x1(p,s.t), b=this.x2(p,s.t);
+    if(p.mode==='perp') return [['t',s.t,'с'],['x',a,'м'],['y',b,'м'],['расстояние от центра',Math.hypot(a,b),'м'],['отношение частот ω₂/ω₁',p.w2/p.w1,'']];
+    return [['t',s.t,'с'],['первое x₁',a,'м'],['второе x₂',b,'м'],['сумма x = x₁ + x₂',a+b,'м']]; },
+  graphs:[{label:'Колебания и их сумма',unit:'м',series:['x₁','x₂','сумма'],get(s,p){ const S=SIMS.lissajous, a=S.x1(p,s.t), b=S.x2(p,s.t); return [a,b,a+b]; }}],
+  presets:[
+    {name:'Равные частоты, сдвиг 90°: эллипс',values:{mode:'perp',A1:2,w1:2,A2:1.2,w2:2,phi:90,tStop:0}},
+    {name:'Равные частоты, сдвиг 0: отрезок прямой',values:{mode:'perp',A1:2,w1:2,A2:1.2,w2:2,phi:0,tStop:0}},
+    {name:'Частоты 1 : 2 — восьмёрка',values:{mode:'perp',A1:2,w1:2,A2:1.5,w2:4,phi:90,tStop:0}},
+    {name:'Частоты 2 : 3',values:{mode:'perp',A1:2,w1:4,A2:2,w2:6,phi:90,tStop:0}},
+    {name:'Одна частота, сдвиг 60°: снова гармоника',values:{mode:'same',A1:2,w1:3,A2:1.5,w2:3,phi:60,window:12,tStop:0}},
+    {name:'Биения: близкие частоты',values:{mode:'same',A1:1.5,w1:10,A2:1.5,w2:11,phi:0,window:20,tStop:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    if(p.mode==='perp'){ const R=Math.max(p.A1,p.A2)*1.3; const scale=clamp(Math.min(W-60,H-60)/(2*R*PX_PER_M),0.002,60); return {x:0,y:0,scale}; }
+    const sx=p.window*1.05, sy=(p.A1+p.A2)*2.4*3; const scale=clamp(Math.min((W-60)/(sx*PX_PER_M),(H-60)/(sy*PX_PER_M)),0.002,60); return {x:p.window/2,y:-(p.A1+p.A2)*2.4,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), third=v.c('--third')||v.c('--danger'), ink3=v.c('--ink-3'), meas=v.c('--measure');
+    if(p.mode==='perp'){ const A1=p.A1, A2=p.A2;
+      ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1); ctx.strokeRect(-A1,-A2,2*A1,2*A2); ctx.setLineDash([]);
+      // вся фигура бледно, пройденная часть — ярко
+      const T=60, n=2400; ctx.strokeStyle=acc; ctx.globalAlpha=.22; ctx.lineWidth=v.lw(1.2); ctx.beginPath();
+      for(let k=0;k<=n;k++){ const t=T*k/n; const x=this.x1(p,t), y=this.x2(p,t); k?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+      ctx.globalAlpha=1; ctx.lineWidth=v.lw(2); ctx.beginPath(); const t0=Math.max(0,s.t-2*Math.PI/Math.min(p.w1,p.w2));
+      for(let k=0;k<=200;k++){ const t=t0+(s.t-t0)*k/200; const x=this.x1(p,t), y=this.x2(p,t); k?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+      const x=this.x1(p,s.t), y=this.x2(p,s.t);
+      ctx.strokeStyle=sec; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(x,-A2*1.15); ctx.lineTo(x,y); ctx.moveTo(-A1*1.15,y); ctx.lineTo(x,y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(x,-A2*1.15,v.lw(4),0,7); ctx.fill(); ctx.beginPath(); ctx.arc(-A1*1.15,y,v.lw(4),0,7); ctx.fill();
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(x,y,v.lw(6),0,7); ctx.fill();
+      v.label(ctx,`ω₂ : ω₁ = ${(p.w2/p.w1).toFixed(2)}, φ = ${p.phi}°`,-A1,A2*1.15,0,-12,ink3); return; }
+    // одного направления: три дорожки x₁, x₂ и сумма — время по горизонтали
+    const W=p.window, t1=Math.max(s.t,W), t0=t1-W, h=(p.A1+p.A2)*2.4, рядки=[[0,acc,'x₁',t=>this.x1(p,t)],[-h,sec,'x₂',t=>this.x2(p,t)],[-2*h,third,'x₁ + x₂',t=>this.x1(p,t)+this.x2(p,t)]];
+    for(const [y0,c,nm,f] of рядки){ ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(W,y0); ctx.stroke();
+      ctx.strokeStyle=c; ctx.lineWidth=v.lw(1.8); ctx.beginPath(); const n=800; let нач=true;
+      for(let k=0;k<=n;k++){ const t=t0+W*k/n; if(t>s.t) break; const xx=t-t0, yy=y0+f(t); нач?ctx.moveTo(xx,yy):ctx.lineTo(xx,yy); нач=false; } ctx.stroke();
+      v.label(ctx,nm,0,y0,-30,0,c); }
+    if(Math.abs(p.w1-p.w2)<0.25*Math.max(p.w1,p.w2)&&p.w1!==p.w2){ // огибающая биений
+      ctx.strokeStyle=meas; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
+      for(const зн of [1,-1]){ ctx.beginPath(); for(let k=0;k<=400;k++){ const t=t0+W*k/400; if(t>s.t) break; const dφ=(p.w2-p.w1)*t+p.phi*Math.PI/180;
+        const Aenv=Math.sqrt(p.A1*p.A1+p.A2*p.A2+2*p.A1*p.A2*Math.cos(dφ)); const xx=t-t0, yy=-2*h+зн*Aenv; k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); } ctx.stroke(); }
+      ctx.setLineDash([]); ctx.globalAlpha=1; }
+    v.label(ctx,`время, с (окно ${W} с)`,W/2,-2*h-(p.A1+p.A2)*1.1,0,0,ink3);
   }
 }
 
@@ -27687,7 +27935,22 @@ const T_dyn={
      hint:'Относительное ускорение — разность ускорений доски и бруска; путь относительно доски — $l/2$.',
      answer:p=>{ if(p.on!=='plank'||p.law!=='const') return NaN; const g=p.g, M=p.m1+p.m2;
        if(p.F<=(p.mu+p.mu0)*g*M) return NaN; const a1=(p.F-p.mu*p.m2*g-p.mu0*M*g)/p.m1, a2=p.mu*g;
-       return a1>a2?Math.sqrt(p.Lp/(a1-a2)):NaN; }}
+       return a1>a2?Math.sqrt(p.Lp/(a1-a2)):NaN; }},
+
+    /* ---------- По задачнику Иродова: сила, растущая со временем ---------- */
+    {level:2, sim:'newton2', unit:'с', src:'Иродов',
+     setup:{n:1,m1:4,x1:0,v1:0,r1:true,mus:0.4,mud:0.3,e:1,g:9.8,Flaw:'ramp',Fa:5,F:0,alpha:0,applyTo:1,stopHit:false,stopSlip:true,stopRest:false,tStop:0},
+     statement:`На брусок, лежащий на шероховатом столе, начинает действовать горизонтальная сила $F=\\alpha t$. В какой момент
+       брусок тронется?`,
+     hint:'Пока $\\alpha t\\le\\mu_s mg$, трение покоя уравновешивает силу.',
+     answer:p=>{ if(p.Flaw!=='ramp'||p.alpha!==0||!(p.Fa>0)) return NaN; return p.mus*p.m1*p.g/p.Fa; }},
+
+    {level:4, sim:'newton2', unit:'м/с', src:'Иродов',
+     setup:{n:1,m1:4,x1:0,v1:0,r1:true,mus:0.4,mud:0.3,e:1,g:9.8,Flaw:'ramp',Fa:5,F:0,alpha:0,applyTo:1,stopHit:false,stopSlip:false,stopRest:false,tStop:10},
+     statement:`Какой будет скорость бруска к моменту остановки таймера?`,
+     hint:'После старта $ma=\\alpha t-\\mu_d mg$; проинтегрируйте от момента старта $t_0=\\mu_s mg/\\alpha$.',
+     answer:p=>{ if(p.Flaw!=='ramp'||p.alpha!==0||!(p.Fa>0)||!(p.tStop>0)) return NaN; const m=p.m1, t0=p.mus*m*p.g/p.Fa, T=p.tStop;
+       if(T<=t0) return 0; return (p.Fa*(T*T-t0*t0)/2-p.mud*m*p.g*(T-t0))/m; }}
   ]
 };
 
@@ -27990,6 +28253,7 @@ const T_work={
     `Потенциальная энергия определена с точностью до постоянной: смысл имеет только её разность.`,
   ],
   explore:[
+    {sim:'energy', do:`Режим «Горка с трением»: меняйте угол склона, не трогая высоту и трение`, see:`тело останавливается в одном и том же месте — на расстоянии $h/\\mu$ по горизонтали`},
     {sim:'energy', do:`Скатите тело с горки и следите за столбиками энергии`, see:`потенциальная переливается в кинетическую, сумма стоит на месте`},
     {sim:'energy', do:`Включите трение`, see:`сумма поехала вниз, а разница ушла в тепло`},
     {sim:'energy', do:`Измените высоту старта вдвое`, see:`скорость внизу вырастет не вдвое, а в $\\sqrt2$ раз`},
@@ -28094,7 +28358,15 @@ const T_work={
   </ul>
   <div class="callout">Заметьте связь: $K=p^2/2m$. При одинаковом импульсе лёгкое тело несёт больше энергии.
   Поэтому отдача ружья безопасна, а пуля — нет: импульсы равны по модулю, а энергия у пули больше во столько
-  раз, во сколько ружьё тяжелее.</div>`,
+  раз, во сколько ружьё тяжелее.</div>
+
+  <h3 class="sub">Горка с трением: где тело остановится</h3>
+  <p>Тело соскальзывает с высоты $h$ по склону под углом $\\alpha$ и дальше едет по полу; трение $\\mu$ всюду одно.
+  На склоне длиной $l_1$ работа трения $-\\mu mg\\cos\\alpha\\cdot l_1$, но $l_1\\cos\\alpha$ — это просто
+  горизонтальная проекция склона. На полу работа $-\\mu mg\\,l_2$. Значит, вся работа трения равна $-\\mu mg\\,l$,
+  где $l$ — смещение по горизонтали от вершины до точки остановки. Тело начинало и закончило в покое, и вся
+  потенциальная энергия ушла в тепло: $mgh=\\mu mg\\,l$, откуда $l=h/\\mu$. Угол склона не важен — лишь бы тело вообще
+  поехало ($\\operatorname{tg}\\alpha&gt;\\mu$). Так, кстати, измеряют коэффициент трения: $\\mu=h/l$.</p>`,
   time:45,
   needs:['mech.dyn'],
   why:`Второй закон Ньютона отвечает на вопрос «что будет через мгновение». Энергия отвечает
@@ -28158,6 +28430,9 @@ const T_work={
     }
   ],
   formulas:[
+    {tex:'mgh=\\mu mg\\,l\\quad\\Rightarrow\\quad l=\\dfrac{h}{\\mu}',
+     kind:'следствие',
+     note:'Горка с трением: работа трения на склоне и на полу считается по горизонтальной проекции пути.', sim:'energy'},
     {tex:'W=F\\,s\\cos\\alpha',
      kind:'определение',
      note:'Работа силы. Работает только проекция вдоль перемещения. Работа — скаляр, может быть отрицательной.', sim:'energy'},
@@ -28248,7 +28523,29 @@ const T_work={
      hint:'Приравняйте убыль потенциальной энергии тяжести на пути $h_0+x$ к энергии пружины $kx^2/2$.',
      answer:p=>{ const m=p.m,g=p.g,k=p.k,h=p.h0;
        if(!k) return Infinity;
-       return (m*g+Math.sqrt(m*g*m*g+2*k*m*g*h))/k; }}
+       return (m*g+Math.sqrt(m*g*m*g+2*k*m*g*h))/k; }},
+
+    /* ---------- По задачнику Иродова: горка с трением ---------- */
+    {level:3, sim:'energy', unit:'м', src:'Иродов',
+     setup:{mode:'slope',m:2,hs:3,alS:35,muS:0.25,g:9.8,stopEvent:true,tStop:0},
+     statement:`Тело соскальзывает без начальной скорости с горки высоты $h$ (склон под углом $\\alpha$) и тормозит на
+       горизонтальном полу; коэффициент трения всюду $\\mu$. На каком расстоянии по горизонтали от вершины оно
+       остановится?`,
+     hint:'Работа трения на склоне равна $-\\mu mg$ на горизонтальную проекцию склона. Сложите её с работой на полу.',
+     answer:p=>{ if(p.mode!=='slope'||!(p.muS>0)) return NaN; if(Math.tan(p.alS*Math.PI/180)<=p.muS) return NaN; return p.hs/p.muS; }},
+
+    {level:1, sim:'energy', unit:'Дж', src:'Иродов',
+     setup:{mode:'slope',m:2,hs:3,alS:35,muS:0.25,g:9.8,stopEvent:true,tStop:0},
+     statement:`Сколько тепла выделилось за всё движение тела по горке и полу?`,
+     hint:'Тело начало и кончило в покое — куда делась потенциальная энергия?',
+     answer:p=>{ if(p.mode!=='slope') return NaN; if(Math.tan(p.alS*Math.PI/180)<=p.muS) return NaN; return p.m*p.g*p.hs; }},
+
+    {level:3, sim:'energy', unit:'с',
+     setup:{mode:'slope',m:2,hs:3,alS:35,muS:0.25,g:9.8,stopEvent:true,tStop:0},
+     statement:`За какое время тело съедет до подножия склона?`,
+     hint:'На склоне ускорение $g(\\sin\\alpha-\\mu\\cos\\alpha)$, путь $h/\\sin\\alpha$.',
+     answer:p=>{ if(p.mode!=='slope') return NaN; const a=p.alS*Math.PI/180, acc=p.g*(Math.sin(a)-p.muS*Math.cos(a)); if(acc<=0) return NaN;
+       return Math.sqrt(2*p.hs/Math.sin(a)/acc); }}
   ]
 };
 
@@ -28545,6 +28842,8 @@ const T_rot={
     `Малый поворот — вектор $d\\vec\\varphi$ вдоль оси по правилу буравчика; отсюда $\\vec\\omega=d\\vec\\varphi/dt$ и $\\vec v=\\vec\\omega\\times\\vec r$.`,
   ],
   explore:[
+    {sim:'rotor', do:`Сравните «Блок-диск» и «Лёгкий блок» при тех же грузах`, see:`массивный блок сам требует силы на раскрутку — грузы движутся медленнее`},
+    {sim:'spin', do:`Человек идёт с края платформы в центр`, see:`платформа раскручивается: момент инерции уменьшился, а момент импульса прежний`},
     {sim:'statics', do:`Двигайте груз к краю балки`, see:`реакция дальней опоры растёт, ближней падает — и в какой-то момент обращается в ноль`},
     {sim:'stability', do:`Наклоняйте тело до опрокидывания`, see:`предел совпадёт с $\\operatorname{arctg}(w/h)$ и не зависит от массы`},
     {sim:'rolling', do:`Пустите обруч и шар вместе`, see:`шар придёт первым — у него меньше момент инерции`},
@@ -28684,7 +28983,28 @@ const T_rot={
   поворотов, отличается только порядок. При $90^\\circ$ пара «$x$, потом $y$» — это поворот на $120^\\circ$
   вокруг диагонали куба, поэтому через шесть ходов обе книги возвращаются в исходное положение, а
   расхождение скачет между $0$ и $120^\\circ$. При малых углах расхождение копится медленно: каждая
-  перестановка соседних ходов добавляет величину порядка $\\alpha^2$.</p>`,
+  перестановка соседних ходов добавляет величину порядка $\\alpha^2$.</p>
+
+  <h3 class="sub">Блок с массой и маятник Максвелла</h3>
+  <p>Пока блок невесом, натяжение нити по обе его стороны одинаково. У настоящего блока есть момент инерции
+  $I=k\\,m_0R^2$ (сплошной диск — $k=\\tfrac12$, тонкий обод — $k=1$), и чтобы раскрутить его с угловым
+  ускорением $\\varepsilon=a/R$, нужна разность натяжений: $(T_1-T_2)R=I\\varepsilon$. Записав второй закон для
+  каждого груза и уравнение вращения блока, получим
+  $a=\\dfrac{(m_1-m_2)g}{m_1+m_2+k\\,m_0}$: масса блока входит в знаменатель с множителем $k$, будто часть её
+  «участвует» в разгоне. Груз, раскручивающий маховик, — частный случай: $a=\\dfrac{mg}{m+k\\,m_0}$.</p>
+  <p>Маятник Максвелла — диск, падающий на нити, намотанной на его ось радиуса $r$. Сила тяжести одна, а работать
+  ей приходится и на поступательное движение, и на вращение: $mgh=\\tfrac12mv^2+\\tfrac12I\\omega^2$ при $\\omega=v/r$.
+  Отсюда $a=\\dfrac{g}{1+kR^2/r^2}$. Цилиндр на собственной нити ($r=R$) падает с ускорением $\\tfrac23g$, а на
+  тонкой оси — медленно, как будто ему мешает невидимая сила.</p>
+
+  <h3 class="sub">Сохранение момента импульса: скамья и шайба</h3>
+  <p>Если внешние силы не создают момента относительно оси, момент импульса $L=I\\omega$ сохраняется. Человек на
+  вращающейся платформе идёт с края к центру — момент инерции системы уменьшается, и платформа раскручивается:
+  $\\omega_2=\\omega_1I_1/I_2$. Кинетическая энергия $L^2/2I$ при этом растёт: её прибавляет сам человек, когда
+  тянет себя к оси против центробежного стремления.</p>
+  <p>Шайба на гладком столе на нити, продетой в отверстие, — то же самое в чистом виде. Сила натяжения направлена
+  к отверстию, её момент равен нулю, и $mvr=\\text{const}$. Втянув нить вчетверо, мы увеличим скорость вчетверо,
+  а энергию — в шестнадцать раз; эта разница и есть работа, совершённая при втягивании.</p>`,
   time:60,
   needs:['mech.dyn'],
   why:`Тело может не двигаться, но переворачиваться. Одного условия $\\sum\\vec F=0$ мало —
@@ -28770,6 +29090,12 @@ const T_rot={
     }
   ],
   formulas:[
+    {tex:'a=\\dfrac{(m_1-m_2)g}{m_1+m_2+k\\,m_0},\\qquad I_1\\omega_1=I_2\\omega_2,\\qquad mvr=\\text{const}',
+     kind:'следствие',
+     note:'Машина Атвуда с массивным блоком ($I=km_0R^2$); сохранение момента импульса для платформы и для шайбы на нити.', sim:'rotor'},
+    {tex:'L=I\\omega,\\qquad K=\\dfrac{L^2}{2I}',
+     kind:'определение',
+     note:'Момент импульса тела, вращающегося вокруг оси, и его кинетическая энергия, выраженная через $L$: при постоянном $L$ энергия растёт, когда $I$ уменьшается.', sim:'spin'},
     {tex:'\\tau=rF\\sin\\theta',
      kind:'определение',
      note:'Момент силы: сила на плечо. $\\theta$ — угол между радиус-вектором и силой.', sim:'statics'},
@@ -29005,7 +29331,67 @@ const T_rot={
        в зависимости от порядка; при малых $\\alpha$ расхождение примерно равно $\\alpha^2$
        (в радианах). При каком угле $\\alpha$, в градусах, оценка даёт расхождение в $1^\\circ$?`,
      hint:'Переведите $1^\\circ$ в радианы, приравняйте $\\alpha^2$ и переведите $\\alpha$ обратно в градусы.',
-     answer:()=>Math.sqrt(Math.PI/180)*180/Math.PI}
+     answer:()=>Math.sqrt(Math.PI/180)*180/Math.PI},
+
+    /* ---------- По задачнику Иродова: вращение ---------- */
+    {level:3, sim:'rotor', unit:'м/с²', src:'Иродов',
+     setup:{mode:'atwood',shape:'disk',m0:2,R:0.2,m1:3,m2:1,g:9.8,h:2,stopH:true,tStop:0},
+     statement:`Через блок в виде сплошного диска массы $m_0$ перекинута нить с грузами $m_1$ и $m_2$; нить не скользит,
+       трения в оси нет. Найдите ускорение грузов. Проверьте опытом: путь $h$ и время даёт модель.`,
+     hint:'Второй закон для каждого груза и $(T_1-T_2)R=I\\varepsilon$, $I=\\tfrac12m_0R^2$, $\\varepsilon=a/R$.',
+     answer:p=>{ if(p.mode!=='atwood') return NaN; return Math.abs(SIMS.rotor.дин(p).a); }},
+
+    {level:3, sim:'rotor', unit:'Н', src:'Иродов',
+     setup:{mode:'atwood',shape:'disk',m0:2,R:0.2,m1:3,m2:1,g:9.8,h:2,stopH:true,tStop:0},
+     statement:`В том же опыте: насколько различаются натяжения нити по разные стороны блока?`,
+     hint:'Разность натяжений раскручивает блок: $(T_1-T_2)R=I\\cdot a/R$.',
+     answer:p=>{ if(p.mode!=='atwood') return NaN; const d=SIMS.rotor.дин(p); return Math.abs(d.T1-d.T2); }},
+
+    {level:2, sim:'rotor', unit:'м/с',
+     setup:{mode:'unwind',shape:'disk',m0:8,R:0.3,m1:1,g:9.8,h:2,stopH:true,tStop:0},
+     statement:`Груз массы $m$ висит на нити, намотанной на маховик-диск массы $m_0$. Какую скорость наберёт груз,
+       опустившись на высоту $h$?`,
+     hint:'Энергия: $mgh=\\tfrac12mv^2+\\tfrac12I\\omega^2$, $\\omega=v/R$.',
+     answer:p=>{ if(p.mode!=='unwind') return NaN; return Math.sqrt(2*SIMS.rotor.дин(p).a*p.h); }},
+
+    {level:3, sim:'rotor', unit:'Н', src:'Иродов',
+     setup:{mode:'maxwell',shape:'disk',m0:0.5,R:0.1,r:0.1,g:9.8,h:1,stopH:true,tStop:0},
+     statement:`Однородный цилиндр массы $m$ падает, разматывая нить, конец которой закреплён (маятник Максвелла).
+       Найдите натяжение нити. Радиус оси, на которую намотана нить, — как в модели (у Иродова нить намотана на сам цилиндр).`,
+     hint:'$ma=mg-T$ и $Tr=I\\,a/r$; для $r=R$ выходит $T=mg/3$.',
+     answer:p=>{ if(p.mode!=='maxwell') return NaN; return SIMS.rotor.дин(p).T1; }},
+
+    {level:4, sim:'rotor', unit:'с',
+     setup:{mode:'maxwell',shape:'disk',m0:0.5,R:0.1,r:0.01,g:9.8,h:1,stopH:true,tStop:0},
+     statement:`За какое время маятник Максвелла опустится на высоту $h$ из покоя?`,
+     hint:'Ускорение $a=g/(1+kR^2/r^2)$ постоянно.',
+     answer:p=>{ if(p.mode!=='maxwell') return NaN; return Math.sqrt(2*p.h/SIMS.rotor.дин(p).a); }},
+
+    {level:3, sim:'spin', unit:'Дж', src:'Иродов',
+     setup:{mode:'platform',M:120,Rd:2,mh:60,w0:1,ra:2,rb:0,u:0.25,stopEnd:true,tStop:0},
+     statement:`Горизонтальная платформа-диск массы $M$ и радиуса $R$ вращается с угловой скоростью $\\omega_0$; на её краю
+       стоит человек массы $m$. Какую работу совершит человек, перейдя к центру (на расстояние, заданное в модели)?`,
+     hint:'Момент импульса $L=I\\omega$ сохраняется, работа равна приросту $L^2/2I$.',
+     answer:p=>{ if(p.mode!=='platform') return NaN; const S=SIMS.spin, L=S.L(p); return L*L/2*(1/S.I(p,p.rb)-1/S.I(p,p.ra)); }},
+
+    {level:2, sim:'spin', unit:'рад/с', src:'Иродов',
+     setup:{mode:'platform',M:120,Rd:2,mh:60,w0:1,ra:2,rb:0,u:0.25,stopEnd:true,tStop:0},
+     statement:`С какой угловой скоростью будет вращаться платформа, когда человек дойдёт до цели?`,
+     hint:'$I_1\\omega_1=I_2\\omega_2$, $I=\\tfrac12MR^2+mr^2$.',
+     answer:p=>{ if(p.mode!=='platform') return NaN; const S=SIMS.spin; return S.L(p)/S.I(p,p.rb); }},
+
+    {level:3, sim:'spin', unit:'Дж', src:'Иродов',
+     setup:{mode:'puck',m:0.2,r0:0.8,v0:2,r1:0.2,u:0.1,stopEnd:true,tStop:0},
+     statement:`Шайба массы $m$ движется по гладкому столу по окружности радиуса $r_0$ со скоростью $v_0$ на нити, продетой
+       в отверстие. Нить втягивают до радиуса $r$. Какую работу совершили?`,
+     hint:'Момент натяжения относительно отверстия равен нулю, поэтому $mvr=\\text{const}$; работа — прирост кинетической энергии.',
+     answer:p=>{ if(p.mode!=='puck') return NaN; return p.m*p.v0*p.v0/2*((p.r0/p.r1)**2-1); }},
+
+    {level:3, sim:'spin', unit:'Н',
+     setup:{mode:'puck',m:0.2,r0:0.8,v0:2,r1:0.2,u:0.1,stopEnd:true,tStop:0},
+     statement:`Каким будет натяжение нити, когда шайба окажется на радиусе $r$?`,
+     hint:'$v=v_0r_0/r$, натяжение даёт центростремительное ускорение: $T=mv^2/r$.',
+     answer:p=>{ if(p.mode!=='puck') return NaN; const v=p.v0*p.r0/p.r1; return p.m*v*v/p.r1; }}
   ]
 };
 
@@ -29019,6 +29405,8 @@ const T_osc={
     `Резонанс — совпадение частоты <strong>внешней</strong> силы с собственной, а не совпадение частот колебаний.`,
   ],
   explore:[
+    {sim:'lissajous', do:`Сложите два колебания с близкими частотами (режим «одного направления»)`, see:`сумма то нарастает, то почти гаснет — это биения с периодом $2\\pi/|\\omega_1-\\omega_2|$`},
+    {sim:'spring', do:`Поставьте две пружины последовательно, затем параллельно`, see:`последовательно система мягче и период дольше, параллельно — жёстче и быстрее`},
     {sim:'spring', do:`Меняйте начальное смещение`, see:`период не изменится ни на сколько — это изохронность`},
     {sim:'pendulum', do:`Меняйте массу груза`, see:`период не сдвинется: масса сокращается, как при свободном падении`},
     {sim:'damped', do:`Плавно увеличивайте затухание`, see:`сначала колебания гаснут быстрее, а после критического значения возврат замедляется`},
@@ -29141,6 +29529,33 @@ const T_osc={
   <p>Отличить автоколебания легко: они выходят на одну и ту же амплитуду, с какого бы толчка ни начались. Энергия,
   которую вносит обратная связь за период, в точности равна потерям на трение.</p>
 
+  <h3 class="sub">Две пружины, лифт и подвес стержня</h3>
+  <p>Две пружины, соединённые <strong>последовательно</strong>, тянутся одной и той же силой, а удлинения
+  складываются: $\\dfrac{1}{k}=\\dfrac{1}{k_1}+\\dfrac{1}{k_2}$. Соединённые <strong>параллельно</strong>, они
+  удлиняются одинаково, а складываются силы: $k=k_1+k_2$. В формулу периода подставляют эту общую жёсткость.</p>
+  <p>Груз на вертикальной пружине колеблется с тем же периодом $2\\pi\\sqrt{m/k}$, что и на горизонтальной: тяжесть
+  лишь сдвигает положение равновесия на $\\Delta l=mg/k$. Отсюда удобная запись $T=2\\pi\\sqrt{\\Delta l/g}$ — период
+  виден по одному статическому растяжению.</p>
+  <p>Маятник в кабине, которая разгоняется с ускорением $a$, ведёт себя так, будто тяжесть стала другой:
+  $g'=g+a$ при разгоне вверх и $g-a$ при разгоне вниз. Период $T=2\\pi\\sqrt{L/g'}$; в свободно падающей кабине
+  $g'=0$, и маятник вовсе не качается.</p>
+  <p>Стержень, подвешенный на расстоянии $x$ от центра, имеет $I=m\\left(\\dfrac{L^2}{12}+x^2\\right)$ и
+  приведённую длину $\\dfrac{L^2}{12x}+x$. Она одинакова для $x$ и для $x'=\\dfrac{L^2}{12x}$ — это пары
+  сопряжённых точек, и наименьшая приведённая длина получается при $x=L/\\sqrt{12}$.</p>
+
+  <h3 class="sub">Сложение колебаний</h3>
+  <p>Два колебания <strong>одного направления и одной частоты</strong> дают снова гармоническое колебание той же
+  частоты. Удобно представить каждое вращающимся вектором длиной $A_i$: векторы складываются, и
+  $A=\\sqrt{A_1^2+A_2^2+2A_1A_2\\cos\\varphi}$. При $\\varphi=0$ амплитуды складываются, при $\\varphi=180^\\circ$
+  вычитаются.</p>
+  <p>При <strong>близких частотах</strong> угол между векторами медленно поворачивается, и сумма то растёт, то
+  почти исчезает — это <strong>биения</strong>. Их период $T_б=\\dfrac{2\\pi}{|\\omega_1-\\omega_2|}$. По биениям
+  настраивают музыкальные инструменты: пока частоты не совпали, звук «плавает».</p>
+  <p><strong>Взаимно перпендикулярные</strong> колебания рисуют на плоскости фигуры Лиссажу. При равных частотах
+  это эллипс; при $\\varphi=0$ или $180^\\circ$ он сплющивается в отрезок, при $\\varphi=90^\\circ$ его оси идут вдоль
+  $x$ и $y$. При отношении частот $1:2$ получается восьмёрка, при $2:3$ — более сложная замкнутая кривая. Если
+  отношение не рационально, кривая не замыкается и постепенно заполняет прямоугольник.</p>
+
   <h3 class="sub">Что попробовать в симуляции</h3>
   <ul>
     <li>Меняйте амплитуду пружинного маятника — период не сдвинется ни на сотую.</li>
@@ -29215,6 +29630,14 @@ const T_osc={
     }
   ],
   formulas:[
+    {tex:'\\dfrac1{k_{посл}}=\\dfrac1{k_1}+\\dfrac1{k_2},\\quad k_{пар}=k_1+k_2', kind:'следствие',
+     note:'Общая жёсткость двух пружин: последовательно складываются податливости, параллельно — жёсткости.', sim:'spring'},
+    {tex:'T=2\\pi\\sqrt{\\dfrac{L}{g+a}}', kind:'следствие',
+     note:'Маятник в кабине, разгоняющейся вверх с ускорением $a$ (вниз — $a&lt;0$).', sim:'pendulum'},
+    {tex:'A=\\sqrt{A_1^2+A_2^2+2A_1A_2\\cos\\varphi}', kind:'следствие',
+     note:'Амплитуда суммы двух колебаний одного направления и одной частоты.', sim:'lissajous'},
+    {tex:'T_б=\\dfrac{2\\pi}{|\\omega_1-\\omega_2|}', kind:'следствие',
+     note:'Период биений: столько длится один «всплеск» суммы близких колебаний.', sim:'lissajous'},
     {tex:'F=-kx', kind:'закон',
      note:'Закон Гука: гармоническая сила пропорциональна смещению и направлена к равновесию.', sim:'spring'},
     {tex:'x=A\\cos(\\omega t),\\qquad \\omega=\\dfrac{2\\pi}{T}=2\\pi\\nu', kind:'определение',
@@ -29438,7 +29861,65 @@ const T_osc={
      answer:p=>{ const w0=Math.sqrt(p.k/p.m), g=p.b/(2*p.m);
        const A=w=>1/Math.sqrt(Math.pow(w0*w0-w*w,2)+Math.pow(2*g*w,2));
        const s=w0*w0-2*g*g; if(s<=0) return NaN;
-       return A(Math.sqrt(s))/A(2*w0); }}
+       return A(Math.sqrt(s))/A(2*w0); }},
+
+    /* ---------- По мотивам Иродова: пружины, лифт, стержень, сложение ---------- */
+    {level:3, sim:'spring', unit:'с', src:'Иродов', setup:{springs:'series',k:20,k2:30,m:1.5,vert:false},
+     statement:`Груз массой $m$ прикреплён к двум пружинам жёсткостью $k_1$ и $k_2$, соединённым одна за другой.
+       Найдите период малых колебаний груза.`,
+     hint:'Последовательно соединённые пружины тянутся одной силой, а удлинения складываются.',
+     answer:p=>{ const k=p.k*p.k2/(p.k+p.k2); return 2*Math.PI*Math.sqrt(p.m/k); }},
+
+    {level:4, sim:'spring', unit:'раз', src:'Иродов', setup:{springs:'parallel',k:20,k2:45,m:1,vert:false},
+     statement:`Те же две пружины можно поставить одну за другой, а можно рядом — обе между грузом и стенкой.
+       Во сколько раз период в первом случае больше, чем во втором?`,
+     hint:'Отношение периодов равно корню из обратного отношения жёсткостей.',
+     answer:p=>(p.k+p.k2)/Math.sqrt(p.k*p.k2)},
+
+    {level:3, sim:'spring', unit:'с', src:'Иродов', setup:{springs:'one',vert:true,m:2,k:40,g:9.8},
+     statement:`Груз, подвешенный к пружине, растягивает её в равновесии на $\\Delta l$ (это растяжение показано в
+       окне величин). Найдите период вертикальных колебаний груза, зная только $\\Delta l$ и $g$.`,
+     hint:'Из условия равновесия $k\\Delta l=mg$ выразите отношение $m/k$.',
+     answer:p=>{ const k=p.springs==='series'?p.k*p.k2/(p.k+p.k2):p.springs==='parallel'?p.k+p.k2:p.k;
+       const dl=p.m*(p.g||9.8)/k; return 2*Math.PI*Math.sqrt(dl/(p.g||9.8)); }},
+
+    {level:3, sim:'pendulum', unit:'с', src:'Иродов', setup:{aL:2.5,L:1.2,th0:10,exact:false},
+     statement:`Маятник длиной $L$ висит в кабине лифта, которая разгоняется <strong>вверх</strong> с ускорением $a$.
+       Найдите период малых колебаний.`,
+     hint:'В системе кабины на груз действует ещё сила инерции $-ma$; она складывается с тяжестью.',
+     answer:p=>{ const g=p.g+(p.aL||0); return g>0?2*Math.PI*Math.sqrt(p.L/g):NaN; }},
+
+    {level:4, sim:'pendulum', unit:'%', src:'Иродов', setup:{aL:-3,L:1,th0:10,exact:false},
+     statement:`Кабина разгоняется <strong>вниз</strong> с ускорением $a&lt;g$. На сколько процентов период малых
+       колебаний маятника больше, чем в неподвижной кабине?`,
+     hint:'Эффективная тяжесть в кабине равна $g-a$, а период обратно пропорционален её корню.',
+     answer:p=>{ const g=p.g+(p.aL||0); return g>0?100*(Math.sqrt(p.g/g)-1):NaN; }},
+
+    {level:4, sim:'physpend', unit:'м', src:'Иродов', setup:{pivot:'any',xo:0.5,Lr:2,exact:false},
+     statement:`Стержень длиной $L$ качается на оси, удалённой от его центра на $x$. На каком другом расстоянии
+       $x'$ от центра нужно поставить ось, чтобы период остался прежним?`,
+     hint:'Приведённая длина $L^2/(12x)+x$ симметрична относительно замены $x\\to L^2/(12x)$.',
+     answer:p=>{ if(p.pivot!=='any') return NaN; const x=Math.min(p.xo,p.Lr/2), y=p.Lr*p.Lr/(12*x); return y<=p.Lr/2&&Math.abs(y-x)>1e-9?y:NaN; }},
+
+    {level:3, sim:'lissajous', unit:'м', src:'Иродов', setup:{mode:'same',A1:2,w1:3,A2:1.5,w2:3,phi:60},
+     statement:`Складываются два колебания одного направления с одинаковой частотой, амплитудами $A_1$, $A_2$ и
+       сдвигом фаз $\\varphi$. Найдите амплитуду результирующего колебания.`,
+     hint:'Представьте колебания векторами длиной $A_1$ и $A_2$ с углом $\\varphi$ между ними.',
+     answer:p=>Math.abs(p.w1-p.w2)>1e-9?NaN:Math.sqrt(p.A1*p.A1+p.A2*p.A2+2*p.A1*p.A2*Math.cos(p.phi*Math.PI/180))},
+
+    {level:3, sim:'lissajous', unit:'с', src:'Иродов', setup:{mode:'same',A1:1.5,w1:10,A2:1.5,w2:11,phi:0,window:20},
+     statement:`Складываются два колебания одного направления с близкими частотами $\\omega_1$ и $\\omega_2$.
+       Через какое время повторяется картина биений — от одного провала суммы до следующего?`,
+     hint:'Сумма максимальна, когда фазы совпали; совпадение повторяется, когда разность фаз набежала на $2\\pi$.',
+     answer:p=>Math.abs(p.w1-p.w2)>1e-9?2*Math.PI/Math.abs(p.w1-p.w2):NaN},
+
+    {level:5, sim:'lissajous', unit:'м', src:'Иродов', setup:{mode:'perp',A1:2,w1:2,A2:1.2,w2:2,phi:60},
+     statement:`Точка участвует в двух взаимно перпендикулярных колебаниях одной частоты: $x=A_1\\cos\\omega t$,
+       $y=A_2\\cos(\\omega t+\\varphi)$. На какое наибольшее расстояние она удаляется от центра?`,
+     hint:'Запишите $r^2=x^2+y^2$ через $\\cos 2\\omega t$ и $\\sin 2\\omega t$ и найдите максимум суммы гармоник.',
+     answer:p=>{ if(Math.abs(p.w1-p.w2)>1e-9) return NaN;
+       const a=p.A1*p.A1, b=p.A2*p.A2, f=2*p.phi*Math.PI/180;
+       return Math.sqrt((a+b)/2+0.5*Math.sqrt(a*a+b*b+2*a*b*Math.cos(f))); }}
   ]
 };
 
@@ -37815,6 +38296,8 @@ const T_momentum={
     `Ракета разгоняется, отбрасывая собственное вещество: $\\Delta v=u\\ln\\dfrac{m_0}{m}$.`,
   ],
   explore:[
+    {sim:'cmass', do:`Человек проходит по лодке — следите за треугольником центра масс`, see:`лодка отъезжает назад, а центр масс системы не сдвигается ни на миллиметр`},
+    {sim:'cmass', do:`Разорвите снаряд в верхней точке, потом поменяйте скорость первого осколка`, see:`осколки падают где угодно, но их центр масс всегда приходит туда, куда упал бы целый снаряд`},
     {sim:'impact', do:`Запустите удар и сравните два графика силы`, see:`у стенки — высокий узкий пик, у мата — низкий широкий холм, а площади под ними одинаковы`},
     {sim:'impact', do:`Поставьте $e=0{,}1$, потом $e=1$`, see:`импульс силы почти удвоится: отскочить — значит сначала остановиться, а потом ещё и разогнаться обратно`},
     {sim:'impact', do:`Сделайте мат в 100 раз мягче стенки`, see:`наибольшая сила меньше в 10 раз, удар в 10 раз дольше: сила растёт как корень из жёсткости`},
@@ -37886,7 +38369,23 @@ const T_momentum={
   $$\\Delta v=u\\ln\\frac{m_0}{m}.$$
   <p>Скорость растёт лишь как логарифм отношения масс. Чтобы набрать скорость, втрое большую скорости истечения, ракета
   на старте должна быть в $e^3\\approx20$ раз тяжелее, чем в конце, — почти вся она состоит из топлива. Поэтому ракеты
-  делают ступенчатыми: отработавший пустой бак сбрасывают, чтобы не разгонять его дальше.</p>`,
+  делают ступенчатыми: отработавший пустой бак сбрасывают, чтобы не разгонять его дальше.</p>
+
+  <h3 class="sub">Центр масс: лодка, разрыв снаряда, баллистический маятник</h3>
+  <p>Центр масс системы $x_c=\\dfrac{\\sum m_ix_i}{\\sum m_i}$ движется так, будто на одну точку с массой всей системы
+  действуют только <em>внешние</em> силы. Внутренние силы — толчки, взрывы, трение человека о дно лодки — его
+  не сдвигают. Отсюда три классические задачи.</p>
+  <p><strong>Человек в лодке.</strong> По горизонтали на систему «человек + лодка» внешних сил нет, и вначале она
+  покоилась, значит, центр масс стоит. Человек массы $m$ проходит по лодке путь $L$ относительно неё; чтобы
+  $x_c$ не изменился, лодка массы $M$ отъезжает назад на $\\Delta X=\\dfrac{mL}{m+M}$. Чем легче лодка, тем
+  меньше продвигается сам человек.</p>
+  <p><strong>Разрыв снаряда.</strong> Взрыв — внутренняя сила, поэтому центр масс осколков летит по прежней
+  параболе и падает туда, куда упал бы целый снаряд. Если в верхней точке одна половина остановилась и упала
+  отвесно, вторая получила удвоенную горизонтальную скорость и упадёт на расстоянии $1{,}5L$ от пушки.</p>
+  <p><strong>Баллистический маятник.</strong> Пуля застревает в бруске, подвешенном на нити. Удар короткий, нить
+  не успевает отклониться, и импульс по горизонтали сохраняется: $mv=(m+M)V$. Энергия при этом не сохраняется:
+  в тепло уходит доля $M/(m+M)$ — почти вся. Дальше брусок с пулей поднимается, и здесь сохраняется уже энергия:
+  $h=V^2/(2g)$. Так по высоте подъёма измеряют скорость пули.</p>`,
   time:40,
   needs:['mech.dyn','mech.energy'],
   why:`Второй закон Ньютона требует знать силу в каждый момент, а при ударе, выстреле или взрыве её не знает никто.
@@ -37978,6 +38477,9 @@ const T_momentum={
     }
   ],
   formulas:[
+    {tex:'x_c=\\dfrac{\\sum m_ix_i}{\\sum m_i},\\qquad \\Delta X=-\\dfrac{mL}{m+M},\\qquad V=\\dfrac{mv}{m+M}',
+     kind:'следствие',
+     note:'Центр масс; смещение лодки, когда человек проходит по ней путь $L$; скорость бруска после попадания пули.', sim:'cmass'},
     {tex:'\\vec p=m\\vec v',
      kind:'определение',
      note:'Импульс тела — вектор, направленный как скорость. Единица — кг·м/с.', sim:'momentum'},
@@ -38137,7 +38639,49 @@ const T_momentum={
        не то и не другое. Если топлива не хватит, ответьте «события нет».`,
      hint:'Запишите $K=\\tfrac12 m(t)v(t)^2$ и приравняйте производную нулю; получится условие на скорость.',
      answer:p=>{ const m0=p.mp+p.mf, mEnd=m0*Math.exp(-2);
-       if(mEnd<p.mp||!p.q) return NaN; return (m0-mEnd)/p.q; }}
+       if(mEnd<p.mp||!p.q) return NaN; return (m0-mEnd)/p.q; }},
+
+    /* ---------- По задачнику Иродова: центр масс ---------- */
+    {level:3, sim:'cmass', unit:'м', src:'Иродов',
+     setup:{mode:'boat',M:150,Lb:4,mh:60,u:1,g:9.8,stopEnd:true,tStop:0},
+     statement:`Человек массы $m$ переходит с кормы на нос неподвижной лодки длины $L$ и массы $M$. На сколько сдвинется
+       лодка относительно берега? Сопротивлением воды пренебречь.`,
+     hint:'Внешних сил по горизонтали нет, и центр масс системы остаётся на месте.',
+     answer:p=>{ if(p.mode!=='boat') return NaN; return p.mh*p.Lb/(p.mh+p.M); }},
+
+    {level:3, sim:'cmass', unit:'м', src:'Иродов',
+     setup:{mode:'shell',v0:50,th:60,fr:0.5,k1:0,g:9.8,stopEnd:true,tStop:0},
+     statement:`Снаряд, выпущенный под углом $\\theta$ со скоростью $v_0$, в верхней точке разорвался на два осколка. Скорость
+       первого сразу после разрыва задана в модели (в наборе условия — ноль: он падает отвесно). На каком расстоянии от
+       пушки упадёт второй осколок?`,
+     hint:'Взрыв — внутренняя сила: горизонтальный импульс сохраняется, а осколки падают с высоты разрыва одинаковое время.',
+     answer:p=>{ if(p.mode!=='shell') return NaN; const К=SIMS.cmass.снаряд(p); return К.xt+К.v2*К.tf; }},
+
+    {level:3, sim:'cmass', unit:'м',
+     setup:{mode:'shell',v0:50,th:60,fr:0.5,k1:-1,g:9.8,stopEnd:true,tStop:0},
+     statement:`На каком расстоянии друг от друга упадут осколки снаряда?`,
+     hint:'Время падения одно и то же, а горизонтальные скорости осколков связаны сохранением импульса.',
+     answer:p=>{ if(p.mode!=='shell') return NaN; const К=SIMS.cmass.снаряд(p); return Math.abs(К.v2-К.v1)*К.tf; }},
+
+    {level:3, sim:'cmass', unit:'м', src:'Иродов',
+     setup:{mode:'pend',mb:0.01,vb:400,Mb:2,Lp:1,g:9.8,stopEnd:true,tStop:0},
+     statement:`Пуля массы $m$, летевшая горизонтально со скоростью $v$, застревает в бруске массы $M$, подвешенном на нити.
+       На какую высоту поднимется брусок?`,
+     hint:'Сначала сохраняется импульс ($mv=(m+M)V$), потом — механическая энергия ($V^2=2gh$).',
+     answer:p=>{ if(p.mode!=='pend') return NaN; const V=p.mb*p.vb/(p.mb+p.Mb), h=V*V/(2*p.g); return h<=2*p.Lp?h:NaN; }},
+
+    {level:2, sim:'cmass', unit:'%', src:'Иродов',
+     setup:{mode:'pend',mb:0.01,vb:400,Mb:2,Lp:1,g:9.8,stopEnd:true,tStop:0},
+     statement:`Какая доля кинетической энергии пули превратилась в тепло при попадании в брусок?`,
+     hint:'Сравните $mv^2/2$ и $(m+M)V^2/2$ при $V=mv/(m+M)$.',
+     answer:p=>{ if(p.mode!=='pend') return NaN; return 100*p.Mb/(p.mb+p.Mb); }},
+
+    {level:4, sim:'momentum', unit:'°', src:'Иродов',
+     setup:{mode:'hit',m1:2,v1:5,m2:1,b:0.3,e:1,vec:true,cm:true,trail:true},
+     statement:`Шайба массы $m_1$ упруго налетает на покоящуюся шайбу массы $m_2&lt;m_1$. На какой наибольший угол
+       может отклониться первая шайба? Меняйте прицельное расстояние $b$ и проверяйте.`,
+     hint:'В системе центра масс скорости только поворачиваются; максимальный угол отклонения: $\\sin\\theta_{\\max}=m_2/m_1$.',
+     answer:p=>{ if(p.mode!=='hit'||p.m2>=p.m1||p.e!==1) return NaN; return Math.asin(p.m2/p.m1)*180/Math.PI; }}
   ]
 };
 
@@ -38493,7 +39037,15 @@ const T_fluids={
        от поверхности проделали маленькое отверстие. С какой скоростью бьёт струя?
        Обратите внимание, что ответ совпадает со скоростью свободного падения с той же высоты.`,
      hint:'Примените Бернулли между поверхностью (скорость почти нулевая) и отверстием.',
-     answer:p=>Math.sqrt(2*p.g*p.H1)}
+     answer:p=>Math.sqrt(2*p.g*p.H1)},
+
+    /* ---------- По мотивам Иродова ---------- */
+    {level:3, sim:'torricelli', unit:'м', src:'Иродов', setup:{mode:'one',Y0:1.2,z:0.3,d:8,D:40},
+     statement:`Широкий сосуд налит водой до высоты $H$. На какой высоте над полом нужно проделать маленькое
+       отверстие, чтобы струя в первый момент ударила в пол как можно дальше? Чему равна эта наибольшая дальность?
+       В ответе укажите дальность.`,
+     hint:'Дальность $L=2\\sqrt{(H-z)z}$; произведение двух чисел с постоянной суммой наибольшее, когда они равны.',
+     answer:p=>p.Y0}
   ]
 };
 
@@ -39941,7 +40493,15 @@ const T_sound={
     {level:5, sim:'pipe', unit:'Гц',
      statement:`Какова частота следующего, более высокого резонанса этой трубы?`,
      hint:'У открытой трубы следующий номер $n+1$; у закрытой следующая нечётная гармоника $2n+1$.',
-     answer:p=>p.kind==='closed'?(2*p.n+1)*SIMS.pipe.v(p)/(4*p.L):(p.n+1)*SIMS.pipe.v(p)/(2*p.L)}
+     answer:p=>p.kind==='closed'?(2*p.n+1)*SIMS.pipe.v(p)/(4*p.L):(p.n+1)*SIMS.pipe.v(p)/(2*p.L)},
+
+    /* ---------- По мотивам Иродова ---------- */
+    {level:4, sim:'pipe', unit:'', src:'Иродов', setup:{kind:'closed',L:0.85,n:1,T:20},
+     statement:`Труба длиной $L$ закрыта с одного конца. Сколько её собственных колебаний имеют частоту
+       <strong>ниже 1000 Гц</strong>? Скорость звука возьмите из окна величин.`,
+     hint:'У закрытой трубы звучат только нечётные гармоники $f_n=(2n-1)\\,v/(4L)$.',
+     answer:p=>{ const v=331.3*Math.sqrt(1+p.T/273.15);
+       return p.kind==='closed'?Math.floor((4*p.L*1000/v+1)/2-1e-12):Math.floor(2*p.L*1000/v-1e-12); }}
   ]
 };
 
@@ -53839,7 +54399,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.2.0';
+window.PHYSIM_BUILD = '9.3.0';
 window.PHYSIM_READY = true;
 
 ;

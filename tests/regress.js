@@ -269,7 +269,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('119 симуляций', counts.sims === 119, counts);
+    ok('123 симуляции', counts.sims === 123, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -533,7 +533,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 90 && разв.времени === 63 && разв.никак.length <= 3, разв);
+        разв.параметром >= 90 && разв.времени === 67 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1947,7 +1947,7 @@ async function сторож(b) {
           && SECTIONS[0].topics.some(t => t.id === 'intro.dim') && !!ПРИЁМЫ['размерности'];
         openTopic('intro.dim'); await жди(250);
         r.темаРазмерностей = S.active === 'dims' && /X=k/.test(S.topic.formulas[0].tex) && document.querySelector('#t-sub').textContent.includes('вводная');
-        r.сцен = Object.keys(SIMS).length === 119 || Object.keys(SIMS).length;
+        r.сцен = Object.keys(SIMS).length === 123 || Object.keys(SIMS).length;
         return r;
       });
       ok('9.1: инструменты модели (перенос тела, стрелки клавиатуры), участки разгона и торможения, три тела, сближение тел, метод размерностей',
@@ -1998,6 +1998,48 @@ async function сторож(b) {
         return r;
       });
       ok('9.2: задачи Иродова — метка, фильтр, «Собрать в модели»; новые сцены живые; сопротивление, блок, отрыв со сферы',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    /* ============ 9.3.0: вся механика под задачник ============
+       Центр масс, блок с массой, момент импульса, сложение колебаний — живые
+       сцены в своих темах; горка с трением, сила F = αt, пружины и лифт решают
+       задачи, а «Собрать в модели» ставит режим из условия. */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {}, $ = s => document.querySelector(s);
+        const пар = (d, o) => Object.assign(d.params.reduce((a, q) => (q.key && (a[q.key] = q.default), a), {}), o);
+        const кадр = () => { const c = $('#scene'), x = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < x.length; i += 97) h = (h * 31 + x[i]) | 0; return h; };
+        закрытьГлавную();
+        const живые = [];
+        for (const [тема, id] of [['mech.momentum', 'cmass'], ['mech.rot', 'rotor'], ['mech.rot', 'spin'], ['mech.osc', 'lissajous']]) {
+          openTopic(тема); openSim(id); if ('stopH' in A().params) A().params.stopH = false; restart(A()); S.playing = true; await жди(350); const a = кадр(); await жди(450); const b = кадр();
+          if (S.active === id && a !== b) живые.push(id); }
+        r.сценыЖивые = живые.length === 4 || живые;
+        // задача на биения собирает режим «одного направления» с частотами из условия
+        openTopic('mech.osc'); S.tab = 'problems'; S.prFilter = 'src'; renderPane(); await жди(150);
+        const кн = [...document.querySelectorAll('#pane .problem .btn.setup')].find(b => S.topic.problems[+b.closest('.problem').dataset.i].sim === 'lissajous');
+        if (кн) { кн.click(); await жди(250); }
+        r.собрано = !!кн && S.active === 'lissajous' && A().params.mode === 'same';
+        S.prFilter = 'all'; S.tab = 'notes'; renderPane();
+        // горка с трением: остановка в h/μ от вершины
+        const E = SIMS.energy, pe = пар(E, { mode:'slope', hs:3, alS:35, muS:0.25, stopEvent:true, tStop:0 });
+        const se = E.init(pe); for (let i = 0; i < 120 * 30 && !se.__stop; i++) E.step(se, 1 / 120, pe);
+        r.горка = Math.abs(E.readouts(se, pe).find(x => /по горизонтали/.test(x[0]))[1] - 12) < 1e-6;
+        // сила F = αt сдвигает брусок с места (раньше он так и стоял)
+        const N = SIMS.newton2, pn = пар(N, N.presets[0].values);
+        const sn = N.init(pn); for (let i = 0; i < 120 * 8; i++) N.step(sn, 1 / 120, pn);
+        r.силаРастёт = pn.Flaw === 'ramp' && sn.b[0].v > 0.1;
+        // две пружины последовательно: период не показан, но колебания идут с T = 2π√(m(k₁+k₂)/k₁k₂)
+        const P = SIMS.spring, ps = пар(P, { springs:'series', k:20, k2:30, m:1.5, periods:2 });
+        const ss = P.init(ps); for (let i = 0; i < 120 * 20 && !ss.__stop; i++) P.step(ss, 1 / 120, ps);
+        r.пружины = Math.abs(ss.t - 2 * 2 * Math.PI * Math.sqrt(1.5 * 50 / 600)) < 0.02 && !P.readouts(ss, ps).some(x => /^период/.test(x[0]));
+        // маятник в лифте: в свободно падающей кабине период бесконечен
+        r.лифт = SIMS.pendulum.T(пар(SIMS.pendulum, { aL:-9.8, g:9.8 })) === Infinity;
+        return r;
+      });
+      ok('9.3: центр масс, блок, момент импульса, Лиссажу — живые; горка, сила αt, пружины, лифт решают задачи',
         Object.values(т).every(v => v === true), т);
     }
 

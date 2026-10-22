@@ -2206,6 +2206,76 @@ const EX = {
   ], 'соскальзывание со сферы');
 }
 
+/* ================= 9.3.0: механика под задачи Иродова (продолжение) ================= */
+{
+  // горка с трением и пол с тем же μ: тело останавливается в h/μ по горизонтали от вершины, всё mgh — в тепло
+  const m = 2, h = 3, mu = 0.25;
+  add('energy', { mode:'slope', m, hs:h, alS:35, muS:mu, g:C.g, stopEvent:true, tStop:0 }, 120 * 30, [
+    ['смещение по горизонтали от вершины', h / mu, 1e-6, 'l = h/μ — не зависит от угла горки'],
+    ['ушло в тепло', m * C.g * h, 1e-6, 'Q = mgh'],
+  ], 'горка с трением: где тело остановится');
+}
+{
+  // центр масс: лодка, разрыв снаряда в верхней точке, баллистический маятник
+  const M = 150, mh = 60, Lb = 4;
+  add('cmass', { mode:'boat', M, Lb, mh, u:1, stopEnd:true, tStop:0 }, 120 * 30, [
+    ['смещение лодки', -mh * Lb / (mh + M), 1e-9, 'Δx = −mL/(m + M)'],
+  ], 'человек проходит по лодке');
+  const v0 = 50, th = 60, L = v0 * v0 * Math.sin(2 * th * Math.PI / 180) / C.g;
+  add('cmass', { mode:'shell', v0, th, fr:0.5, k1:0, g:C.g, stopEnd:true, tStop:0 }, 120 * 30, [
+    ['осколок 2: x', 1.5 * L, 1e-6, 'один осколок падает отвесно — другой в 1,5 дальности'],
+  ], 'разрыв снаряда в верхней точке');
+  const mb = 0.01, vb = 400, Mb = 2, V = mb * vb / (mb + Mb);
+  add('cmass', { mode:'pend', mb, vb, Mb, Lp:1, g:C.g, stopEnd:true, tStop:0 }, 120 * 10, [
+    ['высота подъёма бруска', V * V / (2 * C.g), 2e-4, 'h = (mv/(m + M))²/2g'],
+  ], 'баллистический маятник');
+}
+{
+  // блок с массой (диск, I = m₀R²/2) и маятник Максвелла
+  const m1 = 3, m2 = 1, m0 = 2, h = 2, a = (m1 - m2) * C.g / (m1 + m2 + m0 / 2);
+  add('rotor', { mode:'atwood', shape:'disk', m0, R:0.2, r:0.2, m1, m2, g:C.g, h, stopH:true, tStop:0 }, 120 * 10, [
+    ['скорость груза', Math.sqrt(2 * a * h), 1e-9, 'a = (m₁ − m₂)g/(m₁ + m₂ + m₀/2)'],
+  ], 'машина Атвуда с массивным блоком');
+  add('rotor', { mode:'maxwell', shape:'disk', m0, R:0.2, r:0.2, g:C.g, h, stopH:true, tStop:0 }, 120 * 10, [
+    ['скорость груза', Math.sqrt(2 * (2 * C.g / 3) * h), 1e-9, 'маятник Максвелла: a = 2g/3 при r = R'],
+  ], 'маятник Максвелла');
+}
+{
+  // сохранение момента импульса: человек с края скамьи в центр, шайба на втягиваемой нити
+  const M = 120, Rd = 2, mh = 60, w0 = 1, I0 = M * Rd * Rd / 2;
+  add('spin', { mode:'platform', M, Rd, mh, w0, ra:Rd, rb:0, stopEnd:true, tStop:0 }, 120 * 20, [
+    ['угловая скорость ω', w0 * (I0 + mh * Rd * Rd) / I0, 1e-9, 'Iω = const'],
+  ], 'скамья Жуковского');
+  const m = 0.2, r0 = 0.8, v0 = 2, r1 = 0.2, v1 = v0 * r0 / r1;
+  add('spin', { mode:'puck', m, r0, v0, r1, u:0.25, stopEnd:true, tStop:0 }, 120 * 20, [
+    ['скорость шайбы v', v1, 1e-9, 'mvr = const'],
+    ['натяжение нити', m * v1 * v1 / r1, 1e-9, 'T = mv²/r'],
+  ], 'шайба на втягиваемой нити');
+}
+{
+  // периоды: пружины последовательно, маятник в разгоняющейся кабине, сопряжённые точки стержня
+  const m = 1.5, k1 = 20, k2 = 30;
+  add('spring', { m, k:k1, k2, A:1, springs:'series', vert:false, damp:false, periods:5, tStop:0 }, 120 * 60, [
+    ['t', 5 * 2 * Math.PI * Math.sqrt(m * (k1 + k2) / (k1 * k2)), 2e-3, '5T, T = 2π√(m(k₁+k₂)/k₁k₂)'],
+  ], 'две пружины последовательно');
+  const L = 1.2, aL = 2.5;
+  add('pendulum', { L, th0:10, m:1, g:C.g, aL, exact:false, damp:false, periods:5, tStop:0 }, 120 * 60, [
+    ['t', 5 * 2 * Math.PI * Math.sqrt(L / (C.g + aL)), 2e-3, '5T, T = 2π√(L/(g + a))'],
+  ], 'маятник в лифте, разгоняющемся вверх');
+  const Lr = 2, x = 0.5, Tx = xx => 2 * Math.PI * Math.sqrt((Lr * Lr / 12 + xx * xx) / (C.g * xx));
+  add('physpend', { Lr, mr:1, thR:10, g:C.g, pivot:'any', xo:Lr * Lr / (12 * x), exact:false, damp:false, tStop:0 }, 1, [
+    ['период T', Tx(x), 1e-9, 'x′ = L²/12x даёт тот же период, что и x'],
+  ], 'стержень: сопряжённые точки подвеса');
+}
+{
+  // сложение колебаний одного направления и одной частоты: A = √(A₁² + A₂² + 2A₁A₂cos φ)
+  const A1 = 2, A2 = 1.5, phi = 60;
+  add('lissajous', { mode:'same', A1, w1:3, A2, w2:3, phi, window:12, tStop:0 }, 120 * 5, [
+    ['наибольшая сумма', Math.sqrt(A1 * A1 + A2 * A2 + 2 * A1 * A2 * Math.cos(phi * Math.PI / 180)), 1e-3, 'векторная диаграмма'],
+  ], 'сложение колебаний одной частоты',
+  `let mx=0; for(const r of histRO) mx=Math.max(mx,Math.abs(r['сумма x = x₁ + x₂'])); out.push(['наибольшая сумма',mx,'м']);`, true);
+}
+
 /* ---------------- прогон ---------------- */
 const PORT = 8994;
 await new Promise(r => server.listen(PORT, r));

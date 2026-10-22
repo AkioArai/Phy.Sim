@@ -7,6 +7,13 @@ spring:{
     {key:'m',label:'Масса груза m',unit:'кг',min:0.1,max:20,step:0.1,default:1},
     {key:'k',label:'Жёсткость пружины k',unit:'Н/м',min:1,max:400,step:1,default:20},
     {key:'A',label:'Начальное смещение x₀',unit:'м',min:0.1,max:4,step:0.1,default:2},
+    /* 9.3.0: две пружины и вертикальный подвес. Эффективная жёсткость:
+       последовательно 1/k = 1/k₁ + 1/k₂, параллельно k = k₁ + k₂. Вертикально
+       груз колеблется вокруг нового равновесия, сдвинутого на mg/k, а период тот же. */
+    {key:'springs',label:'Пружины',type:'select',default:'one',options:[{v:'one',t:'одна пружина'},{v:'series',t:'две последовательно'},{v:'parallel',t:'две параллельно'}]},
+    {key:'k2',label:'Жёсткость второй пружины k₂',unit:'Н/м',min:1,max:400,step:1,default:30,если:p=>p.springs&&p.springs!=='one'},
+    {key:'vert',label:'Подвесить вертикально (действует тяжесть)',type:'check',default:false},
+    {key:'g',label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8,если:p=>!!p.vert},
 
     {type:'group',label:'Показывать'},
     {key:'dx',   label:'Отметка смещения Δx',type:'check',default:true},
@@ -19,8 +26,12 @@ spring:{
     {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
   /* собственная частота: ω = √(k/m), период T = 2π√(m/k) */
-  w(p){ return Math.sqrt(p.k/p.m); },
+  kэф(p){ const k2=p.k2||p.k; return p.springs==='series'?p.k*k2/(p.k+k2):p.springs==='parallel'?p.k+k2:p.k; },
+  w(p){ return Math.sqrt(this.kэф(p)/p.m); },
   T(p){ return 2*Math.PI/this.w(p); },
+  /* формулу периода показываем только для одной горизонтальной пружины —
+     в остальных опытах период и есть ответ, его измеряют счётом колебаний */
+  простой(p){ return (!p.springs||p.springs==='one')&&!p.vert; },
   init(p){ return {t:0,q:p.A,v:0,periods:0,heat:0,event:null,__stop:null}; },
   step(s,dt,p){
     if(s.event) return;
@@ -46,24 +57,24 @@ spring:{
   // центр груза поднят на yb=0.5 — там же, где он и рисуется
   anchors(s,p){ return [{x:s.q,y:0.5},{x:0,y:0.5}]; },
   energies(s,p){
-    const Ek=0.5*p.m*s.v*s.v, Eel=0.5*p.k*s.q*s.q, Eth=s.heat||0;
+    const Ek=0.5*p.m*s.v*s.v, Eel=0.5*this.kэф(p)*s.q*s.q, Eth=s.heat||0;
     return {Ek,Ep:0,Eel,Eth,tot:Ek+Eel+Eth};   // тепло входит в полную энергию
   },
   readouts(s,p){
     const E=this.energies(s,p);
-    return [['t',s.t,'с'],
-      ['период T = 2π√(m/k)',this.T(p),'с'],
-      ['частота ν',1/this.T(p),'Гц'],
-      ['круговая частота ω',this.w(p),'рад/с'],
+    const out=[['t',s.t,'с']];
+    if(this.простой(p)) out.push(['период T = 2π√(m/k)',this.T(p),'с'],['частота ν',1/this.T(p),'Гц'],['круговая частота ω',this.w(p),'рад/с']);
+    if(p.vert) out.push(['растяжение в положении равновесия',p.m*(p.g||9.8)/this.kэф(p),'м']);
+    return out.concat([
       ['смещение Δx',s.q,'м'],
       ['скорость v',s.v,'м/с'],
-      ['сила упругости −kx',-p.k*s.q,'Н'],
+      ['сила упругости −kx',-this.kэф(p)*s.q,'Н'],
       ['кинетическая энергия',E.Ek,'Дж'],
       ['потенциальная энергия пружины',E.Eel,'Дж'],
       ['ушло в тепло (трение)',E.Eth, p.damp?'Дж':'Дж — затухание выключено'],
       ['механическая E = K + U',E.Ek+E.Eel,'Дж'],
       ['полная энергия с теплом',E.tot,'Дж — сохраняется'],
-      ['колебаний пройдено',s.periods,'']];
+      ['колебаний пройдено',s.periods,'']]);
   },
   graphs:[
     {label:'Смещение Δx во времени',unit:'м',series:['x'],get:s=>[s.q,null]},
@@ -78,20 +89,31 @@ spring:{
     {name:'Жёстче пружина — чаще колебания',values:{m:1,k:100,A:2,tStop:0}},
     {name:'Тяжелее груз — медленнее',values:{m:8,k:20,A:2,tStop:0}},
     {name:'Малая амплитуда — период тот же',values:{m:1,k:20,A:0.5,tStop:0}},
-    {name:'Затухающие колебания',values:{m:1,k:20,A:2,damp:true,tStop:0}}
+    {name:'Затухающие колебания',values:{m:1,k:20,A:2,damp:true,tStop:0}},
+    {name:'Две пружины последовательно: мягче каждой',values:{m:1,k:20,k2:30,springs:'series',vert:false,A:1.5,periods:5,tStop:0}},
+    {name:'Две пружины параллельно: жёстче обеих',values:{m:1,k:20,k2:30,springs:'parallel',vert:false,A:1.5,periods:5,tStop:0}},
+    {name:'Вертикальная пружина: период тот же',values:{m:1,k:20,springs:'one',vert:true,g:9.8,A:1,periods:5,tStop:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     /* в кадр — от стены до крайнего положения груза (до 3.4.0 стена при
        A ≥ 1,6 м оставалась за левым краем и пружина висела в воздухе) */
+    if(p.vert){ const base=Math.max(p.A*2,2.5)+p.m*(p.g||9.8)/this.kэф(p), y0=-(base+p.A+0.8), y1=0.8, spanY=y1-y0, spanX=spanY*W/H;
+      const sc=clamp(Math.min((W-60)/(Math.max(spanX,4)*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30); return {x:0,y:(y0+y1)/2,scale:sc}; }
     const wall=-Math.max(p.A*2,2.5), x0=wall-0.5, x1=p.A+1.5;
     const spanX=x1-x0, spanY=4.4;
     const scale=clamp(Math.min((W-60)/(spanX*PX_PER_M),(H-60)/(spanY*PX_PER_M)),0.002,30);
     return {x:(x0+x1)/2,y:0.2,scale};
   },
+  /* пружина-зигзаг от (x1,y1) до (x2,y2) */
+  зигзаг(ctx,v,x1,y1,x2,y2,cv,шир,витков){ const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1, nx=-dy/L, ny=dx/L;
+    ctx.strokeStyle=cv; ctx.lineWidth=v.lw(1.8); ctx.beginPath(); ctx.moveTo(x1,y1);
+    for(let i=1;i<витков;i++){ const t=i/витков, q=(i%2?1:-1)*шир; ctx.lineTo(x1+dx*t+nx*q,y1+dy*t+ny*q); }
+    ctx.lineTo(x2,y2); ctx.stroke(); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const wall=-Math.max(p.A*2,2.5), sz=0.28+0.06*Math.cbrt(p.m), yb=0.5;
+    if(p.vert||(p.springs&&p.springs!=='one')) return this.draw2(ctx,s,v,p);
     // стена и опора
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
     ctx.beginPath(); ctx.moveTo(wall,-1.4); ctx.lineTo(wall,1.5); ctx.moveTo(wall,0); ctx.lineTo(Math.max(p.A,s.q)+1.2,0); ctx.stroke();
@@ -144,6 +166,33 @@ spring:{
     }
     v.label(ctx,`T = 2π√(m/k) = ${this.T(p).toFixed(2)} с`,wall,1.5,10,0,ink3);
     v.label(ctx,'период не зависит от амплитуды',wall,1.5,10,16,ink3);
+  },
+  /* две пружины и/или вертикальный подвес: ось колебаний — по горизонтали или вниз */
+  draw2(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), third=v.c('--third')||v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure');
+    const sz=0.28+0.06*Math.cbrt(p.m), base=Math.max(p.A*2,2.5)+(p.vert?p.m*(p.g||9.8)/this.kэф(p):0);
+    // координата вдоль оси: u — от опоры к грузу; равновесие в u = base
+    const P=u=>p.vert?[0,-u]:[u-base,0.5];
+    const op=P(0), груз=P(base+s.q);
+    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.2); ctx.beginPath();
+    if(p.vert){ ctx.moveTo(-1.2,0); ctx.lineTo(1.2,0); } else { ctx.moveTo(op[0],-0.9); ctx.lineTo(op[0],1.9); } ctx.stroke();
+    const конец=base+s.q-sz;
+    if(p.springs==='parallel'){ const d=0.32;
+      for(const [o,c] of [[-d,sec],[d,third]]){ const a=P(0), b=P(конец); const off=p.vert?[o,0]:[0,o];
+        this.зигзаг(ctx,v,a[0]+off[0],a[1]+off[1],b[0]+off[0],b[1]+off[1],c,0.14,14); } }
+    else if(p.springs==='series'){ const k1=p.k, k2=p.k2||p.k, доля=k2/(k1+k2);   // первая растягивается сильнее, если мягче
+      const mid=(конец)*доля; const a=P(0), m=P(mid), b=P(конец);
+      this.зигзаг(ctx,v,a[0],a[1],m[0],m[1],sec,0.2,12); this.зигзаг(ctx,v,m[0],m[1],b[0],b[1],third,0.2,12);
+      ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(m[0],m[1],v.lw(3),0,7); ctx.fill(); }
+    else { const a=P(0), b=P(конец); this.зигзаг(ctx,v,a[0],a[1],b[0],b[1],sec,0.22,16); }
+    // равновесие и амплитуда
+    const e=P(base); ctx.strokeStyle=v.c('--line'); ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath();
+    if(p.vert){ ctx.moveTo(-1.4,e[1]); ctx.lineTo(1.4,e[1]); } else { ctx.moveTo(e[0],-0.9); ctx.lineTo(e[0],1.9); } ctx.stroke(); ctx.setLineDash([]);
+    v.label(ctx,'равновесие',e[0],e[1],p.vert?40:-30,p.vert?-8:-70,ink3);
+    if(p.vert){ const f=P(Math.max(p.A*2,2.5)); ctx.strokeStyle=meas; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(-1.4,f[1]); ctx.lineTo(1.4,f[1]); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,`конец пружины без груза; растяжение mg/k = ${(p.m*(p.g||9.8)/this.kэф(p)).toFixed(3)} м`,f[0],f[1],40,-8,meas); }
+    ctx.fillStyle=acc; ctx.fillRect(груз[0]-sz,груз[1]-sz,2*sz,2*sz);
+    v.label(ctx,p.springs==='series'?`k₁ = ${p.k}, k₂ = ${p.k2} Н/м последовательно`:p.springs==='parallel'?`k₁ = ${p.k}, k₂ = ${p.k2} Н/м параллельно`:`k = ${p.k} Н/м`,op[0],op[1],10,p.vert?16:-34,ink3);
   }
 },
 
@@ -155,6 +204,8 @@ pendulum:{
     {key:'th0',label:'Начальный угол θ₀',unit:'°',min:1,max:80,step:1,default:20},
     {key:'m',  label:'Масса груза m',unit:'кг',min:0.1,max:20,step:0.1,default:1},
     {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
+    /* 9.3.0: маятник в лифте — в системе кабины действует g + a (a вверх) */
+    {key:'aL', label:'Ускорение кабины лифта a (вверх +)',unit:'м/с²',min:-30,max:30,step:0.1,default:0},
 
     {type:'group',label:'Показывать'},
     {key:'arc',  label:'Дуга угла и траектория',type:'check',default:true},
@@ -166,9 +217,10 @@ pendulum:{
     {key:'periods',label:'Через N полных колебаний (0 — выкл)',min:0,max:50,step:0.5,default:0},
     {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
   ],
-  /* малые колебания: T = 2π√(L/g) */
-  w(p){ return Math.sqrt(p.g/p.L); },
-  T(p){ return 2*Math.PI*Math.sqrt(p.L/p.g); },
+  /* малые колебания: T = 2π√(L/g'), g' = g + a — ускорение свободного падения в кабине */
+  gэф(p){ return Math.max(0,p.g+(p.aL||0)); },
+  w(p){ return Math.sqrt(this.gэф(p)/p.L); },
+  T(p){ const g=this.gэф(p); return g>0?2*Math.PI*Math.sqrt(p.L/g):Infinity; },
   /* поправка на конечную амплитуду (первый член ряда) */
   Texact(p){ const a=p.th0*Math.PI/180; return this.T(p)*(1+a*a/16); },
   init(p){ return {t:0,q:p.th0*Math.PI/180,v:0,periods:0,event:null,__stop:null}; },
@@ -193,15 +245,16 @@ pendulum:{
   pos(s,p){ return {x:p.L*Math.sin(s.q), y:-p.L*Math.cos(s.q)}; },
   anchors(s,p){ const c=this.pos(s,p); return [{x:0,y:0},{x:c.x,y:c.y}]; },
   energies(s,p){
-    const I=p.m*p.L*p.L, Ek=0.5*I*s.v*s.v, Ep=p.m*p.g*p.L*(1-Math.cos(s.q));
+    const I=p.m*p.L*p.L, Ek=0.5*I*s.v*s.v, Ep=p.m*this.gэф(p)*p.L*(1-Math.cos(s.q));
     return {Ek,Ep,Eel:0,Eth:0,tot:Ek+Ep};
   },
   readouts(s,p){
     const E=this.energies(s,p);
-    return [['t',s.t,'с'],
+    const лифт=Math.abs(p.aL||0)>1e-12;
+    return [['t',s.t,'с']].concat(лифт?[['g в кабине: g + a',this.gэф(p),'м/с²']]:[
       ['период T = 2π√(L/g)',this.T(p),'с'],
       ['с поправкой на амплитуду',this.Texact(p),'с'],
-      ['частота ν',1/this.T(p),'Гц'],
+      ['частота ν',1/this.T(p),'Гц']],[
       ['угол θ',s.q*180/Math.PI,'°'],
       ['угловая скорость',s.v,'рад/с'],
       ['скорость груза',Math.abs(s.v)*p.L,'м/с'],
@@ -209,8 +262,8 @@ pendulum:{
       ['кинетическая энергия',E.Ek,'Дж'],
       ['потенциальная энергия',E.Ep,'Дж'],
       ['полная энергия',E.tot,'Дж'],
-      ['колебаний пройдено',s.periods,''],
-      ['период не зависит от массы',1,'проверьте, меняя m']];
+      ['колебаний пройдено',isFinite(s.periods)?s.periods:0,''],
+      ['период не зависит от массы',1,'проверьте, меняя m']]);
   },
   graphs:[
     {label:'Угол во времени',unit:'°',series:['θ'],get:s=>[s.q*180/Math.PI,null]},
@@ -224,7 +277,9 @@ pendulum:{
     {name:'Другая масса — период тот же',values:{L:1,th0:20,m:10,g:9.8,tStop:0}},
     {name:'Часы: период ровно 2 с',values:{L:0.994,th0:10,m:1,g:9.8,tStop:0}},
     {name:'Большой угол — формула уже врёт',values:{L:1,th0:70,m:1,g:9.8,exact:true,tStop:0}},
-    {name:'Маятник на Луне',values:{L:1,th0:20,m:1,g:1.62,tStop:0}}
+    {name:'Маятник на Луне',values:{L:1,th0:20,m:1,g:1.62,tStop:0}},
+    {name:'В лифте, разгоняющемся вверх: качается чаще',values:{L:1,th0:10,m:1,g:9.8,aL:4.9,periods:5,tStop:0}},
+    {name:'В падающем лифте: колебаний нет',values:{L:1,th0:20,m:1,g:9.8,aL:-9.8,periods:0,tStop:4}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -276,6 +331,7 @@ pendulum:{
       ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(c.x,c.y-L*0.3); ctx.stroke(); ctx.globalAlpha=1;
     }
+    if(Math.abs(p.aL||0)>1e-12){ v.label(ctx,this.gэф(p)>0?`в кабине g' = g + a = ${this.gэф(p).toFixed(2)} м/с²`:'кабина падает свободно: g\' = 0, маятник не качается',0,-L*1.2,-90,0,ink3); return; }
     v.label(ctx,`T = 2π√(L/g) = ${this.T(p).toFixed(2)} с`,0,-L*1.2,-52,0,ink3);
     if(p.th0>25) v.label(ctx,`при θ₀ = ${p.th0}° точный период уже ${this.Texact(p).toFixed(2)} с`,0,-L*1.2,-70,16,dang);
     else v.label(ctx,'период не зависит ни от массы, ни от амплитуды',0,-L*1.2,-90,16,ink3);
@@ -290,6 +346,10 @@ physpend:{
     {key:'mr', label:'Масса стержня',unit:'кг',min:0.1,max:20,step:0.1,default:1},
     {key:'thR',label:'Начальный угол',unit:'°',min:1,max:80,step:1,default:25},
     {key:'g',  label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
+    /* 9.3.0: ось не обязательно на конце — на любом расстоянии x от центра:
+       I = m(L²/12 + x²), d = x (теорема Штейнера) */
+    {key:'pivot',label:'Ось',type:'select',default:'end',options:[{v:'end',t:'на конце стержня'},{v:'any',t:'на расстоянии x от центра'}]},
+    {key:'xo', label:'Расстояние от оси до центра x',unit:'м',min:0.01,max:5,step:0.01,default:0.6,если:p=>p.pivot==='any'},
 
     {type:'group',label:'Показывать'},
     {key:'cm',   label:'Центр масс',type:'check',default:true},
@@ -303,12 +363,12 @@ physpend:{
   ],
   /* стержень, подвешенный за конец: I = mL²/3, расстояние до центра масс d = L/2.
      ω = √(mgd/I) = √(3g/2L), T = 2π√(2L/3g) */
-  I(p){ return p.mr*p.Lr*p.Lr/3; },
-  d(p){ return p.Lr/2; },
-  w(p){ return Math.sqrt(3*p.g/(2*p.Lr)); },
+  I(p){ if(p.pivot==='any'){ const x=Math.min(p.xo,p.Lr/2); return p.mr*(p.Lr*p.Lr/12+x*x); } return p.mr*p.Lr*p.Lr/3; },
+  d(p){ return p.pivot==='any'?Math.min(p.xo,p.Lr/2):p.Lr/2; },
+  w(p){ return Math.sqrt(p.mr*p.g*this.d(p)/this.I(p)); },
   T(p){ return 2*Math.PI/this.w(p); },
   /* приведённая длина: нитяной маятник с таким же периодом */
-  Lred(p){ return 2*p.Lr/3; },
+  Lred(p){ return this.I(p)/(p.mr*this.d(p)); },
   init(p){ return {t:0,q:p.thR*Math.PI/180,v:0,periods:0,event:null,__stop:null}; },
   step(s,dt,p){
     if(s.event) return;
@@ -337,9 +397,9 @@ physpend:{
     const E=this.energies(s,p);
     return [['t',s.t,'с'],
       ['период T = 2π√(I/mgd)',this.T(p),'с'],
-      ['момент инерции I = mL²/3',this.I(p),'кг·м²'],
-      ['до центра масс d = L/2',this.d(p),'м'],
-      ['приведённая длина 2L/3',this.Lred(p),'м'],
+      [p.pivot==='any'?'момент инерции I = m(L²/12 + x²)':'момент инерции I = mL²/3',this.I(p),'кг·м²'],
+      [p.pivot==='any'?'до центра масс d = x':'до центра масс d = L/2',this.d(p),'м'],
+      [p.pivot==='any'?'приведённая длина I/(md)':'приведённая длина 2L/3',this.Lred(p),'м'],
       ['период нитяного той же длины',2*Math.PI*Math.sqrt(p.Lr/p.g),'с'],
       ['угол θ',s.q*180/Math.PI,'°'],
       ['угловая скорость',s.v,'рад/с'],
@@ -358,7 +418,9 @@ physpend:{
     {name:'Стержень 2 м',values:{Lr:2,mr:1,thR:25,g:9.8,tStop:0}},
     {name:'Короткий стержень — чаще колебания',values:{Lr:0.6,mr:1,thR:25,g:9.8,tStop:0}},
     {name:'Другая масса — период тот же',values:{Lr:2,mr:12,thR:25,g:9.8,tStop:0}},
-    {name:'Сравнение с нитяным маятником',values:{Lr:3,mr:1,thR:20,compare:true,g:9.8,tStop:0}}
+    {name:'Сравнение с нитяным маятником',values:{Lr:3,mr:1,thR:20,compare:true,g:9.8,tStop:0}},
+    {name:'Ось ближе к центру: период сначала падает…',values:{Lr:2,mr:1,thR:15,g:9.8,pivot:'any',xo:0.58,periods:5,tStop:0}},
+    {name:'…а у самого центра растёт без предела',values:{Lr:2,mr:1,thR:15,g:9.8,pivot:'any',xo:0.08,periods:2,tStop:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
@@ -369,7 +431,7 @@ physpend:{
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const L=p.Lr, c=this.pos(s,p);
-    const ex=L*Math.sin(s.q), ey=-L*Math.cos(s.q);
+    const d=this.d(p), ex=(L/2+d)*Math.sin(s.q), ey=-(L/2+d)*Math.cos(s.q), sx0=-(L/2-d)*Math.sin(s.q), sy0=(L/2-d)*Math.cos(s.q);
     // потолок
     ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.4);
     ctx.beginPath(); ctx.moveTo(-L*0.4,0); ctx.lineTo(L*0.4,0); ctx.stroke();
@@ -389,13 +451,13 @@ physpend:{
       ctx.fillStyle=sec; ctx.beginPath();
       ctx.arc(Lr2*Math.sin(s.q),-Lr2*Math.cos(s.q),v.lw(5),0,7); ctx.fill();
       ctx.globalAlpha=1;
-      v.label(ctx,`нитяной маятник длиной 2L/3 = ${Lr2.toFixed(2)} м`,
+      v.label(ctx,`нитяной маятник приведённой длины ${Lr2.toFixed(2)} м`,
         Lr2*Math.sin(s.q),-Lr2*Math.cos(s.q),12,0,sec);
       v.label(ctx,'качается совершенно в такт',Lr2*Math.sin(s.q),-Lr2*Math.cos(s.q),12,16,ink3);
     }
     // стержень
     ctx.strokeStyle=acc; ctx.lineWidth=v.lw(6); ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(ex,ey); ctx.stroke(); ctx.lineCap='butt';
+    ctx.beginPath(); ctx.moveTo(sx0,sy0); ctx.lineTo(ex,ey); ctx.stroke(); ctx.lineCap='butt';
     // ось
     ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(0,0,v.lw(4),0,7); ctx.fill();
     v.label(ctx,'ось',0,0,-22,-6,ink3);
@@ -404,7 +466,7 @@ physpend:{
       ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(c.x,c.y,v.lw(5),0,7); ctx.fill();
       ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.arc(c.x,c.y,v.lw(8),0,7); ctx.stroke();
-      v.label(ctx,'центр масс (L/2)',c.x,c.y,12,0,meas);
+      v.label(ctx,p.pivot==='any'?`центр масс (x = ${d} м от оси)`:'центр масс (L/2)',c.x,c.y,12,0,meas);
       // плечо силы тяжести
       ctx.strokeStyle=dang; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(c.x,c.y-L*0.25); ctx.stroke();
@@ -416,6 +478,7 @@ physpend:{
     ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.4);
     ctx.beginPath(); ctx.arc(0,0,L*0.28,-Math.PI/2,-Math.PI/2+s.q,s.q<0); ctx.stroke();
     v.label(ctx,`θ = ${(s.q*180/Math.PI).toFixed(1)}°`,0,-L*0.34,12,0,sec);
+    if(p.pivot==='any'){ v.label(ctx,`T = 2π√(I/mgd) = ${this.T(p).toFixed(2)} с; наименьший при x = L/√12 = ${(L/Math.sqrt(12)).toFixed(3)} м`,0,-L*1.15,-120,0,ink3); return; }
     v.label(ctx,`T = 2π√(I/mgd) = ${this.T(p).toFixed(2)} с`,0,-L*1.15,-56,0,ink3);
     v.label(ctx,`нитяной той же длины дал бы ${(2*Math.PI*Math.sqrt(L/p.g)).toFixed(2)} с — стержень быстрее`,
       0,-L*1.15,-116,16,ink3);
@@ -637,6 +700,75 @@ damped:{
       ? 'чем больше трение, тем быстрее гаснут колебания; при γ = ω₀ качаний уже нет'
       : 'на резонансе малая сила раскачивает сильно — и тем сильнее, чем меньше трение',
       WALL,-1.5,0,16,ink3);
+  }
+}
+,
+
+/* ================= СЛОЖЕНИЕ КОЛЕБАНИЙ (9.3.0) =================
+   Два гармонических колебания складываются.
+     • Одного направления: x = A₁cos ω₁t + A₂cos(ω₂t + φ). При ω₁ = ω₂ сумма —
+       снова гармоника с амплитудой A = √(A₁² + A₂² + 2A₁A₂cos φ); при близких
+       частотах амплитуда медленно «дышит» — биения с периодом 2π/|ω₁ − ω₂|.
+     • Взаимно перпендикулярных: x = A₁cos ω₁t, y = A₂cos(ω₂t + φ). При равных
+       частотах точка бежит по эллипсу, при кратных — по фигуре Лиссажу. */
+lissajous:{
+  title:'Сложение колебаний: биения и фигуры Лиссажу',
+  params:[
+    {key:'mode',label:'Как сложить',type:'select',default:'perp',options:[{v:'perp',t:'взаимно перпендикулярные (x и y)'},{v:'same',t:'одного направления (одна ось)'}]},
+    {key:'A1',label:'Амплитуда первого A₁',unit:'м',min:0.1,max:5,step:0.1,default:2},
+    {key:'w1',label:'Круговая частота первого ω₁',unit:'рад/с',min:0.1,max:30,step:0.1,default:2},
+    {key:'A2',label:'Амплитуда второго A₂',unit:'м',min:0.1,max:5,step:0.1,default:1.5},
+    {key:'w2',label:'Круговая частота второго ω₂',unit:'рад/с',min:0.1,max:30,step:0.1,default:4},
+    {key:'phi',label:'Сдвиг фаз второго φ',unit:'°',min:-180,max:180,step:1,default:90},
+    {key:'window',label:'Окно графика (одного направления)',unit:'с',min:2,max:60,step:1,default:12,если:p=>p.mode==='same'},
+    {key:'tStop',label:'Остановить в момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  x1(p,t){ return p.A1*Math.cos(p.w1*t); },
+  x2(p,t){ return p.A2*Math.cos(p.w2*t+p.phi*Math.PI/180); },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){ if(s.event) return; let t=s.t+dt; if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; } s.t=t; },
+  readouts(s,p){ const a=this.x1(p,s.t), b=this.x2(p,s.t);
+    if(p.mode==='perp') return [['t',s.t,'с'],['x',a,'м'],['y',b,'м'],['расстояние от центра',Math.hypot(a,b),'м'],['отношение частот ω₂/ω₁',p.w2/p.w1,'']];
+    return [['t',s.t,'с'],['первое x₁',a,'м'],['второе x₂',b,'м'],['сумма x = x₁ + x₂',a+b,'м']]; },
+  graphs:[{label:'Колебания и их сумма',unit:'м',series:['x₁','x₂','сумма'],get(s,p){ const S=SIMS.lissajous, a=S.x1(p,s.t), b=S.x2(p,s.t); return [a,b,a+b]; }}],
+  presets:[
+    {name:'Равные частоты, сдвиг 90°: эллипс',values:{mode:'perp',A1:2,w1:2,A2:1.2,w2:2,phi:90,tStop:0}},
+    {name:'Равные частоты, сдвиг 0: отрезок прямой',values:{mode:'perp',A1:2,w1:2,A2:1.2,w2:2,phi:0,tStop:0}},
+    {name:'Частоты 1 : 2 — восьмёрка',values:{mode:'perp',A1:2,w1:2,A2:1.5,w2:4,phi:90,tStop:0}},
+    {name:'Частоты 2 : 3',values:{mode:'perp',A1:2,w1:4,A2:2,w2:6,phi:90,tStop:0}},
+    {name:'Одна частота, сдвиг 60°: снова гармоника',values:{mode:'same',A1:2,w1:3,A2:1.5,w2:3,phi:60,window:12,tStop:0}},
+    {name:'Биения: близкие частоты',values:{mode:'same',A1:1.5,w1:10,A2:1.5,w2:11,phi:0,window:20,tStop:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    if(p.mode==='perp'){ const R=Math.max(p.A1,p.A2)*1.3; const scale=clamp(Math.min(W-60,H-60)/(2*R*PX_PER_M),0.002,60); return {x:0,y:0,scale}; }
+    const sx=p.window*1.05, sy=(p.A1+p.A2)*2.4*3; const scale=clamp(Math.min((W-60)/(sx*PX_PER_M),(H-60)/(sy*PX_PER_M)),0.002,60); return {x:p.window/2,y:-(p.A1+p.A2)*2.4,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const acc=v.c('--accent'), sec=v.c('--second'), third=v.c('--third')||v.c('--danger'), ink3=v.c('--ink-3'), meas=v.c('--measure');
+    if(p.mode==='perp'){ const A1=p.A1, A2=p.A2;
+      ctx.strokeStyle=ink3; ctx.setLineDash([v.lw(3),v.lw(4)]); ctx.lineWidth=v.lw(1); ctx.strokeRect(-A1,-A2,2*A1,2*A2); ctx.setLineDash([]);
+      // вся фигура бледно, пройденная часть — ярко
+      const T=60, n=2400; ctx.strokeStyle=acc; ctx.globalAlpha=.22; ctx.lineWidth=v.lw(1.2); ctx.beginPath();
+      for(let k=0;k<=n;k++){ const t=T*k/n; const x=this.x1(p,t), y=this.x2(p,t); k?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+      ctx.globalAlpha=1; ctx.lineWidth=v.lw(2); ctx.beginPath(); const t0=Math.max(0,s.t-2*Math.PI/Math.min(p.w1,p.w2));
+      for(let k=0;k<=200;k++){ const t=t0+(s.t-t0)*k/200; const x=this.x1(p,t), y=this.x2(p,t); k?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+      const x=this.x1(p,s.t), y=this.x2(p,s.t);
+      ctx.strokeStyle=sec; ctx.globalAlpha=.6; ctx.setLineDash([v.lw(2),v.lw(3)]); ctx.beginPath(); ctx.moveTo(x,-A2*1.15); ctx.lineTo(x,y); ctx.moveTo(-A1*1.15,y); ctx.lineTo(x,y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.fillStyle=sec; ctx.beginPath(); ctx.arc(x,-A2*1.15,v.lw(4),0,7); ctx.fill(); ctx.beginPath(); ctx.arc(-A1*1.15,y,v.lw(4),0,7); ctx.fill();
+      ctx.fillStyle=meas; ctx.beginPath(); ctx.arc(x,y,v.lw(6),0,7); ctx.fill();
+      v.label(ctx,`ω₂ : ω₁ = ${(p.w2/p.w1).toFixed(2)}, φ = ${p.phi}°`,-A1,A2*1.15,0,-12,ink3); return; }
+    // одного направления: три дорожки x₁, x₂ и сумма — время по горизонтали
+    const W=p.window, t1=Math.max(s.t,W), t0=t1-W, h=(p.A1+p.A2)*2.4, рядки=[[0,acc,'x₁',t=>this.x1(p,t)],[-h,sec,'x₂',t=>this.x2(p,t)],[-2*h,third,'x₁ + x₂',t=>this.x1(p,t)+this.x2(p,t)]];
+    for(const [y0,c,nm,f] of рядки){ ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(W,y0); ctx.stroke();
+      ctx.strokeStyle=c; ctx.lineWidth=v.lw(1.8); ctx.beginPath(); const n=800; let нач=true;
+      for(let k=0;k<=n;k++){ const t=t0+W*k/n; if(t>s.t) break; const xx=t-t0, yy=y0+f(t); нач?ctx.moveTo(xx,yy):ctx.lineTo(xx,yy); нач=false; } ctx.stroke();
+      v.label(ctx,nm,0,y0,-30,0,c); }
+    if(Math.abs(p.w1-p.w2)<0.25*Math.max(p.w1,p.w2)&&p.w1!==p.w2){ // огибающая биений
+      ctx.strokeStyle=meas; ctx.globalAlpha=.5; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
+      for(const зн of [1,-1]){ ctx.beginPath(); for(let k=0;k<=400;k++){ const t=t0+W*k/400; if(t>s.t) break; const dφ=(p.w2-p.w1)*t+p.phi*Math.PI/180;
+        const Aenv=Math.sqrt(p.A1*p.A1+p.A2*p.A2+2*p.A1*p.A2*Math.cos(dφ)); const xx=t-t0, yy=-2*h+зн*Aenv; k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); } ctx.stroke(); }
+      ctx.setLineDash([]); ctx.globalAlpha=1; }
+    v.label(ctx,`время, с (окно ${W} с)`,W/2,-2*h-(p.A1+p.A2)*1.1,0,0,ink3);
   }
 }
 

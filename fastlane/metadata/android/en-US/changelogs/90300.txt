@@ -1,0 +1,4 @@
+9.3.0 — the rest of mechanics, problem by problem.
+• 26 more problems after Irodov: momentum, rigid bodies, oscillations, fluids, sound.
+• New: centre of mass, a pulley with mass and Maxwell's wheel, angular momentum, Lissajous figures and beats.
+• Slope with friction, force F = αt, two springs, a pendulum in a lift, a rod on any pivot.
