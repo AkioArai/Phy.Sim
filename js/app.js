@@ -1526,8 +1526,12 @@ function updatePVBox(a){
          `<div class="pvrow"><span>работа/цикл</span><span>${pf.W.toFixed(0)} Дж</span></div>`+
          `<div class="pvrow"><span>КПД 1−T₂/T₁</span><span>${(pf.eff*100).toFixed(1)}%</span></div>`;
   } else {
-    const W_=T.workTo(p,s.u), dU=p.proc==='iso'?0:(3/2)*p.n*8.314*(st.T-p.T0), Q=dU+W_;
-    nm={iso:'изотерма PV=const',isobar:'изобара P=const',isochor:'изохора V=const',adiab:'адиабата PVᵞ=const'}[p.proc];
+    /* ΔU — с той же теплоёмкостью Cv = R/(γ−1), что и в показаниях сцены.
+       До 9.4 здесь стояло 3/2·R, и при γ ≠ 5/3 панель расходилась с окном
+       величин: у адиабаты Q выходило не нулём. */
+    const W_=T.workTo(p,s.u), dU=p.proc==='iso'?0:p.n*T.Cv(p)*(st.T-p.T0), Q=dU+W_;
+    nm={iso:'изотерма PV=const',isobar:'изобара P=const',isochor:'изохора V=const',adiab:'адиабата PVᵞ=const',
+        line:'прямая на pV-диаграмме',poly:'политропа PVⁿ=const'}[p.proc];
     rows=`<div class="pvrow"><span>V</span><span>${st.V.toFixed(1)} л</span></div>`+
          `<div class="pvrow"><span>P</span><span>${(st.P/1000).toFixed(0)} кПа</span></div>`+
          `<div class="pvrow"><span>T</span><span>${st.T.toFixed(0)} K</span></div>`+
@@ -7917,5 +7921,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.3.0';
+window.PHYSIM_BUILD = '9.4.0';
 window.PHYSIM_READY = true;

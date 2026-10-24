@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="9.3.0">
+<meta name="physim-build" content="9.4.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -4530,6 +4530,277 @@ const EMPTY_DASH=[];                 // переиспользуем: setLineDas
 
 /* Реестр симуляций: каждый файл js/sims/* добавляет сюда свои определения. */
 const SIMS={};
+
+;
+/* ===================== РИСОВАНИЕ ВЕЩЕЙ (9.4.0) =====================
+   Общие приёмы для сцен, где на экране — настоящие предметы: сосуды,
+   жидкость, струи, цилиндры с поршнем, горелка. До 9.4 такие сцены
+   рисовались схемой: прямоугольник с заливкой 20 % и линия струи. Это
+   математически честно, но читается плохо: человек, который ни разу не
+   видел опыта, принимает штриховой контур за «нечто» и не узнаёт в нём
+   банку с водой. Здесь собран небольшой набор: стекло с бликом и толщиной
+   стенок, жидкость с глубиной цвета и мениском, струя-лента, сужающаяся по
+   уравнению неразрывности, капли, пол со штриховкой, металл, газ, окрашенный
+   по температуре, пламя и холодильник.
+
+   Все функции работают в мировых координатах сцены (y вверх, метры сцены):
+   градиенты создаются там же, где рисуется фигура, поэтому масштаб и сдвиг
+   вида на них не влияют. Цвета подстраиваются под тёмный фон.            */
+globalThis.АРТ={
+  /* тёмный ли фон сцены: настройка фона или яркость --canvas */
+  тёмный(){
+    try{
+      if(typeof prefGet==='function'&&prefGet('bgStyle')==='dark') return true;
+      const c=(typeof css==='function'?css('--canvas'):'')||'#fff';
+      const rgb=this.rgb(c); return rgb?(0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2])/255<0.42:false;
+    }catch(_){ return false; }
+  },
+  rgb(c){
+    c=String(c).trim();
+    let m=/^#([0-9a-f]{3})$/i.exec(c); if(m) return m[1].split('').map(h=>parseInt(h+h,16));
+    m=/^#([0-9a-f]{6})/i.exec(c); if(m) return [0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16));
+    m=/rgba?\(([^)]+)\)/.exec(c); if(m) return m[1].split(',').slice(0,3).map(x=>+x);
+    return null;
+  },
+  ц(rgb,a){ return `rgba(${Math.round(rgb[0])},${Math.round(rgb[1])},${Math.round(rgb[2])},${a})`; },
+  смесь(a,b,k){ return [0,1,2].map(i=>a[i]+(b[i]-a[i])*k); },
+
+  /* оттенки жидкостей: [поверхность, глубина]; ртуть — металл */
+  ЖИДК:{
+    вода:[[120,186,232],[34,104,178]], глицерин:[[236,214,150],[196,150,60]], мёд:[[240,190,90],[176,104,22]],
+    масло:[[240,222,130],[196,160,40]], касторка:[[232,208,140],[184,146,62]], спирт:[[176,214,240],[90,150,210]],
+    ртуть:[[214,218,226],[118,124,138]], кровь:[[214,96,96],[140,30,40]]
+  },
+  тон(имя){ return this.ЖИДК[имя]||this.ЖИДК.вода; },
+
+  /* толща жидкости: прямоугольник [x0,x1]×[y0,y1] с глубиной цвета.
+     верх(x) — необязательная форма поверхности (волна, мениск). */
+  жидкость(ctx,x0,y0,x1,y1,опц){
+    опц=опц||{}; const [вер,низ]=this.тон(опц.тон), тёмн=this.тёмный(), a=опц.прозр!=null?опц.прозр:(тёмн?0.62:0.55);
+    const g=ctx.createLinearGradient(0,y1,0,y0);
+    g.addColorStop(0,this.ц(вер,a*0.85)); g.addColorStop(1,this.ц(низ,a));
+    ctx.save(); ctx.fillStyle=g; ctx.beginPath();
+    const верх=опц.верх, N=верх?40:1;
+    ctx.moveTo(x0,y0);
+    for(let i=0;i<=N;i++){ const x=x0+(x1-x0)*i/N; ctx.lineTo(x,верх?верх(x):y1); }
+    ctx.lineTo(x1,y0); ctx.closePath(); ctx.fill();
+    // световая полоса у поверхности и тонкая линия зеркала
+    if(опц.блик!==false){
+      ctx.strokeStyle=this.ц(тёмн?[220,236,255]:[255,255,255],тёмн?0.35:0.75); ctx.lineWidth=опц.lw||0.01;
+      ctx.beginPath(); for(let i=0;i<=N;i++){ const x=x0+(x1-x0)*i/N, y=верх?верх(x):y1; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+    }
+    ctx.restore();
+  },
+  /* стеклянный сосуд: стенки толщиной tw, дно, губа сверху и блик */
+  стакан(ctx,x0,x1,yb,yt,tw,опц){
+    опц=опц||{}; const тёмн=this.тёмный();
+    const стекло=this.ц(тёмн?[170,200,225]:[150,180,200],тёмн?0.30:0.32), край=this.ц(тёмн?[190,215,235]:[90,115,135],тёмн?0.75:0.8);
+    ctx.save(); ctx.fillStyle=стекло;
+    ctx.fillRect(x0-tw,yb-tw,tw,yt-yb+tw); ctx.fillRect(x1,yb-tw,tw,yt-yb+tw);
+    if(опц.дно!==false) ctx.fillRect(x0,yb-tw,x1-x0,tw);
+    ctx.strokeStyle=край; ctx.lineWidth=опц.lw||tw*0.18;
+    ctx.beginPath();
+    ctx.moveTo(x0-tw,yt); ctx.lineTo(x0-tw,yb-tw); ctx.lineTo(x1+tw,yb-tw); ctx.lineTo(x1+tw,yt);
+    ctx.moveTo(x0,yt); ctx.lineTo(x0,yb); ctx.lineTo(x1,yb); ctx.lineTo(x1,yt);
+    ctx.stroke();
+    // губы сверху
+    ctx.beginPath(); ctx.moveTo(x0-tw,yt); ctx.lineTo(x0,yt); ctx.moveTo(x1,yt); ctx.lineTo(x1+tw,yt); ctx.stroke();
+    // блики: длинный у левой стенки и короткий у правой
+    const w=x1-x0;
+    ctx.fillStyle=this.ц([255,255,255],тёмн?0.08:0.26);
+    ctx.fillRect(x0+w*0.06,yb+(yt-yb)*0.08,Math.max(tw*0.8,w*0.025),(yt-yb)*0.8);
+    ctx.fillStyle=this.ц([255,255,255],тёмн?0.06:0.22);
+    ctx.fillRect(x1-w*0.12,yb+(yt-yb)*0.35,Math.max(tw*0.5,w*0.018),(yt-yb)*0.4);
+    ctx.restore();
+  },
+  /* пол: линия и штриховка под ней, как на чертеже */
+  пол(ctx,x0,x1,y,шаг,цвет){
+    ctx.save(); ctx.strokeStyle=цвет; ctx.lineWidth=шаг*0.09;
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    ctx.globalAlpha=0.55; ctx.lineWidth=шаг*0.05; ctx.beginPath();
+    for(let x=x0;x<x1;x+=шаг){ ctx.moveTo(x,y); ctx.lineTo(x-шаг*0.8,y-шаг*0.8); }
+    ctx.stroke(); ctx.restore();
+  },
+  /* лента вдоль ломаной pts с полушириной hw[i]: струя, трубка, нить */
+  лента(ctx,pts,hw,заливка){
+    const n=pts.length; if(n<2) return;
+    const L=[],R=[];
+    for(let i=0;i<n;i++){
+      const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)];
+      let nx=-(b[1]-a[1]), ny=b[0]-a[0]; const d=Math.hypot(nx,ny)||1; nx/=d; ny/=d;
+      L.push([pts[i][0]+nx*hw[i],pts[i][1]+ny*hw[i]]); R.push([pts[i][0]-nx*hw[i],pts[i][1]-ny*hw[i]]);
+    }
+    ctx.fillStyle=заливка; ctx.beginPath(); ctx.moveTo(L[0][0],L[0][1]);
+    for(const q of L) ctx.lineTo(q[0],q[1]);
+    for(let i=n-1;i>=0;i--) ctx.lineTo(R[i][0],R[i][1]);
+    ctx.closePath(); ctx.fill();
+  },
+  /* струя жидкости: лента + светлая жилка по середине */
+  струя(ctx,pts,hw,тон){
+    const [вер,низ]=this.тон(тон), тёмн=this.тёмный();
+    ctx.save();
+    this.лента(ctx,pts,hw,this.ц(this.смесь(вер,низ,0.45),тёмн?0.8:0.78));
+    this.лента(ctx,pts,hw.map(h=>h*0.35),this.ц([255,255,255],тёмн?0.25:0.45));
+    ctx.restore();
+  },
+  капля(ctx,x,y,r,тон,a){
+    const [вер,низ]=this.тон(тон);
+    ctx.save(); ctx.globalAlpha*=(a==null?1:a);
+    const g=ctx.createRadialGradient(x-r*0.35,y+r*0.35,r*0.1,x,y,r);
+    g.addColorStop(0,this.ц([255,255,255],0.9)); g.addColorStop(0.35,this.ц(вер,0.9)); g.addColorStop(1,this.ц(низ,0.9));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.restore();
+  },
+  /* шар: металл, пластик, дерево — цвет задаётся */
+  шар(ctx,x,y,r,rgb,обвод){
+    const g=ctx.createRadialGradient(x-r*0.38,y+r*0.42,r*0.05,x,y,r);
+    g.addColorStop(0,this.ц(this.смесь(rgb,[255,255,255],0.85),1)); g.addColorStop(0.45,this.ц(rgb,1));
+    g.addColorStop(1,this.ц(this.смесь(rgb,[0,0,0],0.55),1));
+    ctx.save(); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    if(обвод){ ctx.strokeStyle=обвод; ctx.lineWidth=r*0.06; ctx.stroke(); }
+    ctx.restore();
+  },
+  /* металлическая деталь: горизонтальный (верт=false) или вертикальный блеск */
+  металл(ctx,x,y,w,h,опц){
+    опц=опц||{}; const base=опц.rgb||(this.тёмный()?[150,158,172]:[160,168,180]);
+    const g=опц.верт?ctx.createLinearGradient(x,0,x+w,0):ctx.createLinearGradient(0,y,0,y+h);
+    g.addColorStop(0,this.ц(this.смесь(base,[0,0,0],0.35),1)); g.addColorStop(0.35,this.ц(this.смесь(base,[255,255,255],0.55),1));
+    g.addColorStop(0.6,this.ц(base,1)); g.addColorStop(1,this.ц(this.смесь(base,[0,0,0],0.45),1));
+    ctx.save(); ctx.fillStyle=g; ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=this.ц(this.смесь(base,[0,0,0],0.6),0.9); ctx.lineWidth=Math.min(Math.abs(w),Math.abs(h))*0.04; ctx.strokeRect(x,y,w,h);
+    ctx.restore();
+  },
+  /* цвет газа по температуре: холодный — голубой, комнатный — серо-голубой,
+     горячий — оранжевый и красный */
+  цветT(T){
+    const шк=[[150,[90,150,235]],[300,[150,175,205]],[500,[235,170,90]],[800,[230,110,60]],[1300,[215,50,40]]];
+    if(T<=шк[0][0]) return шк[0][1];
+    for(let i=1;i<шк.length;i++) if(T<=шк[i][0]){ const k=(T-шк[i-1][0])/(шк[i][0]-шк[i-1][0]); return this.смесь(шк[i-1][1],шк[i][1],k); }
+    return шк[шк.length-1][1];
+  },
+  газ(ctx,x,y,w,h,T,плотн){
+    const c=this.цветT(T), a=(this.тёмный()?0.22:0.2)*(плотн==null?1:clamp(плотн,0.3,2.2));
+    const g=ctx.createLinearGradient(0,y,0,y+h);
+    g.addColorStop(0,this.ц(c,a*1.15)); g.addColorStop(1,this.ц(c,a*0.8));
+    ctx.save(); ctx.fillStyle=g; ctx.fillRect(x,y,w,h); ctx.restore();
+  },
+  /* пламя горелки шириной w с основанием в (x,y); сила 0…1 — высота языков */
+  пламя(ctx,x,y,w,t,сила){
+    if(!(сила>0.02)) return;
+    ctx.save();
+    const n=Math.max(3,Math.round(w/(w*0.18))), h0=w*0.55*clamp(сила,0,1.4);
+    for(let k=0;k<n;k++){
+      const cx=x-w/2+w*(k+0.5)/n, ф=t*7+k*1.7, h=h0*(0.75+0.25*Math.sin(ф)+0.12*Math.sin(ф*2.3)), hw=w/n*0.55;
+      const g=ctx.createLinearGradient(0,y,0,y+h);
+      g.addColorStop(0,'rgba(70,120,255,0.85)'); g.addColorStop(0.25,'rgba(255,190,60,0.85)'); g.addColorStop(1,'rgba(255,90,30,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(cx-hw,y);
+      ctx.quadraticCurveTo(cx-hw*1.1,y+h*0.45,cx+Math.sin(ф*1.3)*hw*0.3,y+h);
+      ctx.quadraticCurveTo(cx+hw*1.1,y+h*0.45,cx+hw,y); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  },
+  /* горелка: корпус и пламя над ним */
+  горелка(ctx,x,y,w,t,сила){
+    this.металл(ctx,x-w*0.35,y-w*0.22,w*0.7,w*0.22);
+    this.пламя(ctx,x,y,w*0.8,t,сила);
+  },
+  /* холодильник: плита со льдом и инеем */
+  холод(ctx,x,y,w,h,акт){
+    const тёмн=this.тёмный();
+    const g=ctx.createLinearGradient(0,y,0,y+h);
+    g.addColorStop(0,this.ц([150,200,240],акт?0.85:0.4)); g.addColorStop(1,this.ц([210,235,250],акт?0.9:0.45));
+    ctx.save(); ctx.fillStyle=g; ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=this.ц(тёмн?[220,240,255]:[255,255,255],акт?0.9:0.5); ctx.lineWidth=h*0.05;
+    ctx.beginPath();
+    for(let i=1;i<7;i++){ const cx=x+w*i/7, cy=y+h*0.5, r=h*0.22;
+      for(let k=0;k<3;k++){ const a=k*Math.PI/3; ctx.moveTo(cx-Math.cos(a)*r,cy-Math.sin(a)*r); ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r); } }
+    ctx.stroke(); ctx.restore();
+  },
+  /* волнистая стрелка теплоты от (x0,y0) к (x1,y1) */
+  тепло(ctx,x0,y0,x1,y1,цвет,t,ширина){
+    const L=Math.hypot(x1-x0,y1-y0); if(L<1e-9) return;
+    const ux=(x1-x0)/L, uy=(y1-y0)/L, nx=-uy, ny=ux, A=L*0.06, волн=3, ф=(t||0)*6;
+    ctx.save(); ctx.strokeStyle=цвет; ctx.fillStyle=цвет; ctx.lineWidth=ширина||L*0.04; ctx.lineCap='round';
+    ctx.beginPath();
+    const Lh=L*0.82;
+    for(let i=0;i<=40;i++){ const s=Lh*i/40, w=A*Math.sin(s/Lh*волн*2*Math.PI-ф);
+      const x=x0+ux*s+nx*w, y=y0+uy*s+ny*w; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke();
+    const hx=x0+ux*Lh, hy=y0+uy*Lh, hl=L*0.18, hw=L*0.1;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(hx+nx*hw,hy+ny*hw); ctx.lineTo(hx-nx*hw,hy-ny*hw); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  },
+  /* Вертикальный цилиндр с поршнем сверху: газ снизу, шток вверх.
+     о = {x, низ, ш, H (высота внутри), верхГаза, T, мол:[{x,y}] в долях,
+          тепло:'нагрев'|'холод'|'изол'|null, сила 0…1, t, плотн} */
+  цилиндр(ctx,о,v){
+    const px=1/ppm(), tw=Math.max(4*px,о.ш*0.05), x0=о.x-о.ш/2, x1=о.x+о.ш/2, y0=о.низ, yg=о.верхГаза, тёмн=this.тёмный();
+    // основание: горелка, холодильник или подставка
+    const yb=y0-tw;
+    if(о.тепло==='нагрев') this.горелка(ctx,о.x,yb-о.ш*0.32,о.ш*0.9,о.t||0,о.сила==null?1:о.сила);
+    else if(о.тепло==='холод') this.холод(ctx,x0-tw,yb-о.ш*0.2,о.ш+2*tw,о.ш*0.18,true);
+    // газ
+    this.газ(ctx,x0,y0,о.ш,yg-y0,о.T,о.плотн);
+    if(о.мол){ const c=this.цветT(о.T); ctx.fillStyle=this.ц(this.смесь(c,[0,0,0],0.25),0.9);
+      for(const m of о.мол){ ctx.beginPath(); ctx.arc(x0+tw*0.6+m.x*(о.ш-1.2*tw),y0+tw*0.6+m.y*Math.max(0,yg-y0-1.2*tw),Math.max(2.2*px,о.ш*0.018),0,7); ctx.fill(); } }
+    // стенки и дно
+    this.металл(ctx,x0-tw,yb,tw,о.H+tw,{верт:true}); this.металл(ctx,x1,yb,tw,о.H+tw,{верт:true});
+    this.металл(ctx,x0,yb,о.ш,tw);
+    if(о.тепло==='изол'){ ctx.save(); ctx.strokeStyle=this.ц(тёмн?[220,200,150]:[150,120,60],0.75); ctx.lineWidth=1*px;
+      for(const [a,b] of [[x0-tw-3*tw,x0-tw],[x1+tw,x1+4*tw]]){ ctx.strokeRect(a,yb-tw,b-a,о.H+2*tw);
+        ctx.beginPath(); for(let y=yb;y<yb+о.H;y+=3*tw){ ctx.moveTo(a,y); ctx.lineTo(b,y+3*tw); } ctx.stroke(); }
+      ctx.strokeRect(x0-4*tw,yb-4*tw,о.ш+8*tw,3*tw); ctx.restore(); }
+    // поршень с кольцами и шток
+    const hp=Math.max(о.ш*0.12,6*px);
+    this.металл(ctx,x0,yg,о.ш,hp);
+    ctx.strokeStyle=this.ц([40,44,52],0.5); ctx.lineWidth=1*px; ctx.beginPath();
+    ctx.moveTo(x0,yg+hp*0.3); ctx.lineTo(x1,yg+hp*0.3); ctx.moveTo(x0,yg+hp*0.55); ctx.lineTo(x1,yg+hp*0.55); ctx.stroke();
+    const ш2=о.ш*0.07; this.металл(ctx,о.x-ш2/2,yg+hp,ш2,Math.max(0,y0+о.H+о.ш*0.35-yg-hp),{верт:true});
+    // теплота: волнистые стрелки
+    if(о.тепло==='нагрев'||о.тепло==='холод'){ const ц=о.тепло==='нагрев'?'rgba(225,90,40,0.85)':'rgba(60,130,220,0.85)';
+      for(const f of [0.3,0.7]){ const xx=x0+о.ш*f;
+        if(о.тепло==='нагрев') this.тепло(ctx,xx,yb-о.ш*0.05,xx,y0+Math.min(о.ш*0.4,(yg-y0)*0.6),ц,о.t,1.6*px);
+        else this.тепло(ctx,xx,y0+Math.min(о.ш*0.4,(yg-y0)*0.6),xx,yb-о.ш*0.02,ц,о.t,1.6*px); } }
+    return {tw,hp};
+  },
+  /* термометр: колба внизу в (x,y), шкала высотой h; доля 0…1 — высота столбика */
+  термометр(ctx,x,y,h,доля,px){
+    const тёмн=this.тёмный(), r=Math.max(5*px,h*0.07), w=r*0.55;
+    ctx.save();
+    ctx.fillStyle=this.ц(тёмн?[60,64,76]:[250,251,252],0.95); ctx.strokeStyle=this.ц(тёмн?[190,200,215]:[110,120,135],0.9); ctx.lineWidth=1.1*px;
+    ctx.beginPath(); ctx.moveTo(x-w,y); ctx.lineTo(x-w,y+h); ctx.arc(x,y+h,w,Math.PI,0,true); ctx.lineTo(x+w,y); ctx.arc(x,y-r*0.8,r,-Math.PI/2+0.6,-Math.PI/2-0.6+2*Math.PI,false); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(214,52,46,0.95)'; ctx.beginPath(); ctx.arc(x,y-r*0.8,r*0.72,0,7); ctx.fill();
+    ctx.fillRect(x-w*0.45,y-r*0.2,w*0.9,clamp(доля,0,1)*h+r*0.2);
+    ctx.strokeStyle=this.ц(тёмн?[200,210,225]:[90,100,115],0.7); ctx.lineWidth=0.8*px; ctx.beginPath();
+    for(let k=0;k<=10;k++){ const yy=y+h*k/10, l=k%5?w*0.7:w*1.3; ctx.moveTo(x+w,yy); ctx.lineTo(x+w+l,yy); } ctx.stroke();
+    ctx.restore();
+  },
+  /* стрелочный прибор: центр (x,y), радиус r, доля 0…1 по шкале в 270° */
+  прибор(ctx,x,y,r,доля,px,акцент){
+    const тёмн=this.тёмный(), a0=Math.PI*1.25, a1=-Math.PI*0.25;
+    ctx.save();
+    const g=ctx.createRadialGradient(x-r*0.3,y+r*0.3,r*0.1,x,y,r);
+    g.addColorStop(0,this.ц(тёмн?[70,74,86]:[255,255,255],1)); g.addColorStop(1,this.ц(тёмн?[44,47,58]:[226,230,236],1));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    ctx.strokeStyle=this.ц(тёмн?[170,178,190]:[120,128,140],1); ctx.lineWidth=Math.max(1.2*px,r*0.07); ctx.stroke();
+    ctx.lineWidth=0.9*px; ctx.beginPath();
+    for(let k=0;k<=10;k++){ const a=a0+(a1-a0)*k/10, l=k%5?0.12:0.22;
+      ctx.moveTo(x+Math.cos(a)*r*0.86,y+Math.sin(a)*r*0.86); ctx.lineTo(x+Math.cos(a)*r*(0.86-l),y+Math.sin(a)*r*(0.86-l)); } ctx.stroke();
+    const a=a0+(a1-a0)*clamp(доля,0,1.05);
+    ctx.strokeStyle=акцент||'rgba(200,50,40,0.95)'; ctx.lineWidth=Math.max(1.4*px,r*0.06); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(x-Math.cos(a)*r*0.12,y-Math.sin(a)*r*0.12); ctx.lineTo(x+Math.cos(a)*r*0.78,y+Math.sin(a)*r*0.78); ctx.stroke();
+    ctx.fillStyle=this.ц([60,64,76],1); ctx.beginPath(); ctx.arc(x,y,r*0.08,0,7); ctx.fill();
+    ctx.restore();
+  },
+  /* размерная стрелка с засечками: от (x,y0) до (x,y1) по вертикали */
+  размер(ctx,x,y0,y1,цвет,lw,зас){
+    ctx.save(); ctx.strokeStyle=цвет; ctx.fillStyle=цвет; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1);
+    ctx.moveTo(x-зас,y0); ctx.lineTo(x+зас,y0); ctx.moveTo(x-зас,y1); ctx.lineTo(x+зас,y1); ctx.stroke();
+    const s=Math.sign(y1-y0)||1, h=зас*1.6;
+    for(const [y,d] of [[y0,s],[y1,-s]]){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-зас*0.7,y+d*h); ctx.lineTo(x+зас*0.7,y+d*h); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
+};
 
 ;
 'use strict';
@@ -9087,50 +9358,56 @@ buoyancy:{
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
           sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const W=1.9, D=p.depth, rl=this.rhoL(p);
-    // сосуд
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.4);
-    ctx.beginPath(); ctx.moveTo(-W,0.7); ctx.lineTo(-W,-D); ctx.lineTo(W,-D); ctx.lineTo(W,0.7); ctx.stroke();
-    // жидкость
-    ctx.fillStyle=sec; ctx.globalAlpha=.16; ctx.fillRect(-W,-D,2*W,D); ctx.globalAlpha=1;
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6);
-    ctx.beginPath(); ctx.moveTo(-W,0); ctx.lineTo(W,0); ctx.stroke();
-    v.label(ctx,`${this.nameOf[p.liq]}, ρж = ${rl} кг/м³`,-W,0,4,-10,sec);
+    const W=1.9, D=p.depth, rl=this.rhoL(p), px=1/ppm();
+    /* 9.4.0: стеклянный бак, жидкость своего цвета, тело — из материала,
+       который соответствует плотности (пенопласт, дерево, лёд, пластик,
+       камень, сталь, свинец). Погружённая часть тела видна сквозь толщу
+       жидкости — подкрашена ею, как в настоящем аквариуме; пока тело
+       садится на ватерлинию, по поверхности расходится рябь. */
+    const тон={water:'вода',oil:'масло',sea:'вода',merc:'ртуть'}[p.liq]||'вода';
+    const H=this.height(p), yc=-s.d+H/2, ам=Math.min(0.04,Math.abs(s.v)*0.05);
+    const верх=x=>{ const r=Math.abs(x)-p.a*(p.shape==='cube'?0.5:1); return r>0?ам*Math.sin(r*14-s.t*9)*Math.exp(-r*1.6):0; };
+    АРТ.жидкость(ctx,-W,-D,W,0,{тон,верх,lw:1.2*px});
+    v.label(ctx,`${this.nameOf[p.liq]}, ρж = ${rl} кг/м³`,-W,0,4,-12,ink);
     // эпюра давления по стенке: p = ρgh растёт линейно с глубиной
     if(p.press){
-      const pmax=rl*p.g*D, sc=0.9/Math.max(pmax,1);
+      const pmax=rl*p.g*D, sc=0.9/Math.max(pmax,1), x0=W+0.08;
+      ctx.fillStyle=АРТ.ц(АРТ.rgb(meas)||[200,80,40],0.08); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+pmax*sc,-D); ctx.lineTo(x0,-D); ctx.closePath(); ctx.fill();
       ctx.strokeStyle=meas; ctx.globalAlpha=.65; ctx.lineWidth=v.lw(1.2);
-      ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W+pmax*sc,-D); ctx.lineTo(W,-D); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+pmax*sc,-D); ctx.lineTo(x0,-D); ctx.stroke();
       for(let i=1;i<=5;i++){
         const h=D*i/5, pr=rl*p.g*h;
-        ctx.beginPath(); ctx.moveTo(W,-h); ctx.lineTo(W+pr*sc,-h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x0,-h); ctx.lineTo(x0+pr*sc,-h); ctx.stroke();
       }
       ctx.globalAlpha=1;
-      v.label(ctx,`p = ρgh, на дне ${(pmax/1000).toFixed(1)} кПа`,W,-D,6,-8,meas);
+      v.label(ctx,`p = ρgh, на дне ${(pmax/1000).toFixed(1)} кПа`,x0,-D,6,-8,meas);
     }
-    // тело
-    /* Осадка s.d — насколько тело утоплено считая от его дна. Значит дно
-       лежит на y = −d, а центр — на полвысоты выше. (Раньше за центр брали
-       само дно, и тело рисовалось целиком под водой.) */
-    const H=this.height(p), yc=-s.d+H/2;
-    /* Тело НЕПРОЗРАЧНО. Раньше оно заливалось акцентом с alpha 0.30, и
-       погружаясь, шар просвечивал жидкостью — выглядело как исчезновение
-       тела, а не как погружение. Красим в два слоя: сначала фоном сцены
-       (он и делает тело плотным), сверху — тот же лёгкий акцент. */
-    const bg=v.c('--canvas');
+    // тело: материал по плотности
+    const мат=p.rho<300?{rgb:[236,228,206],имя:'пенопласт'}:p.rho<880?{rgb:[190,140,88],имя:'дерево',волокна:true}
+      :p.rho<960?{rgb:[206,232,245],имя:'лёд',лёд:true}:p.rho<1600?{rgb:[230,128,60],имя:'пластик'}
+      :p.rho<3500?{rgb:[150,150,145],имя:'камень'}:p.rho<9500?{rgb:[150,160,175],имя:'сталь',мет:true}
+      :{rgb:[110,112,122],имя:'свинец',мет:true};
+    const тело=()=>{ ctx.beginPath(); if(p.shape==='cube') ctx.rect(-p.a/2,yc-p.a/2,p.a,p.a); else ctx.arc(0,yc,p.a,0,7); };
     if(p.shape==='cube'){
-      ctx.fillStyle=bg; ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a);
-      ctx.fillStyle=acc; ctx.globalAlpha=.30;
-      ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); ctx.globalAlpha=1;
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
-    } else {
-      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7);
-      ctx.fillStyle=bg; ctx.fill();
-      ctx.fillStyle=acc; ctx.globalAlpha=.30; ctx.fill(); ctx.globalAlpha=1;
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.stroke();
-    }
-    v.label(ctx,`ρт = ${p.rho} кг/м³`,0,yc,-30,-H*20-8,acc);
+      if(мат.мет) АРТ.металл(ctx,-p.a/2,yc-p.a/2,p.a,p.a,{rgb:мат.rgb,верт:true});
+      else { const g=ctx.createLinearGradient(-p.a/2,yc+p.a/2,p.a/2,yc-p.a/2);
+        g.addColorStop(0,АРТ.ц(АРТ.смесь(мат.rgb,[255,255,255],0.35),мат.лёд?0.85:1)); g.addColorStop(1,АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.18),мат.лёд?0.85:1));
+        ctx.fillStyle=g; ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); }
+      if(мат.волокна){ ctx.save(); тело(); ctx.clip(); ctx.strokeStyle=АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.4),0.45); ctx.lineWidth=1*px;
+        for(let k=1;k<9;k++){ const y=yc-p.a/2+p.a*k/9; ctx.beginPath(); ctx.moveTo(-p.a/2,y);
+          for(let x=-p.a/2;x<=p.a/2+1e-9;x+=p.a/24) ctx.lineTo(x,y+Math.sin(x*23+k*1.7)*p.a*0.012); ctx.stroke(); }
+        ctx.restore(); }
+      if(мат.лёд){ ctx.strokeStyle=АРТ.ц([255,255,255],0.8); ctx.lineWidth=1.2*px; ctx.beginPath();
+        ctx.moveTo(-p.a*0.35,yc+p.a*0.3); ctx.lineTo(-p.a*0.1,yc+p.a*0.42); ctx.moveTo(-p.a*0.4,yc+p.a*0.1); ctx.lineTo(-p.a*0.25,yc+p.a*0.38); ctx.stroke(); }
+      ctx.strokeStyle=АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.55),0.9); ctx.lineWidth=v.lw(1.2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
+    } else АРТ.шар(ctx,0,yc,p.a,мат.rgb,АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.55),0.8));
+    // погружённая часть видна сквозь жидкость
+    ctx.save(); тело(); ctx.clip();
+    ctx.fillStyle=АРТ.ц(АРТ.смесь(...АРТ.тон(тон),0.5),тон==='ртуть'?0.6:0.38); ctx.fillRect(-p.a*1.2,-D,p.a*2.4,D+верх(0));
+    ctx.restore();
+    // стекло бака поверх: блики видны и на фоне тела
+    АРТ.стакан(ctx,-W,W,-D,0.7,Math.max(3*px,0.05));
+    v.label(ctx,`${мат.имя}, ρт = ${p.rho} кг/м³`,0,yc+H/2,-40,-10,ink);
     /* Силы — диаграммой свободного тела из ЦЕНТРА тела. Раньше F_A и N были
        сдвинуты по горизонтали на 0.16 м, чтобы не совпасть с mg, и казалось,
        что они приложены мимо тела. Противоположно направленные стрелки из
@@ -11071,12 +11348,16 @@ thermo:{
      options:[{v:'iso', t:'Изотермический (T = const)'},
               {v:'isobar',t:'Изобарический (P = const)'},
               {v:'isochor',t:'Изохорический (V = const)'},
-              {v:'adiab',t:'Адиабатический (Q = 0)'}]},
+              {v:'adiab',t:'Адиабатический (Q = 0)'},
+              {v:'line',t:'По прямой на pV-диаграмме'},
+              {v:'poly',t:'Политропический (pVⁿ = const)'}]},
     {key:'n',  label:'Количество вещества ν',unit:'моль',min:0.1,max:5,step:0.1,default:1},
     {key:'T0', label:'Начальная температура T₀',unit:'K',min:100,max:1000,step:10,default:300},
     {key:'V0', label:'Начальный объём V₀',unit:'л',min:1,max:40,step:0.5,default:10},
     {key:'Vend',label:'Конечный объём V',unit:'л',min:1,max:40,step:0.5,default:25},
     {key:'gamma',label:'Показатель адиабаты γ',min:1.1,max:1.67,step:0.01,default:1.5},
+    {key:'Pend',label:'Конечное давление p',unit:'кПа',min:5,max:2000,step:1,default:100,если:p=>p.proc==='line'},
+    {key:'npoly',label:'Показатель политропы n',min:-3,max:3,step:0.05,default:1.2,если:p=>p.proc==='poly'},
 
     {type:'group',label:'Нагреватель / охладитель (для изохоры)'},
     {key:'Tend',label:'Конечная температура T',unit:'K',min:100,max:1200,step:10,default:600},
@@ -11104,6 +11385,11 @@ thermo:{
       P=p.n*this.R*T/Vfix;
       return {V:p.V0, Vm:Vfix, P, T, P0, V0};
     }
+    else if(p.proc==='line'){
+      // прямая от (V₀, P₀) до (V, p_кон): давление линейно по объёму
+      const P1=(p.Pend||100)*1000; P=P0+(P1-P0)*u; T=P*Vm/(p.n*this.R);
+    }
+    else if(p.proc==='poly'){ const n=p.npoly==null?1.2:p.npoly; P=P0*Math.pow(V0/Vm,n); T=P*Vm/(p.n*this.R); }
     else { P=P0*Math.pow(V0/Vm,p.gamma); T=p.T0*Math.pow(V0/Vm,p.gamma-1); }
     return {V, Vm, P, T, P0, V0};
   },
@@ -11158,7 +11444,7 @@ thermo:{
     const st=this.stateAt(p,s.u), W=this.workTo(p,s.u);
     const dU=p.proc==='iso'?0 : p.n*this.Cv(p)*(st.T-p.T0);
     const Q=dU+W;                                                // первый закон: Q=ΔU+W
-    const out=[['t',s.t,'с'],['процесс',0,{iso:'изотерма',isobar:'изобара',isochor:'изохора',adiab:'адиабата'}[p.proc]],
+    const out=[['t',s.t,'с'],['процесс',0,{iso:'изотерма',isobar:'изобара',isochor:'изохора',adiab:'адиабата',line:'прямая на pV',poly:'политропа'}[p.proc]],
             ['объём V',st.V,'л'],['давление P',st.P/1000,'кПа'],['температура T',st.T,'K'],
             ['работа газа W',W,'Дж'],['ΔU внутр. энергия',dU,'Дж'],['теплота Q = ΔU + W',Q,'Дж'],
             ['Cv = R/(γ−1)',this.Cv(p),'Дж/(моль·К)'],
@@ -11182,50 +11468,48 @@ thermo:{
     {name:'Изохорический нагрев: 300 → 600 K',values:{proc:'isochor',n:1,T0:300,Tend:600,V0:15,Vend:15,tStop:0}},
     {name:'Изохорическое охлаждение: 600 → 200 K',values:{proc:'isochor',n:1,T0:600,Tend:200,V0:15,Vend:15,tStop:0}},
     {name:'Адиабатическое расширение (Q = 0)',values:{proc:'adiab',n:1,T0:600,V0:8,Vend:25,gamma:1.4,tStop:0}},
-    {name:'Адиабата одноатомного газа γ=1.67',values:{proc:'adiab',n:1,T0:600,V0:8,Vend:25,gamma:1.67,tStop:0}}
+    {name:'Адиабата одноатомного газа γ=1.67',values:{proc:'adiab',n:1,T0:600,V0:8,Vend:25,gamma:1.67,tStop:0}},
+    {name:'По прямой: давление падает, пока объём растёт',values:{proc:'line',n:1,T0:300,V0:10,Vend:30,Pend:40,gamma:1.4,tStop:0}},
+    {name:'Политропа n = 1,2',values:{proc:'poly',n:1,T0:400,V0:8,Vend:24,npoly:1.2,gamma:1.4,tStop:0}}
   ],
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     // цилиндр (−2,8…1,4) с подписями справа и снизу; поля — узкие, чтобы
     // рисунок помещался и в свободный угол между панелями (3.4.0)
-    const scale=clamp(Math.min((W-36)/(6.4*PX_PER_M),(H-36)/(8.4*PX_PER_M)),0.002,30);
-    return {x:0,y:-0.3,scale};
+    const scale=clamp(Math.min((W-36)/(6.4*PX_PER_M),(H-36)/(9.2*PX_PER_M)),0.002,30);
+    return {x:0,y:-0.2,scale};
   },
+  /* куда сейчас идёт теплота: знак dQ на следующем шаге процесса */
+  тепло(p,s){
+    if(p.proc==='adiab') return 'изол';
+    const Q=u=>{ const st=this.stateAt(p,u); return (p.proc==='iso'?0:p.n*this.Cv(p)*(st.T-p.T0))+this.workTo(p,u); };
+    const u2=clamp(s.u+0.004*(s.dir||1),0,1), d=(Q(u2)-Q(s.u))*Math.sign(u2-s.u||1);
+    return Math.abs(d)<1e-9?null:(d>0?'нагрев':'холод');
+  },
+  /* 9.4.0: цилиндр стоит дном вниз, поршень сверху, шток вверх. Газ окрашен
+     по температуре, молекулы того же цвета. Под дном — горелка, когда газ
+     получает теплоту, и холодильная плита, когда отдаёт; на адиабате стенки
+     одеты в теплоизоляцию. Волнистые стрелки показывают направление
+     теплоты — то, что в формуле Q = ΔU + W видно только по знаку. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const st=this.stateAt(p,s.u);
-    // диапазон объёма для положения поршня
     let Vmin=1e18,Vmax=-1e18;
     for(let u=0;u<=1;u+=0.05){ const q=this.stateAt(p,u); Vmin=Math.min(Vmin,q.V);Vmax=Math.max(Vmax,q.V); }
     if(p.proc==='isochor'){ Vmin=p.V0-2; Vmax=p.V0+2; }
     const uV=(st.V-Vmin)/(Vmax-Vmin+1e-9);
-    // цилиндр по центру сцены
-    const cx=-1.4, cyTop=-3, cyH=6, cw=2.8;
-    const pistonY=cyTop+cyH*(1-clamp(uV,0.08,0.95));
-    // стенки
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.5);
-    ctx.beginPath(); ctx.moveTo(cx,cyTop); ctx.lineTo(cx,cyTop+cyH); ctx.lineTo(cx+cw,cyTop+cyH); ctx.lineTo(cx+cw,cyTop); ctx.stroke();
-    // газ
-    ctx.fillStyle=acc; ctx.globalAlpha=.12; ctx.fillRect(cx,pistonY,cw,cyTop+cyH-pistonY); ctx.globalAlpha=1;
-    // молекулы
-    if(p.showMol){
-      ctx.fillStyle=acc;
-      for(const m of s.mol){ const mx=cx+0.15+m.x*(cw-0.3), my=pistonY+0.15+m.y*(cyTop+cyH-pistonY-0.3);
-        ctx.beginPath(); ctx.arc(mx,my,v.lw(3),0,7); ctx.fill(); }
-    }
-    // поршень + шток
-    ctx.fillStyle=sec; ctx.fillRect(cx,pistonY-0.22,cw,0.22);
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.5); ctx.beginPath(); ctx.moveTo(cx+cw/2,pistonY-0.22); ctx.lineTo(cx+cw/2,cyTop-1); ctx.stroke();
-    v.label(ctx,'поршень',cx+cw,pistonY,8,0,sec);
-    // подписи состояния
-    /* подписи состояния — справа от цилиндра, строками в пикселях: раньше
-       они стояли внутри цилиндра поверх молекул (3.4.0) */
-    const st2=14/ppm(), xr=cx+cw+0.3, yt=cyTop+cyH;
+    const cx=-0.7, низ=-3, H=6, ш=2.6, верх=низ+H*clamp(0.12+0.8*uV,0.1,0.92);
+    const тепло=this.тепло(p,s);
+    АРТ.цилиндр(ctx,{x:cx,низ,ш,H,верхГаза:верх,T:st.T,мол:p.showMol?s.mol:null,тепло,t:s.t,
+      сила:тепло==='нагрев'?0.9:0,плотн:Math.sqrt((p.V0/st.V))},v);
+    const st2=14/ppm(), xr=cx+ш/2+0.45, yt=низ+H;
     v.text(ctx,`V = ${st.V.toFixed(1)} л`,xr,yt-st2*0.5,ink,10,'left',true);
     v.text(ctx,`P = ${(st.P/1000).toFixed(0)} кПа`,xr,yt-st2*1.5,ink,10,'left',true);
     v.text(ctx,`T = ${st.T.toFixed(0)} K`,xr,yt-st2*2.5,ink,10,'left',true);
-    const nm={iso:'изотермический',isobar:'изобарический',isochor:'изохорический',adiab:'адиабатический'}[p.proc];
-    v.text(ctx,nm+' процесс',cx+cw/2,cyTop-1-st2,ink3,10,'center');
+    const подп={нагрев:'газ получает теплоту',холод:'газ отдаёт теплоту',изол:'теплоизоляция: Q = 0'}[тепло]||'теплообмена нет';
+    v.text(ctx,подп,xr,yt-st2*3.7,тепло==='нагрев'?'#c8582a':тепло==='холод'?'#2f78c8':ink3,10,'left');
+    const nm={iso:'изотермический',isobar:'изобарический',isochor:'изохорический',adiab:'адиабатический',line:'линейный',poly:'политропический'}[p.proc];
+    v.text(ctx,nm+' процесс',cx,низ+H+ш*0.35+st2,ink3,10,'center');
   }
 }
 ,
@@ -11330,35 +11614,25 @@ carnot:{
     const scale=clamp(Math.min((W-36)/(6.4*PX_PER_M),(H-36)/(9.6*PX_PER_M)),0.002,30);
     return {x:0,y:-0.4,scale};
   },
+  /* 9.4.0: тот же цилиндр, что в «Термодинамике». На изотерме T₁ под ним
+     горит нагреватель, на изотерме T₂ стоит холодильник, на адиабатах
+     цилиндр одет в теплоизоляцию; газ меняет цвет вместе с температурой. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const st=this.stateAt(p,s.f), seg=Math.floor(((s.f%4)+4)%4);
-    // цилиндр по центру
-    const cx=-1.4, cyTop=-3, cyH=6, cw=2.8;
-    const pt=this.points(p);
+    const dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const st=this.stateAt(p,s.f), seg=Math.floor(((s.f%4)+4)%4), pt=this.points(p);
     const Vmin=Math.min(pt.VA,pt.VB,pt.VC,pt.VD)*1000, Vmax=Math.max(pt.VA,pt.VB,pt.VC,pt.VD)*1000;
     const uV=(st.V-Vmin)/(Vmax-Vmin+1e-9);
-    const pistonY=cyTop+cyH*(1-clamp(uV,0.08,0.95));
-    // резервуары
-    if(p.showRes){
-      // нагреватель снизу (красный), когда контакт на изотерме T1 (seg 0)
-      ctx.fillStyle=dang; ctx.globalAlpha=seg===0?0.5:0.15;
-      ctx.fillRect(cx-0.3,cyTop+cyH+0.15,cw+0.6,0.5); ctx.globalAlpha=1;
-      v.text(ctx,`нагреватель T₁ = ${p.T1} K`,cx+cw/2,cyTop+cyH+0.65+9/ppm(),seg===0?dang:ink3,10,'center',seg===0);
-      // холодильник сверху (синий), контакт на изотерме T2 (seg 2)
-      ctx.fillStyle=sec; ctx.globalAlpha=seg===2?0.5:0.15;
-      ctx.fillRect(cx-0.3,cyTop-0.9,cw+0.6,0.5); ctx.globalAlpha=1;
-      v.text(ctx,`холодильник T₂ = ${p.T2} K`,cx+cw/2,cyTop-1.4-10/ppm(),seg===2?sec:ink3,10,'center',seg===2);
-    }
-    // цилиндр
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.5);
-    ctx.beginPath(); ctx.moveTo(cx,cyTop); ctx.lineTo(cx,cyTop+cyH); ctx.lineTo(cx+cw,cyTop+cyH); ctx.lineTo(cx+cw,cyTop); ctx.stroke();
-    ctx.fillStyle=acc; ctx.globalAlpha=.12; ctx.fillRect(cx,pistonY,cw,cyTop+cyH-pistonY); ctx.globalAlpha=1;
-    ctx.fillStyle=sec; ctx.fillRect(cx,pistonY-0.22,cw,0.22);
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(2.5); ctx.beginPath(); ctx.moveTo(cx+cw/2,pistonY-0.22); ctx.lineTo(cx+cw/2,cyTop-1.4); ctx.stroke();
+    const cx=-0.7, низ=-3, H=6, ш=2.6, верх=низ+H*clamp(0.12+0.8*uV,0.1,0.92);
+    const тепло=p.showRes?['нагрев','изол','холод','изол'][seg]:(seg%2?'изол':null);
+    АРТ.цилиндр(ctx,{x:cx,низ,ш,H,верхГаза:верх,T:st.T,тепло,t:s.t,сила:0.9},v);
+    const st2=14/ppm(), xr=cx+ш/2+0.45;
     const phase=['A→B изотерм. расширение','B→C адиабат. расширение','C→D изотерм. сжатие','D→A адиабат. сжатие'][seg];
-    v.text(ctx,phase,cx+cw+0.3,cyTop+cyH-12/ppm(),ink,10,'left',true);
-    v.text(ctx,`T = ${st.T.toFixed(0)} K`,cx+cw+0.3,pistonY,ink3,10,'left');
+    v.text(ctx,phase,xr,низ+H-st2*0.5,ink,10,'left',true);
+    v.text(ctx,`T = ${st.T.toFixed(0)} K`,xr,низ+H-st2*1.5,ink,10,'left');
+    if(p.showRes){
+      v.text(ctx,`нагреватель T₁ = ${p.T1} K`,xr,низ+H-st2*3,seg===0?dang:ink3,10,'left',seg===0);
+      v.text(ctx,`холодильник T₂ = ${p.T2} K`,xr,низ+H-st2*4,seg===2?sec:ink3,10,'left',seg===2);
+    }
   }
 }
 
@@ -11683,7 +11957,7 @@ bernoulli:{
     return {x:0,y:1.6,scale};
   },
   /* Радиус трубы на картинке: ∝ √A, как у круглого сечения. */
-  rAt(p,x){ return 0.42*Math.sqrt(this.areaAt(p,x)/1e-2); },
+  rAt(p,x){ return 0.66*Math.sqrt(this.areaAt(p,x)/1e-2); },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
           dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
@@ -11691,51 +11965,66 @@ bernoulli:{
     const N=120, xs=[];
     for(let i=0;i<=N;i++) xs.push(X0+(X1-X0)*i/N);
 
-    // ---- стенки трубы
+    /* 9.4.0: труба — стеклянная, жидкость в ней — с объёмной подсветкой
+       (светлая полоса вдоль оси, как у настоящей трубки). Линии тока
+       сходятся в горловине, частицы оставляют штрих тем длиннее, чем
+       быстрее идут: неразрывность видна сразу. Манометры — стеклянные
+       трубки, столбик жидкости с мениском. */
+    const px=1/ppm(), тон={water:'вода',oil:'масло',gly:'глицерин',merc:'ртуть'}[p.liq]||'вода';
+    const [вер,низ]=АРТ.тон(тон), тёмн=АРТ.тёмный();
+    const tw=Math.max(3*px,0.06);
     const top=xs.map(x=>[x,this.yAt(p,x)+this.rAt(p,x)]);
     const bot=xs.map(x=>[x,this.yAt(p,x)-this.rAt(p,x)]);
-    ctx.fillStyle=acc; ctx.globalAlpha=.13;
-    ctx.beginPath();
-    top.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
-    for(let i=bot.length-1;i>=0;i--) ctx.lineTo(bot[i][0],bot[i][1]);
-    ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2);
-    ctx.beginPath(); top.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke();
-    ctx.beginPath(); bot.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke();
+    const полоса=(A,B,цвет)=>{ ctx.fillStyle=цвет; ctx.beginPath();
+      A.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+      for(let i=B.length-1;i>=0;i--) ctx.lineTo(B[i][0],B[i][1]); ctx.closePath(); ctx.fill(); };
+    // жидкость: основной тон, тёмные края, светлая полоса над осью
+    полоса(top,bot,АРТ.ц(АРТ.смесь(вер,низ,0.55),тёмн?0.62:0.55));
+    полоса(top,xs.map(x=>[x,this.yAt(p,x)+this.rAt(p,x)*0.55]),АРТ.ц(низ,0.18));
+    полоса(xs.map(x=>[x,this.yAt(p,x)-this.rAt(p,x)*0.6]),bot,АРТ.ц(низ,0.28));
+    полоса(xs.map(x=>[x,this.yAt(p,x)+this.rAt(p,x)*0.42]),xs.map(x=>[x,this.yAt(p,x)+this.rAt(p,x)*0.12]),АРТ.ц([255,255,255],тёмн?0.12:0.32));
+    // стенки — стекло толщиной tw
+    const стекло=АРТ.ц(тёмн?[170,200,225]:[150,180,200],0.34), край=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.85);
+    полоса(top.map(q=>[q[0],q[1]+tw]),top,стекло); полоса(bot,bot.map(q=>[q[0],q[1]-tw]),стекло);
+    ctx.strokeStyle=край; ctx.lineWidth=0.9*px;
+    for(const A of [top,top.map(q=>[q[0],q[1]+tw]),bot,bot.map(q=>[q[0],q[1]-tw])]){
+      ctx.beginPath(); A.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke(); }
+    // фланцы на концах
+    for(const x of [X0,X1]){ const r=this.rAt(p,x), y=this.yAt(p,x);
+      АРТ.металл(ctx,x-(x<0?0:0.16),y-r-tw-0.18,0.16,2*(r+tw+0.18),{верт:true}); }
+    // линии тока: сходятся в горловине
+    ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.22:0.5); ctx.lineWidth=0.8*px;
+    for(const f of [-0.66,-0.33,0,0.33,0.66]){ ctx.beginPath();
+      xs.forEach((x,i)=>{ const y=this.yAt(p,x)+f*this.rAt(p,x); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); }
 
-    // ---- частицы: густота одинакова, а скорость в горловине выше
+    // ---- частицы: штрих ∝ местной скорости
     if(p.lines){
-      ctx.fillStyle=sec;
+      const k=0.5/Math.max(this.vAt(p,this.X0),1e-6);
+      ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.7:0.9); ctx.lineCap='round'; ctx.lineWidth=1.8*px;
       for(const q of s.parts){
         const r=this.rAt(p,q.x), y=this.yAt(p,q.x)+q.s*r*0.78;
-        ctx.globalAlpha=.75;
-        ctx.beginPath(); ctx.arc(q.x,y,v.lw(1.9),0,7); ctx.fill();
+        const дл=clamp(this.vAt(p,q.x)*k*0.35,0.04,1.2), xa=Math.max(this.X0,q.x-дл), ya=this.yAt(p,xa)+q.s*this.rAt(p,xa)*0.78;
+        ctx.beginPath(); ctx.moveTo(xa,ya); ctx.lineTo(q.x,y); ctx.stroke();
       }
-      ctx.globalAlpha=1;
     }
 
     // ---- манометрические трубки: столб = напор H(x)
     if(p.mano){
       const HS=0.42;                                   // масштаб: 1 м напора = 0.42 ед. сцены
+      const Hmax=Math.max(p.H1,...[-4.2,0,4.2].map(x=>this.headAt(p,x)));
       for(const x of [-4.2,0,4.2]){
-        const yTop=this.yAt(p,x)+this.rAt(p,x);
-        const H=this.headAt(p,x), col=Math.max(0,H)*HS;
-        ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.2);
-        ctx.strokeRect(x-0.16,yTop,0.32,Math.max(col,0.15)+0.5);
-        if(H>0){
-          ctx.fillStyle=sec; ctx.globalAlpha=.55;
-          ctx.fillRect(x-0.16,yTop,0.32,col); ctx.globalAlpha=1;
-          ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.8);
-          ctx.beginPath(); ctx.moveTo(x-0.16,yTop+col); ctx.lineTo(x+0.16,yTop+col); ctx.stroke();
-        } else {
-          ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8);
-          ctx.beginPath(); ctx.moveTo(x-0.16,yTop); ctx.lineTo(x+0.16,yTop); ctx.stroke();
-        }
+        const yTop=this.yAt(p,x)+this.rAt(p,x)+tw;
+        const H=this.headAt(p,x), col=Math.max(0,H)*HS, верхТр=yTop+Math.max(Hmax*HS+0.5,0.8), ш=0.13;
+        if(H>0){ const мен=2.5*px;
+          АРТ.жидкость(ctx,x-ш,yTop-tw,x+ш,yTop+col,{тон,верх:xx=>yTop+col+(тон==='ртуть'?-1:1)*мен*(Math.exp(-(xx-x+ш)/(3*px))+Math.exp(-(x+ш-xx)/(3*px))),lw:1*px}); }
+        АРТ.стакан(ctx,x-ш,x+ш,yTop,верхТр,Math.max(2*px,0.035),{дно:false});
+        if(H<=0){ ctx.strokeStyle=dang; ctx.lineWidth=v.lw(1.8);
+          ctx.beginPath(); ctx.moveTo(x-ш,yTop); ctx.lineTo(x+ш,yTop); ctx.stroke(); }
         const t=`H = ${H.toFixed(2)} м`;
-        v.label(ctx,t,x,yTop+Math.max(col,0.15)+0.6,-Math.round(t.length*3.05),-6,H>0?sec:dang);
+        v.label(ctx,t,x+ш,yTop+col,6,0,H>0?ink:dang);
       }
       // уровень исходного напора — чтобы падение в горловине было очевидно
-      const y0=this.yAt(p,X0)+this.rAt(p,X0)+p.H1*0.42;
+      const y0=this.yAt(p,X0)+this.rAt(p,X0)+tw+p.H1*0.42;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.45; ctx.lineWidth=v.lw(1);
       ctx.setLineDash([v.lw(4),v.lw(4)]);
       ctx.beginPath(); ctx.moveTo(X0,y0); ctx.lineTo(X1,y0); ctx.stroke();
@@ -11754,12 +12043,14 @@ bernoulli:{
 
     // ---- эпюра давления вдоль трубы
     if(p.plot){
-      const gy=-4.1, gh=1.9;
+      const gy=-4.4, gh=1.7;
       const hs=xs.map(x=>this.headAt(p,x));
       const hi=Math.max(...hs,0.001), lo=Math.min(...hs,0);
       const Y=h=>gy+(h-lo)/Math.max(hi-lo,1e-6)*gh;
       ctx.strokeStyle=ink3; ctx.globalAlpha=.5; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(X0,Y(0)); ctx.lineTo(X1,Y(0)); ctx.stroke(); ctx.globalAlpha=1;
+      ctx.fillStyle=АРТ.ц(АРТ.rgb(acc)||[40,80,200],0.08); ctx.beginPath(); ctx.moveTo(X0,Y(0));
+      xs.forEach((x,i)=>ctx.lineTo(x,Y(hs[i]))); ctx.lineTo(X1,Y(0)); ctx.closePath(); ctx.fill();
       ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
       ctx.beginPath();
       xs.forEach((x,i)=>{ const y=Y(hs[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
@@ -23169,7 +23460,7 @@ torricelli:{
     {key:'Y0',label:'Начальный уровень воды Y₀',unit:'м',min:0.3,max:2,step:0.05,default:1.2},
     {key:'z', label:'Высота отверстия над полом z',unit:'м',min:0.02,max:1.9,step:0.01,default:0.4,если:p=>p.mode==='one'},
     {key:'d', label:'Диаметр отверстия d',unit:'мм',min:3,max:40,step:1,default:12},
-    {key:'D', label:'Диаметр сосуда D',unit:'см',min:5,max:80,step:1,default:12},
+    {key:'D', label:'Диаметр сосуда D',unit:'см',min:5,max:80,step:1,default:30},
     {key:'g', label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
     {type:'group',label:'Показывать'},
     {key:'jets',label:'Струи и точки падения',type:'check',default:true},
@@ -23230,42 +23521,87 @@ torricelli:{
     return {x:X/2-0.25,y:Y/2-0.08,scale};
   },
   anchors(s,p){ return this.дыры(p).map(z=>({x:p.D/200,y:z})); },
+  /* 9.4.0: рисунок — настоящий опыт, а не схема. Стеклянный сосуд с
+     делениями, вода с глубиной цвета и мениском у стенок. Метки в воде
+     стекаются к отверстию со всего объёма и разгоняются у самой дыры: так
+     видно, откуда берётся струя и почему уровень опускается медленно, а
+     струя бьёт быстро. Струя — лента, которая сужается по мере разгона
+     (расход a·v одинаков в любом сечении), к концу рвётся на капли; у
+     точки падения — брызги и мокрый след: по нему видно, как точка падения
+     отступает к сосуду, пока слабеет напор. Метки рассчитываются от
+     времени, а не хранятся в состоянии: шаг физики остаётся чистым. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
-          ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
-    const R=p.D/200, z=this.дыры(p), vs=this.скорости(p,s.Y), Hs=p.Y0+0.12;
-    // пол
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.moveTo(-R-0.3,0); ctx.lineTo(Math.max(1.2,p.Y0*1.15+0.1),0); ctx.stroke();
-    // вода и сосуд
-    ctx.fillStyle=sec; ctx.globalAlpha=.2; ctx.fillRect(-R,0,2*R,s.Y); ctx.globalAlpha=1;
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.moveTo(-R,s.Y); ctx.lineTo(R,s.Y); ctx.stroke();
-    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2.2); ctx.beginPath(); ctx.moveTo(-R,Hs); ctx.lineTo(-R,0); ctx.lineTo(R,0); ctx.lineTo(R,Hs); ctx.stroke();
+    const acc=v.c('--accent'), meas=v.c('--measure'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const px=1/ppm(), R=p.D/200, z=this.дыры(p), vs=this.скорости(p,s.Y), Hs=p.Y0+0.12;
+    const tw=Math.max(3.5*px,R*0.05), X1=Math.max(1.2,p.Y0*1.15+0.1);
+    // пол со штриховкой
+    АРТ.пол(ctx,-R-tw-0.3,X1+0.1,0,Math.max(7*px,0.025),ink3);
+    // мокрый след: от нынешней точки падения до самой дальней
+    if(p.jets) z.forEach((zz,i)=>{
+      const L0=this.скорости(p,p.Y0)[i]*Math.sqrt(2*zz/p.g), L=vs[i]*Math.sqrt(2*zz/p.g);
+      if(L0>1e-4){ ctx.fillStyle=АРТ.ц(АРТ.тон('вода')[1],0.22);
+        ctx.beginPath(); ctx.ellipse(R+tw+(L+L0)/2,0.4*px,(L0-L)/2+5*px,2.2*px,0,0,7); ctx.fill(); }
+    });
+    // вода с мениском
+    const мен=3*px, шм=4*px, верх=x=>s.Y+мен*(Math.exp(-(x+R)/шм)+Math.exp(-(R-x)/шм));
+    АРТ.жидкость(ctx,-R,0,R,s.Y,{тон:'вода',верх,lw:1.2*px});
+    // метки течения: каждая идёт по прямой к своему отверстию и разгоняется у дыры
+    const откр=z.map((zz,i)=>s.Y>zz+1e-4&&vs[i]>1e-6);
+    if(откр.some(x=>x)){
+      /* плоский сток: поток через окружность вокруг дыры одинаков, v ∝ 1/r,
+         значит r² убывает равномерно и r = r₀√(1 − τ). Метки при этом
+         равномерно заполняют объём — жидкость несжимаема */
+      const N=64, idx=откр.map((o,i)=>o?i:-1).filter(i=>i>=0);
+      ctx.strokeStyle=АРТ.ц([255,255,255],АРТ.тёмный()?0.5:0.85); ctx.lineCap='round'; ctx.lineWidth=1.6*px;
+      const где=(i,x0,y0,τ)=>{ const q=Math.sqrt(Math.max(0,1-τ)); return [R+(x0-R)*q, z[i]+(y0-z[i])*q]; };
+      for(let k=0;k<N;k++){
+        const i=idx[k%idx.length], h1=(k*0.6180339887)%1, h2=(k*0.7548776662)%1, h3=(k*0.5698402910)%1;
+        const τ=(s.t*(0.22+0.1*h3)+h1)%1;
+        const x0=-R*0.94+1.88*R*h2, y0=0.02+(s.Y-0.04)*h3;
+        const [x,y]=где(i,x0,y0,τ), [xa,ya]=где(i,x0,y0,Math.max(0,τ-0.035));
+        if(y>верх(x)-2*px||ya>верх(xa)-2*px) continue;
+        ctx.globalAlpha=Math.min(1,τ*8)*Math.min(1,(1-τ)*20);
+        ctx.beginPath(); ctx.moveTo(xa,ya); ctx.lineTo(x,y); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
+    // сосуд и деления
+    АРТ.стакан(ctx,-R,R,0,Hs,tw);
+    ctx.strokeStyle=АРТ.ц(АРТ.тёмный()?[200,220,240]:[70,95,120],0.55); ctx.lineWidth=0.8*px; ctx.beginPath();
+    for(let y=0.05,k=1;y<Hs-0.04;y+=0.05,k++){ const l=(k%2?3:6)*px; ctx.moveTo(-R+R*0.22,y); ctx.lineTo(-R+R*0.22+l,y); }
+    ctx.stroke();
     // начальный уровень
-    ctx.strokeStyle=line; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(-R-0.15,p.Y0); ctx.lineTo(-R,p.Y0); ctx.stroke(); ctx.setLineDash([]);
-    v.label(ctx,`Y = ${s.Y.toFixed(2)} м`,-R,s.Y,-74,0,sec);
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(-R-tw-0.12,p.Y0); ctx.lineTo(-R-tw,p.Y0); ctx.stroke(); ctx.setLineDash([]);
+    v.label(ctx,`Y = ${s.Y.toFixed(2)} м`,-R-tw,s.Y,-74,0,ink2);
     z.forEach((zz,i)=>{
-      const vv=vs[i];
-      ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(R,zz,v.lw(3),0,7); ctx.fill();
-      if(s.Y>zz){ // напор
-        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(2),v.lw(3)]);
-        ctx.beginPath(); ctx.moveTo(R*0.6-i*0.02,zz); ctx.lineTo(R*0.6-i*0.02,s.Y); ctx.stroke(); ctx.setLineDash([]);
+      const vv=vs[i], hw0=Math.max(1.6*px,p.d/2000);
+      // насадка отверстия
+      ctx.fillStyle=ink2; ctx.fillRect(R,zz-hw0-1.2*px,tw+2*px,1.2*px); ctx.fillRect(R,zz+hw0,tw+2*px,1.2*px);
+      if(s.Y>zz){ // напор h — размерная стрелка в воде
+        const xh=-R*0.45+i*R*0.25;
+        АРТ.размер(ctx,xh,zz,s.Y,meas,0.9*px,2.5*px);
+        v.label(ctx,`h${z.length>1?(i+1):''}`,xh,(zz+s.Y)/2,6,0,meas);
       }
       if(vv<=1e-6) return;
-      const L=vv*Math.sqrt(2*zz/p.g);
+      const x0=R+tw, T=Math.sqrt(2*zz/p.g), L=vv*T;
       if(p.jets){
-        ctx.strokeStyle=sec; ctx.lineWidth=v.lw(Math.max(1.5,3*p.d/12)); ctx.globalAlpha=.55; ctx.beginPath();
-        for(let k=0;k<=60;k++){ const x=L*k/60, y=zz-p.g*x*x/(2*vv*vv); k?ctx.lineTo(R+x,y):ctx.moveTo(R+x,y); }
-        ctx.stroke(); ctx.globalAlpha=1;
-        // капли бегут по струе
-        const T=Math.sqrt(2*zz/p.g);
-        ctx.fillStyle=sec;
-        for(let k=0;k<6;k++){ const τ=((s.фаза*0.9+k/6*T)%T), x=vv*τ, y=zz-p.g*τ*τ/2;
-          ctx.beginPath(); ctx.arc(R+x,y,v.lw(2.2),0,7); ctx.fill(); }
-        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(R+L,-0.03); ctx.lineTo(R+L,0.03); ctx.stroke();
-        v.label(ctx,`L${z.length>1?(i+1):''} = ${L.toFixed(2)} м`,R+L,0,-20,14+(z.length>1?i*13:0),meas);
+        // лента до точки распада, затем капли
+        const τр=T*0.82, pts=[], hw=[];
+        for(let k=0;k<=48;k++){ const τ=τр*k/48, x=vv*τ, y=zz-p.g*τ*τ/2, sp=Math.hypot(vv,p.g*τ);
+          pts.push([x0+x,y]); hw.push(hw0*Math.sqrt(vv/sp)); }
+        АРТ.струя(ctx,pts,hw,'вода');
+        const rк=hw0*Math.sqrt(vv/Math.hypot(vv,p.g*T))*1.25;
+        for(let k=0;k<5;k++){ const τ=τр+((s.фаза*1.7+k/5)%1)*(T-τр);
+          АРТ.капля(ctx,x0+vv*τ,zz-p.g*τ*τ/2,rк,'вода'); }
+        // брызги у точки падения
+        for(let k=0;k<6;k++){ const ф=(s.фаза*2.3+k/6)%1, ux=(k%2?1:-0.6)*(0.6+0.4*((k*0.37)%1)), h0=8*px*(0.6+0.5*((k*0.71)%1));
+          const bx=x0+L+ux*14*px*ф, by=4*h0*ф*(1-ф);
+          АРТ.капля(ctx,bx,by,1.1*px,'вода',1-ф); }
+        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(x0+L,-0.03); ctx.lineTo(x0+L,0.03); ctx.stroke();
+        v.label(ctx,`L${z.length>1?(i+1):''} = ${L.toFixed(2)} м`,x0+L,0,-20,16+(z.length>1?i*16:0),meas);
       }
-      if(p.vec){ const k=0.06; v.arrow(ctx,R,zz,R+vv*k,zz,acc);
-        v.label(ctx,`v = ${vv.toFixed(2)} м/с`,R+vv*k,zz,6,-10,acc); }
+      if(p.vec){ const k=0.06; v.arrow(ctx,x0,zz,x0+vv*k,zz,acc);
+        v.label(ctx,`v = ${vv.toFixed(2)} м/с`,x0+vv*k,zz,6,-12,acc); }
     });
   }
 },
@@ -23344,7 +23680,7 @@ drag:{
     {name:'Свинцовая дробь в мёде',values:{liq:'honey',rho:11340,r:2,law:'full'}}
   ],
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, Y=p.L+0.16, X=Math.max(0.5,Y*0.7);
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, Y=p.L+0.16, X=Math.max(0.62,Y*0.75);
     const scale=clamp(Math.min((W-30)/(X*PX_PER_M),(H-30)/(Y*PX_PER_M)),0.002,60);
     return {x:0.12,y:-p.L/2+0.02,scale};
   },
@@ -23352,28 +23688,431 @@ drag:{
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'),
           ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
-    const ж=this.ж(p), т=this.тело(p), W=0.07, L=p.L;
+    const ж=this.ж(p), т=this.тело(p), W=0.07, L=p.L, px=1/ppm();
     const cg=v.c('--f-grav')||dang, cn=v.c('--f-norm')||acc;
-    // цилиндр с жидкостью: ось y вверх, поверхность на y = 0
-    ctx.fillStyle=sec; ctx.globalAlpha=p.liq==='honey'?.32:.18; ctx.fillRect(-W,-L,2*W,L); ctx.globalAlpha=1;
-    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.moveTo(-W,0.06); ctx.lineTo(-W,-L); ctx.lineTo(W,-L); ctx.lineTo(W,0.06); ctx.stroke();
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.2); ctx.beginPath(); ctx.moveTo(-W,0); ctx.lineTo(W,0); ctx.stroke();
-    if(p.marks) for(let y=0.05;y<L;y+=0.05){ ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(W-0.02,-y); ctx.lineTo(W,-y); ctx.stroke();
-      if(Math.round(y*100)%10===0) v.label(ctx,`${Math.round(y*100)} см`,W,-y,6,0,ink3); }
+    /* 9.4.0: высокий стеклянный цилиндр с делениями, жидкость своего цвета,
+       шарик — стальной, свинцовый или пробковый. Сбоку — лупа: обтекание
+       шарика в его собственной системе отсчёта. При Re < 1 линии тока
+       симметричны сверху и снизу (решение Стокса), при больших Re за
+       шариком появляется след — сопротивление становится квадратичным. */
+    const тон={glyc:'глицерин',castor:'касторка',honey:'мёд',oil:'масло',water:'вода'}[p.liq]||'вода';
+    const tw=Math.max(3*px,0.006);
+    АРТ.жидкость(ctx,-W,-L,W,0,{тон,lw:1.2*px,верх:x=>3*px*(Math.exp(-(x+W)/(4*px))+Math.exp(-(W-x)/(4*px)))});
+    АРТ.стакан(ctx,-W,W,-L,0.06,tw);
+    if(p.marks){ ctx.strokeStyle=АРТ.ц(АРТ.тёмный()?[210,225,240]:[60,80,100],0.7); ctx.lineWidth=0.9*px;
+      for(let y=0.05;y<L;y+=0.05){ const дл=Math.round(y*100)%10===0?0.03:0.016;
+        ctx.beginPath(); ctx.moveTo(W-дл,-y); ctx.lineTo(W,-y); ctx.stroke();
+        if(Math.round(y*100)%10===0) v.label(ctx,`${Math.round(y*100)} см`,W+tw,-y,6,0,ink3); } }
     v.label(ctx,ж.имя,-W,0,0,-12,ink2);
-    // шарик (рисуем не меньше 3 пикселей, чтобы было видно)
-    const y=-s.x, rr=Math.max(т.r,v.lw(3));
-    ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(0,y,rr,0,7); ctx.fill();
+    // шарик: настоящий размер, но не меньше 4 пикселей
+    const y=-s.x, rr=Math.max(т.r,4*px);
+    const мат=p.rho<1000?[214,180,120]:p.rho>10000?[120,122,132]:[175,182,195];
+    АРТ.шар(ctx,0,y,rr,мат);
+    // лупа: обтекание в системе шарика
+    const Rл=Math.min(0.12,L*0.2), xл=W+0.24, yл=clamp(y,-L+Rл+0.05,-Rл-0.08), Re=2*ж.ρ*Math.abs(s.v)*т.r/ж.η;
+    ctx.save();
+    ctx.strokeStyle=ink3; ctx.lineWidth=0.8*px; ctx.setLineDash([3*px,3*px]);
+    ctx.beginPath(); ctx.moveTo(rr*1.6,y); ctx.lineTo(xл-Rл,yл); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(xл,yл,Rл,0,7); ctx.clip();
+    АРТ.жидкость(ctx,xл-Rл,yл-Rл,xл+Rл,yл+Rл,{тон,блик:false});
+    const a=Rл*0.28, вниз=s.v>=0?1:-1;                   // поток в системе шарика идёт навстречу движению
+    const скор=(X,Y)=>{ const r=Math.hypot(X,Y); if(r<a*1.0001) return [0,0];
+      const c=Y*вниз/r, sn=X/r, ur=c*(1-1.5*a/r+0.5*a*a*a/(r*r*r)), uθ=-sn*(1-0.75*a/r-0.25*a*a*a/(r*r*r));
+      // r̂ = (sn, c·вниз), θ̂ = (c, −sn·вниз)
+      return [ur*sn+uθ*c, вниз*(ur*c-uθ*sn)]; };
+    ctx.strokeStyle=АРТ.ц(АРТ.смесь(АРТ.тон(тон)[1],[0,0,0],0.35),0.75); ctx.lineWidth=1.1*px;
+    const линии=[];
+    for(let k=-6;k<=6;k++){ if(k===0) continue;
+      let X=Math.sign(k)*(a*0.18+(Math.abs(k)-1)*Rл/6.2), Y=-вниз*Rл*1.3; const pts=[[X,Y]];
+      for(let i=0;i<700;i++){ const [u1,v1]=скор(X,Y), n=Math.hypot(u1,v1)||1, h=Rл/110;
+        const [u2,v2]=скор(X+u1/n*h/2,Y+v1/n*h/2), n2=Math.hypot(u2,v2)||1;
+        X+=u2/n2*h; Y+=v2/n2*h; pts.push([X,Y]); if(Y*вниз>Rл*1.3) break; }
+      линии.push(pts);
+      ctx.beginPath(); pts.forEach((q,i)=>i?ctx.lineTo(xл+q[0],yл+q[1]):ctx.moveTo(xл+q[0],yл+q[1])); ctx.stroke(); }
+    // бегущие метки вдоль линий тока
+    ctx.fillStyle=АРТ.ц([255,255,255],0.95);
+    линии.forEach((pts,j)=>{ for(let m=0;m<3;m++){ const i=Math.floor((((s.t*0.35+m/3+j*0.13)%1))*(pts.length-1));
+      ctx.beginPath(); ctx.arc(xл+pts[i][0],yл+pts[i][1],1.8*px,0,7); ctx.fill(); } });
+    // след за шариком при больших Re
+    if(Re>1){ const k=clamp(Math.log10(Re)/3,0,1);
+      ctx.fillStyle=АРТ.ц(АРТ.тон(тон)[1],0.35*k);
+      ctx.beginPath(); ctx.ellipse(xл,yл-вниз*a*(1+1.6*k),a*(0.9+0.4*k),a*(1+1.6*k),0,0,7); ctx.fill();
+      ctx.strokeStyle=АРТ.ц([255,255,255],0.6*k); ctx.lineWidth=1*px;
+      for(const сд of [-1,1]){ const cx=xл+сд*a*0.55, cy=yл-вниз*a*1.7;
+        ctx.beginPath(); ctx.arc(cx,cy,a*0.42,s.t*4*сд,s.t*4*сд+4.4); ctx.stroke(); } }
+    АРТ.шар(ctx,xл,yл,a,мат);
+    ctx.restore();
+    ctx.strokeStyle=ink3; ctx.lineWidth=1.2*px; ctx.beginPath(); ctx.arc(xл,yл,Rл,0,7); ctx.stroke();
+    v.label(ctx,Re<1?'лупа: обтекание по Стоксу, без следа':'лупа: за шариком — след',xл-Rл,yл-Rл,0,12,ink3);
     if(p.forces){
       const G=т.m*p.g, A=ж.ρ*т.V*p.g, F=this.сопр(p,Math.abs(s.v)), M=Math.max(G,A,F,1e-30), k=0.16/M;
       v.arrow(ctx,0,y,0,y-G*k,cg); v.label(ctx,'mg',0,y-G*k,6,4,cg);
       v.arrow(ctx,-0.012,y,-0.012,y+A*k,cn); v.label(ctx,'F_A',-0.012,y+A*k,-30,-4,cn);
       if(F>M*1e-3){ const зн=s.v>=0?1:-1; v.arrow(ctx,0.012,y,0.012,y+зн*F*k,meas); v.label(ctx,'F_сопр',0.012,y+зн*F*k,6,-4,meas); }
     }
-    const Re=2*ж.ρ*Math.abs(s.v)*т.r/ж.η;
     v.label(ctx,`v = ${(Math.abs(s.v)*100).toFixed(2)} см/с · Re = ${Re<0.01?Re.toExponential(1):Re.toFixed(Re<10?2:0)}`,W+0.04,y,40,0,ink2);
     v.label(ctx,Re<1?'Re < 1: вязкое течение, работает Стокс':Re<1000?'промежуточный режим: Стокс уже неточен':'Re > 1000: сопротивление квадратичное',W+0.04,y,40,14,ink3);
+  }
+}
+});
+
+;
+/* ===================== ГИДРОДИНАМИКА (9.4.0) =====================
+   Сцены нового раздела «Гидродинамика» — те опыты, что разбирает задачник
+   Иродова в главе о механике жидкостей.
+
+   rotfluid — жидкость во вращающемся цилиндре. В системе сосуда на частицу
+   действуют тяжесть и центробежная сила mω²r; поверхность перпендикулярна
+   их сумме, отсюда параболоид z(r) = z₀ + ω²r²/2g. Объём жидкости не
+   меняется: z₀ = H₀ − ω²R²/4g. Когда ω²R² > 4gH₀, дно в центре обнажается,
+   и тогда z(r) = k(r² − r₀²) при r > r₀, k = ω²/2g, а сухое пятно
+   r₀² = R² − R·√(2H₀/k). Жидкость раскручивается не сразу: ω(t) растёт
+   к заданному значению за время τ (вязкость передаёт вращение от стенок).
+
+   utube — U-образная трубка. «Две жидкости»: в правое колено доливают
+   столб h₂ лёгкой жидкости; равенство давлений на уровне раздела даёт
+   разность уровней свободных поверхностей Δ = h₂(1 − ρ₂/ρ₁), а вода в
+   левом колене поднимается на h₂ρ₂/(2ρ₁). «Колебания»: столб длиной l,
+   сдвинутый на x₀, колеблется с периодом T = 2π√(l/2g) — от жидкости он не
+   зависит. Трение — по желанию, через коэффициент затухания γ.
+
+   poiseuille — вязкое течение. В трубе радиуса R профиль скоростей —
+   парабола v(r) = Δp(R² − r²)/(4ηL), расход Q = πR⁴Δp/(8ηL), средняя
+   скорость — половина осевой. Второй опыт — сосуд сливается через
+   горизонтальный капилляр: расход пропорционален напору, поэтому уровень
+   убывает экспоненциально, h = h₀e^(−t/τ), τ = 8ηl·S/(πr⁴ρg).          */
+Object.assign(SIMS,{
+rotfluid:{
+  title:'Жидкость во вращающемся сосуде: параболоид',
+  gridUnit:'см',
+  params:[
+    {key:'R', label:'Радиус сосуда R',unit:'см',min:3,max:30,step:0.5,default:10},
+    {key:'H0',label:'Уровень жидкости в покое H₀',unit:'см',min:2,max:40,step:0.5,default:14},
+    {key:'Hv',label:'Высота сосуда',unit:'см',min:5,max:60,step:0.5,default:26},
+    {key:'w', label:'Угловая скорость ω',unit:'рад/с',min:0,max:60,step:0.1,default:9},
+    {key:'tau',label:'Время раскрутки жидкости τ',unit:'с',min:0.1,max:10,step:0.1,default:1.5},
+    {key:'liq',label:'Жидкость',type:'select',default:'water',options:[{v:'water',t:'вода, 1000 кг/м³'},{v:'merc',t:'ртуть, 13 546 кг/м³'},{v:'oil',t:'масло, 900 кг/м³'}]},
+    {key:'g', label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
+    {type:'group',label:'Показывать'},
+    {key:'rings',label:'Линии равной высоты на поверхности',type:'check',default:true},
+    {key:'dims', label:'Размеры z₀ и z у стенки',type:'check',default:true},
+    {type:'group',label:'Остановка'},
+    {key:'stopSpill',label:'Когда жидкость дошла до края',type:'check',default:true},
+    {key:'stopDry',  label:'Когда обнажилось дно',type:'check',default:false},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  RHO:{water:1000,merc:13546,oil:900},
+  тон(p){ return {water:'вода',merc:'ртуть',oil:'масло'}[p.liq]||'вода'; },
+  ω(p,t){ return p.w*(1-Math.exp(-Math.max(0,t)/Math.max(p.tau,1e-6))); },
+  /* поверхность при угловой скорости w: в метрах */
+  поверхность(p,w){
+    const R=p.R/100, H0=p.H0/100, k=w*w/(2*p.g);
+    if(k*R*R<=2*H0) return {k,r0:0,z0:H0-k*R*R/2,zR:H0+k*R*R/2,z:r=>H0-k*R*R/2+k*r*r};
+    const r0=Math.sqrt(Math.max(0,R*R-R*Math.sqrt(2*H0/k)));
+    return {k,r0,z0:0,zR:k*(R*R-r0*r0),z:r=>r<r0?0:k*(r*r-r0*r0)};
+  },
+  init(p){ return {t:0,φ:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    const t=p.tStop>0?Math.min(s.t+dt,p.tStop):s.t+dt;
+    s.φ+=this.ω(p,(s.t+t)/2)*(t-s.t); s.t=t;
+    const П=this.поверхность(p,this.ω(p,t));
+    if(p.stopSpill&&П.zR>=p.Hv/100-1e-9){ s.event={type:'spill',t}; s.__stop=`Жидкость поднялась до края сосуда: ω = ${this.ω(p,t).toFixed(2)} рад/с`; return; }
+    if(p.stopDry&&П.r0>1e-6){ s.event={type:'dry',t}; s.__stop=`Дно в центре обнажилось: ω = ${this.ω(p,t).toFixed(2)} рад/с`; return; }
+    if(p.tStop>0&&t>=p.tStop){ s.event={type:'time',t}; s.__stop=`Остановка по времени: t = ${t.toFixed(2)} с`; }
+  },
+  readouts(s,p){
+    const w=this.ω(p,s.t), П=this.поверхность(p,w), ρ=this.RHO[p.liq]||1000;
+    const out=[['t',s.t,'с'],['угловая скорость ω',w,'рад/с'],['оборотов в секунду',w/(2*Math.PI),'об/с'],
+      ['уровень на оси z₀',П.z0*100,'см'],['уровень у стенки',П.zR*100,'см'],
+      ['избыточное давление в центре дна',ρ*p.g*П.z0/1000,'кПа']];
+    if(П.r0>0) out.push(['радиус сухого пятна',П.r0*100,'см']);
+    return out;
+  },
+  graphs:[{label:'Уровни у оси и у стенки',unit:'см',series:['z₀','у стенки'],get(s,p){ const S=SIMS.rotfluid, П=S.поверхность(p,S.ω(p,s.t)); return [П.z0*100,П.zR*100]; }}],
+  presets:[
+    {name:'Вода в стакане раскручивается',values:{R:10,H0:14,Hv:26,w:9,tau:1.5,liq:'water',stopSpill:true,stopDry:false}},
+    {name:'Быстрее — до края',values:{R:10,H0:14,Hv:26,w:16,tau:2,liq:'water',stopSpill:true,stopDry:false}},
+    {name:'Мелко налито: обнажается дно',values:{R:12,H0:4,Hv:30,w:14,tau:1.5,liq:'water',stopSpill:false,stopDry:true}},
+    {name:'Ртуть: форма та же, давление в 13,5 раза выше',values:{R:10,H0:14,Hv:26,w:9,tau:1.5,liq:'merc',stopSpill:true,stopDry:false}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, X=2*p.R+22, Y=p.Hv+14;
+    const scale=clamp(Math.min((W-30)/(X*PX_PER_M),(H-30)/(Y*PX_PER_M)),1e-4,60);
+    return {x:5,y:p.Hv/2+1,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), acc=v.c('--accent');
+    const px=1/ppm(), R=p.R, Hv=p.Hv, w=this.ω(p,s.t), П=this.поверхность(p,w), z=x=>П.z(Math.abs(x)/100)*100;
+    const e=R*0.3, тон=this.тон(p), тёмн=АРТ.тёмный(), tw=Math.max(3*px,R*0.04);
+    // поворотный стол и мотор
+    АРТ.металл(ctx,-R*0.35,-tw-4.2,R*0.7,2.6);
+    ctx.save(); ctx.fillStyle=АРТ.ц(тёмн?[120,128,140]:[176,182,192],1);
+    ctx.beginPath(); ctx.ellipse(0,-tw-1.6,R*1.15,e*1.15,0,0,7); ctx.fill();
+    ctx.fillStyle=АРТ.ц(тёмн?[150,158,170]:[205,210,218],1); ctx.beginPath(); ctx.ellipse(0,-tw-0.9,R*1.15,e*1.15,0,0,7); ctx.fill();
+    ctx.strokeStyle=АРТ.ц([60,66,80],0.55); ctx.lineWidth=1.4*px;
+    for(let k=0;k<8;k++){ const a=s.φ+k*Math.PI/4; ctx.beginPath(); ctx.moveTo(Math.cos(a)*R*0.3,-tw-0.9+Math.sin(a)*e*0.3); ctx.lineTo(Math.cos(a)*R*1.1,-tw-0.9+Math.sin(a)*e*1.1); ctx.stroke(); }
+    ctx.restore();
+    // задняя стенка изнутри и дальний край дна
+    ctx.fillStyle=АРТ.ц(тёмн?[170,200,225]:[150,180,200],0.12); ctx.fillRect(-R,0,2*R,Hv);
+    ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.6); ctx.lineWidth=1*px;
+    ctx.beginPath(); ctx.ellipse(0,0,R,e,0,0,Math.PI); ctx.stroke();
+    // разрез жидкости: под профилем z(|x|)
+    АРТ.жидкость(ctx,-R,0,R,Math.max(П.zR*100,1e-3),{тон,верх:z,блик:false});
+    // поверхность: от профиля до дальнего края поверхности у стенки
+    const N=80, верх=x=>П.zR*100+e*Math.sqrt(Math.max(0,1-x*x/(R*R)));
+    const [св,гл]=АРТ.тон(тон);
+    const g=ctx.createLinearGradient(0,П.z0*100,0,П.zR*100+e);
+    g.addColorStop(0,АРТ.ц(гл,тёмн?0.55:0.5)); g.addColorStop(1,АРТ.ц(св,тёмн?0.55:0.45));
+    ctx.fillStyle=g; ctx.beginPath();
+    for(let i=0;i<=N;i++){ const x=-R+2*R*i/N; i?ctx.lineTo(x,z(x)):ctx.moveTo(x,z(x)); }
+    for(let i=N;i>=0;i--){ const x=-R+2*R*i/N; ctx.lineTo(x,верх(x)); }
+    ctx.closePath(); ctx.fill();
+    // линии равной высоты — кольца на поверхности
+    if(p.rings){ ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.3:0.6); ctx.lineWidth=0.9*px;
+      for(let k=1;k<=5;k++){ const r=R*k/5.5; if(r/100<П.r0) continue; const zz=П.z(r/100)*100;
+        ctx.beginPath(); for(let i=0;i<=40;i++){ const θ=Math.PI*i/40, x=r*Math.cos(θ), y=zz+e*(r/R)*Math.sin(θ); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); } }
+    // кромка разреза поверхности
+    ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.45:0.85); ctx.lineWidth=1.3*px; ctx.beginPath();
+    for(let i=0;i<=N;i++){ const x=-R+2*R*i/N; i?ctx.lineTo(x,z(x)):ctx.moveTo(x,z(x)); } ctx.stroke();
+    // поплавки на поверхности вращаются вместе с жидкостью
+    for(let k=0;k<9;k++){ const r=R*(0.25+0.68*((k*0.618)%1)), θ=(k*2.399+s.φ)%(2*Math.PI);
+      if(Math.sin(θ)<0.05||r/100<П.r0) continue; const zz=П.z(r/100)*100;
+      АРТ.шар(ctx,r*Math.cos(θ),zz+e*(r/R)*Math.sin(θ),Math.max(2.2*px,R*0.025),[214,170,110]); }
+    // стенки разреза и дальний верхний край
+    АРТ.стакан(ctx,-R,R,0,Hv,tw);
+    ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.7); ctx.lineWidth=1*px;
+    ctx.beginPath(); ctx.ellipse(0,Hv,R+tw/2,e,0,0,Math.PI); ctx.stroke();
+    // ось и стрелка вращения
+    ctx.strokeStyle=ink3; ctx.lineWidth=0.9*px; ctx.setLineDash([5*px,4*px]); ctx.beginPath(); ctx.moveTo(0,-tw-4); ctx.lineTo(0,Hv+5); ctx.stroke(); ctx.setLineDash([]);
+    if(w>0.05){ const yr=Hv+3.2, rx=R*0.35, ry=e*0.35;
+      ctx.strokeStyle=acc; ctx.fillStyle=acc; ctx.lineWidth=1.6*px; ctx.beginPath(); ctx.ellipse(0,yr,rx,ry,0,0.3,Math.PI*1.75); ctx.stroke();
+      const a=Math.PI*1.75, hx=rx*Math.cos(a), hy=yr+ry*Math.sin(a);
+      ctx.beginPath(); ctx.moveTo(hx+6*px,hy+1*px); ctx.lineTo(hx-2*px,hy+5*px); ctx.lineTo(hx-1*px,hy-4*px); ctx.closePath(); ctx.fill();
+      v.label(ctx,`ω = ${w.toFixed(2)} рад/с`,rx,yr,8,-4,acc); }
+    if(p.dims){
+      АРТ.размер(ctx,R+tw+1.6,0,П.zR*100,meas,0.9*px,2.5*px); v.label(ctx,`${(П.zR*100).toFixed(1)} см`,R+tw+1.6,П.zR*50,6,0,meas);
+      if(П.z0>0){ АРТ.размер(ctx,-R*0.12,0,П.z0*100,meas,0.9*px,2.5*px); v.label(ctx,`z₀ = ${(П.z0*100).toFixed(1)} см`,-R*0.12,П.z0*50,-80,0,meas); }
+      ctx.strokeStyle=ink3; ctx.globalAlpha=0.6; ctx.setLineDash([3*px,3*px]); ctx.beginPath(); ctx.moveTo(-R-tw-2,p.H0); ctx.lineTo(-R-tw,p.H0); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      v.label(ctx,'H₀',-R-tw-2,p.H0,-18,0,ink3);
+    }
+    if(П.r0>0) v.label(ctx,`сухое пятно r₀ = ${(П.r0*100).toFixed(1)} см`,0,0,-60,14,ink2);
+  }
+},
+
+utube:{
+  title:'U-образная трубка: две жидкости и колебания столба',
+  gridUnit:'см',
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'two',options:[{v:'two',t:'долить лёгкую жидкость в правое колено'},{v:'osc',t:'колебания столба жидкости'}]},
+    {key:'liq1',label:'Жидкость в трубке',type:'select',default:'water',options:[{v:'water',t:'вода, 1000 кг/м³'},{v:'merc',t:'ртуть, 13 546 кг/м³'},{v:'gly',t:'глицерин, 1260 кг/м³'}]},
+    {key:'liq2',label:'Доливаемая жидкость',type:'select',default:'oil',options:[{v:'oil',t:'масло, 900 кг/м³'},{v:'ker',t:'керосин, 800 кг/м³'},{v:'water',t:'вода, 1000 кг/м³'},{v:'spirit',t:'спирт, 789 кг/м³'}],если:p=>p.mode==='two'},
+    {key:'h2',label:'Высота доливаемого столба h₂',unit:'см',min:1,max:40,step:0.5,default:16,если:p=>p.mode==='two'},
+    {key:'pour',label:'Доливать в течение',unit:'с',min:0.5,max:20,step:0.5,default:4,если:p=>p.mode==='two'},
+    {key:'l',label:'Длина столба жидкости l',unit:'см',min:40,max:100,step:1,default:60},
+    {key:'x0',label:'Начальный сдвиг уровня x₀',unit:'см',min:0.5,max:15,step:0.5,default:6,если:p=>p.mode==='osc'},
+    {key:'gam',label:'Затухание γ',unit:'1/с',min:0,max:3,step:0.01,default:0,если:p=>p.mode==='osc'},
+    {key:'g',label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
+    {type:'group',label:'Остановка'},
+    {key:'periods',label:'Через N полных колебаний (0 — выкл)',min:0,max:50,step:0.5,default:0,если:p=>p.mode==='osc'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  RHO:{water:1000,merc:13546,gly:1260,oil:900,ker:800,spirit:789},
+  ТОН:{water:'вода',merc:'ртуть',gly:'глицерин',oil:'масло',ker:'масло',spirit:'спирт'},
+  B:12, ARM:44,                                  // расстояние между коленами и высота колен, см
+  /* уровень в покое (столб l поровну в коленах) — над дном изгиба, см */
+  покой(p){ return Math.max(0,(p.l-Math.PI*this.B/2)/2); },
+  ω0(p){ return Math.sqrt(2*p.g/(p.l/100)); },
+  /* сдвиг уровня x(t), см */
+  сдвиг(p,t){
+    if(p.mode==='two'){ const ρ1=this.RHO[p.liq1], ρ2=this.RHO[p.liq2], h=p.h2*Math.min(1,t/Math.max(p.pour,1e-6)); return h*ρ2/(2*ρ1); }
+    const w0=this.ω0(p), γ=p.gam||0, wd=Math.sqrt(Math.max(w0*w0-γ*γ,1e-12));
+    return p.x0*Math.exp(-γ*t)*(Math.cos(wd*t)+γ/wd*Math.sin(wd*t));
+  },
+  долито(p,t){ return p.mode==='two'?p.h2*Math.min(1,t/Math.max(p.pour,1e-6)):0; },
+  T(p){ const w0=this.ω0(p), γ=p.gam||0; return 2*Math.PI/Math.sqrt(Math.max(w0*w0-γ*γ,1e-12)); },
+  init(p){ return {t:0,periods:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    let t=s.t+dt;
+    if(p.mode==='osc'&&p.periods>0){ const tN=p.periods*this.T(p); if(t>=tN&&s.t<tN){ s.t=tN; s.periods=p.periods; s.event={type:'periods',t:tN};
+      s.__stop=`Пройдено ${p.periods} колебан.: t = ${tN.toFixed(3)} с`; return; } }
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t; if(p.mode==='osc') s.periods=t/this.T(p);
+  },
+  readouts(s,p){
+    const x=this.сдвиг(p,s.t), y0=this.покой(p), ρ1=this.RHO[p.liq1];
+    if(p.mode==='two'){ const h=this.долито(p,s.t), ρ2=this.RHO[p.liq2];
+      return [['t',s.t,'с'],['долито h₂',h,'см'],['уровень в левом колене',y0+x,'см'],['граница жидкостей в правом',y0-x,'см'],
+        ['верх доливки в правом',y0-x+h,'см'],['плотность ρ₁',ρ1,'кг/м³'],['плотность ρ₂',ρ2,'кг/м³'],
+        ['давление на уровне границы слева',ρ1*p.g*(2*x)/100,'Па'],['давление на уровне границы справа',ρ2*p.g*h/100,'Па']]; }
+    const w0=this.ω0(p), γ=p.gam||0, wd=Math.sqrt(Math.max(w0*w0-γ*γ,1e-12));
+    const v=p.x0*Math.exp(-γ*s.t)*(-(γ*γ/wd+wd)*Math.sin(wd*s.t));
+    return [['t',s.t,'с'],['сдвиг уровня x',x,'см'],['скорость уровня',v,'см/с'],['уровень слева',y0+x,'см'],['уровень справа',y0-x,'см'],
+      ['колебаний пройдено',s.periods,''],['плотность жидкости',ρ1,'кг/м³']];
+  },
+  graphs:[{label:'Сдвиг уровня',unit:'см',series:['x'],get(s,p){ return [SIMS.utube.сдвиг(p,s.t),null]; }}],
+  presets:[
+    {name:'Масло поверх воды',values:{mode:'two',liq1:'water',liq2:'oil',h2:16,pour:4,l:60}},
+    {name:'Вода поверх ртути',values:{mode:'two',liq1:'merc',liq2:'water',h2:27,pour:4,l:60}},
+    {name:'Колебания столба воды',values:{mode:'osc',liq1:'water',l:60,x0:6,gam:0,periods:0}},
+    {name:'Ртуть колеблется с тем же периодом',values:{mode:'osc',liq1:'merc',l:60,x0:6,gam:0,periods:0}},
+    {name:'Глицерин: колебания гаснут',values:{mode:'osc',liq1:'gly',l:60,x0:8,gam:0.6,periods:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, X=this.B+44, Y=this.ARM+this.B/2+12;
+    const scale=clamp(Math.min((W-30)/(X*PX_PER_M),(H-30)/(Y*PX_PER_M)),1e-4,60);
+    return {x:6,y:this.ARM/2-2,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), cv=v.c('--canvas');
+    const px=1/ppm(), B=this.B, ARM=this.ARM, xL=-B/2, xR=B/2, w=3.4, tw=Math.max(2.5*px,0.5), тёмн=АРТ.тёмный();
+    const y0=this.покой(p), x=this.сдвиг(p,s.t), h2=this.долито(p,s.t);
+    const yL=Math.max(0,y0+x), yR=Math.max(0,y0-x);   // уровни над началом изгиба (y = 0); ниже изгиба столб не уходит
+    // путь по средней линии от уровня a в левом колене до уровня b в правом
+    const путь=(a,b)=>{ ctx.beginPath(); ctx.moveTo(xL,a); ctx.lineTo(xL,0); ctx.arc(0,0,B/2,Math.PI,0,false); ctx.lineTo(xR,b); };
+    const колено=(xx,a,b)=>{ ctx.beginPath(); ctx.moveTo(xx,a); ctx.lineTo(xx,b); };
+    ctx.save(); ctx.lineCap='butt';
+    // стекло: внешний контур, внутренность
+    путь(ARM,ARM); ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.85); ctx.lineWidth=w+2*tw; ctx.stroke();
+    путь(ARM,ARM); ctx.strokeStyle=cv; ctx.lineWidth=w; ctx.stroke();
+    путь(ARM,ARM); ctx.strokeStyle=АРТ.ц(тёмн?[170,200,225]:[150,180,200],0.14); ctx.stroke();
+    // жидкость 1
+    const [в1,г1]=АРТ.тон(this.ТОН[p.liq1]);
+    путь(yL,yR); ctx.strokeStyle=АРТ.ц(АРТ.смесь(в1,г1,0.5),тёмн?0.75:0.7); ctx.lineWidth=w; ctx.stroke();
+    путь(yL,yR); ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.12:0.3); ctx.lineWidth=w*0.25; ctx.stroke();
+    // жидкость 2 — над границей в правом колене
+    if(p.mode==='two'&&h2>1e-6){ const [в2,г2]=АРТ.тон(this.ТОН[p.liq2]);
+      колено(xR,yR,yR+h2); ctx.strokeStyle=АРТ.ц(АРТ.смесь(в2,г2,0.4),тёмн?0.8:0.75); ctx.lineWidth=w; ctx.stroke();
+      колено(xR,yR,yR+h2); ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.12:0.3); ctx.lineWidth=w*0.25; ctx.stroke();
+      // струйка доливки
+      if(s.t<p.pour){ ctx.strokeStyle=АРТ.ц(АРТ.смесь(в2,г2,0.4),0.8); ctx.lineWidth=0.5; колено(xR+0.4,ARM+6,yR+h2); ctx.stroke(); } }
+    ctx.restore();
+    // мениски: смачивающая — вогнутый, ртуть — выпуклый
+    const мениск=(xx,y,ртуть)=>{ ctx.strokeStyle=АРТ.ц([255,255,255],0.85); ctx.lineWidth=1.2*px; ctx.beginPath(); ctx.moveTo(xx-w/2,y);
+      ctx.quadraticCurveTo(xx,y+(ртуть?1:-1)*w*0.35,xx+w/2,y); ctx.stroke(); };
+    мениск(xL,yL,p.liq1==='merc'); мениск(xR,p.mode==='two'&&h2>1e-6?yR+h2:yR,p.mode!=='two'&&p.liq1==='merc');
+    // линии уровней и подписи
+    ctx.strokeStyle=ink3; ctx.lineWidth=0.8*px; ctx.setLineDash([3*px,3*px]); ctx.beginPath();
+    ctx.moveTo(xL-w,y0); ctx.lineTo(xR+w,y0); ctx.stroke(); ctx.setLineDash([]);
+    v.label(ctx,'уровень в покое',xR+w,y0,6,0,ink3);
+    if(p.mode==='two'){
+      if(h2>1e-6){ ctx.strokeStyle=meas; ctx.lineWidth=0.9*px; ctx.setLineDash([2*px,3*px]); ctx.beginPath(); ctx.moveTo(xL-w,yR); ctx.lineTo(xR+w,yR); ctx.stroke(); ctx.setLineDash([]);
+        v.label(ctx,'граница: давления равны',xR+w,yR,6,12,meas);
+        АРТ.размер(ctx,xR+w+3.5,yR,yR+h2,meas,0.9*px,2.5*px); v.label(ctx,'h₂',xR+w+3.5,yR+h2/2,5,0,meas);
+        АРТ.размер(ctx,xL-w-3,yR,yL,ink2,0.9*px,2.5*px); v.label(ctx,'ρ₂h₂/ρ₁',xL-w-3,(yR+yL)/2,-56,0,ink2); }
+    } else {
+      v.label(ctx,`x = ${x.toFixed(2)} см`,xL-w,yL,-70,0,meas);
+    }
+  }
+},
+
+poiseuille:{
+  title:'Вязкое течение: формула Пуазейля',
+  schema:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'pipe',options:[{v:'pipe',t:'течение в трубе под перепадом давления'},{v:'drain',t:'сосуд сливается через капилляр'}]},
+    {key:'liq',label:'Жидкость',type:'select',default:'water',options:[{v:'water',t:'вода: η = 1,0 мПа·с'},{v:'oil',t:'масло: η = 80 мПа·с'},{v:'gly',t:'глицерин: η = 1,41 Па·с'},{v:'blood',t:'кровь: η ≈ 4 мПа·с'}]},
+    {key:'R',label:'Радиус трубы R',unit:'мм',min:0.1,max:10,step:0.05,default:1,если:p=>p.mode==='pipe'},
+    {key:'L',label:'Длина трубы L',unit:'м',min:0.05,max:10,step:0.05,default:1,если:p=>p.mode==='pipe'},
+    {key:'dp',label:'Перепад давления Δp',unit:'кПа',min:0.01,max:200,step:0.01,default:2,если:p=>p.mode==='pipe'},
+    {key:'D',label:'Диаметр сосуда D',unit:'см',min:2,max:40,step:0.5,default:8,если:p=>p.mode==='drain'},
+    {key:'h0',label:'Начальный уровень h₀',unit:'см',min:2,max:100,step:0.5,default:30,если:p=>p.mode==='drain'},
+    {key:'rc',label:'Радиус капилляра r',unit:'мм',min:0.1,max:3,step:0.05,default:0.5,если:p=>p.mode==='drain'},
+    {key:'lc',label:'Длина капилляра l',unit:'см',min:1,max:100,step:0.5,default:10,если:p=>p.mode==='drain'},
+    {key:'g',label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8,если:p=>p.mode==='drain'},
+    {type:'group',label:'Остановка'},
+    {key:'frac',label:'Когда уровень упал до доли h₀ (0 — выкл)',min:0,max:0.95,step:0.01,default:0,если:p=>p.mode==='drain'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:100000,step:0.1,default:0}
+  ],
+  LIQ:{water:{ρ:1000,η:1.0e-3},oil:{ρ:900,η:0.08},gly:{ρ:1260,η:1.41},blood:{ρ:1060,η:4e-3}},
+  ТОН:{water:'вода',oil:'масло',gly:'глицерин',blood:'кровь'},
+  ж(p){ return this.LIQ[p.liq]||this.LIQ.water; },
+  /* труба: расход (м³/с), осевая и средняя скорость */
+  труба(p){ const η=this.ж(p).η, R=p.R/1000, dp=p.dp*1000, L=p.L;
+    const vmax=dp*R*R/(4*η*L), Q=Math.PI*Math.pow(R,4)*dp/(8*η*L); return {Q,vmax,vср:vmax/2,Re:this.ж(p).ρ*vmax/2*2*R/η}; },
+  /* слив: постоянная времени, с */
+  τ(p){ const ж=this.ж(p), S=Math.PI*Math.pow(p.D/200,2), r=p.rc/1000, l=p.lc/100;
+    return 8*ж.η*l*S/(Math.PI*Math.pow(r,4)*ж.ρ*p.g); },
+  уровень(p,t){ return p.h0*Math.exp(-t/this.τ(p)); },          // см
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    let t=s.t+dt;
+    if(p.mode==='drain'&&p.frac>0){ const tf=-this.τ(p)*Math.log(p.frac); if(t>=tf&&s.t<tf){ s.t=tf; s.event={type:'frac',t:tf};
+      s.__stop=`Уровень упал до ${Math.round(p.frac*100)} % от начального за ${tf.toFixed(1)} с`; return; } }
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+  },
+  readouts(s,p){
+    const ж=this.ж(p);
+    if(p.mode==='pipe'){ const T=this.труба(p);
+      return [['t',s.t,'с'],['вязкость η',ж.η*1000,'мПа·с'],['расход Q',T.Q*1e6,'мл/с'],['скорость на оси',T.vmax*100,'см/с'],
+        ['число Рейнольдса',T.Re,''],['мощность на преодоление вязкости',T.Q*p.dp*1000,'Вт']]; }
+    const h=this.уровень(p,s.t), r=p.rc/1000, Q=Math.PI*Math.pow(r,4)*ж.ρ*p.g*(h/100)/(8*ж.η*p.lc/100);
+    return [['t',s.t,'с'],['уровень h',h,'см'],['расход через капилляр',Q*1e6,'мл/с'],['вязкость η',ж.η*1000,'мПа·с'],
+      ['вытекло',Math.PI*Math.pow(p.D/2,2)*(p.h0-h),'мл']];
+  },
+  graphs:[{label:'Уровень в сосуде',unit:'см',series:['h'],get(s,p){ return [p.mode==='drain'?SIMS.poiseuille.уровень(p,s.t):null,null]; }}],
+  presets:[
+    {name:'Вода в тонкой трубке',values:{mode:'pipe',liq:'water',R:1,L:1,dp:2}},
+    {name:'Радиус вдвое больше — расход в 16 раз',values:{mode:'pipe',liq:'water',R:2,L:1,dp:2}},
+    {name:'Глицерин: в тысячу раз медленнее',values:{mode:'pipe',liq:'gly',R:2,L:1,dp:20}},
+    {name:'Слив воды через капилляр',values:{mode:'drain',liq:'water',D:8,h0:30,rc:0.5,lc:10,frac:0}},
+    {name:'До половины уровня',values:{mode:'drain',liq:'water',D:8,h0:30,rc:0.5,lc:10,frac:0.5}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(16*PX_PER_M),(H-30)/(10.5*PX_PER_M)),1e-4,60); return {x:0,y:p.mode==='pipe'?2.1:0.2,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), acc=v.c('--accent');
+    const px=1/ppm(), тон=this.ТОН[p.liq]||'вода', тёмн=АРТ.тёмный(), [св,гл]=АРТ.тон(тон);
+    if(p.mode==='pipe'){
+      /* труба в разрезе: x ∈ [−6, 6], радиус 1.6 на рисунке */
+      const X0=-6.5, X1=6.5, Rr=1.6, tw=0.12, T=this.труба(p);
+      // слои: у оси светлее и быстрее
+      for(let k=10;k>=1;k--){ const r=Rr*k/10, c=АРТ.смесь(св,гл,k/10);
+        ctx.fillStyle=АРТ.ц(c,тёмн?0.62:0.55); ctx.fillRect(X0,-r,X1-X0,2*r); }
+      АРТ.металл(ctx,X0,Rr,X1-X0,tw*1.6,{rgb:[170,190,205]}); АРТ.металл(ctx,X0,-Rr-tw*1.6,X1-X0,tw*1.6,{rgb:[170,190,205]});
+      // частицы: штрих тем длиннее, чем ближе к оси
+      ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.7:0.9); ctx.lineCap='round'; ctx.lineWidth=1.6*px;
+      for(let k=0;k<70;k++){ const q=((0.5+k*0.5698403)%1)*2-1, r=q*Rr*0.96, u=1-q*q;
+        const x=X0+((((0.5+k*0.7548777)%1)+s.t*0.35*u)%1)*(X1-X0), дл=0.05+u*0.9;
+        ctx.beginPath(); ctx.moveTo(Math.max(X0,x-дл),r); ctx.lineTo(x,r); ctx.stroke(); }
+      // профиль скоростей — парабола со стрелками
+      const xp=2.2, kv=2.4;
+      ctx.strokeStyle=acc; ctx.lineWidth=1.6*px; ctx.beginPath(); ctx.moveTo(xp,-Rr); ctx.lineTo(xp,Rr); ctx.stroke();
+      ctx.beginPath(); for(let i=0;i<=40;i++){ const r=-Rr+2*Rr*i/40, u=1-(r/Rr)*(r/Rr); i?ctx.lineTo(xp+kv*u,r):ctx.moveTo(xp+kv*u,r); } ctx.stroke();
+      for(let i=1;i<8;i++){ const r=-Rr+2*Rr*i/8, u=1-(r/Rr)*(r/Rr); if(u>0.05) v.arrow(ctx,xp,r,xp+kv*u,r,acc); }
+      v.label(ctx,`на оси ${(T.vmax*100).toPrecision(3)} см/с`,xp+kv,0,10,-14,acc);
+      v.label(ctx,'у стенки — ноль',xp,-Rr,6,12,ink3);
+      // пьезометры: давление падает вдоль трубы линейно
+      [-5,-2,1,4.6].forEach((x,i)=>{ const f=1-(x-X0)/(X1-X0), hgt=0.6+3.4*f, ш=0.16;
+        АРТ.жидкость(ctx,x-ш,Rr+tw*1.6,x+ш,Rr+tw*1.6+hgt,{тон,lw:1*px});
+        АРТ.стакан(ctx,x-ш,x+ш,Rr+tw*1.6,Rr+4.6,Math.max(1.5*px,0.04),{дно:false}); });
+      ctx.strokeStyle=ink3; ctx.lineWidth=0.9*px; ctx.setLineDash([4*px,4*px]); ctx.beginPath();
+      ctx.moveTo(X0,Rr+tw*1.6+0.6+3.4); ctx.lineTo(X1,Rr+tw*1.6+0.6); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,`Δp = ${p.dp} кПа на длине ${p.L} м: давление падает линейно`,X0,Rr+4.9,0,-6,ink2);
+      v.label(ctx,`Q = πR⁴Δp/8ηL = ${(T.Q*1e6).toPrecision(3)} мл/с`,X0,-Rr-0.3,0,14,ink2);
+      return;
+    }
+    /* слив: сосуд слева, капилляр у дна вправо */
+    const h=this.уровень(p,s.t), Hs=Math.max(p.h0*1.15,10), k=7/Hs, Rw=Math.min(3.2,p.D*k/2+0.6), tw=0.1;
+    const y0=-1.8, yh=y0+h*k;
+    АРТ.жидкость(ctx,-6-Rw,y0,-6+Rw,yh,{тон,lw:1.2*px,верх:x=>yh+2*px*(Math.exp(-(x+6+Rw)/(4*px))+Math.exp(-(-6+Rw-x)/(4*px)))});
+    АРТ.стакан(ctx,-6-Rw,-6+Rw,y0,y0+Hs*k,tw*1.5);
+    // капилляр
+    const cy=y0+0.35, cL=7.5, cr=0.09;
+    ctx.fillStyle=АРТ.ц(АРТ.смесь(св,гл,0.5),0.75); ctx.fillRect(-6+Rw,cy-cr,cL,2*cr);
+    АРТ.стакан(ctx,-6+Rw+tw*1.5,-6+Rw+cL,cy-cr,cy+cr,Math.max(1.5*px,0.04),{дно:false});
+    ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.8); ctx.lineWidth=1*px; ctx.beginPath(); ctx.moveTo(-6+Rw,cy+cr); ctx.lineTo(-6+Rw+cL,cy+cr); ctx.moveTo(-6+Rw,cy-cr); ctx.lineTo(-6+Rw+cL,cy-cr); ctx.stroke();
+    // капли на выходе: чаще при большом напоре
+    const xe=-6+Rw+cL, част=0.6+2.4*h/p.h0;
+    for(let i=0;i<4;i++){ const ф=((s.t*част+i/4)%1), y=cy-ф*ф*1.4; АРТ.капля(ctx,xe+0.1,y,Math.max(2*px,0.07),тон,1-ф*0.6); }
+    // мензурка внизу
+    const mx=xe-0.4, мв=y0-0.9, вытек=Math.min(1,(p.h0-h)/p.h0);
+    АРТ.жидкость(ctx,mx-0.6,мв-2.2,mx+0.9,мв-2.2+1.8*вытек+0.001,{тон,lw:1*px});
+    АРТ.стакан(ctx,mx-0.6,mx+0.9,мв-2.2,мв-0.2,0.05);
+    АРТ.размер(ctx,-6-Rw-0.6,y0,yh,meas,0.9*px,2.5*px); v.label(ctx,`h = ${h.toFixed(2)} см`,-6-Rw-0.6,(y0+yh)/2,-74,0,meas);
+    v.label(ctx,'расход ∝ напору — уровень убывает экспоненциально',-6-Rw,y0+Hs*k,0,-12,ink2);
   }
 }
 });
@@ -24256,6 +24995,613 @@ otto:{
     const б=this.баланс(p);
     v.label(ctx,`КПД ${(100*б.η).toFixed(1)} %`,gx+gw*0.55,gy+gh*0.8,0,0,acc);
     if(p.carnot){ const ηк=1-p.T1/P[2][2]; v.label(ctx,`Карно между ${p.T1} и ${P[2][2].toFixed(0)} К: ${(100*ηк).toFixed(0)} %`,gx+gw*0.55,gy+gh*0.8,0,16,ink3); }
+  }
+}
+});
+
+;
+/* ===================== ТЕРМОДИНАМИКА ПО ЗАДАЧНИКУ (9.4.0) =====================
+   Опыты, на которых держатся задачи второй части Иродова.
+
+   vessel  — сосуды с газом при постоянной температуре: поршневой насос
+             откачивает (pₙ = p₀·(V/(V+ΔV))ⁿ) или накачивает (pₙ = p₀(1 + nΔV/V));
+             закрытый цилиндр с подвижной перегородкой, одну половину которого
+             греют; два сосуда, соединённые краном.
+   atmos   — распределение Больцмана: изотермический столб газа
+             (n = n₀e^(−Mgh/RT)) и газ во вращающейся трубке-центрифуге
+             (n = n₀e^(Mω²r²/2RT)).
+   maxwell — распределение молекул по скоростям, доля в интервале, длина
+             свободного пробега.
+   contact — теплообмен двух тел и рост энтропии; свободное расширение газа.
+   vapor   — насыщенный пар: изотермическое сжатие влажного воздуха и
+             охлаждение при постоянном объёме, роса.
+   cycle   — циклы тепловых машин из изохор, изобар, изотерм и адиабат;
+             теплота считается по участкам численно, КПД — отношением работы
+             к полученной теплоте.                                         */
+const ТД={R:8.314,k:1.380649e-23,NA:6.02214e23,
+  /* давление насыщенного пара воды, Па: формула Магнуса (точность ~0,1 % при 0…100 °C) */
+  pНас(tC){ return 610.94*Math.exp(17.625*tC/(tC+243.04)); },
+  /* молекулы для рисунка: детерминированные точки с лёгким дрожанием */
+  точки(N,t,сид){ const out=[]; for(let i=0;i<N;i++){ const a=(0.5+(i+1)*0.7548776662+(сид||0))%1, b=(0.5+(i+1)*0.5698402910+(сид||0)*0.3)%1;
+    out.push({x:clamp(a+0.012*Math.sin(t*(2.1+b*1.7)+i),0,1),y:clamp(b+0.012*Math.cos(t*(1.7+a*2.3)+i*1.3),0,1)}); } return out; }
+};
+globalThis.ТД=ТД;
+Object.assign(SIMS,{
+vessel:{
+  title:'Сосуды с газом: насос, перегородка, кран',
+  schema:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'pump',options:[{v:'pump',t:'насос откачивает сосуд'},{v:'fill',t:'насос накачивает сосуд из атмосферы'},
+      {v:'piston',t:'цилиндр с подвижной перегородкой, одну половину греют'},{v:'join',t:'два сосуда соединяют краном'}]},
+    {key:'V',label:'Объём сосуда V',unit:'л',min:0.5,max:50,step:0.5,default:10,если:p=>p.mode==='pump'||p.mode==='fill'},
+    {key:'dV',label:'Объём камеры насоса ΔV',unit:'л',min:0.1,max:10,step:0.1,default:1,если:p=>p.mode==='pump'||p.mode==='fill'},
+    {key:'p0',label:'Начальное давление p₀',unit:'кПа',min:1,max:500,step:1,default:100,если:p=>p.mode!=='join'},
+    {key:'rate',label:'Ходов в секунду',min:0.2,max:10,step:0.1,default:2,если:p=>p.mode==='pump'||p.mode==='fill'},
+    {key:'nStop',label:'Остановить после N ходов (0 — выкл)',min:0,max:500,step:1,default:0,если:p=>p.mode==='pump'||p.mode==='fill'},
+    {key:'l',label:'Длина цилиндра l',unit:'см',min:10,max:200,step:1,default:60,если:p=>p.mode==='piston'},
+    {key:'T',label:'Температура T',unit:'К',min:100,max:1000,step:1,default:300,если:p=>p.mode==='piston'},
+    {key:'dT',label:'Левую половину нагреть на ΔT',unit:'К',min:1,max:1000,step:1,default:100,если:p=>p.mode==='piston'},
+    {key:'th',label:'За время',unit:'с',min:0.5,max:30,step:0.5,default:4,если:p=>p.mode==='piston'},
+    {key:'V1',label:'Объём первого сосуда V₁',unit:'л',min:0.5,max:50,step:0.5,default:4,если:p=>p.mode==='join'},
+    {key:'p1',label:'Давление в первом p₁',unit:'кПа',min:1,max:1000,step:1,default:300,если:p=>p.mode==='join'},
+    {key:'T1',label:'Температура первого T₁',unit:'К',min:100,max:1000,step:1,default:300,если:p=>p.mode==='join'},
+    {key:'V2',label:'Объём второго сосуда V₂',unit:'л',min:0.5,max:50,step:0.5,default:6,если:p=>p.mode==='join'},
+    {key:'p2',label:'Давление во втором p₂',unit:'кПа',min:1,max:1000,step:1,default:100,если:p=>p.mode==='join'},
+    {key:'T2',label:'Температура второго T₂',unit:'К',min:100,max:1000,step:1,default:300,если:p=>p.mode==='join'},
+    {key:'tau',label:'Время выравнивания',unit:'с',min:0.2,max:20,step:0.1,default:1.5,если:p=>p.mode==='join'},
+    {type:'group',label:'Остановка'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  /* давление в сосуде после k полных ходов и внутри хода (f — доля хода) */
+  давление(p,ход){
+    const k=Math.floor(ход+1e-9), f=ход-k, V=p.V, dV=p.dV, p0=p.p0;
+    if(p.mode==='pump'){ const pk=p0*Math.pow(V/(V+dV),k); return f<0.5?pk*V/(V+dV*f*2):pk*V/(V+dV); }
+    const pk=p0*(1+k*dV/V); if(f<0.5) return pk;
+    const g=(f-0.5)*2, gз=Math.max(0,1-p0/pk);            // клапан открывается, когда камера сжата до pₖ
+    return g<=gз?pk:(pk*V+p0*dV)/(V+(1-g)*dV);
+  },
+  /* перегородка: смещение (см) при нагреве левой половины на δ */
+  перегородка(p,δ){ return (p.l/2)*δ/(2*p.T+δ); },
+  нагрев(p,t){ return p.dT*Math.min(1,t/Math.max(p.th,1e-6)); },
+  кран(p,t){ const R=ТД.R, n1=p.p1*1e3*p.V1*1e-3/(R*p.T1), n2=p.p2*1e3*p.V2*1e-3/(R*p.T2);
+    const pf=(n1+n2)*R/(p.V1*1e-3/p.T1+p.V2*1e-3/p.T2), n1f=pf*p.V1*1e-3/(R*p.T1), e=Math.exp(-Math.max(0,t-0.4)/Math.max(p.tau,1e-6));
+    const ν1=n1f+(n1-n1f)*e, ν2=n1+n2-ν1; return {p1:ν1*R*p.T1/(p.V1*1e-3),p2:ν2*R*p.T2/(p.V2*1e-3),ν1,ν2,ушло:n1-ν1,pf,открыт:t>0.4}; },
+  init(p){ return {t:0,ход:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return;
+    let t=s.t+dt;
+    if(p.mode==='pump'||p.mode==='fill'){
+      const ход=t*p.rate;
+      if(p.nStop>0&&ход>=p.nStop){ s.t=p.nStop/p.rate; s.ход=p.nStop; s.event={type:'strokes',t:s.t};
+        s.__stop=`Сделано ${p.nStop} ход(ов): давление ${(this.давление(p,p.nStop)).toPrecision(4)} кПа`; return; }
+      s.ход=ход;
+    }
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; if(p.mode==='pump'||p.mode==='fill') s.ход=p.tStop*p.rate; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+  },
+  readouts(s,p){
+    if(p.mode==='pump'||p.mode==='fill'){ const pr=this.давление(p,s.ход);
+      return [['t',s.t,'с'],['ходов сделано',Math.floor(s.ход+1e-9),''],['давление в сосуде p',pr,'кПа'],['отношение p/p₀',pr/p.p0,'']]; }
+    if(p.mode==='piston'){ const δ=this.нагрев(p,s.t), x=this.перегородка(p,δ);
+      return [['t',s.t,'с'],['температура слева',p.T+δ,'К'],['температура справа',p.T,'К'],['смещение перегородки',x,'см'],
+        ['давление',p.p0*(p.l/2)/(p.l/2-x),'кПа']]; }
+    const К=this.кран(p,s.t);
+    return [['t',s.t,'с'],['кран',0,К.открыт?'открыт':'закрыт'],['давление в первом',К.p1/1000,'кПа'],['давление во втором',К.p2/1000,'кПа'],
+      ['молей в первом',К.ν1,'моль'],['молей во втором',К.ν2,'моль']];
+  },
+  graphs:[{label:'Давление',unit:'кПа',series:['p','p₂'],get(s,p){ const S=SIMS.vessel;
+    if(p.mode==='pump'||p.mode==='fill') return [S.давление(p,s.ход),null];
+    if(p.mode==='piston'){ const x=S.перегородка(p,S.нагрев(p,s.t)); return [p.p0*(p.l/2)/(p.l/2-x),null]; }
+    const К=S.кран(p,s.t); return [К.p1/1000,К.p2/1000]; }}],
+  presets:[
+    {name:'Насос откачивает сосуд',values:{mode:'pump',V:10,dV:1,p0:100,rate:2,nStop:0}},
+    {name:'Накачка: каждый ход добавляет p₀ΔV/V',values:{mode:'fill',V:10,dV:1,p0:100,rate:2,nStop:0}},
+    {name:'Перегородка: левую половину нагрели',values:{mode:'piston',l:60,T:300,dT:100,th:4,p0:100}},
+    {name:'Два сосуда соединили краном',values:{mode:'join',V1:4,p1:300,T1:300,V2:6,p2:100,T2:300,tau:1.5}},
+    {name:'Сосуды при разных температурах',values:{mode:'join',V1:4,p1:300,T1:400,V2:6,p2:100,T2:250,tau:1.5}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(14*PX_PER_M),(H-30)/(8.5*PX_PER_M)),1e-4,60); return {x:0,y:0.3,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  /* газ в прямоугольнике: заливка по плотности и молекулы */
+  газ(ctx,x0,y0,w,h,T,плотн,t,сид,px){
+    АРТ.газ(ctx,x0,y0,w,h,T,плотн);
+    const N=Math.round(clamp(плотн,0,3)*40*Math.sqrt(w*h/9)), c=АРТ.цветT(T);
+    ctx.fillStyle=АРТ.ц(АРТ.смесь(c,[0,0,0],0.3),0.9);
+    for(const m of ТД.точки(N,t,сид)){ ctx.beginPath(); ctx.arc(x0+0.1+m.x*(w-0.2),y0+0.1+m.y*(h-0.2),2.2*px,0,7); ctx.fill(); }
+  },
+  рамка(ctx,x0,y0,w,h,px){ const тёмн=АРТ.тёмный(); ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.9); ctx.lineWidth=Math.max(2*px,0.07);
+    ctx.strokeRect(x0,y0,w,h); ctx.fillStyle=АРТ.ц([255,255,255],тёмн?0.05:0.18); ctx.fillRect(x0+w*0.05,y0+h*0.1,w*0.04,h*0.8); },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), px=1/ppm();
+    if(p.mode==='pump'||p.mode==='fill'){
+      const pr=this.давление(p,s.ход), f=s.ход-Math.floor(s.ход), отк=p.mode==='pump';
+      // сосуд
+      const W=5.4, H=5, x0=-6.2, y0=-2.6;
+      this.газ(ctx,x0,y0,W,H,293,pr/p.p0,s.t,0.1,px); this.рамка(ctx,x0,y0,W,H,px);
+      // трубка и насос
+      const yT=y0+H*0.5, xp=1.2, Lp=4.6, hp=1.6;
+      АРТ.металл(ctx,x0+W,yT-0.12,xp-(x0+W),0.24);
+      const ход=f<0.5?f*2:(1-(f-0.5)*2);                       // положение поршня: 0 — у входа, 1 — камера раскрыта
+      const xs=xp+0.2+ход*(Lp-0.6);
+      const pc=отк?(f<0.5?pr:pr*(1-((f-0.5)*2))+p.p0*((f-0.5)*2)):(f<0.5?p.p0:pr);
+      this.газ(ctx,xp,yT-hp/2,xs-xp,hp,293,Math.max(0.02,(отк&&f>=0.5?pr:pc)/p.p0),s.t,0.7,px);
+      АРТ.металл(ctx,xp,yT-hp/2-0.12,Lp,0.12); АРТ.металл(ctx,xp,yT+hp/2,Lp,0.12); АРТ.металл(ctx,xp-0.12,yT-hp/2-0.12,0.12,hp+0.24,{верт:true});
+      АРТ.металл(ctx,xs,yT-hp/2,0.22,hp,{верт:true}); АРТ.металл(ctx,xs+0.22,yT-0.07,Lp+0.6-(xs-xp),0.14);
+      // клапаны: к сосуду и в атмосферу
+      const кл=(x,y,открыт,подп)=>{ ctx.fillStyle=открыт?'rgba(60,170,90,0.95)':'rgba(200,70,60,0.95)'; ctx.beginPath(); ctx.arc(x,y,0.16,0,7); ctx.fill();
+        v.label(ctx,подп,x,y,-20,-14,ink3); };
+      const кВ=отк?f<0.5:f>=0.5, кА=!кВ;
+      кл(x0+W+0.6,yT,кВ,'к сосуду'); кл(xp+0.4,yT+hp/2+0.45,кА,'в атмосферу');
+      АРТ.прибор(ctx,x0+W*0.5,y0+H+0.9,0.75,отк?pr/p.p0:pr/(p.p0*(1+Math.max(5,s.ход)*p.dV/p.V)),px);
+      v.label(ctx,`p = ${pr.toPrecision(4)} кПа`,x0+W*0.5+0.9,y0+H+0.9,4,0,ink2);
+      v.label(ctx,`ход ${Math.floor(s.ход+1e-9)+1}: ${f<0.5?(отк?'камера расширяется, газ из сосуда входит в неё':'камера набирает воздух'):(отк?'кран к сосуду закрыт, газ выбрасывается':'поршень вталкивает воздух в сосуд')}`,x0,y0,0,16,ink3);
+      return;
+    }
+    if(p.mode==='piston'){
+      const δ=this.нагрев(p,s.t), x=this.перегородка(p,δ), L=11, k=L/p.l, x0=-L/2, y0=-1.2, h=2.6, xm=x0+L/2+x*k;
+      const pr=p.p0*(p.l/2)/(p.l/2-x);
+      this.газ(ctx,x0,y0,xm-x0,h,p.T+δ,pr/p.p0*p.T/(p.T+δ),s.t,0.2,px);
+      this.газ(ctx,xm,y0,x0+L-xm,h,p.T,pr/p.p0,s.t,0.6,px);
+      АРТ.металл(ctx,x0-0.15,y0-0.15,L+0.3,0.15); АРТ.металл(ctx,x0-0.15,y0+h,L+0.3,0.15);
+      АРТ.металл(ctx,x0-0.15,y0,0.15,h,{верт:true}); АРТ.металл(ctx,x0+L,y0,0.15,h,{верт:true});
+      АРТ.металл(ctx,xm-0.1,y0,0.2,h,{верт:true});
+      if(s.t<p.th+0.5) АРТ.горелка(ctx,x0+L/4,y0-0.65,1.6,s.t,0.9);
+      ctx.strokeStyle=ink3; ctx.lineWidth=0.9*px; ctx.setLineDash([4*px,3*px]); ctx.beginPath(); ctx.moveTo(0,y0-0.4); ctx.lineTo(0,y0+h+0.4); ctx.stroke(); ctx.setLineDash([]);
+      if(x>1e-4){ ctx.strokeStyle=meas; ctx.lineWidth=1.2*px; ctx.beginPath(); ctx.moveTo(0,y0+h+0.5); ctx.lineTo(xm,y0+h+0.5); ctx.stroke();
+        v.label(ctx,`x = ${x.toFixed(2)} см`,xm,y0+h+0.5,6,0,meas); }
+      v.label(ctx,`T = ${(p.T+δ).toFixed(0)} К`,x0+0.3,y0+h,0,-12,ink2); v.label(ctx,`T = ${p.T} К`,x0+L-1.4,y0+h,0,-12,ink2);
+      v.label(ctx,'давления по обе стороны равны в любой момент',x0,y0,0,40,ink3);
+      return;
+    }
+    const К=this.кран(p,s.t), W1=1.6*Math.sqrt(p.V1), W2=1.6*Math.sqrt(p.V2), H=2.8, y0=-1.6, x1=-0.6-W1, x2=0.6;
+    this.газ(ctx,x1,y0,W1,H,p.T1,К.p1/(p.p1*1000)*(p.p1/Math.max(p.p1,p.p2)),s.t,0.15,px); this.рамка(ctx,x1,y0,W1,H,px);
+    this.газ(ctx,x2,y0,W2,H,p.T2,К.p2/(p.p2*1000)*(p.p2/Math.max(p.p1,p.p2)),s.t,0.55,px); this.рамка(ctx,x2,y0,W2,H,px);
+    АРТ.металл(ctx,-0.6,y0+H*0.3-0.1,1.2,0.2);
+    ctx.fillStyle=К.открыт?'rgba(60,170,90,0.95)':'rgba(200,70,60,0.95)'; ctx.beginPath(); ctx.arc(0,y0+H*0.3,0.2,0,7); ctx.fill();
+    v.label(ctx,К.открыт?'кран открыт':'кран закрыт',0,y0+H*0.3,-30,-16,ink3);
+    const pm=Math.max(p.p1,p.p2)*1000*1.1;
+    АРТ.прибор(ctx,x1+W1/2,y0+H+0.8,0.6,К.p1/pm,px); АРТ.прибор(ctx,x2+W2/2,y0+H+0.8,0.6,К.p2/pm,px);
+    v.label(ctx,`${(К.p1/1000).toFixed(1)} кПа`,x1+W1/2+0.7,y0+H+0.8,4,0,ink2); v.label(ctx,`${(К.p2/1000).toFixed(1)} кПа`,x2+W2/2+0.7,y0+H+0.8,4,0,ink2);
+    v.label(ctx,`T₁ = ${p.T1} К`,x1,y0,0,14,ink3); v.label(ctx,`T₂ = ${p.T2} К`,x2,y0,0,14,ink3);
+  }
+},
+
+atmos:{
+  title:'Газ в поле тяжести и в центрифуге: распределение Больцмана',
+  schema:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'column',options:[{v:'column',t:'изотермическая атмосфера'},{v:'cent',t:'газ во вращающейся трубке'}]},
+    {key:'gas',label:'Газ',type:'select',default:'air',options:[{v:'air',t:'воздух, M = 29 г/моль'},{v:'h2',t:'водород, 2'},{v:'he',t:'гелий, 4'},{v:'n2',t:'азот, 28'},{v:'co2',t:'углекислый газ, 44'},{v:'xe',t:'ксенон, 131'}]},
+    {key:'T',label:'Температура T',unit:'К',min:50,max:2000,step:1,default:290},
+    {key:'g',label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8,если:p=>p.mode==='column'},
+    {key:'Hc',label:'Высота столба',unit:'км',min:0.1,max:100,step:0.1,default:30,если:p=>p.mode==='column'},
+    {key:'h',label:'Высота измерения h',unit:'км',min:0,max:100,step:0.1,default:5,если:p=>p.mode==='column'},
+    {key:'p0',label:'Давление внизу p₀',unit:'кПа',min:1,max:1000,step:0.1,default:101.3,если:p=>p.mode==='column'},
+    {key:'L',label:'Длина трубки l',unit:'см',min:5,max:200,step:1,default:100,если:p=>p.mode==='cent'},
+    {key:'w',label:'Угловая скорость ω',unit:'рад/с',min:0,max:3000,step:10,default:400,если:p=>p.mode==='cent'},
+    {key:'r',label:'Точка измерения r',unit:'см',min:0,max:200,step:1,default:50,если:p=>p.mode==='cent'}
+  ],
+  M:{air:0.029,h2:0.002,he:0.004,n2:0.028,co2:0.044,xe:0.131},
+  H0(p){ return ТД.R*p.T/(this.M[p.gas]*p.g); },                  // шкала высот, м
+  отн(p,z){ if(p.mode==='column') return Math.exp(-z/this.H0(p));
+    const M=this.M[p.gas]; return Math.exp(M*p.w*p.w*z*z/(2*ТД.R*p.T)); },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt){ s.t+=dt; },
+  readouts(s,p){
+    if(p.mode==='column'){ const H0=this.H0(p), h=Math.min(p.h,p.Hc)*1000, f=this.отн(p,h);
+      return [['высота h',h/1000,'км'],['давление p(h)',p.p0*f,'кПа'],['концентрация n(h)',p.p0*1e3*f/(ТД.k*p.T),'м⁻³'],['шкала высот RT/Mg',H0/1000,'км']]; }
+    // нормировка: средняя концентрация по трубке = 1
+    const L=p.L/100, N=200; let ср=0; for(let i=0;i<N;i++) ср+=this.отн(p,L*(i+0.5)/N)/N;
+    const r=Math.min(p.r,p.L)/100;
+    return [['угловая скорость ω',p.w,'рад/с'],['точка r',r*100,'см'],['концентрация у оси (к средней)',this.отн(p,0)/ср,''],
+      ['концентрация в точке r (к средней)',this.отн(p,r)/ср,''],['концентрация у конца (к средней)',this.отн(p,L)/ср,'']];
+  },
+  graphs:[],
+  presets:[
+    {name:'Воздух при 290 К: давление на 5 км',values:{mode:'column',gas:'air',T:290,g:9.8,Hc:30,h:5,p0:101.3}},
+    {name:'Водород уходит высоко',values:{mode:'column',gas:'h2',T:290,g:9.8,Hc:100,h:20,p0:101.3}},
+    {name:'Углекислый газ стелется низко',values:{mode:'column',gas:'co2',T:290,g:9.8,Hc:30,h:5,p0:101.3}},
+    {name:'Центрифуга: ксенон к краю',values:{mode:'cent',gas:'xe',T:300,L:100,w:400,r:50}},
+    {name:'Та же центрифуга с гелием',values:{mode:'cent',gas:'he',T:300,L:100,w:400,r:50}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(12*PX_PER_M),(H-30)/(9*PX_PER_M)),1e-4,60); return {x:0.5,y:0,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), acc=v.c('--accent'), px=1/ppm(), тёмн=АРТ.тёмный();
+    const c=АРТ.цветT(p.T);
+    if(p.mode==='column'){
+      const y0=-3.8, Hd=7.6, x0=-2.2, w=3.4, Hm=p.Hc*1000, H0=this.H0(p);
+      // столб: плотность по высоте полосами
+      for(let i=0;i<60;i++){ const f=this.отн(p,Hm*(i+0.5)/60);
+        ctx.fillStyle=АРТ.ц(c,(тёмн?0.6:0.55)*f+0.03); ctx.fillRect(x0,y0+Hd*i/60,w,Hd/60+px); }
+      // молекулы: высоты по распределению (обратная функция), дрожат во времени
+      const N=220, Fmax=1-Math.exp(-Hm/H0);
+      ctx.fillStyle=АРТ.ц(АРТ.смесь(c,[0,0,0],0.35),0.9);
+      for(let i=0;i<N;i++){ const a=(0.5+(i+1)*0.7548776662)%1, b=(0.5+(i+1)*0.5698402910)%1;
+        const u=clamp(a+0.01*Math.sin(s.t*(1.3+b)+i),0.0001,0.9999), z=-H0*Math.log(1-u*Fmax);
+        const x=x0+0.08+((b+0.02*Math.cos(s.t*(1.7+a)+i))%1+1)%1*(w-0.16);
+        ctx.beginPath(); ctx.arc(x,y0+Hd*z/Hm,1.8*px,0,7); ctx.fill(); }
+      АРТ.пол(ctx,x0-0.6,x0+w+0.6,y0,0.22,ink3);
+      ctx.strokeStyle=ink3; ctx.lineWidth=1*px; ctx.strokeRect(x0,y0,w,Hd);
+      // шкала высот и маркер h
+      ctx.beginPath(); for(let k=0;k<=10;k++){ const y=y0+Hd*k/10; ctx.moveTo(x0+w,y); ctx.lineTo(x0+w+0.15,y); } ctx.stroke();
+      v.label(ctx,`${p.Hc} км`,x0+w+0.15,y0+Hd,4,0,ink3); v.label(ctx,'0',x0+w+0.15,y0,4,0,ink3);
+      const yh=y0+Hd*Math.min(p.h,p.Hc)/p.Hc, f=this.отн(p,Math.min(p.h,p.Hc)*1000);
+      ctx.strokeStyle=meas; ctx.lineWidth=1.4*px; ctx.setLineDash([5*px,3*px]); ctx.beginPath(); ctx.moveTo(x0-0.3,yh); ctx.lineTo(x0+w+0.3,yh); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,`h = ${p.h} км: p = ${(p.p0*f).toPrecision(4)} кПа`,x0+w+0.3,yh,6,0,meas);
+      // кривая p(h) справа
+      const gx=x0+w+3.4, gw=3.2;
+      ctx.strokeStyle=ink3; ctx.lineWidth=1*px; ctx.beginPath(); ctx.moveTo(gx,y0+Hd); ctx.lineTo(gx,y0); ctx.lineTo(gx+gw,y0); ctx.stroke();
+      ctx.strokeStyle=acc; ctx.lineWidth=1.8*px; ctx.beginPath();
+      for(let i=0;i<=80;i++){ const z=Hm*i/80, x=gx+gw*this.отн(p,z), y=y0+Hd*i/80; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+      v.label(ctx,'p/p₀',gx+gw,y0,-10,14,ink3); v.label(ctx,'p(h) = p₀e^(−Mgh/RT)',gx,y0+Hd,0,-8,acc);
+      return;
+    }
+    // центрифуга: трубка вращается вокруг левого конца, вид сверху
+    const L=p.L/100, Ld=8, x0=-4, y0=0.2, w=1.1;
+    ctx.save(); ctx.translate(x0,y0);
+    let ср=0; for(let i=0;i<100;i++) ср+=this.отн(p,L*(i+0.5)/100)/100;
+    for(let i=0;i<80;i++){ const f=this.отн(p,L*(i+0.5)/80)/ср; ctx.fillStyle=АРТ.ц(c,Math.min(0.85,0.25*f+0.02)); ctx.fillRect(Ld*i/80,-w/2,Ld/80+px,w); }
+    // молекулы по распределению
+    const N=180; ctx.fillStyle=АРТ.ц(АРТ.смесь(c,[0,0,0],0.35),0.9);
+    const F=[0]; for(let i=1;i<=200;i++) F.push(F[i-1]+this.отн(p,L*(i-0.5)/200));
+    for(let i=0;i<N;i++){ const a=(0.5+(i+1)*0.7548776662)%1, b=(0.5+(i+1)*0.5698402910)%1, u=clamp(a+0.01*Math.sin(s.t*(1.3+b)+i),0,1)*F[200];
+      let j=0; while(j<199&&F[j+1]<u) j++; const z=(j+(u-F[j])/Math.max(F[j+1]-F[j],1e-12))/200;
+      ctx.beginPath(); ctx.arc(z*Ld,-w/2+0.08+b*(w-0.16),1.8*px,0,7); ctx.fill(); }
+    ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.9); ctx.lineWidth=1.6*px; ctx.strokeRect(0,-w/2,Ld,w);
+    ctx.restore();
+    АРТ.шар(ctx,x0,y0,0.35,[160,166,178]);
+    ctx.strokeStyle=acc; ctx.fillStyle=acc; ctx.lineWidth=1.6*px; ctx.beginPath(); ctx.arc(x0,y0,0.75,-2.2,1.2); ctx.stroke();
+    v.label(ctx,`ω = ${p.w} рад/с`,x0,y0+0.75,-20,-10,acc);
+    const xr=x0+Ld*Math.min(p.r,p.L)/p.L;
+    ctx.strokeStyle=meas; ctx.lineWidth=1.4*px; ctx.setLineDash([4*px,3*px]); ctx.beginPath(); ctx.moveTo(xr,y0-w); ctx.lineTo(xr,y0+w); ctx.stroke(); ctx.setLineDash([]);
+    v.label(ctx,`r = ${Math.min(p.r,p.L)} см`,xr,y0-w,-20,12,meas);
+    v.label(ctx,'тяжёлые молекулы собираются у дальнего конца: n ∝ e^(Mω²r²/2RT)',x0,y0-1.6,0,0,ink2);
+  }
+},
+
+maxwell:{
+  title:'Распределение Максвелла: скорости молекул',
+  schema:true,
+  params:[
+    {key:'gas',label:'Газ',type:'select',default:'n2',options:[{v:'h2',t:'водород H₂, M = 2 г/моль'},{v:'he',t:'гелий He, 4'},{v:'n2',t:'азот N₂, 28'},{v:'o2',t:'кислород O₂, 32'},{v:'ar',t:'аргон Ar, 40'},{v:'co2',t:'CO₂, 44'}]},
+    {key:'T',label:'Температура T',unit:'К',min:20,max:3000,step:1,default:300},
+    {key:'v1',label:'Интервал скоростей: от v₁',unit:'м/с',min:0,max:5000,step:1,default:400},
+    {key:'v2',label:'до v₂',unit:'м/с',min:0,max:6000,step:1,default:600},
+    {key:'pk',label:'Давление p',unit:'кПа',min:0.001,max:1000,step:0.001,default:101.3},
+    {type:'group',label:'Показывать'},
+    {key:'cmp',label:'Сравнить с температурой T₂',type:'check',default:false},
+    {key:'T2',label:'Температура T₂',unit:'К',min:20,max:3000,step:1,default:900,если:p=>p.cmp}
+  ],
+  GAS:{h2:{M:0.002,d:0.27},he:{M:0.004,d:0.22},n2:{M:0.028,d:0.37},o2:{M:0.032,d:0.35},ar:{M:0.040,d:0.35},co2:{M:0.044,d:0.46}},   // d — эффективный диаметр, нм
+  vp(p,T){ return Math.sqrt(2*ТД.R*(T||p.T)/this.GAS[p.gas].M); },
+  f(p,v,T){ const a=this.vp(p,T); return 4/Math.sqrt(Math.PI)*v*v/(a*a*a)*Math.exp(-v*v/(a*a)); },
+  /* доля молекул со скоростями меньше v */
+  F(p,v,T){ const x=v/this.vp(p,T); return this.erf(x)-2/Math.sqrt(Math.PI)*x*Math.exp(-x*x); },
+  erf(x){ const t=1/(1+0.3275911*Math.abs(x)), y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x); return x>=0?y:-y; },
+  init(p){
+    // молекулы для рисунка: скорости по Максвеллу (обратная функция распределения)
+    const mol=[];
+    for(let i=0;i<160;i++){ const u=(i+0.5)/160; let a=0,b=4; for(let k=0;k<40;k++){ const c=(a+b)/2; if(this.Fx(c)<u) a=c; else b=c; }
+      const ang=((i*2.399963)%(2*Math.PI)); mol.push({x:((0.5+i*0.7548777)%1),y:((0.5+i*0.5698403)%1),k:(a+b)/2,ux:Math.cos(ang),uy:Math.sin(ang)}); }
+    return {t:0,mol,event:null,__stop:null};
+  },
+  Fx(x){ return this.erf(x)-2/Math.sqrt(Math.PI)*x*Math.exp(-x*x); },
+  step(s,dt,p){ s.t+=dt;
+    const sc=0.25;                                       // скорость на рисунке: доли ящика в секунду на один vₚ
+    for(const m of s.mol){ m.x+=m.ux*m.k*sc*dt; m.y+=m.uy*m.k*sc*dt;
+      if(m.x<0){m.x=-m.x;m.ux=-m.ux;} if(m.x>1){m.x=2-m.x;m.ux=-m.ux;} if(m.y<0){m.y=-m.y;m.uy=-m.uy;} if(m.y>1){m.y=2-m.y;m.uy=-m.uy;} }
+  },
+  readouts(s,p){
+    const g=this.GAS[p.gas], vp=this.vp(p), a=Math.min(p.v1,p.v2), b=Math.max(p.v1,p.v2);
+    const n=p.pk*1000/(ТД.k*p.T), d=g.d*1e-9, λ=1/(Math.SQRT2*Math.PI*d*d*n), vср=Math.sqrt(8*ТД.R*p.T/(Math.PI*g.M));
+    return [['наиболее вероятная vₚ',vp,'м/с'],['средняя ⟨v⟩',vср,'м/с'],['средняя квадратичная',Math.sqrt(3*ТД.R*p.T/g.M),'м/с'],
+      ['доля в интервале [v₁, v₂]',100*(this.F(p,b)-this.F(p,a)),'%'],['концентрация n',n,'м⁻³'],['эффективный диаметр молекулы',g.d,'нм'],
+      ['длина свободного пробега λ',λ*1e6,'мкм'],['столкновений в секунду',vср/λ,'1/с']];
+  },
+  graphs:[],
+  presets:[
+    {name:'Азот при комнатной температуре',values:{gas:'n2',T:300,v1:400,v2:600,cmp:false}},
+    {name:'Нагрев втрое: кривая уходит вправо и оседает',values:{gas:'n2',T:300,v1:400,v2:600,cmp:true,T2:900}},
+    {name:'Водород: в четыре раза быстрее кислорода',values:{gas:'h2',T:300,v1:1500,v2:2000,cmp:false}},
+    {name:'Узкий интервал около vₚ',values:{gas:'o2',T:300,v1:390,v2:400,cmp:false}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(13*PX_PER_M),(H-30)/(8*PX_PER_M)),1e-4,60); return {x:0.6,y:0,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), acc=v.c('--accent'), meas=v.c('--measure'), px=1/ppm();
+    const vp=this.vp(p), a=Math.min(p.v1,p.v2), b=Math.max(p.v1,p.v2);
+    // ящик с молекулами: цвет по скорости, попавшие в интервал — с кольцом
+    const bx=-5.6, by=-2.6, bw=4.2, bh=4.2;
+    ctx.fillStyle=АРТ.ц(АРТ.цветT(p.T),0.08); ctx.fillRect(bx,by,bw,bh);
+    for(const m of s.mol){ const vv=m.k*vp, x=bx+0.08+m.x*(bw-0.16), y=by+0.08+m.y*(bh-0.16);
+      ctx.fillStyle=АРТ.ц(АРТ.цветT(120+260*m.k*m.k),0.95); ctx.beginPath(); ctx.arc(x,y,2.6*px,0,7); ctx.fill();
+      if(vv>=a&&vv<=b){ ctx.strokeStyle=АРТ.ц(АРТ.rgb(meas)||[200,80,40],0.55); ctx.lineWidth=1*px; ctx.beginPath(); ctx.arc(x,y,4.6*px,0,7); ctx.stroke(); } }
+    ctx.strokeStyle=АРТ.ц(АРТ.тёмный()?[190,215,235]:[90,115,135],0.9); ctx.lineWidth=1.6*px; ctx.strokeRect(bx,by,bw,bh);
+    v.label(ctx,'цвет — скорость: синие медленные, красные быстрые; в кольце — из интервала',bx,by,0,14,ink3);
+    // график f(v)
+    const gx=-0.6, gy=-2.6, gw=6.4, gh=5, vmax=Math.max(vp*3.2,b*1.1,p.cmp?this.vp(p,p.T2)*3.2:0);
+    const fmax=Math.max(this.f(p,vp),p.cmp?this.f(p,this.vp(p,p.T2),p.T2):0)*1.15;
+    const X=vv=>gx+gw*vv/vmax, Y=f=>gy+gh*f/fmax;
+    // гистограмма мгновенных скоростей молекул
+    const nb=24, cnt=new Array(nb).fill(0); for(const m of s.mol){ const i=Math.floor(m.k*vp/vmax*nb); if(i>=0&&i<nb) cnt[i]++; }
+    ctx.fillStyle=АРТ.ц(АРТ.rgb(acc)||[40,80,200],0.12);
+    for(let i=0;i<nb;i++){ const f=cnt[i]/s.mol.length/(vmax/nb); ctx.fillRect(X(vmax*i/nb)+px,gy,gw/nb-2*px,gh*f/fmax); }
+    // интервал
+    ctx.fillStyle=АРТ.ц(АРТ.rgb(meas)||[200,80,40],0.25); ctx.beginPath(); ctx.moveTo(X(a),gy);
+    for(let i=0;i<=60;i++){ const vv=a+(b-a)*i/60; ctx.lineTo(X(vv),Y(this.f(p,vv))); } ctx.lineTo(X(b),gy); ctx.closePath(); ctx.fill();
+    const кривая=(T,цв,lw)=>{ ctx.strokeStyle=цв; ctx.lineWidth=lw*px; ctx.beginPath(); for(let i=0;i<=200;i++){ const vv=vmax*i/200; const y=Y(this.f(p,vv,T)); i?ctx.lineTo(X(vv),y):ctx.moveTo(X(vv),y); } ctx.stroke(); };
+    if(p.cmp) кривая(p.T2,АРТ.ц(АРТ.цветT(p.T2),0.95),1.6);
+    кривая(p.T,acc,2);
+    ctx.strokeStyle=ink3; ctx.lineWidth=1*px; ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
+    // отметки vₚ, ⟨v⟩, v_кв
+    const g=this.GAS[p.gas], марк=[['vₚ',vp],['⟨v⟩',Math.sqrt(8*ТД.R*p.T/(Math.PI*g.M))],['v_кв',Math.sqrt(3*ТД.R*p.T/g.M)]];
+    марк.forEach(([n,vv],i)=>{ ctx.strokeStyle=ink3; ctx.setLineDash([3*px,3*px]); ctx.beginPath(); ctx.moveTo(X(vv),gy); ctx.lineTo(X(vv),Y(this.f(p,vv))); ctx.stroke(); ctx.setLineDash([]);
+      v.label(ctx,n,X(vv),gy,-6,12+i*11,ink2); });
+    v.label(ctx,`доля в [${a}; ${b}] м/с: ${(100*(this.F(p,b)-this.F(p,a))).toFixed(2)} %`,X(b),Y(this.f(p,(a+b)/2)),8,-10,meas);
+    v.label(ctx,'f(v)',gx,gy+gh,4,6,ink3); v.label(ctx,`v, м/с (до ${Math.round(vmax)})`,gx+gw,gy,-110,12,ink3);
+    if(p.cmp) v.label(ctx,`T₂ = ${p.T2} К`,X(this.vp(p,p.T2)),Y(this.f(p,this.vp(p,p.T2),p.T2)),6,-8,ink2);
+  }
+},
+
+contact:{
+  title:'Теплообмен и рост энтропии',
+  schema:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'mix',options:[{v:'mix',t:'два тела обмениваются теплотой'},{v:'gas',t:'газ расширяется в пустоту'}]},
+    {key:'s1',label:'Первое тело',type:'select',default:'water',options:[{v:'water',t:'вода, c = 4200'},{v:'cu',t:'медь, c = 385'},{v:'al',t:'алюминий, c = 900'},{v:'fe',t:'железо, c = 460'}],если:p=>p.mode==='mix'},
+    {key:'m1',label:'Масса первого m₁',unit:'кг',min:0.05,max:10,step:0.05,default:1,если:p=>p.mode==='mix'},
+    {key:'t1',label:'Температура первого t₁',unit:'°C',min:0,max:500,step:1,default:80,если:p=>p.mode==='mix'},
+    {key:'s2',label:'Второе тело',type:'select',default:'water',options:[{v:'water',t:'вода, c = 4200'},{v:'cu',t:'медь, c = 385'},{v:'al',t:'алюминий, c = 900'},{v:'fe',t:'железо, c = 460'}],если:p=>p.mode==='mix'},
+    {key:'m2',label:'Масса второго m₂',unit:'кг',min:0.05,max:10,step:0.05,default:2,если:p=>p.mode==='mix'},
+    {key:'t2',label:'Температура второго t₂',unit:'°C',min:0,max:500,step:1,default:20,если:p=>p.mode==='mix'},
+    {key:'tau',label:'Время выравнивания',unit:'с',min:0.2,max:30,step:0.1,default:3,если:p=>p.mode==='mix'},
+    {key:'n',label:'Количество газа ν',unit:'моль',min:0.1,max:10,step:0.1,default:1,если:p=>p.mode==='gas'},
+    {key:'k',label:'Во сколько раз растёт объём',min:1.1,max:10,step:0.1,default:2,если:p=>p.mode==='gas'},
+    {key:'Tg',label:'Температура газа',unit:'К',min:100,max:1000,step:1,default:300,если:p=>p.mode==='gas'},
+    {type:'group',label:'Остановка'},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  C:{water:4200,cu:385,al:900,fe:460},
+  ИМЯ:{water:'вода',cu:'медь',al:'алюминий',fe:'железо'},
+  temps(p,t){ const C1=this.C[p.s1]*p.m1, C2=this.C[p.s2]*p.m2, T1=p.t1+273.15, T2=p.t2+273.15, Tf=(C1*T1+C2*T2)/(C1+C2), e=Math.exp(-t/Math.max(p.tau,1e-6));
+    return {T1:Tf+(T1-Tf)*e,T2:Tf+(T2-Tf)*e,Tf,C1,C2,T10:T1,T20:T2}; },
+  /* свободное расширение: доля молекул, перешедших в новую часть объёма */
+  доляСлева(p,t){ const ф=1/p.k; return ф+(1-ф)*Math.exp(-Math.max(0,t-0.3)/0.8); },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){ if(s.event) return; const t=s.t+dt;
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; } s.t=t; },
+  readouts(s,p){
+    if(p.mode==='mix'){ const q=this.temps(p,s.t), Q=q.C1*(q.T10-q.T1);
+      return [['t',s.t,'с'],['температура первого',q.T1-273.15,'°C'],['температура второго',q.T2-273.15,'°C'],['передано теплоты',Q/1000,'кДж'],
+        ['ΔS первого = C₁ln(T/T₁)',q.C1*Math.log(q.T1/q.T10),'Дж/К'],['ΔS второго = C₂ln(T/T₂)',q.C2*Math.log(q.T2/q.T20),'Дж/К']]; }
+    const f=this.доляСлева(p,s.t);
+    return [['t',s.t,'с'],['доля молекул в прежнем объёме',100*f,'%'],['температура газа',p.Tg,'К — не меняется'],['работа газа',0,'Дж — расширение в пустоту'],['теплота',0,'Дж — стенки не пропускают']];
+  },
+  graphs:[{label:'Температуры',unit:'°C',series:['t₁','t₂'],get(s,p){ if(p.mode!=='mix') return [null,null]; const q=SIMS.contact.temps(p,s.t); return [q.T1-273.15,q.T2-273.15]; }}],
+  presets:[
+    {name:'Горячая и холодная вода',values:{mode:'mix',s1:'water',m1:1,t1:80,s2:'water',m2:2,t2:20,tau:3}},
+    {name:'Медный брусок в воде',values:{mode:'mix',s1:'cu',m1:0.5,t1:200,s2:'water',m2:1,t2:20,tau:3}},
+    {name:'Газ расширяется в пустоту вдвое',values:{mode:'gas',n:1,k:2,Tg:300}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(12*PX_PER_M),(H-30)/(8*PX_PER_M)),1e-4,60); return {x:0,y:0.2,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  тело(ctx,x,y,w,h,вещ,T,t,px){
+    if(вещ==='water'){ АРТ.жидкость(ctx,x,y,x+w,y+h*0.8,{тон:'вода',lw:1*px}); ctx.fillStyle=АРТ.ц(АРТ.цветT(T),clamp((T-290)/120,0,0.45)); ctx.fillRect(x,y,w,h*0.8);
+      // пар над горячей водой
+      const к=clamp((T-318)/50,0,1); if(к>0){ ctx.strokeStyle=АРТ.ц([200,205,215],0.55*к); ctx.lineWidth=2*px; ctx.lineCap='round';
+        for(let i=0;i<3;i++){ const xx=x+w*(0.25+0.25*i); ctx.beginPath();
+          for(let j=0;j<=20;j++){ const yy=y+h*0.82+j*0.04*h, ф=((t*0.7+i*0.33)%1); ctx[j?'lineTo':'moveTo'](xx+0.12*Math.sin(j*0.5+t*3+i*2),yy+ф*0.3); }
+          ctx.stroke(); } } }
+    else { const rgb=вещ==='cu'?[200,120,80]:вещ==='al'?[190,196,206]:[130,134,142]; АРТ.металл(ctx,x+w*0.15,y,w*0.7,h*0.55,{rgb});
+      // накал: тёмно-красное свечение выше ~500 °C
+      const ж=clamp((T-773)/600,0,1); if(ж>0){ ctx.fillStyle=`rgba(255,${Math.round(90+120*ж)},40,${0.6*ж})`; ctx.fillRect(x+w*0.15,y,w*0.7,h*0.55); }
+      if(T>330){ ctx.fillStyle=АРТ.ц(АРТ.цветT(T),0.25); ctx.fillRect(x+w*0.15,y,w*0.7,h*0.55); } }
+  },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), px=1/ppm();
+    if(p.mode==='mix'){
+      const q=this.temps(p,s.t), w=3.6, h=3.6, y0=-2.4, x1=-w-0.15, x2=0.15;
+      this.тело(ctx,x1,y0,w,h,p.s1,q.T1,s.t,px); this.тело(ctx,x2,y0,w,h,p.s2,q.T2,s.t,px);
+      АРТ.стакан(ctx,x1,x2+w,y0,y0+h,0.08);
+      АРТ.металл(ctx,-0.15,y0,0.3,h*0.85,{верт:true,rgb:[200,120,80]});
+      const lo=Math.min(q.T10,q.T20)-10, hi=Math.max(q.T10,q.T20)+10;
+      АРТ.термометр(ctx,x1+w*0.5,y0+h+0.5,2,(q.T1-lo)/(hi-lo),px); АРТ.термометр(ctx,x2+w*0.5,y0+h+0.5,2,(q.T2-lo)/(hi-lo),px);
+      v.label(ctx,`${(q.T1-273.15).toFixed(1)} °C`,x1+w*0.5,y0+h+2.6,10,0,ink2); v.label(ctx,`${(q.T2-273.15).toFixed(1)} °C`,x2+w*0.5,y0+h+2.6,10,0,ink2);
+      const dT=q.T1-q.T2; if(Math.abs(dT)>0.3){ const сл=dT>0?1:-1;
+        АРТ.тепло(ctx,-0.9*сл,y0+h*0.45,0.9*сл,y0+h*0.45,'rgba(225,90,40,'+clamp(Math.abs(dT)/60,0.25,0.9)+')',s.t,1.8*px); }
+      v.label(ctx,`${this.ИМЯ[p.s1]}, ${p.m1} кг`,x1,y0,0,14,ink3); v.label(ctx,`${this.ИМЯ[p.s2]}, ${p.m2} кг`,x2,y0,0,14,ink3);
+      const S=q.C1*Math.log(q.T1/q.T10)+q.C2*Math.log(q.T2/q.T20);
+      v.label(ctx,`суммарная энтропия выросла на ${S.toFixed(2)} Дж/К — теплота идёт только от горячего к холодному`,x1,y0,0,30,meas);
+      return;
+    }
+    // свободное расширение: перегородку убрали в момент 0.3 с
+    const W=8, H=3.4, x0=-W/2, y0=-1.7, xc=x0+W/p.k, f=this.доляСлева(p,s.t), N=140;
+    ctx.fillStyle=АРТ.ц(АРТ.цветT(p.Tg),0.12); ctx.fillRect(x0,y0,W,H);
+    ctx.fillStyle=АРТ.ц(АРТ.смесь(АРТ.цветT(p.Tg),[0,0,0],0.3),0.9);
+    for(let i=0;i<N;i++){ const a=(0.5+(i+1)*0.7548776662)%1, b=(0.5+(i+1)*0.5698402910)%1, своб=((i+1)*0.6180339887)%1;
+      const вышла=своб>f/1;                                  // молекулы, ушедшие в новую часть
+      const xa=вышла?xc+(a*(W-(xc-x0))):x0+a*(xc-x0);
+      const x=xa+0.06*Math.sin(s.t*(2+b*2)+i), y=y0+0.1+((b+0.02*Math.cos(s.t*(1.5+a)+i))%1+1)%1*(H-0.2);
+      ctx.beginPath(); ctx.arc(clamp(x,x0+0.05,x0+W-0.05),y,2.2*px,0,7); ctx.fill(); }
+    ctx.strokeStyle=АРТ.ц(АРТ.тёмный()?[190,215,235]:[90,115,135],0.9); ctx.lineWidth=1.8*px; ctx.strokeRect(x0,y0,W,H);
+    if(s.t<0.3) АРТ.металл(ctx,xc-0.08,y0,0.16,H,{верт:true});
+    else { ctx.strokeStyle=v.c('--ink-3'); ctx.setLineDash([4*px,3*px]); ctx.beginPath(); ctx.moveTo(xc,y0); ctx.lineTo(xc,y0+H); ctx.stroke(); ctx.setLineDash([]); }
+    v.label(ctx,'было: V₁',x0,y0+H,0,-10,ink3); v.label(ctx,`стало: ${p.k}·V₁`,x0+W,y0+H,-70,-10,ink3);
+    v.label(ctx,`в прежнем объёме ${(100*f).toFixed(0)} % молекул; назад сами не соберутся`,x0,y0,0,16,meas);
+  }
+},
+
+vapor:{
+  title:'Насыщенный пар и влажность воздуха',
+  schema:true,
+  params:[
+    {key:'mode',label:'Опыт',type:'select',default:'compress',options:[{v:'compress',t:'изотермическое сжатие влажного воздуха'},{v:'cool',t:'охлаждение при постоянном объёме'}]},
+    {key:'tc',label:'Температура t',unit:'°C',min:0,max:100,step:0.5,default:20},
+    {key:'phi',label:'Начальная относительная влажность φ₀',unit:'%',min:1,max:100,step:1,default:60},
+    {key:'V0',label:'Начальный объём V₀',unit:'л',min:0.5,max:1000,step:0.5,default:10},
+    {key:'k',label:'Сжать в k раз',min:1,max:10,step:0.1,default:4,если:p=>p.mode==='compress'},
+    {key:'t2',label:'Охладить до t₂',unit:'°C',min:0,max:100,step:0.5,default:5,если:p=>p.mode==='cool'},
+    {key:'dur',label:'Длительность опыта',unit:'с',min:1,max:30,step:0.5,default:6},
+    {type:'group',label:'Остановка'},
+    {key:'stopDew',label:'Когда выпала роса',type:'check',default:false},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  Mw:0.018,
+  /* состояние в момент t: объём, температура, давление пара, масса росы */
+  сост(p,t){
+    const u=Math.min(1,Math.max(0,t)/Math.max(p.dur,1e-6)), R=ТД.R, T0=p.tc+273.15, ps0=ТД.pНас(p.tc);
+    const ν=p.phi/100*ps0*p.V0*1e-3/(R*T0);
+    let V=p.V0, tc=p.tc;
+    if(p.mode==='compress') V=p.V0/(1+(p.k-1)*u); else tc=p.tc+(p.t2-p.tc)*u;
+    const T=tc+273.15, ps=ТД.pНас(tc), νmax=ps*V*1e-3/(R*T), νп=Math.min(ν,νmax);
+    return {V,tc,ps,pп:νп*R*T/(V*1e-3),φ:νп*R*T/(V*1e-3)/ps,роса:(ν-νп)*this.Mw,u};
+  },
+  init(p){ return {t:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return; const t=s.t+dt;
+    if(p.stopDew&&this.сост(p,t).роса>1e-12&&this.сост(p,s.t).роса<=1e-12){
+      let a=s.t,b=t; for(let i=0;i<50;i++){ const c=(a+b)/2; if(this.сост(p,c).роса>1e-12) b=c; else a=c; }
+      s.t=b; const q=this.сост(p,b); s.event={type:'dew',t:b};
+      s.__stop=p.mode==='compress'?`Роса выпала при объёме ${q.V.toFixed(2)} л`:`Роса выпала при ${q.tc.toFixed(1)} °C`; return; }
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t;
+  },
+  readouts(s,p){ const q=this.сост(p,s.t);
+    return [['t',s.t,'с'],['температура',q.tc,'°C'],['объём',q.V,'л'],['давление насыщенного пара',q.ps/1000,'кПа'],
+      ['давление пара',q.pп/1000,'кПа'],['относительная влажность φ',100*q.φ,'%'],['выпало росы',q.роса*1000,'г']]; },
+  graphs:[{label:'Влажность',unit:'%',series:['φ'],get(s,p){ return [100*SIMS.vapor.сост(p,s.t).φ,null]; }}],
+  presets:[
+    {name:'Сжимаем влажный воздух вчетверо',values:{mode:'compress',tc:20,phi:60,V0:10,k:4,dur:6,stopDew:false}},
+    {name:'Сжатие до первой росы',values:{mode:'compress',tc:20,phi:60,V0:10,k:4,dur:6,stopDew:true}},
+    {name:'Охлаждаем до 5 °C: точка росы',values:{mode:'cool',tc:20,phi:60,V0:10,t2:5,dur:6,stopDew:true}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(9*PX_PER_M),(H-30)/(9.2*PX_PER_M)),1e-4,60); return {x:0.6,y:-0.2,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), px=1/ppm(), q=this.сост(p,s.t);
+    const cx=-1.2, низ=-3, H=6, ш=2.6, верх=низ+H*clamp(0.12+0.8*q.V/p.V0,0.1,0.92);
+    const тепло=p.mode==='cool'&&q.u<1?'холод':null;
+    АРТ.цилиндр(ctx,{x:cx,низ,ш,H,верхГаза:верх,T:q.tc+273.15,тепло,t:s.t,плотн:1},v);
+    // туман при насыщении, капли на стенках и слой воды на дне
+    const x0=cx-ш/2, x1=cx+ш/2;
+    if(q.φ>0.97){ ctx.fillStyle=АРТ.ц([235,240,245],АРТ.тёмный()?0.15:0.45); ctx.fillRect(x0,низ,ш,верх-низ); }
+    if(q.роса>0){ const m=q.роса*1000, слой=Math.min((верх-низ)*0.3,0.02+0.05*Math.sqrt(m));
+      АРТ.жидкость(ctx,x0,низ,x1,низ+слой,{тон:'вода',lw:1*px});
+      const n=Math.min(40,Math.round(4+m*30));
+      for(let i=0;i<n;i++){ const a=((i+1)*0.618034)%1, b=((i+1)*0.754878)%1, сторона=i%2?x0+0.07:x1-0.07;
+        АРТ.капля(ctx,сторона,низ+слой+b*(верх-низ-слой-0.1),Math.max(1.8*px,0.035+0.03*a),'вода',0.85); } }
+    // гигрометр и термометр
+    АРТ.прибор(ctx,x1+1.4,1.6,0.8,q.φ,px,'rgba(40,110,200,0.95)');
+    v.label(ctx,`φ = ${(100*q.φ).toFixed(1)} %`,x1+1.4,0.6,-26,4,ink2);
+    АРТ.термометр(ctx,x1+1.4,-2.6,2.2,(q.tc+5)/(Math.max(p.tc,p.t2||0)+15),px);
+    v.label(ctx,`${q.tc.toFixed(1)} °C`,x1+1.4,-0.2,10,0,ink2);
+    v.label(ctx,q.роса>0?`пар насыщен: давление пара не растёт, лишнее выпадает росой (${(q.роса*1000).toFixed(3)} г)`:'пар ненасыщен: ведёт себя как идеальный газ',x0,низ-0.6,0,10,q.роса>0?v.c('--measure'):ink3);
+  }
+},
+
+cycle:{
+  title:'Циклы тепловых машин: КПД через теплоты',
+  schema:true,
+  params:[
+    {key:'type',label:'Цикл',type:'select',default:'rect',options:[{v:'rect',t:'две изохоры и две изобары'},{v:'stirling',t:'две изотермы и две изохоры (Стирлинг)'},
+      {v:'brayton',t:'две изобары и две адиабаты (Брайтон)'},{v:'ibi',t:'изобара, изохора и изотерма'}]},
+    {key:'n',label:'Количество газа ν',unit:'моль',min:0.1,max:5,step:0.1,default:1},
+    {key:'gamma',label:'Показатель адиабаты γ',min:1.1,max:1.67,step:0.01,default:1.4},
+    {key:'V1',label:'Наименьший объём V₁',unit:'л',min:1,max:50,step:0.5,default:10},
+    {key:'p1',label:'Наименьшее давление p₁',unit:'кПа',min:10,max:1000,step:1,default:100},
+    {key:'nV',label:'Отношение объёмов n',min:1.1,max:10,step:0.1,default:2,если:p=>p.type!=='brayton'},
+    {key:'kP',label:'Отношение давлений k (у Стирлинга — температур)',min:1.1,max:10,step:0.1,default:2,если:p=>p.type!=='ibi'},
+    {key:'nB',label:'Расширение на изобаре V₃/V₂',min:1.1,max:6,step:0.1,default:2,если:p=>p.type==='brayton'},
+    {key:'speed',label:'Циклов в секунду',min:0.02,max:2,step:0.01,default:0.2},
+    {type:'group',label:'Остановка'},
+    {key:'cycles',label:'Через N циклов (0 — выкл)',min:0,max:20,step:0.5,default:0},
+    {key:'tStop',label:'В момент t (0 — выкл)',unit:'с',min:0,max:600,step:0.1,default:0}
+  ],
+  /* участки цикла: тип и концы в (V л, p кПа) */
+  участки(p){
+    const V1=p.V1, p1=p.p1, γ=p.gamma;
+    if(p.type==='rect'){ const n=p.nV,k=p.kP; return [{т:'V',a:[V1,p1],b:[V1,k*p1],и:'изохорный нагрев'},{т:'P',a:[V1,k*p1],b:[n*V1,k*p1],и:'изобарное расширение'},
+      {т:'V',a:[n*V1,k*p1],b:[n*V1,p1],и:'изохорное охлаждение'},{т:'P',a:[n*V1,p1],b:[V1,p1],и:'изобарное сжатие'}]; }
+    if(p.type==='stirling'){ const n=p.nV,k=p.kP; return [{т:'V',a:[V1,p1*n],b:[V1,p1*n*k],и:'изохорный нагрев'},{т:'T',a:[V1,p1*n*k],b:[n*V1,p1*k],и:'изотермическое расширение'},
+      {т:'V',a:[n*V1,p1*k],b:[n*V1,p1],и:'изохорное охлаждение'},{т:'T',a:[n*V1,p1],b:[V1,p1*n],и:'изотермическое сжатие'}]; }
+    if(p.type==='brayton'){ const k=p.kP, Va=p.V1*Math.pow(k,1/γ);
+      // 1: (Va, p1) → адиабата → 2: (V1, k p1) → изобара → 3: (nB V1, k p1) → адиабата → 4 → изобара
+      const V3=p.nB*V1, V4=V3*Math.pow(k,1/γ);
+      return [{т:'S',a:[Va,p1],b:[V1,k*p1],и:'адиабатное сжатие'},{т:'P',a:[V1,k*p1],b:[V3,k*p1],и:'изобарный нагрев'},
+        {т:'S',a:[V3,k*p1],b:[V4,p1],и:'адиабатное расширение'},{т:'P',a:[V4,p1],b:[Va,p1],и:'изобарное охлаждение'}]; }
+    const n=p.nV; return [{т:'P',a:[V1,p1],b:[n*V1,p1],и:'изобарное расширение'},{т:'V',a:[n*V1,p1],b:[n*V1,p1/n],и:'изохорное охлаждение'},
+      {т:'T',a:[n*V1,p1/n],b:[V1,p1],и:'изотермическое сжатие'}];
+  },
+  /* точка на участке: u ∈ [0,1] → (V, p) */
+  точка(p,у,u){
+    const [Va,pa]=у.a,[Vb,pb]=у.b;
+    if(у.т==='V') return [Va,pa+(pb-pa)*u];
+    if(у.т==='P') return [Va+(Vb-Va)*u,pa];
+    if(у.т==='T'){ const V=Va*Math.pow(Vb/Va,u); return [V,pa*Va/V]; }
+    const V=Va+(Vb-Va)*u; return [V,pa*Math.pow(Va/V,p.gamma)];
+  },
+  /* теплоты и работа за цикл: численно по участкам */
+  итог(p){
+    const key=JSON.stringify([p.type,p.n,p.gamma,p.V1,p.p1,p.nV,p.kP,p.nB]); if(this._k===key) return this._и;
+    const Cv=1/(p.gamma-1); let Q1=0,Q2=0,W=0; const qs=[];
+    for(const у of this.участки(p)){ let q=0; const N=600;
+      let [V,P]=this.точка(p,у,0);
+      for(let i=1;i<=N;i++){ const [V2,P2]=this.точка(p,у,i/N);
+        const dW=(P+P2)/2*(V2-V), dU=Cv*(P2*V2-P*V);         // кПа·л = Дж; U = Cv·pV
+        const dq=dU+dW; if(dq>0) Q1+=dq; else Q2-=dq; q+=dq; W+=dW; V=V2; P=P2; }
+      qs.push(q); }
+    this._k=key; this._и={Q1,Q2,W,qs}; return this._и;
+  },
+  init(p){ return {t:0,f:0,event:null,__stop:null}; },
+  step(s,dt,p){
+    if(s.event) return; const t=s.t+dt;
+    const f=t*p.speed;
+    if(p.cycles>0&&f>=p.cycles){ s.t=p.cycles/p.speed; s.f=p.cycles; s.event={type:'cycles',t:s.t}; s.__stop=`Пройдено ${p.cycles} цикл(ов)`; return; }
+    if(p.tStop>0&&t>=p.tStop){ s.t=p.tStop; s.f=p.tStop*p.speed; s.event={type:'time',t:p.tStop}; s.__stop=`Остановка по времени: t = ${p.tStop.toFixed(2)} с`; return; }
+    s.t=t; s.f=f;
+  },
+  где(p,f){ const У=this.участки(p), x=((f%1)+1)%1*У.length, i=Math.min(У.length-1,Math.floor(x)); return {i,u:x-i,у:У[i]}; },
+  readouts(s,p){
+    const g=this.где(p,s.f), [V,P]=this.точка(p,g.у,g.u), И=this.итог(p);
+    return [['t',s.t,'с'],['участок',0,g.у.и],['объём V',V,'л'],['давление p',P,'кПа'],['температура T',P*V/(p.n*ТД.R),'К'],
+      ['получено теплоты за цикл Q₁',И.Q1,'Дж'],['отдано теплоты за цикл Q₂',И.Q2,'Дж'],['работа за цикл W',И.W,'Дж'],['циклов пройдено',s.f,'']];
+  },
+  graphs:[{label:'Температура',unit:'К',series:['T'],get(s,p){ const S=SIMS.cycle, g=S.где(p,s.f), [V,P]=S.точка(p,g.у,g.u); return [P*V/(p.n*ТД.R),null]; }}],
+  presets:[
+    {name:'Две изохоры и две изобары',values:{type:'rect',n:1,gamma:1.4,V1:10,p1:100,nV:2,kP:2,speed:0.2,cycles:0}},
+    {name:'Стирлинг: изотермы при T и 2T',values:{type:'stirling',n:1,gamma:1.4,V1:10,p1:100,nV:2,kP:2,speed:0.2,cycles:0}},
+    {name:'Брайтон: газовая турбина',values:{type:'brayton',n:1,gamma:1.4,V1:10,p1:100,kP:4,nB:2,speed:0.2,cycles:0}},
+    {name:'Изобара, изохора, изотерма',values:{type:'ibi',n:1,gamma:1.4,V1:10,p1:100,nV:3,speed:0.2,cycles:0}}
+  ],
+  fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    const scale=clamp(Math.min((W-30)/(13*PX_PER_M),(H-30)/(9.2*PX_PER_M)),1e-4,60); return {x:0.3,y:-0.2,scale}; },
+  anchors(s,p){ return [{x:0,y:0}]; },
+  draw(ctx,s,v,p){
+    const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), acc=v.c('--accent'), sec=v.c('--second'), px=1/ppm();
+    const У=this.участки(p), g=this.где(p,s.f), [V,P]=this.точка(p,g.у,g.u), T=P*V/(p.n*ТД.R);
+    let Vmin=1e9,Vmax=0,Pmin=1e9,Pmax=0; for(const у of У) for(let i=0;i<=20;i++){ const [a,b]=this.точка(p,у,i/20); Vmin=Math.min(Vmin,a);Vmax=Math.max(Vmax,a);Pmin=Math.min(Pmin,b);Pmax=Math.max(Pmax,b); }
+    // цилиндр
+    const dq=(()=>{ const [V2,P2]=this.точка(p,g.у,Math.min(1,g.u+0.01)), Cv=1/(p.gamma-1); return Cv*(P2*V2-P*V)+P*(V2-V); })();
+    const тепло=g.у.т==='S'?'изол':Math.abs(dq)<1e-9?null:dq>0?'нагрев':'холод';
+    АРТ.цилиндр(ctx,{x:-4.4,низ:-3,ш:2.2,H:6,верхГаза:-3+6*clamp(0.12+0.78*(V-Vmin)/(Vmax-Vmin+1e-9),0.1,0.92),T,тепло,t:s.t,сила:0.9},v);
+    // pV-диаграмма
+    const gx=-1.2, gy=-3, gw=6.6, gh=5.6, X=a=>gx+gw*(a-Vmin*0.8)/(Vmax*1.05-Vmin*0.8), Y=b=>gy+gh*(b-Pmin*0.8)/(Pmax*1.08-Pmin*0.8);
+    ctx.fillStyle=АРТ.ц(АРТ.rgb(acc)||[40,80,200],0.1); ctx.beginPath();
+    У.forEach((у,j)=>{ for(let i=0;i<=40;i++){ const [a,b]=this.точка(p,у,i/40); (j||i)?ctx.lineTo(X(a),Y(b)):ctx.moveTo(X(a),Y(b)); } }); ctx.closePath(); ctx.fill();
+    У.forEach((у,j)=>{ ctx.strokeStyle=j===g.i?acc:sec; ctx.lineWidth=(j===g.i?2.4:1.6)*px; ctx.beginPath();
+      for(let i=0;i<=40;i++){ const [a,b]=this.точка(p,у,i/40); i?ctx.lineTo(X(a),Y(b)):ctx.moveTo(X(a),Y(b)); } ctx.stroke();
+      const [a,b]=у.a; ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(X(a),Y(b),2.6*px,0,7); ctx.fill(); v.label(ctx,String(j+1),X(a),Y(b),-12,-8,ink2); });
+    ctx.fillStyle=v.c('--danger'); ctx.beginPath(); ctx.arc(X(V),Y(P),4*px,0,7); ctx.fill();
+    ctx.strokeStyle=ink3; ctx.lineWidth=1*px; ctx.beginPath(); ctx.moveTo(gx,gy+gh); ctx.lineTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.stroke();
+    v.label(ctx,'p',gx,gy+gh,6,6,ink3); v.label(ctx,'V',gx+gw,gy,-10,12,ink3);
+    v.label(ctx,`${g.у.и}: ${тепло==='нагрев'?'газ получает теплоту':тепло==='холод'?'газ отдаёт теплоту':'теплообмена нет'}`,gx,gy,0,26,тепло==='нагрев'?'#c8582a':тепло==='холод'?'#2f78c8':ink3);
+    v.label(ctx,'площадь цикла — работа за цикл',gx,gy,0,40,ink3);
   }
 }
 });
@@ -29933,6 +31279,8 @@ const T_gas={
     `Необратимость — статистическая: возврат не запрещён, он просто невероятен.`,
   ],
   explore:[
+    {sim:'vessel', do:`Откачивайте сосуд насосом и следите за манометром`, see:`каждый ход уносит одну и ту же долю газа, поэтому давление падает в геометрической прогрессии и до нуля никогда не доходит`},
+    {sim:'vessel', do:`Опыт «перегородка»: нагрейте левую половину`, see:`перегородка сдвигается, пока давления не сравняются; давление растёт по обе стороны`},
     {sim:'gas', do:`Поднимите температуру вдвое`, see:`распределение поедет вправо, но растянется — быстрых молекул станет больше`},
     {sim:'gas', do:`Уменьшите объём при той же температуре`, see:`давление вырастет, хотя скорости не изменились: чаще удары`},
     {sim:'micro', do:`Запустите с 60 молекулами и подождите`, see:`система сама придёт к половине на половину и обратно почти не вернётся`}
@@ -30024,7 +31372,20 @@ const T_gas={
   с областью, где она верна</em>, и знать эту область не менее важно, чем саму формулу.</p>
   <div class="callout">В симуляции «Микро- и макросостояния» поставьте $N=4$ — и вы своими глазами увидите, как
   система то и дело возвращается в исходное «все слева». Затем поставьте $N=200$: то же самое движение, тот же
-  механизм, но возврата не будет никогда. Необратимость рождается из одного лишь количества частиц.</div>`,
+  механизм, но возврата не будет никогда. Необратимость рождается из одного лишь количества частиц.</div>
+
+  <h3 class="sub">Уравнение состояния в задачах: насос, перегородка, кран</h3>
+  <p>Почти все задачи о сосудах решаются одной парой правил: при постоянной температуре $pV$ данной порции газа
+  не меняется, а количество вещества сохраняется, куда бы газ ни перетёк.</p>
+  <p><strong>Насос.</strong> Камера объёмом $\\Delta V$ соединяется с сосудом $V$, газ расширяется на оба объёма,
+  затем камеру отключают и опорожняют. За ход давление умножается на $V/(V+\\Delta V)$, после $n$ ходов
+  $p_n=p_0\\left(\\dfrac{V}{V+\\Delta V}\\right)^n$. Накачивая из атмосферы, насос каждый раз добавляет порцию
+  $p_0\\Delta V$, и давление растёт по прямой: $p_n=p_0(1+n\\Delta V/V)$.</p>
+  <p><strong>Подвижная перегородка.</strong> Если перегородка свободна, давления по обе стороны в любой момент
+  равны. Нагрев одной половины меняет только отношение объёмов: $V_1/T_1=V_2/T_2$ при общем $p$.</p>
+  <p><strong>Кран между сосудами.</strong> После открытия давление выравнивается, а суммарное количество вещества
+  $\\nu_1+\\nu_2=\\dfrac{p_1V_1}{RT_1}+\\dfrac{p_2V_2}{RT_2}$ сохраняется. Если каждый сосуд держат при своей
+  температуре, общее давление $p=\\dfrac{\\nu_1+\\nu_2}{V_1/RT_1+V_2/RT_2}$.</p>`,
   time:50,
   needs:['mech.energy','mech.dyn'],
   why:`Давление и температура — это не новые сущности, а средние по механике огромного числа
@@ -30077,6 +31438,8 @@ const T_gas={
     }
   ],
   formulas:[
+    {tex:'p_n=p_0\\left(\\dfrac{V}{V+\\Delta V}\\right)^n', kind:'следствие',
+     note:'Давление в сосуде после $n$ ходов откачивающего насоса с камерой $\\Delta V$ (изотермически).', sim:'vessel'},
     {tex:'P=\\dfrac{F}{A},\\qquad P=\\rho g h',
      kind:'определение',
      note:'Давление и гидростатическое давление на глубине $h$.', sim:'gas'},
@@ -30217,9 +31580,196 @@ const T_gas={
        <strong>десятичным логарифмом</strong>.`,
      hint:'Вероятность события равна $2^{-N}$, среднее время ожидания обратно вероятности. Дальше — логарифмируйте.',
      answer:p=>{ const r=p.rate>0?p.rate:1;
-       return p.N*Math.log10(2)-Math.log10(r)-Math.log10(365.25*24*3600); }}
+       return p.N*Math.log10(2)-Math.log10(r)-Math.log10(365.25*24*3600); }},
+
+    /* ---------- По мотивам Иродова: сосуды ---------- */
+    {level:3, sim:'vessel', unit:'', src:'Иродов', setup:{mode:'pump',V:10,dV:1,p0:100,rate:4,nStop:49},
+     statement:`Поршневой насос с камерой объёмом $\\Delta V$ откачивает газ из сосуда объёмом $V$; температура постоянна. Сколько ходов
+       понадобится, чтобы давление упало в 100 раз? Ответ — целое число.`,
+     hint:'За ход давление умножается на $V/(V+\\Delta V)$.',
+     answer:p=>p.mode==='pump'?Math.ceil(Math.log(100)/Math.log(1+p.dV/p.V)-1e-9):NaN},
+    {level:2, sim:'vessel', unit:'кПа', src:'Иродов', setup:{mode:'pump',V:10,dV:1,p0:100,rate:4,nStop:20},
+     statement:`Каким станет давление в сосуде после 20 ходов откачивающего насоса?`,
+     hint:'Двадцать раз умножьте на $V/(V+\\Delta V)$.',
+     answer:p=>p.mode==='pump'?p.p0*Math.pow(p.V/(p.V+p.dV),20):NaN},
+    {level:3, sim:'vessel', unit:'', src:'Иродов', setup:{mode:'fill',V:10,dV:1,p0:100,rate:4,nStop:20},
+     statement:`Насос накачивает в сосуд атмосферный воздух. Сколько ходов нужно, чтобы давление в сосуде стало втрое больше
+       атмосферного? Вначале в сосуде было атмосферное давление.`,
+     hint:'Каждый ход добавляет к давлению $p_0\\Delta V/V$.',
+     answer:p=>p.mode==='fill'?Math.ceil(2*p.V/p.dV-1e-9):NaN},
+    {level:3, sim:'vessel', unit:'см', src:'Иродов', setup:{mode:'piston',l:60,T:300,dT:100,th:4,p0:100},
+     statement:`Закрытый цилиндр длиной $l$ разделён посередине подвижной теплонепроницаемой перегородкой; газ по обе стороны при
+       температуре $T$. Одну половину нагрели на $\\Delta T$, другую оставили при $T$. На сколько сдвинется перегородка?`,
+     hint:'Давления равны, значит $V_1/T_1=V_2/T_2$, а сумма объёмов неизменна.',
+     answer:p=>p.mode==='piston'?(p.l/2)*p.dT/(2*p.T+p.dT):NaN},
+    {level:4, sim:'vessel', unit:'кПа', src:'Иродов', setup:{mode:'join',V1:4,p1:300,T1:400,V2:6,p2:100,T2:250,tau:1.5},
+     statement:`Два сосуда с газом соединены трубкой с краном. Первый держат при температуре $T_1$, второй — при $T_2$. Каким станет
+       давление после открытия крана?`,
+     hint:'Количество вещества сохраняется; давление в обоих сосудах одно.',
+     answer:p=>p.mode==='join'?(p.p1*p.V1/p.T1+p.p2*p.V2/p.T2)/(p.V1/p.T1+p.V2/p.T2):NaN},
+    {level:4, sim:'vessel', unit:'моль', src:'Иродов', setup:{mode:'join',V1:4,p1:300,T1:300,V2:6,p2:100,T2:300,tau:1.5},
+     statement:`Сколько молей газа перейдёт из первого сосуда во второй после открытия крана?`,
+     hint:'Найдите общее давление, затем количество вещества в первом сосуде после выравнивания.',
+     answer:p=>{ if(p.mode!=='join') return NaN; const R=8.314, pf=(p.p1*p.V1/p.T1+p.p2*p.V2/p.T2)/(p.V1/p.T1+p.V2/p.T2);
+       return (p.p1-pf)*p.V1/(R*p.T1); }}
   ]
 };
+
+/* ===================== РАСПРЕДЕЛЕНИЯ МАКСВЕЛЛА И БОЛЬЦМАНА (9.4.0) ===================== */
+const T_distr={
+  id:'th.distr', ch:'9а', title:'Распределения Максвелла и Больцмана',
+  key:[
+    `Скорости молекул газа распределены по закону Максвелла: мало очень медленных и очень быстрых, больше всего — около наиболее вероятной $v_p=\\sqrt{2RT/M}$.`,
+    `Три характерные скорости: $v_p:\\langle v\\rangle:v_{\\text{кв}}=\\sqrt2:\\sqrt{8/\\pi}:\\sqrt3$.`,
+    `В поле сил концентрация убывает с потенциальной энергией: $n=n_0e^{-U/kT}$ — распределение Больцмана.`,
+    `Изотермическая атмосфера: давление падает в $e$ раз на высоте $RT/Mg$, около 8 км для воздуха.`
+  ],
+  explore:[
+    {sim:'maxwell', do:`Сравните кривые при 300 и 900 К`, see:`горячая кривая шире и ниже, её максимум сдвинут вправо в $\\sqrt3$ раз, а площадь под обеими одинакова`},
+    {sim:'maxwell', do:`Смените азот на водород`, see:`распределение растягивается вчетверо по скорости: $v_p\\propto1/\\sqrt M$`},
+    {sim:'atmos', do:`Сравните водород и углекислый газ`, see:`тяжёлый газ прижимается к земле, лёгкий тянется вверх на десятки километров`},
+    {sim:'atmos', do:`Опыт «центрифуга»: сравните ксенон и гелий`, see:`ксенон собирается у дальнего конца трубки, гелий почти не замечает вращения`}
+  ],
+  theory:`
+  <p>Температура задаёт среднюю энергию молекулы, но у отдельных молекул скорости самые разные — от почти нулевой
+  до в несколько раз больше средней. Как они распределены, установил Максвелл; как распределяются молекулы в
+  поле сил — Больцман. Оба закона — проявления одного: вероятность состояния с энергией $E$ пропорциональна
+  $e^{-E/kT}$.</p>
+
+  <h3 class="sub">Распределение по скоростям</h3>
+  <p>Доля молекул, у которых модуль скорости лежит в узком интервале от $v$ до $v+dv$, равна $f(v)\\,dv$, где</p>
+  $$f(v)=\\dfrac{4}{\\sqrt\\pi}\\,\\dfrac{v^2}{v_p^3}\\,e^{-v^2/v_p^2},\\qquad v_p=\\sqrt{\\dfrac{2RT}{M}} .$$
+  <p>Множитель $v^2$ — это число направлений: сфера скоростей радиуса $v$ растёт как $v^2$. Экспонента — больцмановский
+  множитель для кинетической энергии. Кривая начинается с нуля, достигает максимума при $v_p$ и быстро спадает.</p>
+  <p>Средняя скорость $\\langle v\\rangle=\\sqrt{8RT/\\pi M}$ немного больше наиболее вероятной, а среднеквадратичная
+  $v_{\\text{кв}}=\\sqrt{3RT/M}$ — ещё больше: хвост быстрых молекул тянет средние вверх. Доля молекул в широком
+  интервале — площадь под кривой; её считают через функцию ошибок, а в узком интервале $\\Delta v$ около $v$
+  она приближённо равна $f(v)\\Delta v$.</p>
+
+  <h3 class="sub">Удары о стенку и свободный пробег</h3>
+  <p>Число ударов молекул о единицу площади стенки за секунду $\\nu=\\tfrac14n\\langle v\\rangle$, где $n=p/kT$.
+  Между столкновениями молекула пролетает в среднем</p>
+  $$\\lambda=\\dfrac{1}{\\sqrt2\\,\\pi d^2n}$$
+  <p>($d$ — эффективный диаметр молекулы). При нормальных условиях это около 0,1 мкм, а в вакуумной установке при
+  $10^{-4}$ Па — уже десятки метров: молекулы летят от стенки к стенке, ни с кем не сталкиваясь.</p>
+
+  <h3 class="sub">Распределение Больцмана</h3>
+  <p>В поле тяжести давление слоя газа уравновешивает вес вышележащих слоёв: $dp=-\\rho g\\,dh$. Для изотермического
+  газа $\\rho=pM/RT$, и интегрирование даёт <strong>барометрическую формулу</strong></p>
+  $$p=p_0\\,e^{-Mgh/RT} .$$
+  <p>Концентрация убывает так же: $n=n_0e^{-mgh/kT}$, то есть $n\\propto e^{-U/kT}$ с потенциальной энергией $U=mgh$.
+  Вид $U$ может быть любым. Во вращающейся трубке в системе отсчёта трубки действует центробежная сила с
+  потенциальной энергией $U=-m\\omega^2r^2/2$, и концентрация растёт к краю: $n=n_0e^{M\\omega^2r^2/2RT}$. Тяжёлые
+  молекулы отбрасываются сильнее лёгких — так в газовых центрифугах разделяют изотопы урана.</p>`,
+  time:40,
+  needs:['th.kinetic'],
+  why:`Почему у Земли нет водородной атмосферы, почему испарение охлаждает и как в центрифуге отделяют уран-235?
+    Всё это следует из того, что скорости и энергии молекул распределены по известным законам — и эти законы
+    можно увидеть, а не только вывести.`,
+  derivations:[
+    {
+      goal:'p=p_0\\,e^{-Mgh/RT}',
+      from:['dp=-\\rho g\\,dh','pV=\\nu RT'],
+      steps:[
+        {tex:'\\rho=\\dfrac{pM}{RT}',
+         why:'плотность идеального газа из уравнения состояния: масса $\\nu M$ в объёме $V$',
+         op:['физика','выразить']},
+        {tex:'\\dfrac{dp}{p}=-\\dfrac{Mg}{RT}\\,dh',
+         why:'подставили плотность в условие равновесия слоя и разделили переменные',
+         op:['подстановка','разделить-переменные']},
+        {tex:'p=p_0\\,e^{-Mgh/RT}',
+         why:'проинтегрировали при постоянной температуре от земли, где давление $p_0$',
+         op:['интеграл','экспонента']}
+      ],
+      sim:'atmos'
+    }
+  ],
+  formulas:[
+    {tex:'f(v)=\\dfrac{4}{\\sqrt\\pi}\\,\\dfrac{v^2}{v_p^3}\\,e^{-v^2/v_p^2}', kind:'закон',
+     note:'Распределение Максвелла по модулю скорости.', sim:'maxwell'},
+    {tex:'v_p=\\sqrt{\\dfrac{2RT}{M}},\\quad \\langle v\\rangle=\\sqrt{\\dfrac{8RT}{\\pi M}},\\quad v_{\\text{кв}}=\\sqrt{\\dfrac{3RT}{M}}', kind:'следствие',
+     note:'Наиболее вероятная, средняя и среднеквадратичная скорости.', sim:'maxwell'},
+    {tex:'\\lambda=\\dfrac{1}{\\sqrt2\\,\\pi d^2n}', kind:'следствие',
+     note:'Средняя длина свободного пробега молекулы диаметром $d$ при концентрации $n$.', sim:'maxwell'},
+    {tex:'p=p_0\\,e^{-Mgh/RT}', kind:'следствие',
+     note:'Барометрическая формула для изотермической атмосферы.', sim:'atmos'},
+    {tex:'n=n_0\\,e^{-U/kT}', kind:'закон',
+     note:'Распределение Больцмана в поле сил с потенциальной энергией $U$; в центрифуге $U=-m\\omega^2r^2/2$.', sim:'atmos'}
+  ],
+  mistakes:[
+    {wrong:'Все молекулы газа при данной температуре движутся с одной скоростью.',
+     right:'Скорости распределены по Максвеллу; температура задаёт только форму распределения.',
+     why:'Столкновения постоянно перераспределяют энергию, и устанавливается не одинаковая, а наиболее вероятная картина.'},
+    {wrong:'Средняя скорость молекулы и среднеквадратичная — одно и то же.',
+     right:'Среднеквадратичная больше: $\\sqrt3$ против $\\sqrt{8/\\pi}\\approx1{,}6$ в единицах $\\sqrt{RT/M}$.',
+     why:'При возведении в квадрат быстрые молекулы весят больше.'}
+  ],
+  checks:[
+    {q:'Почему лёгкие газы покидают атмосферы планет, а тяжёлые остаются?',
+     a:'Скорости лёгких молекул больше, и в хвосте распределения Максвелла заметная доля превышает вторую космическую скорость.'},
+    {q:'Почему при нагреве максимум кривой Максвелла опускается?',
+     a:'Площадь под кривой всегда равна единице (все молекулы), а кривая становится шире — значит, ниже.'},
+    {q:'На какой высоте давление воздуха вдвое меньше, чем у земли, если считать атмосферу изотермической при 290 К?',
+     a:'$h=\\dfrac{RT}{Mg}\\ln2\\approx5{,}9$ км.'}
+  ],
+  links:[
+    {to:'th.kinetic', text:'Среднеквадратичная скорость из уравнения $p=\\tfrac13nm_0v^2$ — один из моментов распределения Максвелла.'},
+    {to:'th.second', text:'Распределение Больцмана — самое вероятное, то есть с наибольшей энтропией при данной энергии.'}
+  ],
+  problems:[
+    {level:3, sim:'maxwell', unit:'%', src:'Иродов', setup:{gas:'o2',T:300,v1:390,v2:400,cmp:false},
+     statement:`Какая доля молекул газа имеет скорости, отличающиеся от наиболее вероятной не более чем на 1 %?`,
+     hint:'В узком интервале доля приближённо равна $f(v_p)\\Delta v$; можно и точно — через площадь под кривой.',
+     answer:p=>{ const M=SIMS.maxwell, vp=M.vp(p); return 100*(M.F(p,vp*1.01)-M.F(p,vp*0.99)); }},
+    {level:3, sim:'maxwell', unit:'К', src:'Иродов', setup:{gas:'n2',T:300,v1:400,v2:600,cmp:false},
+     statement:`При какой температуре среднеквадратичная скорость молекул этого газа больше наиболее вероятной на 100 м/с?`,
+     hint:'Разность $(\\sqrt3-\\sqrt2)\\sqrt{RT/M}$ приравняйте к 100 м/с.',
+     answer:p=>SIMS.maxwell.GAS[p.gas].M*1e4/(8.314*Math.pow(Math.sqrt(3)-Math.sqrt(2),2))},
+    {level:4, sim:'maxwell', unit:'%', src:'Иродов', setup:{gas:'n2',T:300,v1:800,v2:6000,cmp:false},
+     statement:`Какая доля молекул движется быстрее $v_1$ (значение — в параметрах)?`,
+     hint:'Доля молекул медленнее $v$ выражается через функцию ошибок; искомая — дополнение до единицы.',
+     answer:p=>100*(1-SIMS.maxwell.F(p,p.v1))},
+    {level:5, sim:'maxwell', unit:'К', src:'Иродов', setup:{gas:'n2',T:300,v1:500,v2:520,cmp:true,T2:900},
+     statement:`При какой температуре газа в узком интервале скоростей около $v_1$ окажется больше всего молекул?`,
+     hint:'Рассмотрите $f(v_1)$ как функцию температуры и найдите её максимум.',
+     answer:p=>SIMS.maxwell.GAS[p.gas].M*p.v1*p.v1/(3*8.314)},
+    {level:4, sim:'maxwell', unit:'см⁻²·с⁻¹', src:'Иродов', setup:{gas:'n2',T:300,v1:400,v2:600,pk:101.3,cmp:false},
+     statement:`Сколько раз в секунду молекулы газа ударяются об один квадратный сантиметр стенки сосуда?`,
+     hint:'$\\nu=\\tfrac14n\\langle v\\rangle$, $n=p/kT$.',
+     answer:p=>{ const g=SIMS.maxwell.GAS[p.gas], n=p.pk*1000/(1.380649e-23*p.T), vm=Math.sqrt(8*8.314*p.T/(Math.PI*g.M)); return n*vm/4*1e-4; }},
+    {level:3, sim:'maxwell', unit:'Па', src:'Иродов', setup:{gas:'n2',T:300,v1:400,v2:600,pk:0.01,cmp:false},
+     statement:`При каком давлении средняя длина свободного пробега молекул станет равной 1 мм при текущей температуре?`,
+     hint:'$\\lambda=kT/(\\sqrt2\\pi d^2p)$; эффективный диаметр — в окне величин.',
+     answer:p=>{ const d=SIMS.maxwell.GAS[p.gas].d*1e-9; return 1.380649e-23*p.T/(Math.SQRT2*Math.PI*d*d*1e-3); }},
+    {level:2, sim:'atmos', unit:'км', src:'Иродов', setup:{mode:'column',gas:'air',T:290,g:9.8,Hc:30,h:5,p0:101.3},
+     statement:`Атмосферу считайте изотермической. На какой высоте давление газа вдвое меньше, чем у поверхности?`,
+     hint:'$p=p_0e^{-Mgh/RT}$.',
+     answer:p=>SIMS.atmos.H0(p)*Math.LN2/1000},
+    {level:3, sim:'atmos', unit:'раз', src:'Иродов', setup:{mode:'column',gas:'co2',T:290,g:9.8,Hc:30,h:5,p0:101.3},
+     statement:`Во сколько раз концентрация молекул на высоте $h$ меньше, чем у поверхности?`,
+     hint:'Отношение концентраций равно отношению давлений.',
+     answer:p=>Math.exp(p.h*1000/SIMS.atmos.H0(p))},
+    {level:4, sim:'atmos', unit:'км', src:'Иродов', setup:{mode:'column',gas:'air',T:290,g:9.8,Hc:10,h:5,p0:101.3},
+     statement:`Изотермический газ заполняет высокий вертикальный сосуд высотой $H$ (высота столба в параметрах). На какой высоте
+       находится центр масс газа?`,
+     hint:'Высота центра масс — среднее $h$ с весом $e^{-h/H_0}$, где $H_0=RT/Mg$.',
+     answer:p=>{ const H0=SIMS.atmos.H0(p), H=p.Hc*1000; return (H0-H/(Math.exp(H/H0)-1))/1000; }},
+    {level:4, sim:'atmos', unit:'т', src:'Иродов', setup:{mode:'column',gas:'air',T:290,g:9.8,Hc:30,h:5,p0:101.3},
+     statement:`Какова масса газа в столбе высотой $H$ с основанием 1 м², если у основания давление $p_0$?`,
+     hint:'Вес всего бесконечного столба равен $p_0S$; столб высотой $H$ легче на долю $e^{-H/H_0}$.',
+     answer:p=>p.p0*1000/p.g*(1-Math.exp(-p.Hc*1000/SIMS.atmos.H0(p)))/1000},
+    {level:3, sim:'atmos', unit:'раз', src:'Иродов', setup:{mode:'cent',gas:'xe',T:300,L:100,w:400,r:50},
+     statement:`Трубка длиной $l$ с газом вращается вокруг перпендикулярной оси, проходящей через её конец. Во сколько раз концентрация
+       молекул у дальнего конца больше, чем у оси?`,
+     hint:'В системе трубки $n\\propto e^{M\\omega^2r^2/2RT}$.',
+     answer:p=>Math.exp(SIMS.atmos.M[p.gas]*p.w*p.w*Math.pow(p.L/100,2)/(2*8.314*p.T))},
+    {level:4, sim:'atmos', unit:'рад/с', src:'Иродов', setup:{mode:'cent',gas:'he',T:300,L:100,w:400,r:50},
+     statement:`При какой угловой скорости концентрация газа у дальнего конца трубки станет вдвое больше, чем у оси?`,
+     hint:'Приравняйте показатель экспоненты к $\\ln2$.',
+     answer:p=>Math.sqrt(2*8.314*p.T*Math.LN2/(SIMS.atmos.M[p.gas]*Math.pow(p.L/100,2)))}
+  ]
+};
+
 
 const T_thermo={
   id:'th.thermo', ch:'10', title:'Термодинамика',
@@ -30231,6 +31781,7 @@ const T_thermo={
     `При плавлении и кипении температура стоит на месте, а теплота продолжает поступать.`,
   ],
   explore:[
+    {sim:'thermo', do:`Процесс «по прямой»: давление падает, пока объём растёт`, see:`температура сначала растёт, проходит максимум и падает — на прямой есть самая горячая точка`},
     {sim:'thermo', do:`Пройдите изотерму и адиабату между теми же объёмами`, see:`площади под кривыми разные — работа тоже`},
     {sim:'thermo', do:`Возьмите изохору`, see:`поршень не двигается, вся теплота ушла во внутреннюю энергию`},
     {sim:'calorimetry', do:`Нагрейте лёд до пара`, see:`на графике появятся две полки — плавление и кипение`},
@@ -30331,7 +31882,21 @@ const T_thermo={
   <div class="callout"><strong>Пример (Орир).</strong> В бензиновом двигателе газ адиабатически расширяется при
   степени сжатия $V_2/V_1$. Чем больше степень сжатия, тем выше КПД — поэтому конструкторы стремятся её увеличить,
   пока не начинается детонация. Полный цикл двигателя — это замкнутая петля на PV-диаграмме, и работа за цикл
-  равна её площади.</div>`,
+  равна её площади.</div>
+
+  <h3 class="sub">Произвольный процесс: прямая и политропа</h3>
+  <p>Изопроцессы — частные случаи. Газ может идти по любой линии на $pV$-диаграмме, и тогда отвечают на три
+  вопроса: работа — площадь под линией; изменение внутренней энергии — $\\nu C_V\\Delta T$, сколь бы извилист ни
+  был путь; теплота — их сумма.</p>
+  <p>Если процесс идёт по прямой $p=a+bV$ с $b&lt;0$, температура $T=pV/\\nu R$ — парабола по $V$ с вершиной при
+  $V^*=-a/2b$. Внутри отрезка газ сначала нагревается, затем остывает, и где-то в середине теплота перестаёт
+  поступать и начинает уходить.</p>
+  <p>Процессы $pV^n=\\mathrm{const}$ называют <strong>политропическими</strong>. Изобара — это $n=0$, изотерма
+  $n=1$, адиабата $n=\\gamma$, изохора — $n\\to\\infty$. Работа при политропе $W=\\dfrac{\\nu R(T_1-T_2)}{n-1}$, а
+  теплоёмкость постоянна:</p>
+  $$C=\\dfrac{R}{\\gamma-1}-\\dfrac{R}{n-1} .$$
+  <p>При $1&lt;n&lt;\\gamma$ она отрицательна: газ получает теплоту и при этом остывает — работа, которую он
+  совершает, больше полученной теплоты.</p>`,
   time:45,
   needs:['th.kinetic','mech.work'],
   why:`Первое начало — это закон сохранения энергии, в который добавили теплоту. Вся сложность
@@ -30401,6 +31966,8 @@ const T_thermo={
     }
   ],
   formulas:[
+    {tex:'C=\\dfrac{R}{\\gamma-1}-\\dfrac{R}{n-1}', kind:'следствие',
+     note:'Молярная теплоёмкость газа в политропическом процессе $pV^n=\\mathrm{const}$.', sim:'thermo'},
     {tex:'\\Delta Q=\\Delta U+\\Delta W',
      kind:'закон',
      note:'Первый закон термодинамики — закон сохранения энергии для тепловых процессов.', sim:'thermo'},
@@ -30542,7 +32109,34 @@ const T_thermo={
        остывает ровно до 0 °C.`,
      hint:'Вся теплота, отданная водой при остывании до нуля, идёт на плавление льда.',
      answer:p=>{ if(p.subst!=='water') return NaN;
-       return p.m*4200*Math.max(0,p.T0)/334000; }}
+       return p.m*4200*Math.max(0,p.T0)/334000; }},
+
+    /* ---------- По мотивам Иродова: процессы ---------- */
+    {level:3, sim:'thermo', unit:'К', src:'Иродов', setup:{proc:'line',n:1,T0:300,V0:10,Vend:30,Pend:40,gamma:1.4},
+     statement:`Газ переводят из начального состояния в конечное так, что на $pV$-диаграмме процесс изображается отрезком прямой.
+       Какую наибольшую температуру имеет газ на этом пути?`,
+     hint:'$T\\propto pV$ — квадратичная функция объёма; проверьте, лежит ли вершина параболы внутри отрезка.',
+     answer:p=>{ if(p.proc!=='line') return NaN; const R=8.314, V0=p.V0/1000, V1=p.Vend/1000, P0=p.n*R*p.T0/V0, P1=p.Pend*1000;
+       if(Math.abs(V1-V0)<1e-12) return Math.max(p.T0,P1*V0/(p.n*R)); const b=(P1-P0)/(V1-V0), a=P0-b*V0, T=V=>(a+b*V)*V/(p.n*R);
+       let m=Math.max(T(V0),T(V1)); const Vs=-a/(2*b); if(b<0&&Vs>Math.min(V0,V1)&&Vs<Math.max(V0,V1)) m=Math.max(m,T(Vs)); return m; }},
+    {level:3, sim:'thermo', unit:'Дж', src:'Иродов', setup:{proc:'line',n:1,T0:300,V0:10,Vend:30,Pend:40,gamma:1.4},
+     statement:`Сколько теплоты получил газ за весь процесс по прямой из начального состояния в конечное?`,
+     hint:'Работа — площадь трапеции под отрезком; изменение внутренней энергии — $\\nu R\\Delta T/(\\gamma-1)$.',
+     answer:p=>{ if(p.proc!=='line') return NaN; const R=8.314, V0=p.V0/1000, V1=p.Vend/1000, P0=p.n*R*p.T0/V0, P1=p.Pend*1000;
+       return (P0+P1)/2*(V1-V0)+(P1*V1-P0*V0)/(p.gamma-1); }},
+    {level:3, sim:'thermo', unit:'Дж/(моль·К)', src:'Иродов', setup:{proc:'poly',n:1,T0:400,V0:8,Vend:24,npoly:1.2,gamma:1.4},
+     statement:`Найдите молярную теплоёмкость газа в политропическом процессе $pV^n=\\mathrm{const}$ (показатель $n$ — в параметрах).
+       Проверьте ответ, разделив полученную теплоту на $\\nu\\Delta T$.`,
+     hint:'Запишите первое начало для малого шага: $C\\,dT=C_V\\,dT+p\\,dV$, и выразите $p\\,dV$ через $dT$.',
+     answer:p=>p.proc==='poly'&&Math.abs(p.npoly-1)>1e-9?8.314/(p.gamma-1)-8.314/(p.npoly-1):NaN},
+    {level:4, sim:'thermo', unit:'Дж', src:'Иродов', setup:{proc:'poly',n:1,T0:400,V0:8,Vend:24,npoly:1.2,gamma:1.4},
+     statement:`Какую работу совершит газ при политропическом расширении от $V_0$ до $V$?`,
+     hint:'$W=\\nu R(T_0-T)/(n-1)$, а $T=T_0(V_0/V)^{n-1}$.',
+     answer:p=>{ if(p.proc!=='poly'||Math.abs(p.npoly-1)<1e-9) return NaN; const T=p.T0*Math.pow(p.V0/p.Vend,p.npoly-1); return p.n*8.314*(p.T0-T)/(p.npoly-1); }},
+    {level:3, sim:'thermo', unit:'раз', src:'Иродов', setup:{proc:'adiab',n:1,T0:300,V0:24,Vend:6,gamma:1.4},
+     statement:`Во сколько раз нужно адиабатически сжать газ, чтобы его абсолютная температура выросла вдвое?`,
+     hint:'$TV^{\\gamma-1}=\\mathrm{const}$.',
+     answer:p=>Math.pow(2,1/(p.gamma-1))}
   ]
 };
 
@@ -30556,6 +32150,8 @@ const T_carnot={
     `КПД определяется <strong>отношением</strong> температур, а не их разностью в градусах.`,
   ],
   explore:[
+    {sim:'contact', do:`Приведите в контакт горячую и холодную воду`, see:`энтропия горячей убывает, холодной — растёт сильнее; сумма только увеличивается`},
+    {sim:'cycle', do:`Сравните цикл из изохор и изобар с циклом Брайтона`, see:`площадь — работа, а КПД — её отношение к полученной теплоте, а не к отданной`},
     {sim:'carnot', do:`Поднимите температуру нагревателя`, see:`КПД вырастет — но до единицы не дойдёт никогда`},
     {sim:'carnot', do:`Сблизьте температуры нагревателя и холодильника`, see:`КПД поползёт к нулю: перепада нет — работы нет`},
     {sim:'carnot', do:`Сравните показания «КПД» и «W/Q₁»`, see:`они совпадают: определение и формула — одно и то же`},
@@ -30655,7 +32251,22 @@ const T_carnot={
   <p>Низкие температуры получают ступенями: сжатый газ расширяют, совершая работу (детандер), или пропускают через
   дроссель — так в 1908 году Камерлинг-Оннес сжижил гелий при 4,2 К. Дальше откачивают пары гелия, используют
   растворение гелия-3 в гелии-4 и размагничивание парамагнитных солей. Рекорды — миллиардные доли кельвина; при таких
-  температурах атомы собираются в бозе-конденсат, а металлы становятся сверхпроводниками.</p>`,
+  температурах атомы собираются в бозе-конденсат, а металлы становятся сверхпроводниками.</p>
+
+  <h3 class="sub">Энтропия в необратимых процессах</h3>
+  <p>Если тело с теплоёмкостью $C$ нагревается от $T_1$ до $T_2$, его энтропия меняется на $\\Delta S=C\\ln(T_2/T_1)$ —
+  интеграл $\\int C\\,dT/T$. Когда два тела выравнивают температуры, горячее теряет энтропию, холодное приобретает
+  больше: та же теплота делится на меньшую температуру. Сумма $\\Delta S_1+\\Delta S_2&gt;0$ — так второе начало
+  выглядит в цифрах.</p>
+  <p>Газ, расширяющийся в пустоту, не совершает работы и не получает теплоты, его температура не меняется, но
+  процесс необратим. Энтропию считают по обратимому пути между теми же состояниями — изотерме:
+  $\\Delta S=\\nu R\\ln(V_2/V_1)$.</p>
+
+  <h3 class="sub">КПД произвольного цикла</h3>
+  <p>Для любого цикла $\\eta=W/Q_1$, где $Q_1$ — вся теплота, полученная на тех участках, где газ её получает.
+  Удобно идти по участкам: на изохоре $Q=\\nu C_V\\Delta T$, на изобаре $\\nu C_p\\Delta T$, на изотерме
+  $\\nu RT\\ln(V_2/V_1)$, на адиабате ноль. КПД любого цикла меньше КПД Карно для наибольшей и наименьшей
+  температур цикла — равенство только у самого цикла Карно.</p>`,
   time:40,
   needs:['th.thermo'],
   why:`Первое начало разрешает многое из того, чего никогда не бывает: чашка не нагревается
@@ -30737,6 +32348,10 @@ const T_carnot={
     }
   ],
   formulas:[
+    {tex:'\\Delta S=C\\ln\\dfrac{T_2}{T_1}', kind:'следствие',
+     note:'Изменение энтропии тела с постоянной теплоёмкостью $C$ при нагреве от $T_1$ до $T_2$.', sim:'contact'},
+    {tex:'\\eta=\\dfrac{W}{Q_1}=1-\\dfrac{Q_2}{Q_1}', kind:'определение',
+     note:'КПД цикла: $Q_1$ — вся полученная газом теплота, $Q_2$ — вся отданная.', sim:'cycle'},
     {tex:'\\eta=\\dfrac{W}{Q_1}=1-\\dfrac{Q_2}{Q_1}',
      kind:'определение',
      note:'КПД тепловой машины: доля подведённой теплоты, ставшая работой.', sim:'carnot'},
@@ -30847,7 +32462,44 @@ const T_carnot={
      statement:`Цикл Отто при текущих параметрах. Насколько КПД ниже КПД цикла Карно, работающего между наибольшей и наименьшей температурами этого цикла? Ответ — разность в процентных пунктах.`,
      hint:'Наибольшая температура — после сгорания: $T_3=T_2+Q_1/(\\nu C_V)$, $\\nu=p_1V_1/RT_1$, $C_V=R/(\\gamma-1)$.',
      answer:p=>{ const R=8.314462618, ν=p.p1*1000*p.V1/1000/(R*p.T1), Cv=R/(p.gam-1), T2=p.T1*Math.pow(p.eps,p.gam-1), T3=T2+p.qin/(ν*Cv);
-       return 100*((1-p.T1/T3)-(1-Math.pow(p.eps,1-p.gam))); }}
+       return 100*((1-p.T1/T3)-(1-Math.pow(p.eps,1-p.gam))); }},
+
+    /* ---------- По мотивам Иродова: энтропия и циклы ---------- */
+    {level:2, sim:'contact', unit:'', src:'Иродов', setup:{mode:'mix',s1:'water',m1:1,t1:80,s2:'water',m2:2,t2:20,tau:3},
+     statement:`Два тела привели в тепловой контакт; теплообмена с окружением нет. Какой станет общая температура? Ответ — в градусах Цельсия.`,
+     hint:'Отданная горячим телом теплота равна полученной холодным.',
+     answer:p=>p.mode==='mix'?(SIMS.contact.C[p.s1]*p.m1*p.t1+SIMS.contact.C[p.s2]*p.m2*p.t2)/(SIMS.contact.C[p.s1]*p.m1+SIMS.contact.C[p.s2]*p.m2):NaN},
+    {level:4, sim:'contact', unit:'Дж/К', src:'Иродов', setup:{mode:'mix',s1:'cu',m1:0.5,t1:200,s2:'water',m2:1,t2:20,tau:3},
+     statement:`На сколько выросла суммарная энтропия двух тел после выравнивания температур?`,
+     hint:'$\\Delta S_i=C_i\\ln(T/T_i)$ в кельвинах; сложите.',
+     answer:p=>{ if(p.mode!=='mix') return NaN; const q=SIMS.contact.temps(p,1e9); return q.C1*Math.log(q.Tf/q.T10)+q.C2*Math.log(q.Tf/q.T20); }},
+    {level:3, sim:'contact', unit:'Дж/К', src:'Иродов', setup:{mode:'gas',n:1,k:2,Tg:300},
+     statement:`Газ расширяется в пустоту в $k$ раз по объёму; стенки не проводят теплоту. На сколько выросла его энтропия?`,
+     hint:'Температура не меняется; посчитайте энтропию вдоль обратимой изотермы между теми же состояниями.',
+     answer:p=>p.mode==='gas'?p.n*8.314*Math.log(p.k):NaN},
+    {level:3, sim:'cycle', unit:'%', src:'Иродов', setup:{type:'rect',n:1,gamma:1.4,V1:10,p1:100,nV:2,kP:2},
+     statement:`Цикл состоит из двух изохор и двух изобар: давление меняется в $k$ раз, объём — в $n$ раз. Найдите КПД.`,
+     hint:'Теплота поступает на изохорном нагреве и на изобарном расширении.',
+     answer:p=>{ if(p.type!=='rect') return NaN; const g=p.gamma,k=p.kP,n=p.nV; return 100*(g-1)*(k-1)*(n-1)/((k-1)+g*k*(n-1)); }},
+    {level:3, sim:'cycle', unit:'%', src:'Иродов', setup:{type:'stirling',n:1,gamma:1.4,V1:10,p1:100,nV:2,kP:2},
+     statement:`Цикл из двух изотерм (температуры отличаются в $k$ раз) и двух изохор (объёмы отличаются в $n$ раз). Найдите КПД, если
+       теплота, отданная на изохорном охлаждении, не возвращается газу.`,
+     hint:'Теплота поступает на изохорном нагреве и на изотермическом расширении при высокой температуре.',
+     answer:p=>{ if(p.type!=='stirling') return NaN; const g=p.gamma,k=p.kP,L=Math.log(p.nV); return 100*(k-1)*L/((k-1)/(g-1)+k*L); }},
+    {level:3, sim:'cycle', unit:'%', src:'Иродов', setup:{type:'brayton',n:1,gamma:1.4,V1:10,p1:100,kP:4,nB:2},
+     statement:`Цикл из двух изобар и двух адиабат, давления на изобарах отличаются в $k$ раз. Найдите КПД.`,
+     hint:'Отношение температур на концах каждой адиабаты одинаково: $k^{(\\gamma-1)/\\gamma}$.',
+     answer:p=>p.type==='brayton'?100*(1-Math.pow(p.kP,(1-p.gamma)/p.gamma)):NaN},
+    {level:4, sim:'cycle', unit:'%', src:'Иродов', setup:{type:'ibi',n:1,gamma:1.4,V1:10,p1:100,nV:3},
+     statement:`Цикл: изобарное расширение в $n$ раз, изохорное охлаждение до начальной температуры, изотермическое сжатие в исходное
+       состояние. Найдите КПД.`,
+     hint:'Теплота поступает только на изобаре; работа — разность работ на изобаре и на изотерме.',
+     answer:p=>{ if(p.type!=='ibi') return NaN; const g=p.gamma,n=p.nV; return 100*(n-1-Math.log(n))/(g/(g-1)*(n-1)); }},
+    {level:5, sim:'cycle', unit:'раз', src:'Иродов', setup:{type:'rect',n:1,gamma:1.4,V1:10,p1:100,nV:2,kP:2},
+     statement:`Во сколько раз КПД цикла из двух изохор и двух изобар меньше КПД цикла Карно с теми же наибольшей и наименьшей
+       температурами?`,
+     hint:'Наибольшая температура — в точке с наибольшими и давлением, и объёмом, наименьшая — в противоположной.',
+     answer:p=>{ if(p.type!=='rect') return NaN; const g=p.gamma,k=p.kP,n=p.nV, η=(g-1)*(k-1)*(n-1)/((k-1)+g*k*(n-1)); return (1-1/(n*k))/η; }}
   ]
 };
 
@@ -39045,9 +40697,280 @@ const T_fluids={
        отверстие, чтобы струя в первый момент ударила в пол как можно дальше? Чему равна эта наибольшая дальность?
        В ответе укажите дальность.`,
      hint:'Дальность $L=2\\sqrt{(H-z)z}$; произведение двух чисел с постоянной суммой наибольшее, когда они равны.',
-     answer:p=>p.Y0}
+     answer:p=>p.Y0},
+
+    {level:3, sim:'torricelli', unit:'Н', src:'Иродов', setup:{mode:'one',Y0:1.2,z:0.2,d:20,D:40},
+     statement:`С какой силой вытекающая в первый миг струя отталкивает сосуд? Сосуд широкий, отверстие маленькое.`,
+     hint:'Сила реакции равна импульсу, уносимому струёй за секунду: $\\rho av^2$, а $v^2=2gh$.',
+     answer:p=>p.mode==='one'?1000*Math.PI*Math.pow(p.d/2000,2)*2*p.g*Math.max(0,p.Y0-Math.min(p.z,p.Y0)):NaN},
+    {level:4, sim:'drag', unit:'мм', src:'Иродов', setup:{liq:'glyc',rho:7800,r:1.5,law:'stokes'},
+     statement:`Формула Стокса годится, пока число Рейнольдса $\\mathrm{Re}=2\\rho_жvr/\\eta$ меньше единицы. Каков наибольший радиус
+       шарика из этого материала, для которого она ещё справедлива на предельной скорости?`,
+     hint:'Подставьте скорость Стокса $v=2r^2g(\\rho-\\rho_ж)/9\\eta$ в условие $\\mathrm{Re}=1$ и выразите $r$.',
+     answer:p=>{ const ж=SIMS.drag.ж(p), Δ=p.rho-ж.ρ; if(Δ<=0) return NaN; return Math.cbrt(9*ж.η*ж.η/(4*ж.ρ*p.g*Δ))*1000; }}
   ]
 };
+
+/* ===================== ГИДРОДИНАМИКА: НОВЫЕ ТЕМЫ (9.4.0) ===================== */
+const T_hvessels={
+  id:'hyd.vessels', ch:'6в', title:'Сообщающиеся сосуды и вращающаяся жидкость',
+  key:[
+    `В сообщающихся сосудах с одной жидкостью уровни одинаковы; с разными — давления равны на уровне границы раздела, и столб лёгкой жидкости выше.`,
+    `Столб жидкости в U-образной трубке, выведенный из равновесия, колеблется с периодом $T=2\\pi\\sqrt{l/2g}$ — от плотности он не зависит.`,
+    `Во вращающемся сосуде поверхность жидкости — параболоид $z=z_0+\\omega^2r^2/2g$: она перпендикулярна сумме тяжести и центробежной силы.`,
+    `Объём жидкости при раскрутке сохраняется: на сколько уровень опускается у оси, на столько же он поднимается у стенки.`
+  ],
+  explore:[
+    {sim:'utube', do:`Долейте масло в правое колено`, see:`граница воды и масла опускается, вода слева поднимается на половину «приведённой» высоты масла, а поверхность масла оказывается выше`},
+    {sim:'utube', do:`Опыт «колебания»: смените воду на ртуть`, see:`период не меняется — тяжелее и столб, и возвращающая сила`},
+    {sim:'rotfluid', do:`Раскручивайте стакан всё быстрее`, see:`уровень у оси опускается ровно настолько, насколько поднимается у стенки, — пока не обнажится дно или вода не дойдёт до края`}
+  ],
+  theory:`
+  <p>Пока жидкость покоится, давление в ней зависит только от глубины. Из этого простого правила вытекают два
+  неожиданных опыта: столб в изогнутой трубке, который колеблется как маятник, и вода в стакане на вращающемся столе,
+  поверхность которой превращается в параболическую воронку.</p>
+
+  <h3 class="sub">Сообщающиеся сосуды</h3>
+  <p>В соединённых снизу сосудах жидкость стоит на одном уровне: иначе давление на дне соединяющей трубки было бы
+  разным с двух сторон, и жидкость перетекала бы. Если в одно колено налить лёгкую несмешивающуюся жидкость
+  (масло поверх воды), уравнять нужно давления на уровне <strong>границы раздела</strong>:</p>
+  $$\\rho_1gh_1=\\rho_2gh_2 .$$
+  <p>Столб масла высотой $h_2$ уравновешивает более низкий столб воды $h_1=h_2\\rho_2/\\rho_1$. Свободная поверхность
+  масла поэтому выше поверхности воды на $\\Delta=h_2(1-\\rho_2/\\rho_1)$, а вода во втором колене поднимается на
+  $h_2\\rho_2/2\\rho_1$ — половину приведённой высоты: сколько ушло вниз справа, столько пришло вверх слева.</p>
+
+  <h3 class="sub">Колебания столба жидкости</h3>
+  <p>Сдвинем уровень в одном колене вверх на $x$ — в другом он опустится на $x$. Разность уровней $2x$ создаёт
+  избыточное давление $2\\rho gx$, которое толкает весь столб массы $\\rho Sl$ назад к равновесию:</p>
+  $$\\rho Sl\\,\\ddot x=-2\\rho gS\\,x\\quad\\Rightarrow\\quad T=2\\pi\\sqrt{\\dfrac{l}{2g}} .$$
+  <p>Плотность сокращается: ртуть и вода с одинаковой длиной столба колеблются в такт. Вязкая жидкость колеблется
+  с затуханием, а при сильной вязкости столб просто медленно оседает к равновесию.</p>
+
+  <h3 class="sub">Жидкость во вращающемся сосуде</h3>
+  <p>Перейдём в систему отсчёта, которая вращается вместе с сосудом. Там жидкость покоится, но к тяжести
+  добавляется центробежная сила $m\\omega^2r$. Свободная поверхность всюду перпендикулярна суммарной силе, поэтому
+  её наклон $\\mathrm{tg}\\,\\alpha=\\omega^2r/g$ растёт с расстоянием от оси, а сама она — параболоид вращения:</p>
+  $$z(r)=z_0+\\dfrac{\\omega^2r^2}{2g} .$$
+  <p>Жидкость не исчезает и не появляется, поэтому объём под параболоидом равен прежнему $\\pi R^2H_0$. Отсюда
+  $z_0=H_0-\\omega^2R^2/4g$: уровень у оси опускается на четверть «высоты подъёма» $\\omega^2R^2/2g$, у стенки
+  поднимается на столько же. Когда $\\omega^2R^2>4gH_0$, в центре обнажается дно.</p>
+  <p>Давление на дне в покое было всюду $\\rho gH_0$, а при вращении оно растёт от оси к стенке: $p=\\rho gz(r)$.
+  На этом работают центрифуги, сепараторы молока и жидкостные зеркала телескопов — вращающаяся ртуть
+  сама принимает форму параболического зеркала.</p>`,
+  time:30,
+  needs:['mech.fluids','mech.rot','mech.osc'],
+  why:`Почему масло в сообщающемся сосуде стоит выше воды, почему вода в U-трубке колеблется как маятник и откуда
+    воронка в размешанном чае? Всё это следует из одного правила гидростатики, если честно учесть силы — и
+    тяжесть, и силу инерции во вращающейся системе.`,
+  derivations:[
+    {
+      goal:'z(r)=z_0+\\dfrac{\\omega^2r^2}{2g}',
+      from:['F_{\\text{цб}}=m\\omega^2r','\\mathrm{tg}\\,\\alpha=\\dfrac{dz}{dr}'],
+      steps:[
+        {tex:'\\mathrm{tg}\\,\\alpha=\\dfrac{m\\omega^2r}{mg}=\\dfrac{\\omega^2r}{g}',
+         why:'во вращающейся системе жидкость покоится, и её поверхность перпендикулярна сумме тяжести и центробежной силы',
+         op:['физика','проекция']},
+        {tex:'\\dfrac{dz}{dr}=\\dfrac{\\omega^2r}{g}',
+         why:'тангенс наклона кривой — производная высоты по расстоянию от оси',
+         op:['производная']},
+        {tex:'z(r)=z_0+\\dfrac{\\omega^2r^2}{2g}',
+         why:'проинтегрировали от оси, где высота равна $z_0$',
+         op:['интеграл','граничное']}
+      ],
+      sim:'rotfluid'
+    }
+  ],
+  formulas:[
+    {tex:'\\rho_1h_1=\\rho_2h_2', kind:'следствие',
+     note:'Две несмешивающиеся жидкости в сообщающихся сосудах: высоты столбов над границей раздела обратны плотностям.', sim:'utube'},
+    {tex:'T=2\\pi\\sqrt{\\dfrac{l}{2g}}', kind:'следствие',
+     note:'Период колебаний столба жидкости длиной $l$ в U-образной трубке.', sim:'utube'},
+    {tex:'z(r)=z_0+\\dfrac{\\omega^2r^2}{2g},\\qquad z_0=H_0-\\dfrac{\\omega^2R^2}{4g}', kind:'следствие',
+     note:'Поверхность жидкости во вращающемся цилиндре и уровень на оси (пока дно не обнажилось).', sim:'rotfluid'}
+  ],
+  mistakes:[
+    {wrong:'В сообщающихся сосудах уровни жидкостей всегда одинаковы.',
+     right:'Только если жидкость одна. С разными жидкостями равны давления на уровне границы, а не высоты поверхностей.',
+     why:'Закон сообщающихся сосудов — следствие равенства давлений, а давление зависит и от плотности.'},
+    {wrong:'При вращении стакана вода поднимается у стенок, и её становится как будто больше.',
+     right:'Объём сохраняется: у оси уровень опускается ровно настолько, насколько поднимается у стенки.',
+     why:'Параболоид делит «лишний» подъём поровну: средняя высота поверхности остаётся $H_0$.'}
+  ],
+  checks:[
+    {q:'Почему период колебаний столба ртути и столба воды одинаковой длины одинаков?',
+     a:'И масса столба, и возвращающая сила пропорциональны плотности — она сокращается, как масса у математического маятника.'},
+    {q:'Почему чаинки после размешивания собираются в центре дна, а не у стенки?',
+     a:'У дна вращение тормозится трением, центробежная сила там слабее, и перепад давления от стенки к оси гонит жидкость у дна к центру — она уносит чаинки.'},
+    {q:'Где давление на дно вращающегося сосуда больше — у оси или у стенки?',
+     a:'У стенки: давление на дне $\\rho gz(r)$, а уровень у стенки выше.'}
+  ],
+  links:[
+    {to:'mech.osc', text:'Колебания столба в U-трубке — гармонические, как у маятника: возвращающая сила пропорциональна смещению.'},
+    {to:'mech.rot', text:'Центробежная сила во вращающейся системе — та же $m\\omega^2r$, что и в задачах о движении по окружности.'}
+  ],
+  problems:[
+    {level:3, sim:'utube', unit:'см', src:'Иродов', setup:{mode:'two',liq1:'water',liq2:'oil',h2:16,pour:4,l:60},
+     statement:`В U-образную трубку налита вода. В правое колено доливают столб масла высотой $h_2$. На сколько свободная поверхность
+       масла окажется выше поверхности воды в левом колене?`,
+     hint:'Уравняйте давления на уровне границы воды и масла.',
+     answer:p=>p.mode==='two'?p.h2*(1-SIMS.utube.RHO[p.liq2]/SIMS.utube.RHO[p.liq1]):NaN},
+    {level:3, sim:'utube', unit:'см', src:'Иродов', setup:{mode:'two',liq1:'merc',liq2:'water',h2:27,pour:4,l:60},
+     statement:`В трубку с ртутью доливают в правое колено столб воды высотой $h_2$. На сколько поднимется ртуть в левом колене?`,
+     hint:'Граница опускается справа ровно на столько, на сколько ртуть поднимается слева; разность уровней ртути равна $h_2\\rho_2/\\rho_1$.',
+     answer:p=>p.mode==='two'?p.h2*SIMS.utube.RHO[p.liq2]/(2*SIMS.utube.RHO[p.liq1]):NaN},
+    {level:3, sim:'utube', unit:'с', src:'Иродов', setup:{mode:'osc',liq1:'water',l:60,x0:6,gam:0},
+     statement:`Столб жидкости длиной $l$ в U-образной трубке вывели из равновесия и отпустили. Найдите период малых колебаний; трением
+       пренебрегите.`,
+     hint:'Сдвиг уровня на $x$ создаёт разность уровней $2x$; масса движущегося столба — $\\rho Sl$.',
+     answer:p=>2*Math.PI*Math.sqrt(p.l/100/(2*p.g))},
+    {level:4, sim:'utube', unit:'см/с', src:'Иродов', setup:{mode:'osc',liq1:'water',l:60,x0:6,gam:0},
+     statement:`Уровень в одном колене подняли на $x_0$ и отпустили. С какой наибольшей скоростью будет двигаться жидкость?`,
+     hint:'Гармонические колебания: наибольшая скорость равна амплитуде, умноженной на круговую частоту.',
+     answer:p=>p.mode==='osc'&&!(p.gam>0)?p.x0*Math.sqrt(2*p.g/(p.l/100)):NaN},
+    {level:3, sim:'rotfluid', unit:'рад/с', src:'Иродов', setup:{R:10,H0:14,Hv:26,w:16,tau:2,liq:'water',stopSpill:true,stopDry:false},
+     statement:`Цилиндрический стакан радиусом $R$ налит водой до высоты $H_0$; высота стакана $H$. При какой угловой скорости
+       вращения вокруг оси вода дойдёт до края?`,
+     hint:'Уровень у стенки равен $H_0+\\omega^2R^2/4g$, пока дно не обнажилось; если обнажилось — сохраните объём заново.',
+     answer:p=>{ const R=p.R/100,H0=p.H0/100,H=p.Hv/100; if(H<=H0) return 0;
+       return H<=2*H0?Math.sqrt(4*p.g*(H-H0))/R:H*Math.sqrt(p.g/H0)/R; }},
+    {level:3, sim:'rotfluid', unit:'рад/с', src:'Иродов', setup:{R:12,H0:4,Hv:30,w:14,tau:1.5,liq:'water',stopSpill:false,stopDry:true},
+     statement:`При какой угловой скорости обнажится центр дна вращающегося стакана?`,
+     hint:'Дно обнажается, когда уровень на оси $z_0=H_0-\\omega^2R^2/4g$ становится нулевым.',
+     answer:p=>2*Math.sqrt(p.g*p.H0/100)/(p.R/100)},
+    {level:4, sim:'rotfluid', unit:'кПа', src:'Иродов', setup:{R:10,H0:14,Hv:30,w:9,tau:1.5,liq:'water',stopSpill:true,stopDry:false},
+     statement:`Стакан вращается с угловой скоростью $\\omega$ (раскрутка закончилась). Найдите избыточное давление жидкости на дно
+       у самой стенки.`,
+     hint:'Давление на дне — $\\rho g$, умноженное на высоту поверхности над этим местом.',
+     answer:p=>{ const R=p.R/100,H0=p.H0/100,k=p.w*p.w/(2*p.g), ρ=SIMS.rotfluid.RHO[p.liq];
+       const zR=k*R*R<=2*H0?H0+k*R*R/2:R*Math.sqrt(2*H0*k); return ρ*p.g*zR/1000; }},
+    {level:5, sim:'rotfluid', unit:'°', src:'Иродов', setup:{R:10,H0:14,Hv:30,w:9,tau:1.5,liq:'water',stopSpill:true,stopDry:false},
+     statement:`Под каким углом к горизонту наклонена поверхность жидкости на половине радиуса стакана?`,
+     hint:'Поверхность перпендикулярна сумме $mg$ и $m\\omega^2r$.',
+     answer:p=>Math.atan(p.w*p.w*(p.R/200)/p.g)*180/Math.PI}
+  ]
+};
+
+const T_hviscous={
+  id:'hyd.viscous', ch:'6г', title:'Вязкое течение: формула Пуазейля',
+  key:[
+    `Вязкость — внутреннее трение: соседние слои жидкости тормозят друг друга с силой $F=\\eta S\\,dv/dz$.`,
+    `В круглой трубе при ламинарном течении профиль скоростей — парабола: у стенки скорость равна нулю, на оси наибольшая.`,
+    `Расход растёт как четвёртая степень радиуса: $Q=\\pi R^4\\Delta p/8\\eta l$ — вдвое шире труба пропускает в 16 раз больше.`,
+    `Если расход пропорционален напору, сосуд сливается экспоненциально: $h=h_0e^{-t/\\tau}$.`
+  ],
+  explore:[
+    {sim:'poiseuille', do:`Удвойте радиус трубы`, see:`скорость на оси вырастает вчетверо, а расход — в 16 раз`},
+    {sim:'poiseuille', do:`Опыт «слив»: дождитесь половины уровня, затем ещё половины`, see:`каждая следующая половина сливается за то же самое время`}
+  ],
+  theory:`
+  <p>Идеальная жидкость Бернулли течёт без трения. Настоящая — вязкая: слои, движущиеся с разной скоростью, тянут
+  друг друга, а слой у стенки прилипает к ней. Из-за этого для течения по трубе нужен перепад давления, даже если
+  труба горизонтальна и не сужается.</p>
+
+  <h3 class="sub">Закон вязкого трения</h3>
+  <p>Ньютон заметил: сила трения между слоями пропорциональна площади соприкосновения и быстроте изменения скорости
+  поперёк потока:</p>
+  $$F=\\eta S\\dfrac{dv}{dz} .$$
+  <p>Коэффициент $\\eta$ — динамическая вязкость. У воды при комнатной температуре около $10^{-3}$ Па·с, у
+  машинного масла в сто раз больше, у глицерина — в тысячу, у мёда — в десять тысяч.</p>
+
+  <h3 class="sub">Течение в трубе</h3>
+  <p>Выделим в трубе цилиндр радиусом $r$ и длиной $l$. Перепад давления толкает его с силой $\\Delta p\\cdot\\pi r^2$,
+  вязкость тормозит по боковой поверхности $2\\pi rl$. При установившемся течении силы равны:</p>
+  $$\\Delta p\\,\\pi r^2=-\\eta\\,2\\pi rl\\,\\dfrac{dv}{dr}\\quad\\Rightarrow\\quad v(r)=\\dfrac{\\Delta p}{4\\eta l}(R^2-r^2) .$$
+  <p>Скорость на оси вдвое больше средней. Сложив расход по тонким кольцам, получим <strong>формулу Пуазейля</strong>:</p>
+  $$Q=\\dfrac{\\pi R^4\\Delta p}{8\\eta l} .$$
+  <p>Четвёртая степень радиуса объясняет, почему сужение сосудов на десять процентов требует от сердца на полсотни
+  процентов большего давления, а засор в узкой трубке почти перекрывает воду.</p>
+
+  <h3 class="sub">Когда формула работает</h3>
+  <p>Течение остаётся слоистым (ламинарным), пока число Рейнольдса $\\mathrm{Re}=\\rho\\bar v d/\\eta$ меньше примерно
+  2000. При больших значениях слои перемешиваются вихрями, сопротивление растёт быстрее, и закон Пуазейля
+  перестаёт выполняться. Поэтому кровь в капиллярах и масло в тонких зазорах подчиняются ему точно, а вода в
+  водопроводной трубе — уже нет.</p>
+
+  <h3 class="sub">Слив через капилляр</h3>
+  <p>Если сосуд сечением $S$ опорожняется через горизонтальный капилляр, расход пропорционален напору: $Q\\propto\\rho gh$.
+  Скорость опускания уровня $-dh/dt=Q/S$ тоже пропорциональна $h$, и уровень убывает экспоненциально,
+  $h=h_0e^{-t/\\tau}$, $\\tau=8\\eta lS/(\\pi r^4\\rho g)$. Это другой закон, чем у отверстия без трения, где
+  $\\sqrt h$ убывает по прямой: там расход растёт как $\\sqrt h$.</p>`,
+  time:30,
+  needs:['mech.fluids'],
+  why:`Почему для того, чтобы гнать воду по горизонтальной трубе, нужен насос, почему тонкие сосуды так опасны для
+    кровотока и почему мёд льётся медленно? Ответ — вязкость, и самый важный её закон умещается в одну формулу
+    с четвёртой степенью радиуса.`,
+  derivations:[
+    {
+      goal:'Q=\\dfrac{\\pi R^4\\Delta p}{8\\eta l}',
+      from:['F=\\eta S\\dfrac{dv}{dz}','Q=\\int v\\,dS'],
+      steps:[
+        {tex:'\\Delta p\\,\\pi r^2=-\\eta\\,2\\pi rl\\,\\dfrac{dv}{dr}',
+         why:'равновесие цилиндра жидкости радиусом $r$: давление толкает, вязкость по боковой поверхности тормозит',
+         op:['физика','симметрия']},
+        {tex:'v(r)=\\dfrac{\\Delta p}{4\\eta l}\\,(R^2-r^2)',
+         why:'разделили переменные и проинтегрировали; у стенки скорость равна нулю — жидкость прилипает',
+         op:['разделить-переменные','граничное']},
+        {tex:'Q=\\int_0^R v(r)\\,2\\pi r\\,dr=\\dfrac{\\pi R^4\\Delta p}{8\\eta l}',
+         why:'сложили расход по тонким кольцам площадью $2\\pi r\\,dr$',
+         op:['интеграл','сумма']}
+      ],
+      sim:'poiseuille'
+    }
+  ],
+  formulas:[
+    {tex:'v(r)=\\dfrac{\\Delta p}{4\\eta l}(R^2-r^2)', kind:'следствие',
+     note:'Параболический профиль скоростей в круглой трубе.', sim:'poiseuille'},
+    {tex:'Q=\\dfrac{\\pi R^4\\Delta p}{8\\eta l}', kind:'закон',
+     note:'Формула Пуазейля: объёмный расход при ламинарном течении.', sim:'poiseuille'},
+    {tex:'h=h_0e^{-t/\\tau},\\qquad \\tau=\\dfrac{8\\eta lS}{\\pi r^4\\rho g}', kind:'следствие',
+     note:'Слив сосуда сечением $S$ через капилляр радиусом $r$ и длиной $l$.', sim:'poiseuille'}
+  ],
+  mistakes:[
+    {wrong:'Если радиус трубы вдвое больше, расход тоже вдвое больше.',
+     right:'В шестнадцать раз: $Q\\propto R^4$.',
+     why:'Вдвое растёт не только площадь (вчетверо), но и скорость (тоже вчетверо), потому что слои дальше от тормозящей стенки.'},
+    {wrong:'Вязкая жидкость у стенки трубы скользит с той же скоростью, что и в середине.',
+     right:'У стенки скорость равна нулю — жидкость прилипает; наибольшая скорость на оси.',
+     why:'Это условие прилипания проверено опытом и даёт параболический профиль.'}
+  ],
+  checks:[
+    {q:'Почему средняя скорость в трубе вдвое меньше скорости на оси?',
+     a:'Профиль параболический: усреднение $1-r^2/R^2$ по площади круга даёт ровно $1/2$.'},
+    {q:'Почему через капилляр сосуд сливается по экспоненте, а через отверстие в стенке — нет?',
+     a:'Через капилляр расход пропорционален напору $h$, через отверстие — скорости $\\sqrt{2gh}$. Первое даёт экспоненту, второе — линейное убывание $\\sqrt h$.'}
+  ],
+  links:[
+    {to:'mech.fluids', text:'У идеальной жидкости нет вязкости — её течение описывает уравнение Бернулли; сопротивление шарику по Стоксу — тоже вязкость.'}
+  ],
+  problems:[
+    {level:2, sim:'poiseuille', unit:'раз', src:'Иродов', setup:{mode:'pipe',liq:'water',R:1,L:1,dp:2},
+     statement:`Во сколько раз вырастет расход вязкой жидкости через трубу, если её радиус увеличить вдвое при том же перепаде давления?`,
+     hint:'Расход пропорционален четвёртой степени радиуса.',
+     answer:()=>16},
+    {level:3, sim:'poiseuille', unit:'кПа', src:'Иродов', setup:{mode:'pipe',liq:'oil',R:2,L:1,dp:20},
+     statement:`Какой перепад давления нужен, чтобы через трубу радиусом $R$ и длиной $l$ протекал 1 мл жидкости в секунду?`,
+     hint:'Выразите $\\Delta p$ из формулы Пуазейля.',
+     answer:p=>p.mode==='pipe'?8*SIMS.poiseuille.ж(p).η*p.L*1e-6/(Math.PI*Math.pow(p.R/1000,4))/1000:NaN},
+    {level:2, sim:'poiseuille', unit:'см/с', src:'Иродов', setup:{mode:'pipe',liq:'water',R:1,L:1,dp:2},
+     statement:`С какой скоростью течёт жидкость на расстоянии $R/2$ от оси трубы?`,
+     hint:'Профиль параболический: $v=v_{\\max}(1-r^2/R^2)$.',
+     answer:p=>p.mode==='pipe'?0.75*SIMS.poiseuille.труба(p).vmax*100:NaN},
+    {level:4, sim:'poiseuille', unit:'кПа', src:'Иродов', setup:{mode:'pipe',liq:'water',R:1,L:1,dp:2},
+     statement:`При каком наибольшем перепаде давления течение в этой трубе ещё останется ламинарным? Считайте, что ламинарность
+       сохраняется, пока число Рейнольдса по средней скорости и диаметру меньше 2000.`,
+     hint:'Средняя скорость — половина осевой, $\\mathrm{Re}=\\rho\\bar v\\cdot2R/\\eta$.',
+     answer:p=>{ if(p.mode!=='pipe') return NaN; const ж=SIMS.poiseuille.ж(p), R=p.R/1000, vср=2000*ж.η/(ж.ρ*2*R); return 8*ж.η*p.L*vср/(R*R)/1000; }},
+    {level:3, sim:'poiseuille', unit:'с', src:'Иродов', setup:{mode:'drain',liq:'water',D:8,h0:30,rc:0.5,lc:10,frac:0.5},
+     statement:`Сосуд сливается через горизонтальный капилляр у дна. За какое время уровень воды опустится вдвое?`,
+     hint:'Расход через капилляр пропорционален напору — уровень убывает экспоненциально.',
+     answer:p=>p.mode==='drain'?SIMS.poiseuille.τ(p)*Math.LN2:NaN},
+    {level:4, sim:'poiseuille', unit:'мл', src:'Иродов', setup:{mode:'drain',liq:'water',D:8,h0:30,rc:0.5,lc:10,frac:0},
+     statement:`Сколько жидкости вытечет через капилляр за первую минуту?`,
+     hint:'Вытекший объём равен $S(h_0-h)$, где $h=h_0e^{-t/\\tau}$.',
+     answer:p=>p.mode==='drain'?Math.PI*Math.pow(p.D/2,2)*p.h0*(1-Math.exp(-60/SIMS.poiseuille.τ(p))):NaN}
+  ]
+};
+
 
 /* ===================== РЕАЛЬНЫЙ ГАЗ, ПАР И ЖИДКОСТЬ (6.3.0) =====================
    Молекулярная физика по программе: уравнение Ван-дер-Ваальса, критическая
@@ -39063,6 +40986,7 @@ const T_phase={
     `Поверхность жидкости натянута, как плёнка: сила $F=\\sigma l$. Из-за неё вода поднимается в узких капиллярах.`,
   ],
   explore:[
+    {sim:'vapor', do:`Сжимайте влажный воздух при постоянной температуре`, see:`пока пар ненасыщен, его давление растёт; дальше стоит на месте, а лишний пар выпадает росой`},
     {sim:'vdw', do:`Сожмите газ при $T=0{,}9\\,T_{\\text{кр}}$`, see:`давление растёт до насыщенного и замирает на горизонтали, а под поршнем появляется жидкость`},
     {sim:'vdw', do:`Поднимите температуру выше критической`, see:`горизонталь исчезает: газ плавно густеет, но жидкость отдельной фазой не появляется`},
     {sim:'vdw', do:`Включите петлю Ван-дер-Ваальса`, see:`настоящая изотерма срезает петлю так, что две заштрихованные площади равны`},
@@ -39151,7 +41075,16 @@ const T_phase={
   $h=\\dfrac{2\\sigma\\cos\\theta}{\\rho gr}$. В капилляре радиусом 0,1 мм вода поднимается на 15 см; по таким
   каналам вода идёт в почве, в бумажном полотенце и — вместе с другими механизмами — в стволах деревьев. Под
   изогнутой поверхностью давление отличается на $\\Delta p=2\\sigma/R$ (формула Лапласа): чем мельче пузырёк, тем
-  сильнее сжат газ в нём.</p>`,
+  сильнее сжат газ в нём.</p>
+
+  <h3 class="sub">Насыщенный пар и влажность</h3>
+  <p>Пар, находящийся в равновесии со своей жидкостью, называют <strong>насыщенным</strong>. Его давление $p_н$
+  зависит только от температуры: при 20 °C у воды около 2,3 кПа, при 100 °C — атмосферное. Сжимая насыщенный пар,
+  его давление не поднять: лишний пар конденсируется. Ненасыщенный пар ведёт себя как идеальный газ.</p>
+  <p><strong>Относительная влажность</strong> $\\varphi=p/p_н$ — доля от наибольшего возможного давления пара при
+  данной температуре. Если влажный воздух охлаждать при постоянном объёме, $p$ почти не меняется, а $p_н$ быстро
+  падает; температура, при которой $\\varphi$ достигает 100 %, — <strong>точка росы</strong>. При изотермическом
+  сжатии в $k$ раз давление пара растёт в $k$ раз, и роса выпадает, когда $\\varphi_0k$ дойдёт до единицы.</p>`,
   time:45,
   needs:['th.kinetic','th.thermo'],
   why:`Уравнение идеального газа не знает ни о жидкостях, ни о кипении, ни о росе. Чтобы понять, почему газ
@@ -39208,6 +41141,8 @@ const T_phase={
     }
   ],
   formulas:[
+    {tex:'\\varphi=\\dfrac{p}{p_н(T)}', kind:'определение',
+     note:'Относительная влажность: давление пара, делённое на давление насыщенного пара при той же температуре.', sim:'vapor'},
     {tex:'\\left(p+\\dfrac{a\\nu^2}{V^2}\\right)(V-\\nu b)=\\nu RT',
      kind:'закон',
      note:'Уравнение Ван-дер-Ваальса: поправки на собственный объём молекул ($b$) и их притяжение ($a$).', sim:'vdw'},
@@ -39284,7 +41219,30 @@ const T_phase={
     {level:4, sim:'capillary', unit:'Па',
      statement:`Каким будет избыточное давление внутри пузырька воздуха радиусом, равным радиусу самой узкой трубки, в этой жидкости?`,
      hint:'Формула Лапласа $\\Delta p=2\\sigma/R$; у пузырька в жидкости одна поверхность.',
-     answer:p=>2*SIMS.capillary.ж(p).σ/(p.r/1000)}
+     answer:p=>2*SIMS.capillary.ж(p).σ/(p.r/1000)},
+
+    /* ---------- По мотивам Иродова: насыщенный пар ---------- */
+    {level:3, sim:'vapor', unit:'л', src:'Иродов', setup:{mode:'compress',tc:20,phi:60,V0:10,k:4,dur:6,stopDew:true},
+     statement:`Влажный воздух с относительной влажностью $\\varphi_0$ медленно сжимают при постоянной температуре. При каком объёме
+       выпадет роса?`,
+     hint:'Давление пара растёт обратно объёму, пока не станет равным давлению насыщенного пара.',
+     answer:p=>p.mode==='compress'?p.phi/100*p.V0:NaN},
+    {level:4, sim:'vapor', unit:'г', src:'Иродов', setup:{mode:'compress',tc:20,phi:60,V0:100,k:4,dur:6,stopDew:false},
+     statement:`Влажный воздух изотермически сжали в $k$ раз. Сколько воды сконденсировалось? Давление насыщенного пара при этой
+       температуре — в окне величин.`,
+     hint:'Пара было $\\varphi_0p_нV_0M/RT$, осталось не больше $p_нV_0M/(kRT)$.',
+     answer:p=>{ if(p.mode!=='compress') return NaN; const T=p.tc+273.15, ps=SIMS.vapor.сост(p,0).ps, m=0.018/(8.314*T)*ps*p.V0*1e-3*(p.phi/100-1/p.k); return m>0?m*1000:0; }},
+    {level:3, sim:'vapor', unit:'', src:'Иродов', setup:{mode:'cool',tc:20,phi:60,V0:10,t2:5,dur:6,stopDew:true},
+     statement:`Воздух при температуре $t$ имеет относительную влажность $\\varphi_0$. Найдите точку росы — до какой температуры его надо
+       охладить, чтобы выпала роса? Ответ — в градусах Цельсия. Давление насыщенного пара считайте по формуле Магнуса
+       $p_н=611\\,\\text{Па}\\cdot e^{17{,}6t/(t+243)}$.`,
+     hint:'Решите $p_н(t_р)=\\varphi_0p_н(t)$ относительно $t_р$.',
+     answer:p=>{ if(p.mode!=='cool') return NaN; const a=17.625,b=243.04, g=Math.log(p.phi/100)+a*p.tc/(b+p.tc); return b*g/(a-g); }},
+    {level:4, sim:'vapor', unit:'%', src:'Иродов', setup:{mode:'cool',tc:20,phi:60,V0:10,t2:40,dur:6,stopDew:false},
+     statement:`Закрытый сосуд с влажным воздухом нагрели от $t$ до $t_2$. Какой стала относительная влажность?`,
+     hint:'Количество пара не меняется, его давление растёт пропорционально абсолютной температуре.',
+     answer:p=>{ if(p.mode!=='cool') return NaN; const p0=p.phi/100*SIMS.vapor.сост(p,0).ps, pp=p0*(p.t2+273.15)/(p.tc+273.15), ps2=610.94*Math.exp(17.625*p.t2/(p.t2+243.04));
+       return 100*Math.min(1,pp/ps2); }}
   ]
 };
 
@@ -41038,13 +42996,20 @@ const SECTIONS=[
    T_work,
    T_econs,
    T_momentum,
-   T_fluids,
    T_rot,
    T_osc,
    T_sound
  ]},
+ /* 9.4.0: механика жидкостей — отдельным разделом: гидростатика и течение
+    идеальной жидкости, сообщающиеся сосуды и вращение, вязкое течение. */
+ {id:'hydro', title:'Гидродинамика', topics:[
+   T_fluids,
+   T_hvessels,
+   T_hviscous
+ ]},
  {id:'thermo', title:'МКТ и термодинамика', topics:[
    T_gas,
+   T_distr,
    T_thermo,
    T_phase,
    T_solid,
@@ -41174,6 +43139,39 @@ const RECAPS={
   ]
  },
 
+ hydro:{
+  theory:`
+  <p>Жидкость — та же механика Ньютона, только применённая не к телу, а к сплошной среде. Поэтому законы раздела —
+  знакомые законы в новой одежде: равновесие сил даёт гидростатику, закон сохранения энергии — уравнение Бернулли,
+  второй закон Ньютона с силой трения между слоями — формулу Пуазейля.</p>
+  <p>Если запомнить одно, пусть это будет вопрос, который решает почти любую задачу раздела: <strong>где давления
+  равны?</strong> На одном уровне покоящейся жидкости, на границе двух жидкостей, на свободной поверхности
+  (там оно атмосферное). Найдите такое место — и уравнение напишется само.</p>`,
+  threads:[
+   {title:'Давление — энергия единицы объёма',
+    text:`В уравнении Бернулли $p+\\rho v^2/2+\\rho gh$ каждое слагаемое — энергия кубометра жидкости: работа сил давления,
+    кинетическая и потенциальная. Там, где жидкость разгоняется, давление обязано упасть.`},
+   {title:'Неразрывность',
+    text:`Несжимаемая жидкость не копится: расход одинаков в любом сечении. Отсюда и сужение струи, падающей из крана, и
+    ускорение воды в горловине трубы, и скорость опускания уровня в сосуде.`},
+   {title:'Вязкость решает, какой закон работает',
+    text:`При малых числах Рейнольдса правит вязкость: формула Стокса и Пуазейля, сила пропорциональна скорости. При
+    больших — инерция: сопротивление квадратично, течение вихревое, и Бернулли верен лишь вдоль струйки.`}
+  ],
+  quiz:[
+   {q:`Почему бумажный лист, если дуть вдоль его верхней поверхности, поднимается?`,
+    a:`Над листом воздух движется, и давление там меньше атмосферного; снизу воздух неподвижен — разность давлений
+    поднимает лист.`},
+   {q:`Почему вода, вытекающая из крана, сужается книзу?`,
+    a:`Она разгоняется под действием тяжести, а расход в каждом сечении одинаков — значит, сечение уменьшается.`},
+   {q:`Почему в тонкой трубке для такого же расхода нужен гораздо больший перепад давления, чем в широкой?`,
+    a:`Расход вязкой жидкости пропорционален четвёртой степени радиуса: вдвое уже труба — в 16 раз меньше расход при том же перепаде.`}
+  ],
+  links:[
+   {to:'mech.energy', text:'Уравнение Бернулли — закон сохранения энергии для элемента жидкости.'},
+   {to:'th.transport', text:'Вязкость — перенос импульса молекулами между слоями, родственница диффузии и теплопроводности.'}
+  ]
+ },
  thermo:{
   theory:`
   <p>Этот раздел соединяет два масштаба. Снизу — миллиарды молекул, живущих по законам Ньютона.
@@ -44227,6 +46225,7 @@ function подключитьПуть(){
 const ВИД_РАЗДЕЛОВ={
   intro:  {с:'#5d5294',т:'#9184d9',значок:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>'},
   mech:   {с:'#2563eb',т:'#60a5fa',значок:'<path d="M3 20c2.5-9 8-13.5 16-10"/><circle cx="19.5" cy="10" r="1.8"/><path d="M3 20h18"/>'},
+  hydro:  {с:'#0284c7',т:'#7dd3fc',значок:'<path d="M12 3c3.5 4.5 6 7.6 6 10.5a6 6 0 0 1-12 0C6 10.6 8.5 7.5 12 3z"/><path d="M9 14.5a3 3 0 0 0 3 3"/>'},
   thermo: {с:'#ea580c',т:'#fb923c',значок:'<path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0z"/><path d="M12 9v7"/>'},
   electro:{с:'#b45309',т:'#fbbf24',значок:'<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z"/>'},
   em:     {с:'#7c3aed',т:'#a78bfa',значок:'<path d="M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3z"/><path d="M6 7h4M14 7h4"/>'},
@@ -48008,8 +50007,12 @@ function updatePVBox(a){
          `<div class="pvrow"><span>работа/цикл</span><span>${pf.W.toFixed(0)} Дж</span></div>`+
          `<div class="pvrow"><span>КПД 1−T₂/T₁</span><span>${(pf.eff*100).toFixed(1)}%</span></div>`;
   } else {
-    const W_=T.workTo(p,s.u), dU=p.proc==='iso'?0:(3/2)*p.n*8.314*(st.T-p.T0), Q=dU+W_;
-    nm={iso:'изотерма PV=const',isobar:'изобара P=const',isochor:'изохора V=const',adiab:'адиабата PVᵞ=const'}[p.proc];
+    /* ΔU — с той же теплоёмкостью Cv = R/(γ−1), что и в показаниях сцены.
+       До 9.4 здесь стояло 3/2·R, и при γ ≠ 5/3 панель расходилась с окном
+       величин: у адиабаты Q выходило не нулём. */
+    const W_=T.workTo(p,s.u), dU=p.proc==='iso'?0:p.n*T.Cv(p)*(st.T-p.T0), Q=dU+W_;
+    nm={iso:'изотерма PV=const',isobar:'изобара P=const',isochor:'изохора V=const',adiab:'адиабата PVᵞ=const',
+        line:'прямая на pV-диаграмме',poly:'политропа PVⁿ=const'}[p.proc];
     rows=`<div class="pvrow"><span>V</span><span>${st.V.toFixed(1)} л</span></div>`+
          `<div class="pvrow"><span>P</span><span>${(st.P/1000).toFixed(0)} кПа</span></div>`+
          `<div class="pvrow"><span>T</span><span>${st.T.toFixed(0)} K</span></div>`+
@@ -54399,7 +56402,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.3.0';
+window.PHYSIM_BUILD = '9.4.0';
 window.PHYSIM_READY = true;
 
 ;

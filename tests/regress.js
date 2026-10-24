@@ -269,7 +269,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('123 симуляции', counts.sims === 123, counts);
+    ok('132 симуляции', counts.sims === 132, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -331,7 +331,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 69, оси.схем);
+    ok('схемы размечены', оси.схем === 76, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -533,7 +533,7 @@ async function сторож(b) {
                точекВКривой: файл && ((файл.текст.match(/points="([^"]+)"/) || [])[1] || '').trim().split(/\s+/).length };
     });
     ok('развёртка по параметру работает там, где нет времени',
-        разв.параметром >= 90 && разв.времени === 67 && разв.никак.length <= 3, разв);
+        разв.параметром >= 90 && разв.времени === 74 && разв.никак.length <= 3, разв);
     ok('развёртка сходится с законом Кулона',
         разв.точек === 25 && разв.разброс < 1e-12, { точек: разв.точек, разброс: разв.разброс });
     ok('развёртка доходит до картинки',
@@ -1146,7 +1146,7 @@ async function сторож(b) {
     const закрылся = await p.evaluate(() => !путьОткрыт());
     ok('«Мой путь»: пять вкладок, карта всех тем, фронт — начало курса, Esc закрывает',
       путьВид.открыт && путьВид.вкладки.join('|') === 'Сегодня|Карта|Диагностика|Навыки|От вопроса' && путьВид.старт &&
-      путьВид.узлов === 44 && путьВид.фронт.join() === 'intro.dim,mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
+      путьВид.узлов === 47 && путьВид.фронт.join() === 'intro.dim,mech.1d' && /Одномерное движение/.test(путьВид.карточка) &&
       путьВид.вопросов >= 36 && закрылся, путьВид);
 
     /* Неверный ответ с перепутанными sin и cos узнаётся и записывается */
@@ -1308,8 +1308,8 @@ async function сторож(b) {
       await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
       await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
-      ok('главный экран: 7 разделов в своих цветах, раздел ведёт в тему, «Главная» возвращает, настройка «сразу тема»',
-        главная.видна && главная.разделов === 7 && new Set(главная.цвета).size === 7 && главная.поиск && главная.миниатюр === 7 &&
+      ok('главный экран: 8 разделов в своих цветах, раздел ведёт в тему, «Главная» возвращает, настройка «сразу тема»',
+        главная.видна && главная.разделов === 8 && new Set(главная.цвета).size === 8 && главная.поиск && главная.миниатюр === 8 &&
         тема.тема === 'op.matter' && тема.скрыта && снова.видна && /Взаимодействие излучения/.test(снова.продолжить) &&
         !безГлавной.видна && безГлавной.тема === 'op.matter' && hErrs.length === 0, { главная, тема, снова, безГлавной, hErrs });
 
@@ -1667,7 +1667,7 @@ async function сторож(b) {
           && [...document.fonts].some(f => /Literata/.test(f.family) && f.status === 'loaded');
         открытьГлавную(); await жди(400);
         const cv = document.querySelector('#hm-cv');
-        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm9-logo').length === 7 && !document.querySelector('#home canvas[data-mini]');
+        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm9-logo').length === 8 && !document.querySelector('#home canvas[data-mini]');
         r.знак = !!document.querySelector('#tbrand svg ellipse') && /svg/.test(document.querySelector('link[rel=icon]').href);
         r.безЛишнего = !document.querySelector('#home .hm-q, #home .hm-tools, #home .hm4-heat, #home .hm-foot');
         const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
@@ -1715,7 +1715,7 @@ async function сторож(b) {
         r.светлая = фон[0] > 200 && фон[1] > 200 && фон[2] > 200;
         const лого = [...document.querySelectorAll('#home .hm9-logo')];
         // 6.3.0: до авторских логотипов — квадратик цвета раздела, без плиток
-        r.значки = лого.length === 7 && лого.every(svg => svg.classList.contains('sec-mark') && !svg.querySelector('linearGradient') && getComputedStyle(svg).backgroundColor.match(/\d+/g).slice(3).join() === '0')
+        r.значки = лого.length === 8 && лого.every(svg => svg.classList.contains('sec-mark') && !svg.querySelector('linearGradient') && getComputedStyle(svg).backgroundColor.match(/\d+/g).slice(3).join() === '0')
           && document.querySelectorAll('#tree .sec-ic.sec-mark circle, .sec>.hd .sec-mark circle').length >= 7;
         закрытьГлавную(); openTopic('mech.energy'); await жди(150);
         const sp = document.querySelector('#simpane'); sp.style.width = '500px'; sp.style.flex = '0 0 500px';
@@ -1757,8 +1757,9 @@ async function сторож(b) {
           if (Math.abs(c[0] + c[1] + c[2] - яФон) > 30) отличных++; }
         r.плёнка = cv.width > 0 && отличных >= 4;
         закрытьГлавную();
-        const мех = SECTIONS.find(s => s.id === 'mech').topics.map(t => t.id);
-        r.порядок = мех.indexOf('mech.momentum') === мех.indexOf('mech.energy') + 1 && мех.indexOf('mech.fluids') === мех.indexOf('mech.momentum') + 1;
+        // 9.4: гидромеханика ушла в свой раздел «Гидродинамика» и открывает его
+        const мех = SECTIONS.find(s => s.id === 'mech').topics.map(t => t.id), гидро = SECTIONS.find(s => s.id === 'hydro');
+        r.порядок = мех.indexOf('mech.momentum') === мех.indexOf('mech.energy') + 1 && !мех.includes('mech.fluids') && !!гидро && гидро.topics[0].id === 'mech.fluids';
         r.сцены = ['impact', 'torricelli', 'drag'].every(id => { openSim(id); return S.active === id && A().state; });
         S.settings.level = 'uni'; openTopic('mech.fluids'); await жди(150);
         r.вуз = !!document.querySelector('#pane .uni') && !document.querySelector('#t-lvl').classList.contains('hidden')
@@ -1886,8 +1887,8 @@ async function сторож(b) {
         r.вузКниг = ['mech.sound', 'op.matter', 'op.interf', 'op.optics', 'rel.sr', 'q.thermal', 'q.wave', 'q.hydrogen', 'q.nuclear', 'q.reactions', 'q.particles'].every(id => естьВуз({ id }));
         // титульный лист: заглавие, «Продолжить», оглавление с отточиями, рисунок с рябью
         открытьГлавную(); await жди(300);
-        r.титул = !!$('#home .hm9-h') && !!$('#home .hm9-go[data-topic]') && document.querySelectorAll('#home .hm9-secs .hm9-sec').length === 7
-          && document.querySelectorAll('#home .hm9-dots').length === 7 && !!$('#home .hm9-plate #hm-cv') && /Рис\. 1/.test($('#home figcaption').textContent)
+        r.титул = !!$('#home .hm9-h') && !!$('#home .hm9-go[data-topic]') && document.querySelectorAll('#home .hm9-secs .hm9-sec').length === 8
+          && document.querySelectorAll('#home .hm9-dots').length === 8 && !!$('#home .hm9-plate #hm-cv') && /Рис\. 1/.test($('#home figcaption').textContent)
           && $('#home .hm9-ver').textContent.includes(document.querySelector('meta[name=physim-build]').content);
         закрытьГлавную();
         // облик: чернила вместо фиолетового, прямые углы, книжный шрифт темы
@@ -1947,7 +1948,7 @@ async function сторож(b) {
           && SECTIONS[0].topics.some(t => t.id === 'intro.dim') && !!ПРИЁМЫ['размерности'];
         openTopic('intro.dim'); await жди(250);
         r.темаРазмерностей = S.active === 'dims' && /X=k/.test(S.topic.formulas[0].tex) && document.querySelector('#t-sub').textContent.includes('вводная');
-        r.сцен = Object.keys(SIMS).length === 123 || Object.keys(SIMS).length;
+        r.сцен = Object.keys(SIMS).length === 132 || Object.keys(SIMS).length;
         return r;
       });
       ok('9.1: инструменты модели (перенос тела, стрелки клавиатуры), участки разгона и торможения, три тела, сближение тел, метод размерностей',
@@ -2040,6 +2041,44 @@ async function сторож(b) {
         return r;
       });
       ok('9.3: центр масс, блок, момент импульса, Лиссажу — живые; горка, сила αt, пружины, лифт решают задачи',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    /* ============ 9.4.0: термодинамика по задачнику и раздел «Гидродинамика» ============
+       Механика жидкостей — отдельный раздел со своим цветом; новые сцены живые;
+       задача из темы о распределениях собирает модель; панель pV считает ΔU с
+       той же теплоёмкостью, что и окно величин (у адиабаты Q = 0). */
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms));
+        const r = {}, $ = s => document.querySelector(s);
+        const кадр = () => { const c = $('#scene'), x = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < x.length; i += 97) h = (h * 31 + x[i]) | 0; return h; };
+        закрытьГлавную();
+        const гидро = SECTIONS.find(s => s.id === 'hydro');
+        r.раздел = !!гидро && гидро.title === 'Гидродинамика' && гидро.topics.filter(t => t.kind !== 'recap').map(t => t.id).join() === 'mech.fluids,hyd.vessels,hyd.viscous'
+          && ВИД_РАЗДЕЛОВ.hydro && ВИД_РАЗДЕЛОВ.hydro.с !== ВИД_РАЗДЕЛОВ.intro.с;
+        const живые = [];
+        for (const [тема, id] of [['mech.fluids', 'torricelli'], ['hyd.vessels', 'rotfluid'], ['hyd.vessels', 'utube'], ['hyd.viscous', 'poiseuille'],
+                                  ['th.kinetic', 'vessel'], ['th.distr', 'maxwell'], ['th.second', 'cycle'], ['th.phase', 'vapor']]) {
+          openTopic(тема); openSim(id); restart(A()); S.playing = true; await жди(350); const a = кадр(); await жди(450); const b = кадр();
+          if (S.active === id && a !== b) живые.push(id); }
+        r.сценыЖивые = живые.length === 8 || живые;
+        // задача по Иродову из новой темы собирает модель
+        openTopic('th.distr'); S.tab = 'problems'; S.prFilter = 'src'; renderPane(); await жди(150);
+        const кн = $('#pane .problem .btn.setup'); if (кн) { кн.click(); await жди(250); }
+        r.собрано = !!кн && (S.active === 'maxwell' || S.active === 'atmos');
+        S.prFilter = 'all'; S.tab = 'notes'; renderPane();
+        // панель pV: у адиабаты теплота ноль и при γ ≠ 5/3
+        openTopic('th.thermo'); openSim('thermo'); loadPreset({ proc:'adiab', n:1, T0:600, V0:8, Vend:25, gamma:1.4, tStop:0 });
+        const a = A(); for (let i = 0; i < 120; i++) a.def.step(a.state, 1 / 120, a.params); updatePVBox(a);
+        const qРяд = [...document.querySelectorAll('#pvbody .pvrow')].find(x => /^Q/.test(x.textContent));
+        r.панельPV = !!qРяд && Math.abs(parseFloat(qРяд.lastElementChild.textContent)) < 1;
+        // тёмный фон: стекло и жидкость рисуются без ошибок
+        const было = prefGet('bgStyle'); prefSet('bgStyle', 'dark'); openTopic('mech.fluids'); openSim('torricelli'); await жди(200);
+        r.тёмный = АРТ.тёмный() === true; prefSet('bgStyle', было || 'plain');
+        return r;
+      });
+      ok('9.4: раздел «Гидродинамика», новые сцены живые, задача собирает модель, панель pV согласна с окном величин',
         Object.values(т).every(v => v === true), т);
     }
 

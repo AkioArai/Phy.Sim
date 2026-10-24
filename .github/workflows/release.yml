@@ -144,9 +144,17 @@ jobs:
           # строку правят следом. Иначе описание релиза начинает отставать —
           # ровно так в v1.2.0 задач осталось 380 вместо 384.
           cat > notes.md <<'EOF'
-          **Phy.Sim — a physics course you revise by running it.** 123 live simulations,
-          52 topics, 136 step-by-step derivations, 415 formulas and 642 problems. Runs
+          **Phy.Sim — a physics course you revise by running it.** 132 live simulations,
+          56 topics, 139 step-by-step derivations, 431 formulas and 693 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 9.4.0 — thermodynamics by the problem book, and a section for fluids
+
+          51 more problems after Irodov (116 in all): gases in vessels, Maxwell and Boltzmann distributions,
+          processes and heat capacity, entropy and cycles, saturated vapour, fluids. Fluid dynamics is now a
+          section of its own. New scenes: pump and vessels, isothermal atmosphere and centrifuge, Maxwell speed
+          distribution, heat exchange and entropy, humid air and dew, heat-engine cycles, a rotating liquid, a
+          U-tube, Poiseuille flow. Scenes with liquids and gases are redrawn to look like the experiment.
 
           ## 9.3.0 — the rest of mechanics, problem by problem
 

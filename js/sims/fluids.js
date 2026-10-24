@@ -27,7 +27,7 @@ torricelli:{
     {key:'Y0',label:'Начальный уровень воды Y₀',unit:'м',min:0.3,max:2,step:0.05,default:1.2},
     {key:'z', label:'Высота отверстия над полом z',unit:'м',min:0.02,max:1.9,step:0.01,default:0.4,если:p=>p.mode==='one'},
     {key:'d', label:'Диаметр отверстия d',unit:'мм',min:3,max:40,step:1,default:12},
-    {key:'D', label:'Диаметр сосуда D',unit:'см',min:5,max:80,step:1,default:12},
+    {key:'D', label:'Диаметр сосуда D',unit:'см',min:5,max:80,step:1,default:30},
     {key:'g', label:'Ускорение g',unit:'м/с²',min:1,max:25,step:0.1,default:9.8},
     {type:'group',label:'Показывать'},
     {key:'jets',label:'Струи и точки падения',type:'check',default:true},
@@ -88,42 +88,87 @@ torricelli:{
     return {x:X/2-0.25,y:Y/2-0.08,scale};
   },
   anchors(s,p){ return this.дыры(p).map(z=>({x:p.D/200,y:z})); },
+  /* 9.4.0: рисунок — настоящий опыт, а не схема. Стеклянный сосуд с
+     делениями, вода с глубиной цвета и мениском у стенок. Метки в воде
+     стекаются к отверстию со всего объёма и разгоняются у самой дыры: так
+     видно, откуда берётся струя и почему уровень опускается медленно, а
+     струя бьёт быстро. Струя — лента, которая сужается по мере разгона
+     (расход a·v одинаков в любом сечении), к концу рвётся на капли; у
+     точки падения — брызги и мокрый след: по нему видно, как точка падения
+     отступает к сосуду, пока слабеет напор. Метки рассчитываются от
+     времени, а не хранятся в состоянии: шаг физики остаётся чистым. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'),
-          ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
-    const R=p.D/200, z=this.дыры(p), vs=this.скорости(p,s.Y), Hs=p.Y0+0.12;
-    // пол
-    ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.moveTo(-R-0.3,0); ctx.lineTo(Math.max(1.2,p.Y0*1.15+0.1),0); ctx.stroke();
-    // вода и сосуд
-    ctx.fillStyle=sec; ctx.globalAlpha=.2; ctx.fillRect(-R,0,2*R,s.Y); ctx.globalAlpha=1;
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.4); ctx.beginPath(); ctx.moveTo(-R,s.Y); ctx.lineTo(R,s.Y); ctx.stroke();
-    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2.2); ctx.beginPath(); ctx.moveTo(-R,Hs); ctx.lineTo(-R,0); ctx.lineTo(R,0); ctx.lineTo(R,Hs); ctx.stroke();
+    const acc=v.c('--accent'), meas=v.c('--measure'), ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
+    const px=1/ppm(), R=p.D/200, z=this.дыры(p), vs=this.скорости(p,s.Y), Hs=p.Y0+0.12;
+    const tw=Math.max(3.5*px,R*0.05), X1=Math.max(1.2,p.Y0*1.15+0.1);
+    // пол со штриховкой
+    АРТ.пол(ctx,-R-tw-0.3,X1+0.1,0,Math.max(7*px,0.025),ink3);
+    // мокрый след: от нынешней точки падения до самой дальней
+    if(p.jets) z.forEach((zz,i)=>{
+      const L0=this.скорости(p,p.Y0)[i]*Math.sqrt(2*zz/p.g), L=vs[i]*Math.sqrt(2*zz/p.g);
+      if(L0>1e-4){ ctx.fillStyle=АРТ.ц(АРТ.тон('вода')[1],0.22);
+        ctx.beginPath(); ctx.ellipse(R+tw+(L+L0)/2,0.4*px,(L0-L)/2+5*px,2.2*px,0,0,7); ctx.fill(); }
+    });
+    // вода с мениском
+    const мен=3*px, шм=4*px, верх=x=>s.Y+мен*(Math.exp(-(x+R)/шм)+Math.exp(-(R-x)/шм));
+    АРТ.жидкость(ctx,-R,0,R,s.Y,{тон:'вода',верх,lw:1.2*px});
+    // метки течения: каждая идёт по прямой к своему отверстию и разгоняется у дыры
+    const откр=z.map((zz,i)=>s.Y>zz+1e-4&&vs[i]>1e-6);
+    if(откр.some(x=>x)){
+      /* плоский сток: поток через окружность вокруг дыры одинаков, v ∝ 1/r,
+         значит r² убывает равномерно и r = r₀√(1 − τ). Метки при этом
+         равномерно заполняют объём — жидкость несжимаема */
+      const N=64, idx=откр.map((o,i)=>o?i:-1).filter(i=>i>=0);
+      ctx.strokeStyle=АРТ.ц([255,255,255],АРТ.тёмный()?0.5:0.85); ctx.lineCap='round'; ctx.lineWidth=1.6*px;
+      const где=(i,x0,y0,τ)=>{ const q=Math.sqrt(Math.max(0,1-τ)); return [R+(x0-R)*q, z[i]+(y0-z[i])*q]; };
+      for(let k=0;k<N;k++){
+        const i=idx[k%idx.length], h1=(k*0.6180339887)%1, h2=(k*0.7548776662)%1, h3=(k*0.5698402910)%1;
+        const τ=(s.t*(0.22+0.1*h3)+h1)%1;
+        const x0=-R*0.94+1.88*R*h2, y0=0.02+(s.Y-0.04)*h3;
+        const [x,y]=где(i,x0,y0,τ), [xa,ya]=где(i,x0,y0,Math.max(0,τ-0.035));
+        if(y>верх(x)-2*px||ya>верх(xa)-2*px) continue;
+        ctx.globalAlpha=Math.min(1,τ*8)*Math.min(1,(1-τ)*20);
+        ctx.beginPath(); ctx.moveTo(xa,ya); ctx.lineTo(x,y); ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
+    // сосуд и деления
+    АРТ.стакан(ctx,-R,R,0,Hs,tw);
+    ctx.strokeStyle=АРТ.ц(АРТ.тёмный()?[200,220,240]:[70,95,120],0.55); ctx.lineWidth=0.8*px; ctx.beginPath();
+    for(let y=0.05,k=1;y<Hs-0.04;y+=0.05,k++){ const l=(k%2?3:6)*px; ctx.moveTo(-R+R*0.22,y); ctx.lineTo(-R+R*0.22+l,y); }
+    ctx.stroke();
     // начальный уровень
-    ctx.strokeStyle=line; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(-R-0.15,p.Y0); ctx.lineTo(-R,p.Y0); ctx.stroke(); ctx.setLineDash([]);
-    v.label(ctx,`Y = ${s.Y.toFixed(2)} м`,-R,s.Y,-74,0,sec);
+    ctx.strokeStyle=line; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.beginPath(); ctx.moveTo(-R-tw-0.12,p.Y0); ctx.lineTo(-R-tw,p.Y0); ctx.stroke(); ctx.setLineDash([]);
+    v.label(ctx,`Y = ${s.Y.toFixed(2)} м`,-R-tw,s.Y,-74,0,ink2);
     z.forEach((zz,i)=>{
-      const vv=vs[i];
-      ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(R,zz,v.lw(3),0,7); ctx.fill();
-      if(s.Y>zz){ // напор
-        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1); ctx.setLineDash([v.lw(2),v.lw(3)]);
-        ctx.beginPath(); ctx.moveTo(R*0.6-i*0.02,zz); ctx.lineTo(R*0.6-i*0.02,s.Y); ctx.stroke(); ctx.setLineDash([]);
+      const vv=vs[i], hw0=Math.max(1.6*px,p.d/2000);
+      // насадка отверстия
+      ctx.fillStyle=ink2; ctx.fillRect(R,zz-hw0-1.2*px,tw+2*px,1.2*px); ctx.fillRect(R,zz+hw0,tw+2*px,1.2*px);
+      if(s.Y>zz){ // напор h — размерная стрелка в воде
+        const xh=-R*0.45+i*R*0.25;
+        АРТ.размер(ctx,xh,zz,s.Y,meas,0.9*px,2.5*px);
+        v.label(ctx,`h${z.length>1?(i+1):''}`,xh,(zz+s.Y)/2,6,0,meas);
       }
       if(vv<=1e-6) return;
-      const L=vv*Math.sqrt(2*zz/p.g);
+      const x0=R+tw, T=Math.sqrt(2*zz/p.g), L=vv*T;
       if(p.jets){
-        ctx.strokeStyle=sec; ctx.lineWidth=v.lw(Math.max(1.5,3*p.d/12)); ctx.globalAlpha=.55; ctx.beginPath();
-        for(let k=0;k<=60;k++){ const x=L*k/60, y=zz-p.g*x*x/(2*vv*vv); k?ctx.lineTo(R+x,y):ctx.moveTo(R+x,y); }
-        ctx.stroke(); ctx.globalAlpha=1;
-        // капли бегут по струе
-        const T=Math.sqrt(2*zz/p.g);
-        ctx.fillStyle=sec;
-        for(let k=0;k<6;k++){ const τ=((s.фаза*0.9+k/6*T)%T), x=vv*τ, y=zz-p.g*τ*τ/2;
-          ctx.beginPath(); ctx.arc(R+x,y,v.lw(2.2),0,7); ctx.fill(); }
-        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(R+L,-0.03); ctx.lineTo(R+L,0.03); ctx.stroke();
-        v.label(ctx,`L${z.length>1?(i+1):''} = ${L.toFixed(2)} м`,R+L,0,-20,14+(z.length>1?i*13:0),meas);
+        // лента до точки распада, затем капли
+        const τр=T*0.82, pts=[], hw=[];
+        for(let k=0;k<=48;k++){ const τ=τр*k/48, x=vv*τ, y=zz-p.g*τ*τ/2, sp=Math.hypot(vv,p.g*τ);
+          pts.push([x0+x,y]); hw.push(hw0*Math.sqrt(vv/sp)); }
+        АРТ.струя(ctx,pts,hw,'вода');
+        const rк=hw0*Math.sqrt(vv/Math.hypot(vv,p.g*T))*1.25;
+        for(let k=0;k<5;k++){ const τ=τр+((s.фаза*1.7+k/5)%1)*(T-τр);
+          АРТ.капля(ctx,x0+vv*τ,zz-p.g*τ*τ/2,rк,'вода'); }
+        // брызги у точки падения
+        for(let k=0;k<6;k++){ const ф=(s.фаза*2.3+k/6)%1, ux=(k%2?1:-0.6)*(0.6+0.4*((k*0.37)%1)), h0=8*px*(0.6+0.5*((k*0.71)%1));
+          const bx=x0+L+ux*14*px*ф, by=4*h0*ф*(1-ф);
+          АРТ.капля(ctx,bx,by,1.1*px,'вода',1-ф); }
+        ctx.strokeStyle=meas; ctx.lineWidth=v.lw(1.6); ctx.beginPath(); ctx.moveTo(x0+L,-0.03); ctx.lineTo(x0+L,0.03); ctx.stroke();
+        v.label(ctx,`L${z.length>1?(i+1):''} = ${L.toFixed(2)} м`,x0+L,0,-20,16+(z.length>1?i*16:0),meas);
       }
-      if(p.vec){ const k=0.06; v.arrow(ctx,R,zz,R+vv*k,zz,acc);
-        v.label(ctx,`v = ${vv.toFixed(2)} м/с`,R+vv*k,zz,6,-10,acc); }
+      if(p.vec){ const k=0.06; v.arrow(ctx,x0,zz,x0+vv*k,zz,acc);
+        v.label(ctx,`v = ${vv.toFixed(2)} м/с`,x0+vv*k,zz,6,-12,acc); }
     });
   }
 },
@@ -202,7 +247,7 @@ drag:{
     {name:'Свинцовая дробь в мёде',values:{liq:'honey',rho:11340,r:2,law:'full'}}
   ],
   fit(p,vp){
-    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, Y=p.L+0.16, X=Math.max(0.5,Y*0.7);
+    const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320, Y=p.L+0.16, X=Math.max(0.62,Y*0.75);
     const scale=clamp(Math.min((W-30)/(X*PX_PER_M),(H-30)/(Y*PX_PER_M)),0.002,60);
     return {x:0.12,y:-p.L/2+0.02,scale};
   },
@@ -210,26 +255,68 @@ drag:{
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), sec=v.c('--second'), meas=v.c('--measure'), dang=v.c('--danger'),
           ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line');
-    const ж=this.ж(p), т=this.тело(p), W=0.07, L=p.L;
+    const ж=this.ж(p), т=this.тело(p), W=0.07, L=p.L, px=1/ppm();
     const cg=v.c('--f-grav')||dang, cn=v.c('--f-norm')||acc;
-    // цилиндр с жидкостью: ось y вверх, поверхность на y = 0
-    ctx.fillStyle=sec; ctx.globalAlpha=p.liq==='honey'?.32:.18; ctx.fillRect(-W,-L,2*W,L); ctx.globalAlpha=1;
-    ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(2); ctx.beginPath(); ctx.moveTo(-W,0.06); ctx.lineTo(-W,-L); ctx.lineTo(W,-L); ctx.lineTo(W,0.06); ctx.stroke();
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.2); ctx.beginPath(); ctx.moveTo(-W,0); ctx.lineTo(W,0); ctx.stroke();
-    if(p.marks) for(let y=0.05;y<L;y+=0.05){ ctx.strokeStyle=line; ctx.lineWidth=v.lw(1);
-      ctx.beginPath(); ctx.moveTo(W-0.02,-y); ctx.lineTo(W,-y); ctx.stroke();
-      if(Math.round(y*100)%10===0) v.label(ctx,`${Math.round(y*100)} см`,W,-y,6,0,ink3); }
+    /* 9.4.0: высокий стеклянный цилиндр с делениями, жидкость своего цвета,
+       шарик — стальной, свинцовый или пробковый. Сбоку — лупа: обтекание
+       шарика в его собственной системе отсчёта. При Re < 1 линии тока
+       симметричны сверху и снизу (решение Стокса), при больших Re за
+       шариком появляется след — сопротивление становится квадратичным. */
+    const тон={glyc:'глицерин',castor:'касторка',honey:'мёд',oil:'масло',water:'вода'}[p.liq]||'вода';
+    const tw=Math.max(3*px,0.006);
+    АРТ.жидкость(ctx,-W,-L,W,0,{тон,lw:1.2*px,верх:x=>3*px*(Math.exp(-(x+W)/(4*px))+Math.exp(-(W-x)/(4*px)))});
+    АРТ.стакан(ctx,-W,W,-L,0.06,tw);
+    if(p.marks){ ctx.strokeStyle=АРТ.ц(АРТ.тёмный()?[210,225,240]:[60,80,100],0.7); ctx.lineWidth=0.9*px;
+      for(let y=0.05;y<L;y+=0.05){ const дл=Math.round(y*100)%10===0?0.03:0.016;
+        ctx.beginPath(); ctx.moveTo(W-дл,-y); ctx.lineTo(W,-y); ctx.stroke();
+        if(Math.round(y*100)%10===0) v.label(ctx,`${Math.round(y*100)} см`,W+tw,-y,6,0,ink3); } }
     v.label(ctx,ж.имя,-W,0,0,-12,ink2);
-    // шарик (рисуем не меньше 3 пикселей, чтобы было видно)
-    const y=-s.x, rr=Math.max(т.r,v.lw(3));
-    ctx.fillStyle=ink2; ctx.beginPath(); ctx.arc(0,y,rr,0,7); ctx.fill();
+    // шарик: настоящий размер, но не меньше 4 пикселей
+    const y=-s.x, rr=Math.max(т.r,4*px);
+    const мат=p.rho<1000?[214,180,120]:p.rho>10000?[120,122,132]:[175,182,195];
+    АРТ.шар(ctx,0,y,rr,мат);
+    // лупа: обтекание в системе шарика
+    const Rл=Math.min(0.12,L*0.2), xл=W+0.24, yл=clamp(y,-L+Rл+0.05,-Rл-0.08), Re=2*ж.ρ*Math.abs(s.v)*т.r/ж.η;
+    ctx.save();
+    ctx.strokeStyle=ink3; ctx.lineWidth=0.8*px; ctx.setLineDash([3*px,3*px]);
+    ctx.beginPath(); ctx.moveTo(rr*1.6,y); ctx.lineTo(xл-Rл,yл); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(xл,yл,Rл,0,7); ctx.clip();
+    АРТ.жидкость(ctx,xл-Rл,yл-Rл,xл+Rл,yл+Rл,{тон,блик:false});
+    const a=Rл*0.28, вниз=s.v>=0?1:-1;                   // поток в системе шарика идёт навстречу движению
+    const скор=(X,Y)=>{ const r=Math.hypot(X,Y); if(r<a*1.0001) return [0,0];
+      const c=Y*вниз/r, sn=X/r, ur=c*(1-1.5*a/r+0.5*a*a*a/(r*r*r)), uθ=-sn*(1-0.75*a/r-0.25*a*a*a/(r*r*r));
+      // r̂ = (sn, c·вниз), θ̂ = (c, −sn·вниз)
+      return [ur*sn+uθ*c, вниз*(ur*c-uθ*sn)]; };
+    ctx.strokeStyle=АРТ.ц(АРТ.смесь(АРТ.тон(тон)[1],[0,0,0],0.35),0.75); ctx.lineWidth=1.1*px;
+    const линии=[];
+    for(let k=-6;k<=6;k++){ if(k===0) continue;
+      let X=Math.sign(k)*(a*0.18+(Math.abs(k)-1)*Rл/6.2), Y=-вниз*Rл*1.3; const pts=[[X,Y]];
+      for(let i=0;i<700;i++){ const [u1,v1]=скор(X,Y), n=Math.hypot(u1,v1)||1, h=Rл/110;
+        const [u2,v2]=скор(X+u1/n*h/2,Y+v1/n*h/2), n2=Math.hypot(u2,v2)||1;
+        X+=u2/n2*h; Y+=v2/n2*h; pts.push([X,Y]); if(Y*вниз>Rл*1.3) break; }
+      линии.push(pts);
+      ctx.beginPath(); pts.forEach((q,i)=>i?ctx.lineTo(xл+q[0],yл+q[1]):ctx.moveTo(xл+q[0],yл+q[1])); ctx.stroke(); }
+    // бегущие метки вдоль линий тока
+    ctx.fillStyle=АРТ.ц([255,255,255],0.95);
+    линии.forEach((pts,j)=>{ for(let m=0;m<3;m++){ const i=Math.floor((((s.t*0.35+m/3+j*0.13)%1))*(pts.length-1));
+      ctx.beginPath(); ctx.arc(xл+pts[i][0],yл+pts[i][1],1.8*px,0,7); ctx.fill(); } });
+    // след за шариком при больших Re
+    if(Re>1){ const k=clamp(Math.log10(Re)/3,0,1);
+      ctx.fillStyle=АРТ.ц(АРТ.тон(тон)[1],0.35*k);
+      ctx.beginPath(); ctx.ellipse(xл,yл-вниз*a*(1+1.6*k),a*(0.9+0.4*k),a*(1+1.6*k),0,0,7); ctx.fill();
+      ctx.strokeStyle=АРТ.ц([255,255,255],0.6*k); ctx.lineWidth=1*px;
+      for(const сд of [-1,1]){ const cx=xл+сд*a*0.55, cy=yл-вниз*a*1.7;
+        ctx.beginPath(); ctx.arc(cx,cy,a*0.42,s.t*4*сд,s.t*4*сд+4.4); ctx.stroke(); } }
+    АРТ.шар(ctx,xл,yл,a,мат);
+    ctx.restore();
+    ctx.strokeStyle=ink3; ctx.lineWidth=1.2*px; ctx.beginPath(); ctx.arc(xл,yл,Rл,0,7); ctx.stroke();
+    v.label(ctx,Re<1?'лупа: обтекание по Стоксу, без следа':'лупа: за шариком — след',xл-Rл,yл-Rл,0,12,ink3);
     if(p.forces){
       const G=т.m*p.g, A=ж.ρ*т.V*p.g, F=this.сопр(p,Math.abs(s.v)), M=Math.max(G,A,F,1e-30), k=0.16/M;
       v.arrow(ctx,0,y,0,y-G*k,cg); v.label(ctx,'mg',0,y-G*k,6,4,cg);
       v.arrow(ctx,-0.012,y,-0.012,y+A*k,cn); v.label(ctx,'F_A',-0.012,y+A*k,-30,-4,cn);
       if(F>M*1e-3){ const зн=s.v>=0?1:-1; v.arrow(ctx,0.012,y,0.012,y+зн*F*k,meas); v.label(ctx,'F_сопр',0.012,y+зн*F*k,6,-4,meas); }
     }
-    const Re=2*ж.ρ*Math.abs(s.v)*т.r/ж.η;
     v.label(ctx,`v = ${(Math.abs(s.v)*100).toFixed(2)} см/с · Re = ${Re<0.01?Re.toExponential(1):Re.toFixed(Re<10?2:0)}`,W+0.04,y,40,0,ink2);
     v.label(ctx,Re<1?'Re < 1: вязкое течение, работает Стокс':Re<1000?'промежуточный режим: Стокс уже неточен':'Re > 1000: сопротивление квадратичное',W+0.04,y,40,14,ink3);
   }

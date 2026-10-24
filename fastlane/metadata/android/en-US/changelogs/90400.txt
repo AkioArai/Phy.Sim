@@ -1,0 +1,4 @@
+9.4.0 — thermodynamics by the problem book, and a section for fluids.
+• 51 more problems after Irodov: gases, distributions, processes, entropy, cycles, vapour, fluids.
+• Fluid dynamics is a section of its own: rotating liquid, U-tube, viscous flow.
+• Scenes with liquids and gases redrawn: glass, depth of colour, jets, a piston over a flame.

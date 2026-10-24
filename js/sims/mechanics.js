@@ -4553,50 +4553,56 @@ buoyancy:{
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
           sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
-    const W=1.9, D=p.depth, rl=this.rhoL(p);
-    // сосуд
-    ctx.strokeStyle=ink; ctx.lineWidth=v.lw(2.4);
-    ctx.beginPath(); ctx.moveTo(-W,0.7); ctx.lineTo(-W,-D); ctx.lineTo(W,-D); ctx.lineTo(W,0.7); ctx.stroke();
-    // жидкость
-    ctx.fillStyle=sec; ctx.globalAlpha=.16; ctx.fillRect(-W,-D,2*W,D); ctx.globalAlpha=1;
-    ctx.strokeStyle=sec; ctx.lineWidth=v.lw(1.6);
-    ctx.beginPath(); ctx.moveTo(-W,0); ctx.lineTo(W,0); ctx.stroke();
-    v.label(ctx,`${this.nameOf[p.liq]}, ρж = ${rl} кг/м³`,-W,0,4,-10,sec);
+    const W=1.9, D=p.depth, rl=this.rhoL(p), px=1/ppm();
+    /* 9.4.0: стеклянный бак, жидкость своего цвета, тело — из материала,
+       который соответствует плотности (пенопласт, дерево, лёд, пластик,
+       камень, сталь, свинец). Погружённая часть тела видна сквозь толщу
+       жидкости — подкрашена ею, как в настоящем аквариуме; пока тело
+       садится на ватерлинию, по поверхности расходится рябь. */
+    const тон={water:'вода',oil:'масло',sea:'вода',merc:'ртуть'}[p.liq]||'вода';
+    const H=this.height(p), yc=-s.d+H/2, ам=Math.min(0.04,Math.abs(s.v)*0.05);
+    const верх=x=>{ const r=Math.abs(x)-p.a*(p.shape==='cube'?0.5:1); return r>0?ам*Math.sin(r*14-s.t*9)*Math.exp(-r*1.6):0; };
+    АРТ.жидкость(ctx,-W,-D,W,0,{тон,верх,lw:1.2*px});
+    v.label(ctx,`${this.nameOf[p.liq]}, ρж = ${rl} кг/м³`,-W,0,4,-12,ink);
     // эпюра давления по стенке: p = ρgh растёт линейно с глубиной
     if(p.press){
-      const pmax=rl*p.g*D, sc=0.9/Math.max(pmax,1);
+      const pmax=rl*p.g*D, sc=0.9/Math.max(pmax,1), x0=W+0.08;
+      ctx.fillStyle=АРТ.ц(АРТ.rgb(meas)||[200,80,40],0.08); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+pmax*sc,-D); ctx.lineTo(x0,-D); ctx.closePath(); ctx.fill();
       ctx.strokeStyle=meas; ctx.globalAlpha=.65; ctx.lineWidth=v.lw(1.2);
-      ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W+pmax*sc,-D); ctx.lineTo(W,-D); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+pmax*sc,-D); ctx.lineTo(x0,-D); ctx.stroke();
       for(let i=1;i<=5;i++){
         const h=D*i/5, pr=rl*p.g*h;
-        ctx.beginPath(); ctx.moveTo(W,-h); ctx.lineTo(W+pr*sc,-h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x0,-h); ctx.lineTo(x0+pr*sc,-h); ctx.stroke();
       }
       ctx.globalAlpha=1;
-      v.label(ctx,`p = ρgh, на дне ${(pmax/1000).toFixed(1)} кПа`,W,-D,6,-8,meas);
+      v.label(ctx,`p = ρgh, на дне ${(pmax/1000).toFixed(1)} кПа`,x0,-D,6,-8,meas);
     }
-    // тело
-    /* Осадка s.d — насколько тело утоплено считая от его дна. Значит дно
-       лежит на y = −d, а центр — на полвысоты выше. (Раньше за центр брали
-       само дно, и тело рисовалось целиком под водой.) */
-    const H=this.height(p), yc=-s.d+H/2;
-    /* Тело НЕПРОЗРАЧНО. Раньше оно заливалось акцентом с alpha 0.30, и
-       погружаясь, шар просвечивал жидкостью — выглядело как исчезновение
-       тела, а не как погружение. Красим в два слоя: сначала фоном сцены
-       (он и делает тело плотным), сверху — тот же лёгкий акцент. */
-    const bg=v.c('--canvas');
+    // тело: материал по плотности
+    const мат=p.rho<300?{rgb:[236,228,206],имя:'пенопласт'}:p.rho<880?{rgb:[190,140,88],имя:'дерево',волокна:true}
+      :p.rho<960?{rgb:[206,232,245],имя:'лёд',лёд:true}:p.rho<1600?{rgb:[230,128,60],имя:'пластик'}
+      :p.rho<3500?{rgb:[150,150,145],имя:'камень'}:p.rho<9500?{rgb:[150,160,175],имя:'сталь',мет:true}
+      :{rgb:[110,112,122],имя:'свинец',мет:true};
+    const тело=()=>{ ctx.beginPath(); if(p.shape==='cube') ctx.rect(-p.a/2,yc-p.a/2,p.a,p.a); else ctx.arc(0,yc,p.a,0,7); };
     if(p.shape==='cube'){
-      ctx.fillStyle=bg; ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a);
-      ctx.fillStyle=acc; ctx.globalAlpha=.30;
-      ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); ctx.globalAlpha=1;
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
-    } else {
-      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7);
-      ctx.fillStyle=bg; ctx.fill();
-      ctx.fillStyle=acc; ctx.globalAlpha=.30; ctx.fill(); ctx.globalAlpha=1;
-      ctx.strokeStyle=acc; ctx.lineWidth=v.lw(2);
-      ctx.beginPath(); ctx.arc(0,yc,p.a,0,7); ctx.stroke();
-    }
-    v.label(ctx,`ρт = ${p.rho} кг/м³`,0,yc,-30,-H*20-8,acc);
+      if(мат.мет) АРТ.металл(ctx,-p.a/2,yc-p.a/2,p.a,p.a,{rgb:мат.rgb,верт:true});
+      else { const g=ctx.createLinearGradient(-p.a/2,yc+p.a/2,p.a/2,yc-p.a/2);
+        g.addColorStop(0,АРТ.ц(АРТ.смесь(мат.rgb,[255,255,255],0.35),мат.лёд?0.85:1)); g.addColorStop(1,АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.18),мат.лёд?0.85:1));
+        ctx.fillStyle=g; ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); }
+      if(мат.волокна){ ctx.save(); тело(); ctx.clip(); ctx.strokeStyle=АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.4),0.45); ctx.lineWidth=1*px;
+        for(let k=1;k<9;k++){ const y=yc-p.a/2+p.a*k/9; ctx.beginPath(); ctx.moveTo(-p.a/2,y);
+          for(let x=-p.a/2;x<=p.a/2+1e-9;x+=p.a/24) ctx.lineTo(x,y+Math.sin(x*23+k*1.7)*p.a*0.012); ctx.stroke(); }
+        ctx.restore(); }
+      if(мат.лёд){ ctx.strokeStyle=АРТ.ц([255,255,255],0.8); ctx.lineWidth=1.2*px; ctx.beginPath();
+        ctx.moveTo(-p.a*0.35,yc+p.a*0.3); ctx.lineTo(-p.a*0.1,yc+p.a*0.42); ctx.moveTo(-p.a*0.4,yc+p.a*0.1); ctx.lineTo(-p.a*0.25,yc+p.a*0.38); ctx.stroke(); }
+      ctx.strokeStyle=АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.55),0.9); ctx.lineWidth=v.lw(1.2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
+    } else АРТ.шар(ctx,0,yc,p.a,мат.rgb,АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.55),0.8));
+    // погружённая часть видна сквозь жидкость
+    ctx.save(); тело(); ctx.clip();
+    ctx.fillStyle=АРТ.ц(АРТ.смесь(...АРТ.тон(тон),0.5),тон==='ртуть'?0.6:0.38); ctx.fillRect(-p.a*1.2,-D,p.a*2.4,D+верх(0));
+    ctx.restore();
+    // стекло бака поверх: блики видны и на фоне тела
+    АРТ.стакан(ctx,-W,W,-D,0.7,Math.max(3*px,0.05));
+    v.label(ctx,`${мат.имя}, ρт = ${p.rho} кг/м³`,0,yc+H/2,-40,-10,ink);
     /* Силы — диаграммой свободного тела из ЦЕНТРА тела. Раньше F_A и N были
        сдвинуты по горизонтали на 0.16 м, чтобы не совпасть с mg, и казалось,
        что они приложены мимо тела. Противоположно направленные стрелки из
