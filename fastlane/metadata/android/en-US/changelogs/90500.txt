@@ -1,0 +1,4 @@
+9.5.0 — a stricter look, and scenes you can take apart.
+• Mechanics, fluids and thermodynamics redrawn flat: no gradients, theme colours only.
+• Every scene has its own tools: grips on the drawing and a probe for local values.
+• Models solve more: two-leg gas processes, several holes, a spring scale in any liquid.

@@ -81,60 +81,63 @@ rotfluid:{
     const scale=clamp(Math.min((W-30)/(X*PX_PER_M),(H-30)/(Y*PX_PER_M)),1e-4,60);
     return {x:5,y:p.Hv/2+1,scale}; },
   anchors(s,p){ return [{x:0,y:0}]; },
+  /* 9.5.0: ручки — уровень в покое H₀ и высота сосуда (тяните у левой
+     стенки), радиус (правая стенка) и угловая скорость (тяните вбок
+     стрелку ω). Зонд — давление в любой точке жидкости и наклон
+     поверхности над этой точкой. */
+  tools(p){ const S=this;
+    return [РУЧКИ({name:'Уровень, сосуд, ω',
+      ручки(p){ return [
+        {id:'H0',x:-p.R,y:p.H0,имя:p=>`H₀ = ${p.H0} см`,тянуть(т,wx,wy){ т.set('H0',wy); },клав:{ArrowUp:['H0',0.5],ArrowDown:['H0',-0.5]}},
+        {id:'Hv',x:-p.R,y:p.Hv,имя:p=>`высота ${p.Hv} см`,тянуть(т,wx,wy){ т.set('Hv',wy); },клав:{ArrowUp:['Hv',0.5],ArrowDown:['Hv',-0.5]}},
+        {id:'R',x:p.R,y:p.Hv*0.5,имя:p=>`R = ${p.R} см`,тянуть(т,wx){ т.set('R',Math.abs(wx)); },клав:{ArrowRight:['R',0.5],ArrowLeft:['R',-0.5]}},
+        {id:'w',x:p.R*0.35+p.w*0.15,y:p.Hv+3.2,имя:p=>`ω = ${p.w} рад/с`,тянуть(т,wx){ т.set('w',(wx-т.p.R*0.35)/0.15); },клав:{ArrowRight:['w',0.1],ArrowLeft:['w',-0.1]}}]; }}),
+      ЗОНД({hint:'щёлкните в жидкость — давление и наклон поверхности над этой точкой',
+        замер(p,s,x,y){ const П=S.поверхность(p,S.ω(p,s.t)), r=Math.abs(x)/100, zs=П.z(r)*100; if(Math.abs(x)>p.R||y<0||y>zs) return null;
+          const ρ=S.RHO[p.liq]||1000, w=S.ω(p,s.t);
+          return [`под поверхностью ${(zs-y).toFixed(1)} см`,`p = ${(ρ*p.g*(zs-y)/100000).toFixed(3)} кПа`,`наклон поверхности ${(Math.atan(w*w*r/p.g)*180/Math.PI).toFixed(1)}°`]; }})]; },
+  /* Строгий рисунок в разрезе: стенки — линии, жидкость — один тон, под
+     профилем — разрез, над ним — дальняя половина поверхности, светлее.
+     Тонкие кольца — линии равной высоты; точки на поверхности вращаются
+     вместе с жидкостью. */
   draw(ctx,s,v,p){
     const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), acc=v.c('--accent');
     const px=1/ppm(), R=p.R, Hv=p.Hv, w=this.ω(p,s.t), П=this.поверхность(p,w), z=x=>П.z(Math.abs(x)/100)*100;
-    const e=R*0.3, тон=this.тон(p), тёмн=АРТ.тёмный(), tw=Math.max(3*px,R*0.04);
-    // поворотный стол и мотор
-    АРТ.металл(ctx,-R*0.35,-tw-4.2,R*0.7,2.6);
-    ctx.save(); ctx.fillStyle=АРТ.ц(тёмн?[120,128,140]:[176,182,192],1);
-    ctx.beginPath(); ctx.ellipse(0,-tw-1.6,R*1.15,e*1.15,0,0,7); ctx.fill();
-    ctx.fillStyle=АРТ.ц(тёмн?[150,158,170]:[205,210,218],1); ctx.beginPath(); ctx.ellipse(0,-tw-0.9,R*1.15,e*1.15,0,0,7); ctx.fill();
-    ctx.strokeStyle=АРТ.ц([60,66,80],0.55); ctx.lineWidth=1.4*px;
-    for(let k=0;k<8;k++){ const a=s.φ+k*Math.PI/4; ctx.beginPath(); ctx.moveTo(Math.cos(a)*R*0.3,-tw-0.9+Math.sin(a)*e*0.3); ctx.lineTo(Math.cos(a)*R*1.1,-tw-0.9+Math.sin(a)*e*1.1); ctx.stroke(); }
-    ctx.restore();
-    // задняя стенка изнутри и дальний край дна
-    ctx.fillStyle=АРТ.ц(тёмн?[170,200,225]:[150,180,200],0.12); ctx.fillRect(-R,0,2*R,Hv);
-    ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.6); ctx.lineWidth=1*px;
-    ctx.beginPath(); ctx.ellipse(0,0,R,e,0,0,Math.PI); ctx.stroke();
-    // разрез жидкости: под профилем z(|x|)
-    АРТ.жидкость(ctx,-R,0,R,Math.max(П.zR*100,1e-3),{тон,верх:z,блик:false});
-    // поверхность: от профиля до дальнего края поверхности у стенки
+    const e=R*0.3, тон=this.тон(p);
+    // подставка: плоская плита и метки поворота
+    ctx.fillStyle=АРТ.ц(АРТ.т('--ink-2'),0.82); ctx.fillRect(-R*1.1,-1.6,2.2*R,1.0);
+    ctx.fillStyle=v.c('--canvas');
+    for(let k=0;k<6;k++){ const a=(s.φ+k*Math.PI/3)%(2*Math.PI); if(Math.sin(a)<0) continue; ctx.fillRect(R*1.1*Math.cos(a)-0.15,-1.45,0.3,0.7); }
+    // дальний край дна, разрез и поверхность
+    ctx.strokeStyle=АРТ.ц(АРТ.т('--ink-3'),0.6); ctx.lineWidth=1*px; ctx.beginPath(); ctx.ellipse(0,0,R,e,0,0,Math.PI); ctx.stroke();
+    АРТ.жидкость(ctx,-R,0,R,Math.max(П.zR*100,1e-3),{тон,верх:z});
     const N=80, верх=x=>П.zR*100+e*Math.sqrt(Math.max(0,1-x*x/(R*R)));
-    const [св,гл]=АРТ.тон(тон);
-    const g=ctx.createLinearGradient(0,П.z0*100,0,П.zR*100+e);
-    g.addColorStop(0,АРТ.ц(гл,тёмн?0.55:0.5)); g.addColorStop(1,АРТ.ц(св,тёмн?0.55:0.45));
-    ctx.fillStyle=g; ctx.beginPath();
+    ctx.fillStyle=АРТ.заливкаЖ(тон,0.6); ctx.beginPath();
     for(let i=0;i<=N;i++){ const x=-R+2*R*i/N; i?ctx.lineTo(x,z(x)):ctx.moveTo(x,z(x)); }
     for(let i=N;i>=0;i--){ const x=-R+2*R*i/N; ctx.lineTo(x,верх(x)); }
     ctx.closePath(); ctx.fill();
-    // линии равной высоты — кольца на поверхности
-    if(p.rings){ ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.3:0.6); ctx.lineWidth=0.9*px;
+    ctx.strokeStyle=АРТ.ц(АРТ.тон(тон),0.5); ctx.lineWidth=0.9*px; ctx.beginPath();
+    for(let i=0;i<=N;i++){ const x=-R+2*R*i/N; i?ctx.lineTo(x,верх(x)):ctx.moveTo(x,верх(x)); } ctx.stroke();
+    if(p.rings){ ctx.strokeStyle=АРТ.ц(АРТ.тон(тон),0.35); ctx.lineWidth=0.8*px;
       for(let k=1;k<=5;k++){ const r=R*k/5.5; if(r/100<П.r0) continue; const zz=П.z(r/100)*100;
         ctx.beginPath(); for(let i=0;i<=40;i++){ const θ=Math.PI*i/40, x=r*Math.cos(θ), y=zz+e*(r/R)*Math.sin(θ); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); } }
-    // кромка разреза поверхности
-    ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.45:0.85); ctx.lineWidth=1.3*px; ctx.beginPath();
-    for(let i=0;i<=N;i++){ const x=-R+2*R*i/N; i?ctx.lineTo(x,z(x)):ctx.moveTo(x,z(x)); } ctx.stroke();
-    // поплавки на поверхности вращаются вместе с жидкостью
+    ctx.fillStyle=ink2;
     for(let k=0;k<9;k++){ const r=R*(0.25+0.68*((k*0.618)%1)), θ=(k*2.399+s.φ)%(2*Math.PI);
       if(Math.sin(θ)<0.05||r/100<П.r0) continue; const zz=П.z(r/100)*100;
-      АРТ.шар(ctx,r*Math.cos(θ),zz+e*(r/R)*Math.sin(θ),Math.max(2.2*px,R*0.025),[214,170,110]); }
-    // стенки разреза и дальний верхний край
-    АРТ.стакан(ctx,-R,R,0,Hv,tw);
-    ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.7); ctx.lineWidth=1*px;
-    ctx.beginPath(); ctx.ellipse(0,Hv,R+tw/2,e,0,0,Math.PI); ctx.stroke();
-    // ось и стрелка вращения
-    ctx.strokeStyle=ink3; ctx.lineWidth=0.9*px; ctx.setLineDash([5*px,4*px]); ctx.beginPath(); ctx.moveTo(0,-tw-4); ctx.lineTo(0,Hv+5); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(r*Math.cos(θ),zz+e*(r/R)*Math.sin(θ),Math.max(1.8*px,R*0.015),0,7); ctx.fill(); }
+    АРТ.стакан(ctx,-R,R,0,Hv);
+    ctx.strokeStyle=АРТ.ц(АРТ.т('--ink-3'),0.6); ctx.lineWidth=1*px; ctx.beginPath(); ctx.ellipse(0,Hv,R,e,0,0,Math.PI); ctx.stroke();
+    ctx.strokeStyle=ink3; ctx.lineWidth=0.9*px; ctx.setLineDash([5*px,4*px]); ctx.beginPath(); ctx.moveTo(0,-1.6); ctx.lineTo(0,Hv+5); ctx.stroke(); ctx.setLineDash([]);
     if(w>0.05){ const yr=Hv+3.2, rx=R*0.35, ry=e*0.35;
       ctx.strokeStyle=acc; ctx.fillStyle=acc; ctx.lineWidth=1.6*px; ctx.beginPath(); ctx.ellipse(0,yr,rx,ry,0,0.3,Math.PI*1.75); ctx.stroke();
       const a=Math.PI*1.75, hx=rx*Math.cos(a), hy=yr+ry*Math.sin(a);
       ctx.beginPath(); ctx.moveTo(hx+6*px,hy+1*px); ctx.lineTo(hx-2*px,hy+5*px); ctx.lineTo(hx-1*px,hy-4*px); ctx.closePath(); ctx.fill();
       v.label(ctx,`ω = ${w.toFixed(2)} рад/с`,rx,yr,8,-4,acc); }
     if(p.dims){
-      АРТ.размер(ctx,R+tw+1.6,0,П.zR*100,meas,0.9*px,2.5*px); v.label(ctx,`${(П.zR*100).toFixed(1)} см`,R+tw+1.6,П.zR*50,6,0,meas);
+      АРТ.размер(ctx,R+1.6,0,П.zR*100,meas,0.9*px,2.5*px); v.label(ctx,`${(П.zR*100).toFixed(1)} см`,R+1.6,П.zR*50,6,0,meas);
       if(П.z0>0){ АРТ.размер(ctx,-R*0.12,0,П.z0*100,meas,0.9*px,2.5*px); v.label(ctx,`z₀ = ${(П.z0*100).toFixed(1)} см`,-R*0.12,П.z0*50,-80,0,meas); }
-      ctx.strokeStyle=ink3; ctx.globalAlpha=0.6; ctx.setLineDash([3*px,3*px]); ctx.beginPath(); ctx.moveTo(-R-tw-2,p.H0); ctx.lineTo(-R-tw,p.H0); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
-      v.label(ctx,'H₀',-R-tw-2,p.H0,-18,0,ink3);
+      ctx.strokeStyle=ink3; ctx.globalAlpha=0.6; ctx.setLineDash([3*px,3*px]); ctx.beginPath(); ctx.moveTo(-R-2,p.H0); ctx.lineTo(-R,p.H0); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+      v.label(ctx,'H₀',-R-2,p.H0,-18,0,ink3);
     }
     if(П.r0>0) v.label(ctx,`сухое пятно r₀ = ${(П.r0*100).toFixed(1)} см`,0,0,-60,14,ink2);
   }
@@ -203,35 +206,36 @@ utube:{
     const scale=clamp(Math.min((W-30)/(X*PX_PER_M),(H-30)/(Y*PX_PER_M)),1e-4,60);
     return {x:6,y:this.ARM/2-2,scale}; },
   anchors(s,p){ return [{x:0,y:0}]; },
+  /* 9.5.0: ручки — в опыте с двумя жидкостями верх доливаемого столба
+     (тяните — меняется h₂), в опыте с колебаниями — уровень в левом колене
+     (начальный сдвиг x₀); длина столба — внизу изгиба. */
+  tools(p){ const S=this;
+    return [РУЧКИ({name:'Уровни и столб',
+      ручки(p,s){ const y0=S.покой(p), h=[];
+        if(p.mode==='two'){ const x=S.сдвиг(p,1e9); h.push({id:'h2',x:S.B/2,y:y0-x+p.h2,имя:p=>`h₂ = ${p.h2} см`,тянуть(т,wx,wy){ const ρ=S.RHO[т.p.liq2]/S.RHO[т.p.liq1]; т.set('h2',(wy-S.покой(т.p))/(1-ρ/2)); },клав:{ArrowUp:['h2',0.5],ArrowDown:['h2',-0.5]}}); }
+        else h.push({id:'x0',x:-S.B/2,y:y0+p.x0,имя:p=>`x₀ = ${p.x0} см`,тянуть(т,wx,wy){ т.set('x0',wy-S.покой(т.p)); },клав:{ArrowUp:['x0',0.5],ArrowDown:['x0',-0.5]}});
+        h.push({id:'l',x:0,y:-S.B/2,имя:p=>`l = ${p.l} см (тяните вбок)`,тянуть(т,wx){ т.set('l',60+wx*3); },клав:{ArrowRight:['l',1],ArrowLeft:['l',-1]}});
+        return h; }})]; },
   draw(ctx,s,v,p){
     const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), cv=v.c('--canvas');
-    const px=1/ppm(), B=this.B, ARM=this.ARM, xL=-B/2, xR=B/2, w=3.4, tw=Math.max(2.5*px,0.5), тёмн=АРТ.тёмный();
+    const px=1/ppm(), B=this.B, ARM=this.ARM, xL=-B/2, xR=B/2, w=3.4;
     const y0=this.покой(p), x=this.сдвиг(p,s.t), h2=this.долито(p,s.t);
-    const yL=Math.max(0,y0+x), yR=Math.max(0,y0-x);   // уровни над началом изгиба (y = 0); ниже изгиба столб не уходит
-    // путь по средней линии от уровня a в левом колене до уровня b в правом
+    const yL=Math.max(0,y0+x), yR=Math.max(0,y0-x);
     const путь=(a,b)=>{ ctx.beginPath(); ctx.moveTo(xL,a); ctx.lineTo(xL,0); ctx.arc(0,0,B/2,Math.PI,0,false); ctx.lineTo(xR,b); };
     const колено=(xx,a,b)=>{ ctx.beginPath(); ctx.moveTo(xx,a); ctx.lineTo(xx,b); };
     ctx.save(); ctx.lineCap='butt';
-    // стекло: внешний контур, внутренность
-    путь(ARM,ARM); ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.85); ctx.lineWidth=w+2*tw; ctx.stroke();
+    // трубка: контур линией, внутри — фон
+    путь(ARM,ARM); ctx.strokeStyle=ink2; ctx.lineWidth=w+3.6*px; ctx.stroke();
     путь(ARM,ARM); ctx.strokeStyle=cv; ctx.lineWidth=w; ctx.stroke();
-    путь(ARM,ARM); ctx.strokeStyle=АРТ.ц(тёмн?[170,200,225]:[150,180,200],0.14); ctx.stroke();
-    // жидкость 1
-    const [в1,г1]=АРТ.тон(this.ТОН[p.liq1]);
-    путь(yL,yR); ctx.strokeStyle=АРТ.ц(АРТ.смесь(в1,г1,0.5),тёмн?0.75:0.7); ctx.lineWidth=w; ctx.stroke();
-    путь(yL,yR); ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.12:0.3); ctx.lineWidth=w*0.25; ctx.stroke();
-    // жидкость 2 — над границей в правом колене
-    if(p.mode==='two'&&h2>1e-6){ const [в2,г2]=АРТ.тон(this.ТОН[p.liq2]);
-      колено(xR,yR,yR+h2); ctx.strokeStyle=АРТ.ц(АРТ.смесь(в2,г2,0.4),тёмн?0.8:0.75); ctx.lineWidth=w; ctx.stroke();
-      колено(xR,yR,yR+h2); ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.12:0.3); ctx.lineWidth=w*0.25; ctx.stroke();
-      // струйка доливки
-      if(s.t<p.pour){ ctx.strokeStyle=АРТ.ц(АРТ.смесь(в2,г2,0.4),0.8); ctx.lineWidth=0.5; колено(xR+0.4,ARM+6,yR+h2); ctx.stroke(); } }
+    const т1=this.ТОН[p.liq1];
+    путь(yL,yR); ctx.strokeStyle=АРТ.заливкаЖ(т1,2.2); ctx.lineWidth=w; ctx.stroke();
+    if(p.mode==='two'&&h2>1e-6){ const т2=this.ТОН[p.liq2];
+      колено(xR,yR,yR+h2); ctx.strokeStyle=АРТ.ц(АРТ.тон(т2),0.45); ctx.lineWidth=w; ctx.stroke();
+      if(s.t<p.pour){ ctx.strokeStyle=АРТ.ц(АРТ.тон(т2),0.8); ctx.lineWidth=0.5; колено(xR+0.4,ARM+6,yR+h2); ctx.stroke(); } }
     ctx.restore();
-    // мениски: смачивающая — вогнутый, ртуть — выпуклый
-    const мениск=(xx,y,ртуть)=>{ ctx.strokeStyle=АРТ.ц([255,255,255],0.85); ctx.lineWidth=1.2*px; ctx.beginPath(); ctx.moveTo(xx-w/2,y);
-      ctx.quadraticCurveTo(xx,y+(ртуть?1:-1)*w*0.35,xx+w/2,y); ctx.stroke(); };
-    мениск(xL,yL,p.liq1==='merc'); мениск(xR,p.mode==='two'&&h2>1e-6?yR+h2:yR,p.mode!=='two'&&p.liq1==='merc');
-    // линии уровней и подписи
+    // зеркала — короткие линии цвета жидкости
+    const зеркало=(xx,y,тон)=>{ ctx.strokeStyle=АРТ.линияЖ(тон); ctx.lineWidth=1.4*px; ctx.beginPath(); ctx.moveTo(xx-w/2,y); ctx.lineTo(xx+w/2,y); ctx.stroke(); };
+    зеркало(xL,yL,т1); if(p.mode==='two'&&h2>1e-6){ зеркало(xR,yR,т1); зеркало(xR,yR+h2,this.ТОН[p.liq2]); } else зеркало(xR,yR,т1);
     ctx.strokeStyle=ink3; ctx.lineWidth=0.8*px; ctx.setLineDash([3*px,3*px]); ctx.beginPath();
     ctx.moveTo(xL-w,y0); ctx.lineTo(xR+w,y0); ctx.stroke(); ctx.setLineDash([]);
     v.label(ctx,'уровень в покое',xR+w,y0,6,0,ink3);
@@ -240,9 +244,7 @@ utube:{
         v.label(ctx,'граница: давления равны',xR+w,yR,6,12,meas);
         АРТ.размер(ctx,xR+w+3.5,yR,yR+h2,meas,0.9*px,2.5*px); v.label(ctx,'h₂',xR+w+3.5,yR+h2/2,5,0,meas);
         АРТ.размер(ctx,xL-w-3,yR,yL,ink2,0.9*px,2.5*px); v.label(ctx,'ρ₂h₂/ρ₁',xL-w-3,(yR+yL)/2,-56,0,ink2); }
-    } else {
-      v.label(ctx,`x = ${x.toFixed(2)} см`,xL-w,yL,-70,0,meas);
-    }
+    } else v.label(ctx,`x = ${x.toFixed(2)} см`,xL-w,yL,-70,0,meas);
   }
 },
 
@@ -303,55 +305,61 @@ poiseuille:{
   fit(p,vp){ const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
     const scale=clamp(Math.min((W-30)/(16*PX_PER_M),(H-30)/(10.5*PX_PER_M)),1e-4,60); return {x:0,y:p.mode==='pipe'?2.1:0.2,scale}; },
   anchors(s,p){ return [{x:0,y:0}]; },
+  /* 9.5.0: ручки — радиус трубы (верхняя стенка), перепад давления (верх
+     первого пьезометра); в опыте со сливом — уровень, радиус капилляра и
+     ширина сосуда. Зонд — скорость слоя в любой точке сечения трубы. */
+  tools(p){ const S=this;
+    return [РУЧКИ({name:'Труба и сосуд',
+      ручки(p,s){ if(p.mode==='pipe') return [
+          {id:'R',x:-3.5,y:1.6+0.19,имя:p=>`R = ${p.R} мм (тяните вверх и вниз)`,тянуть(т,wx,wy){ т.set('R',т.p.R*Math.pow(1.6/Math.max(0.2,1.6+0.19-(wy-1.79)),-1)); },клав:{ArrowUp:['R',0.05],ArrowDown:['R',-0.05]}},
+          {id:'dp',x:-5,y:1.79+4,имя:p=>`Δp = ${p.dp} кПа`,тянуть(т,wx,wy){ т.set('dp',т.p.dp*Math.pow(2,(wy-5.79)/1.5)); },клав:{ArrowUp:['dp',0.1],ArrowDown:['dp',-0.1]}}];
+        const Hs=Math.max(p.h0*1.15,10), k=7/Hs, Rw=Math.min(3.2,p.D*k/2+0.6), y0=-1.8;
+        return [{id:'h0',x:-6-Rw,y:y0+p.h0*k,имя:p=>`h₀ = ${p.h0} см`,тянуть(т,wx,wy){ т.set('h0',(wy-y0)/k); },клав:{ArrowUp:['h0',0.5],ArrowDown:['h0',-0.5]}},
+          {id:'rc',x:-6+Rw+3.5,y:y0+0.35+0.09,имя:p=>`r = ${p.rc} мм (тяните вбок)`,тянуть(т,wx){ т.set('rc',0.5*Math.pow(2,(wx-(-6+Rw+3.5))/1.5)); },клав:{ArrowRight:['rc',0.05],ArrowLeft:['rc',-0.05]}},
+          {id:'D',x:-6+Rw,y:y0+Hs*k,имя:p=>`D = ${p.D} см`,тянуть(т,wx){ т.set('D',Math.max(2,(wx+6-0.6)*2/k)); },клав:{ArrowRight:['D',0.5],ArrowLeft:['D',-0.5]}}]; }}),
+      ЗОНД({hint:'щёлкните в трубу — скорость слоя на этом расстоянии от оси',
+        замер(p,s,x,y){ if(p.mode!=='pipe'||x<-6.5||x>6.5||Math.abs(y)>1.6) return null; const T=S.труба(p), f=Math.abs(y)/1.6;
+          return [`r = ${(f*p.R).toFixed(2)} мм от оси`,`v = ${(T.vmax*(1-f*f)*100).toPrecision(3)} см/с`,`это ${(100*(1-f*f)).toFixed(0)} % скорости на оси`]; }})]; },
+  /* Строгий рисунок: стенки — линии, жидкость — один тон, профиль скоростей
+     — парабола со стрелками; штрихи частиц тем длиннее, чем ближе к оси. */
   draw(ctx,s,v,p){
     const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), acc=v.c('--accent');
-    const px=1/ppm(), тон=this.ТОН[p.liq]||'вода', тёмн=АРТ.тёмный(), [св,гл]=АРТ.тон(тон);
+    const px=1/ppm(), тон=this.ТОН[p.liq]||'вода';
     if(p.mode==='pipe'){
-      /* труба в разрезе: x ∈ [−6, 6], радиус 1.6 на рисунке */
-      const X0=-6.5, X1=6.5, Rr=1.6, tw=0.12, T=this.труба(p);
-      // слои: у оси светлее и быстрее
-      for(let k=10;k>=1;k--){ const r=Rr*k/10, c=АРТ.смесь(св,гл,k/10);
-        ctx.fillStyle=АРТ.ц(c,тёмн?0.62:0.55); ctx.fillRect(X0,-r,X1-X0,2*r); }
-      АРТ.металл(ctx,X0,Rr,X1-X0,tw*1.6,{rgb:[170,190,205]}); АРТ.металл(ctx,X0,-Rr-tw*1.6,X1-X0,tw*1.6,{rgb:[170,190,205]});
-      // частицы: штрих тем длиннее, чем ближе к оси
-      ctx.strokeStyle=АРТ.ц([255,255,255],тёмн?0.7:0.9); ctx.lineCap='round'; ctx.lineWidth=1.6*px;
+      const X0=-6.5, X1=6.5, Rr=1.6, T=this.труба(p);
+      АРТ.жидкость(ctx,X0,-Rr,X1,Rr,{тон,блик:false});
+      ctx.strokeStyle=ink2; ctx.lineWidth=1.8*px; ctx.beginPath(); ctx.moveTo(X0,Rr); ctx.lineTo(X1,Rr); ctx.moveTo(X0,-Rr); ctx.lineTo(X1,-Rr); ctx.stroke();
+      ctx.strokeStyle=АРТ.линияЖ(тон); ctx.lineCap='round'; ctx.lineWidth=1.4*px;
       for(let k=0;k<70;k++){ const q=((0.5+k*0.5698403)%1)*2-1, r=q*Rr*0.96, u=1-q*q;
         const x=X0+((((0.5+k*0.7548777)%1)+s.t*0.35*u)%1)*(X1-X0), дл=0.05+u*0.9;
-        ctx.beginPath(); ctx.moveTo(Math.max(X0,x-дл),r); ctx.lineTo(x,r); ctx.stroke(); }
-      // профиль скоростей — парабола со стрелками
+        ctx.globalAlpha=0.6; ctx.beginPath(); ctx.moveTo(Math.max(X0,x-дл),r); ctx.lineTo(x,r); ctx.stroke(); }
+      ctx.globalAlpha=1;
       const xp=2.2, kv=2.4;
-      ctx.strokeStyle=acc; ctx.lineWidth=1.6*px; ctx.beginPath(); ctx.moveTo(xp,-Rr); ctx.lineTo(xp,Rr); ctx.stroke();
+      ctx.strokeStyle=acc; ctx.lineWidth=1.4*px; ctx.beginPath(); ctx.moveTo(xp,-Rr); ctx.lineTo(xp,Rr); ctx.stroke();
       ctx.beginPath(); for(let i=0;i<=40;i++){ const r=-Rr+2*Rr*i/40, u=1-(r/Rr)*(r/Rr); i?ctx.lineTo(xp+kv*u,r):ctx.moveTo(xp+kv*u,r); } ctx.stroke();
       for(let i=1;i<8;i++){ const r=-Rr+2*Rr*i/8, u=1-(r/Rr)*(r/Rr); if(u>0.05) v.arrow(ctx,xp,r,xp+kv*u,r,acc); }
       v.label(ctx,`на оси ${(T.vmax*100).toPrecision(3)} см/с`,xp+kv,0,10,-14,acc);
       v.label(ctx,'у стенки — ноль',xp,-Rr,6,12,ink3);
-      // пьезометры: давление падает вдоль трубы линейно
-      [-5,-2,1,4.6].forEach((x,i)=>{ const f=1-(x-X0)/(X1-X0), hgt=0.6+3.4*f, ш=0.16;
-        АРТ.жидкость(ctx,x-ш,Rr+tw*1.6,x+ш,Rr+tw*1.6+hgt,{тон,lw:1*px});
-        АРТ.стакан(ctx,x-ш,x+ш,Rr+tw*1.6,Rr+4.6,Math.max(1.5*px,0.04),{дно:false}); });
-      ctx.strokeStyle=ink3; ctx.lineWidth=0.9*px; ctx.setLineDash([4*px,4*px]); ctx.beginPath();
-      ctx.moveTo(X0,Rr+tw*1.6+0.6+3.4); ctx.lineTo(X1,Rr+tw*1.6+0.6); ctx.stroke(); ctx.setLineDash([]);
+      [-5,-2,1,4.6].forEach(x=>{ const f=1-(x-X0)/(X1-X0), hgt=0.6+3.4*f, ш=0.16;
+        АРТ.жидкость(ctx,x-ш,Rr,x+ш,Rr+hgt,{тон});
+        АРТ.стакан(ctx,x-ш,x+ш,Rr,Rr+4.6,0,{дно:false,lw:1.3}); });
+      ctx.strokeStyle=ink3; ctx.lineWidth=0.9*px; ctx.setLineDash([4*px,4*px]); ctx.beginPath(); ctx.moveTo(X0,Rr+4); ctx.lineTo(X1,Rr+0.6); ctx.stroke(); ctx.setLineDash([]);
       v.label(ctx,`Δp = ${p.dp} кПа на длине ${p.L} м: давление падает линейно`,X0,Rr+4.9,0,-6,ink2);
       v.label(ctx,`Q = πR⁴Δp/8ηL = ${(T.Q*1e6).toPrecision(3)} мл/с`,X0,-Rr-0.3,0,14,ink2);
       return;
     }
-    /* слив: сосуд слева, капилляр у дна вправо */
-    const h=this.уровень(p,s.t), Hs=Math.max(p.h0*1.15,10), k=7/Hs, Rw=Math.min(3.2,p.D*k/2+0.6), tw=0.1;
+    const h=this.уровень(p,s.t), Hs=Math.max(p.h0*1.15,10), k=7/Hs, Rw=Math.min(3.2,p.D*k/2+0.6);
     const y0=-1.8, yh=y0+h*k;
-    АРТ.жидкость(ctx,-6-Rw,y0,-6+Rw,yh,{тон,lw:1.2*px,верх:x=>yh+2*px*(Math.exp(-(x+6+Rw)/(4*px))+Math.exp(-(-6+Rw-x)/(4*px)))});
-    АРТ.стакан(ctx,-6-Rw,-6+Rw,y0,y0+Hs*k,tw*1.5);
-    // капилляр
-    const cy=y0+0.35, cL=7.5, cr=0.09;
-    ctx.fillStyle=АРТ.ц(АРТ.смесь(св,гл,0.5),0.75); ctx.fillRect(-6+Rw,cy-cr,cL,2*cr);
-    АРТ.стакан(ctx,-6+Rw+tw*1.5,-6+Rw+cL,cy-cr,cy+cr,Math.max(1.5*px,0.04),{дно:false});
-    ctx.strokeStyle=АРТ.ц(тёмн?[190,215,235]:[90,115,135],0.8); ctx.lineWidth=1*px; ctx.beginPath(); ctx.moveTo(-6+Rw,cy+cr); ctx.lineTo(-6+Rw+cL,cy+cr); ctx.moveTo(-6+Rw,cy-cr); ctx.lineTo(-6+Rw+cL,cy-cr); ctx.stroke();
-    // капли на выходе: чаще при большом напоре
-    const xe=-6+Rw+cL, част=0.6+2.4*h/p.h0;
-    for(let i=0;i<4;i++){ const ф=((s.t*част+i/4)%1), y=cy-ф*ф*1.4; АРТ.капля(ctx,xe+0.1,y,Math.max(2*px,0.07),тон,1-ф*0.6); }
-    // мензурка внизу
+    АРТ.жидкость(ctx,-6-Rw,y0,-6+Rw,yh,{тон});
+    АРТ.стакан(ctx,-6-Rw,-6+Rw,y0,y0+Hs*k);
+    const cy=y0+0.35, cL=7.5, cr=0.09, xe=-6+Rw+cL;
+    ctx.fillStyle=АРТ.заливкаЖ(тон,2.5); ctx.fillRect(-6+Rw,cy-cr,cL,2*cr);
+    ctx.strokeStyle=ink2; ctx.lineWidth=1.4*px; ctx.beginPath(); ctx.moveTo(-6+Rw,cy+cr); ctx.lineTo(xe,cy+cr); ctx.moveTo(-6+Rw,cy-cr); ctx.lineTo(xe,cy-cr); ctx.stroke();
+    const част=0.6+2.4*h/p.h0;
+    for(let i=0;i<4;i++){ const ф=((s.t*част+i/4)%1), y=cy-ф*ф*1.4; АРТ.капля(ctx,xe+0.1,y,Math.max(2*px,0.06),тон,1-ф*0.6); }
     const mx=xe-0.4, мв=y0-0.9, вытек=Math.min(1,(p.h0-h)/p.h0);
-    АРТ.жидкость(ctx,mx-0.6,мв-2.2,mx+0.9,мв-2.2+1.8*вытек+0.001,{тон,lw:1*px});
-    АРТ.стакан(ctx,mx-0.6,mx+0.9,мв-2.2,мв-0.2,0.05);
+    АРТ.жидкость(ctx,mx-0.6,мв-2.2,mx+0.9,мв-2.2+1.8*вытек+0.001,{тон});
+    АРТ.стакан(ctx,mx-0.6,mx+0.9,мв-2.2,мв-0.2);
     АРТ.размер(ctx,-6-Rw-0.6,y0,yh,meas,0.9*px,2.5*px); v.label(ctx,`h = ${h.toFixed(2)} см`,-6-Rw-0.6,(y0+yh)/2,-74,0,meas);
     v.label(ctx,'расход ∝ напору — уровень убывает экспоненциально',-6-Rw,y0+Hs*k,0,-12,ink2);
   }

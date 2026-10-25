@@ -2082,6 +2082,49 @@ async function сторож(b) {
         Object.values(т).every(v => v === true), т);
     }
 
+    /* ============ 9.5.0: строгий плоский вид и инструменты модели ============
+       В механике, гидро- и термодинамике у каждой сцены есть свои инструменты,
+       и каждая квадратная ручка правда двигает параметр; рисунки этих разделов
+       обходятся без градиентов; процесс в газе бывает из двух участков;
+       тело можно взвесить на динамометре в жидкости. */
+    {
+      const т = await p.evaluate(async () => {
+        const r = {}; закрытьГлавную();
+        const безИнстр = [], мёртвые = [];
+        for (const sec of SECTIONS.filter(s => ['mech', 'hydro', 'thermo'].includes(s.id))) for (const t of sec.topics) {
+          if (t.kind === 'recap') continue; const sims = new Set();
+          for (const f of ['explore', 'formulas', 'problems', 'derivations']) for (const x of t[f] || []) if (x.sim) sims.add(x.sim);
+          for (const id of sims) {
+            openTopic(t.id); openSim(id); const a = A(), тт = инструментыМодели(a);
+            if (!тт.length) { безИнстр.push(id); continue; }
+            for (const инс of тт.filter(i => i.список)) for (const h0 of инс.список(контекстИнструмента(a, 0, 0))) {
+              const h = инс.список(контекстИнструмента(a, 0, 0)).find(x => x.id === h0.id) || h0;
+              const [sx, sy] = toScreen(h.x, h.y), до = JSON.stringify(a.params), т0 = контекстИнструмента(a, sx, sy);
+              if (!инс.down(т0)) { мёртвые.push(id + ':' + h0.id + ' мимо'); continue; }
+              let сдвиг = false;
+              for (const [dx, dy] of [[60, -60], [-60, 60]]) { const т2 = контекстИнструмента(a, sx + dx, sy + dy); т2.выбор = т0.выбор; инс.move(т2);
+                if (JSON.stringify(a.params) !== до) сдвиг = true; }
+              if (!сдвиг) мёртвые.push(id + ':' + h0.id); применитьИнструмент(a, true);
+            }
+          }
+        }
+        r.инструменты = !безИнстр.length || безИнстр; r.ручки = !мёртвые.length || мёртвые;
+        // цепочка: изобара 10 → 20 л при 300 К, затем изохора до 300 К
+        const T = SIMS.thermo, pp = { proc:'isobar', n:1, T0:300, V0:10, Vend:20, gamma:1.4, proc2:'isochor', T2:300 };
+        const с1 = T.stateAt(pp, 0.5), с2 = T.stateAt(pp, 1);
+        r.цепочка = Math.abs(с1.T - 600) < 1 && Math.abs(с2.T - 300) < 1 && Math.abs(с2.V - 20) < 0.01;
+        // динамометр: показание = mg − F_A, меньше веса
+        openTopic('mech.fluids'); openSim('buoyancy'); loadPreset({ mode:'scale', shape:'cube', a:0.3, rho:7800, liq:'water', dip:0.2 });
+        const ряд = A().def.readouts(A().state, A().params).find(x => /динамометр/.test(x[0]));
+        r.динамометр = !!ряд && ряд[1] > 0 && ряд[1] < 7800 * 0.027 * 9.81;
+        return r;
+      });
+      const плоские = ['art', 'fluids', 'hydro', 'thermo', 'thermo4', 'mechanics', 'tools'].filter(f => /Gradient\(/.test(fs.readFileSync(path.join(ROOT, 'js/sims/' + f + '.js'), 'utf8')));
+      т.безГрадиентов = !плоские.length || плоские;
+      ok('9.5: у всех сцен механики, гидро- и термодинамики есть инструменты и живые ручки, рисунки без градиентов, процесс из двух участков, динамометр',
+        Object.values(т).every(v => v === true), т);
+    }
+
     await p.close();
 
     // --- телефон ---

@@ -148,6 +148,14 @@ jobs:
           56 topics, 139 step-by-step derivations, 431 formulas and 693 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 9.5.0 — a stricter look, and scenes you can take apart
+
+          Mechanics, fluids and thermodynamics are redrawn flat and strict: no gradients, no flames, theme
+          colours only. Every scene in these sections has tools of its own: square grips on the drawing that
+          change the setting they sit on, and a probe that reads local quantities at any point. Models grew
+          to cover more problems: a gas process in two legs, a vessel with up to three holes, a body on a
+          spring scale in any liquid, a falling ball with a starting speed, the Maxwell energy distribution.
+
           ## 9.4.0 — thermodynamics by the problem book, and a section for fluids
 
           51 more problems after Irodov (116 in all): gases in vessels, Maxwell and Boltzmann distributions,

@@ -4453,13 +4453,17 @@ rolling:{
 buoyancy:{
   title:'Архимед: плавает, тонет или висит',
   params:[
+    {key:'mode',label:'Опыт',type:'select',default:'free',
+     options:[{v:'free',t:'тело отпустили — плавает или тонет'},{v:'scale',t:'тело висит на динамометре, глубину задаёте вы'}]},
     {key:'shape',label:'Тело',type:'select',default:'cube',
      options:[{v:'cube',t:'Куб (сторона a)'},{v:'ball',t:'Шар (радиус R)'}]},
     {key:'a',   label:'Размер тела (сторона / радиус)',unit:'м',min:0.1,max:1.2,step:0.05,default:0.4},
     {key:'rho', label:'Плотность тела ρт',unit:'кг/м³',min:50,max:12000,step:10,default:600},
     {key:'liq', label:'Жидкость',type:'select',default:'water',
      options:[{v:'water',t:'вода, 1000 кг/м³'},{v:'oil',t:'масло, 900'},
-              {v:'sea',  t:'морская вода, 1025'},{v:'merc',t:'ртуть, 13546'}]},
+              {v:'sea',  t:'морская вода, 1025'},{v:'merc',t:'ртуть, 13546'},{v:'custom',t:'своя плотность'}]},
+    {key:'rhoC',label:'Плотность своей жидкости',unit:'кг/м³',min:100,max:20000,step:10,default:1200,если:p=>p.liq==='custom'},
+    {key:'dip', label:'Глубина нижней грани под поверхностью',unit:'м',min:0,max:4,step:0.01,default:0.2,если:p=>p.mode==='scale'},
     {key:'depth',label:'Глубина сосуда',unit:'м',min:0.5,max:4,step:0.1,default:1.6},
     {key:'g',   label:'Ускорение g',unit:'м/с²',min:0.5,max:30,step:0.1,default:9.8},
     {type:'group',label:'Показывать'},
@@ -4467,8 +4471,8 @@ buoyancy:{
     {key:'press', label:'Эпюра давления',type:'check',default:true}
   ],
   RHO:{water:1000, oil:900, sea:1025, merc:13546},
-  nameOf:{water:'вода', oil:'масло', sea:'морская вода', merc:'ртуть'},
-  rhoL(p){ return this.RHO[p.liq]; },
+  nameOf:{water:'вода', oil:'масло', sea:'морская вода', merc:'ртуть', custom:'жидкость'},
+  rhoL(p){ return p.liq==='custom'?(p.rhoC||1000):this.RHO[p.liq]; },
   vol(p){ return p.shape==='cube'? Math.pow(p.a,3) : (4/3)*Math.PI*Math.pow(p.a,3); },
   mass(p){ return p.rho*this.vol(p); },
   /* доля объёма под водой в равновесии (для плавающего тела) */
@@ -4491,6 +4495,8 @@ buoyancy:{
   step(s,dt,p){
     s.t+=dt;
     const m=this.mass(p), W=m*p.g, H=this.height(p);
+    // на динамометре тело стоит там, куда его опустили
+    if(p.mode==='scale'){ s.d=clamp(p.dip||0,0,Math.min(H,p.depth)); s.v=0; return; }
     /* Осадка d отсчитывается ВНИЗ, поэтому и силу берём вниз-положительной:
        вес тянет топить, Архимед — выталкивать. (Со знаком «вверх» тело
        всплывало из воды вместо того, чтобы садиться на свою ватерлинию.) */
@@ -4527,6 +4533,7 @@ buoyancy:{
       ['теоретическая доля ρт/ρж',this.floats(p)?100*this.frac(p):100,
         this.floats(p)?'% — тело плавает':'% — тело тонет'],
       ['давление на дне p = ρ·g·h',rl*p.g*p.depth,'Па'],
+      ...(p.mode==='scale'?[['показание динамометра mg − F_A',W-FA,W-FA>=0?'Н':'Н — тело придётся притапливать']]:[]),
       ['состояние',0, this.floats(p)?'плавает':'тонет']];
   },
   graphs:[
@@ -4539,96 +4546,84 @@ buoyancy:{
     {name:'Лёд в воде: над водой лишь десятая часть',values:{shape:'cube',a:0.4,rho:917,liq:'water'}},
     {name:'Сталь в воде: тонет',values:{shape:'cube',a:0.3,rho:7800,liq:'water'}},
     {name:'Сталь в ртути: всплывает!',values:{shape:'cube',a:0.3,rho:7800,liq:'merc'}},
-    {name:'Шар ровно нейтральный (ρт = ρж)',values:{shape:'ball',a:0.3,rho:1000,liq:'water'}}
+    {name:'Шар ровно нейтральный (ρт = ρж)',values:{shape:'ball',a:0.3,rho:1000,liq:'water'}},
+    {name:'Гиря на динамометре опущена в воду',values:{mode:'scale',shape:'cube',a:0.3,rho:7800,liq:'water',dip:0.2}},
+    {name:'Взвесить в неизвестной жидкости',values:{mode:'scale',shape:'cube',a:0.3,rho:2700,liq:'custom',rhoC:1260,dip:0.4}}
   ],
   anchors(s,p){ return [{x:0,y:-s.d+this.height(p)/2}]; },
   dragPoints(p){ return [{x:0,y:0}]; },
   dragMove(p,idx,x,y){ /* уровень жидкости фиксирован — тянуть нечего */ },
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
-    const spanY=p.depth+2.2, spanX=4.4;
+    const доп=p.mode==='scale'?0.8:0, spanY=p.depth+2.2+доп, spanX=4.4;
     const scale=clamp(Math.min((W-70)/(spanX*PX_PER_M),(H-70)/(spanY*PX_PER_M)),1e-7,30);
-    return {x:0,y:-p.depth/2+0.5,scale};
+    return {x:0,y:-p.depth/2+0.5+доп/2,scale};
   },
+  /* 9.5.0: ручки — размер тела (угол), глубина сосуда, а на динамометре —
+     само тело: тяните вниз и вверх, динамометр показывает вес в жидкости.
+     Зонд — давление в любой точке жидкости. */
+  tools(p){ const S=this;
+    return [РУЧКИ({name:'Тело и сосуд',
+      ручки(p,s){ const H=S.height(p), yc=-(s?s.d:0)+H/2, h=[
+        {id:'a',x:p.shape==='cube'?p.a/2:p.a*0.707,y:p.shape==='cube'?yc+p.a/2:yc+p.a*0.707,имя:p=>`размер ${p.a} м`,тянуть(т,wx){ т.set('a',p.shape==='cube'?2*Math.abs(wx):Math.abs(wx)/0.707); },клав:{ArrowRight:['a',0.05],ArrowLeft:['a',-0.05]}},
+        {id:'depth',x:-1.9,y:-p.depth,имя:p=>`глубина ${p.depth} м`,тянуть(т,wx,wy){ т.set('depth',-wy); },клав:{ArrowUp:['depth',-0.1],ArrowDown:['depth',0.1]}}];
+        if(p.mode==='scale') h.push({id:'dip',x:0,y:yc,имя:p=>`погружение ${p.dip} м`,тянуть(т,wx,wy){ т.set('dip',H/2-wy); },клав:{ArrowUp:['dip',-0.01],ArrowDown:['dip',0.01]}});
+        return h; }}),
+      ЗОНД({hint:'щёлкните в жидкость — давление на этой глубине',
+        замер(p,s,x,y){ if(Math.abs(x)>1.9||y>0||y<-p.depth) return null; const ρ=S.rhoL(p), h=-y;
+          return [`глубина ${h.toFixed(2)} м`,`избыточное ρgh = ${(ρ*p.g*h/1000).toFixed(2)} кПа`,`полное (с атмосферой) ${(101.3+ρ*p.g*h/1000).toFixed(1)} кПа`]; }})]; },
+  /* Строгий рисунок: сосуд — линия, жидкость — один тон, тело — плоская
+     фигура. Погружённая часть видна сквозь жидкость — подкрашена ею. */
   draw(ctx,s,v,p){
-    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'),
-          sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
+    const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second'), ink=v.c('--ink-2'), ink3=v.c('--ink-3');
     const W=1.9, D=p.depth, rl=this.rhoL(p), px=1/ppm();
-    /* 9.4.0: стеклянный бак, жидкость своего цвета, тело — из материала,
-       который соответствует плотности (пенопласт, дерево, лёд, пластик,
-       камень, сталь, свинец). Погружённая часть тела видна сквозь толщу
-       жидкости — подкрашена ею, как в настоящем аквариуме; пока тело
-       садится на ватерлинию, по поверхности расходится рябь. */
     const тон={water:'вода',oil:'масло',sea:'вода',merc:'ртуть'}[p.liq]||'вода';
-    const H=this.height(p), yc=-s.d+H/2, ам=Math.min(0.04,Math.abs(s.v)*0.05);
+    const H=this.height(p), yc=-s.d+H/2, ам=p.mode==='scale'?0:Math.min(0.03,Math.abs(s.v)*0.05);
     const верх=x=>{ const r=Math.abs(x)-p.a*(p.shape==='cube'?0.5:1); return r>0?ам*Math.sin(r*14-s.t*9)*Math.exp(-r*1.6):0; };
-    АРТ.жидкость(ctx,-W,-D,W,0,{тон,верх,lw:1.2*px});
+    АРТ.жидкость(ctx,-W,-D,W,0,{тон,верх});
     v.label(ctx,`${this.nameOf[p.liq]}, ρж = ${rl} кг/м³`,-W,0,4,-12,ink);
-    // эпюра давления по стенке: p = ρgh растёт линейно с глубиной
     if(p.press){
       const pmax=rl*p.g*D, sc=0.9/Math.max(pmax,1), x0=W+0.08;
-      ctx.fillStyle=АРТ.ц(АРТ.rgb(meas)||[200,80,40],0.08); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+pmax*sc,-D); ctx.lineTo(x0,-D); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=АРТ.ц(АРТ.т('--measure'),0.08); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+pmax*sc,-D); ctx.lineTo(x0,-D); ctx.closePath(); ctx.fill();
       ctx.strokeStyle=meas; ctx.globalAlpha=.65; ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+pmax*sc,-D); ctx.lineTo(x0,-D); ctx.stroke();
-      for(let i=1;i<=5;i++){
-        const h=D*i/5, pr=rl*p.g*h;
-        ctx.beginPath(); ctx.moveTo(x0,-h); ctx.lineTo(x0+pr*sc,-h); ctx.stroke();
-      }
+      for(let i=1;i<=5;i++){ const h=D*i/5; ctx.beginPath(); ctx.moveTo(x0,-h); ctx.lineTo(x0+rl*p.g*h*sc,-h); ctx.stroke(); }
       ctx.globalAlpha=1;
       v.label(ctx,`p = ρgh, на дне ${(pmax/1000).toFixed(1)} кПа`,x0,-D,6,-8,meas);
     }
-    // тело: материал по плотности
-    const мат=p.rho<300?{rgb:[236,228,206],имя:'пенопласт'}:p.rho<880?{rgb:[190,140,88],имя:'дерево',волокна:true}
-      :p.rho<960?{rgb:[206,232,245],имя:'лёд',лёд:true}:p.rho<1600?{rgb:[230,128,60],имя:'пластик'}
-      :p.rho<3500?{rgb:[150,150,145],имя:'камень'}:p.rho<9500?{rgb:[150,160,175],имя:'сталь',мет:true}
-      :{rgb:[110,112,122],имя:'свинец',мет:true};
+    const мат=p.rho<300?'пенопласт':p.rho<880?'дерево':p.rho<960?'лёд':p.rho<1600?'пластик':p.rho<3500?'камень':p.rho<9500?'сталь':'свинец';
     const тело=()=>{ ctx.beginPath(); if(p.shape==='cube') ctx.rect(-p.a/2,yc-p.a/2,p.a,p.a); else ctx.arc(0,yc,p.a,0,7); };
-    if(p.shape==='cube'){
-      if(мат.мет) АРТ.металл(ctx,-p.a/2,yc-p.a/2,p.a,p.a,{rgb:мат.rgb,верт:true});
-      else { const g=ctx.createLinearGradient(-p.a/2,yc+p.a/2,p.a/2,yc-p.a/2);
-        g.addColorStop(0,АРТ.ц(АРТ.смесь(мат.rgb,[255,255,255],0.35),мат.лёд?0.85:1)); g.addColorStop(1,АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.18),мат.лёд?0.85:1));
-        ctx.fillStyle=g; ctx.fillRect(-p.a/2,yc-p.a/2,p.a,p.a); }
-      if(мат.волокна){ ctx.save(); тело(); ctx.clip(); ctx.strokeStyle=АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.4),0.45); ctx.lineWidth=1*px;
-        for(let k=1;k<9;k++){ const y=yc-p.a/2+p.a*k/9; ctx.beginPath(); ctx.moveTo(-p.a/2,y);
-          for(let x=-p.a/2;x<=p.a/2+1e-9;x+=p.a/24) ctx.lineTo(x,y+Math.sin(x*23+k*1.7)*p.a*0.012); ctx.stroke(); }
-        ctx.restore(); }
-      if(мат.лёд){ ctx.strokeStyle=АРТ.ц([255,255,255],0.8); ctx.lineWidth=1.2*px; ctx.beginPath();
-        ctx.moveTo(-p.a*0.35,yc+p.a*0.3); ctx.lineTo(-p.a*0.1,yc+p.a*0.42); ctx.moveTo(-p.a*0.4,yc+p.a*0.1); ctx.lineTo(-p.a*0.25,yc+p.a*0.38); ctx.stroke(); }
-      ctx.strokeStyle=АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.55),0.9); ctx.lineWidth=v.lw(1.2); ctx.strokeRect(-p.a/2,yc-p.a/2,p.a,p.a);
-    } else АРТ.шар(ctx,0,yc,p.a,мат.rgb,АРТ.ц(АРТ.смесь(мат.rgb,[0,0,0],0.55),0.8));
-    // погружённая часть видна сквозь жидкость
-    ctx.save(); тело(); ctx.clip();
-    ctx.fillStyle=АРТ.ц(АРТ.смесь(...АРТ.тон(тон),0.5),тон==='ртуть'?0.6:0.38); ctx.fillRect(-p.a*1.2,-D,p.a*2.4,D+верх(0));
-    ctx.restore();
-    // стекло бака поверх: блики видны и на фоне тела
-    АРТ.стакан(ctx,-W,W,-D,0.7,Math.max(3*px,0.05));
-    v.label(ctx,`${мат.имя}, ρт = ${p.rho} кг/м³`,0,yc+H/2,-40,-10,ink);
-    /* Силы — диаграммой свободного тела из ЦЕНТРА тела. Раньше F_A и N были
-       сдвинуты по горизонтали на 0.16 м, чтобы не совпасть с mg, и казалось,
-       что они приложены мимо тела. Противоположно направленные стрелки из
-       одной точки и так не накладываются. */
+    // тело непрозрачно: сначала фон, сверху тон акцента
+    тело(); ctx.fillStyle=v.c('--canvas'); ctx.fill(); ctx.fillStyle=АРТ.ц(АРТ.т('--accent'),0.28); ctx.fill();
+    ctx.save(); тело(); ctx.clip(); ctx.fillStyle=АРТ.заливкаЖ(тон,1.4); ctx.fillRect(-p.a*1.2,-D,p.a*2.4,D+верх(0)); ctx.restore();
+    тело(); ctx.strokeStyle=acc; ctx.lineWidth=v.lw(1.6); ctx.stroke();
+    АРТ.стакан(ctx,-W,W,-D,0.7);
+    v.label(ctx,`${мат}, ρт = ${p.rho} кг/м³`,0,yc+H/2,-40,-10,ink);
+    // динамометр: нить и шкала над сосудом
+    if(p.mode==='scale'){ const mg=this.mass(p)*p.g, F=mg-this.FA(p,s.d), yt=yc+H/2, ys=0.95, w=0.14, h=0.6;
+      ctx.strokeStyle=ink; ctx.lineWidth=1.2*px; ctx.beginPath(); ctx.moveTo(0,yt); ctx.lineTo(0,ys); ctx.stroke();
+      ctx.strokeRect(-w,ys,2*w,h);
+      ctx.fillStyle=АРТ.ц(АРТ.т('--accent'),0.8); ctx.fillRect(-w*0.5,ys+h*(1-clamp(F/Math.max(mg,1e-9),0,1)),w,h*clamp(F/Math.max(mg,1e-9),0,1));
+      ctx.beginPath(); for(let k=0;k<=10;k++){ ctx.moveTo(w*0.55,ys+h*k/10); ctx.lineTo(w*(k%5?0.8:1),ys+h*k/10); } ctx.stroke();
+      v.label(ctx,`динамометр: ${F.toFixed(1)} Н (в воздухе ${mg.toFixed(1)} Н)`,w,ys+h,8,0,acc); }
     if(p.forces){
       const m=this.mass(p), Wt=m*p.g, FA=this.FA(p,s.d);
       const F=[{fx:0, fy:-Wt, label:'mg', color:dang}];
       if(FA>1e-6) F.push({fx:0, fy:FA, label:'F_A', color:sec});
-      // лежит на дне — добавляется реакция дна
-      if(!this.floats(p) && s.d>=Math.min(H,D)-1e-6)
-        F.push({fx:0, fy:Math.max(0,Wt-FA), label:'N', color:meas});
+      if(p.mode==='scale'&&Math.abs(Wt-FA)>1e-6) F.push({fx:0, fy:Wt-FA, label:'T', color:acc});
+      else if(!this.floats(p) && s.d>=Math.min(H,D)-1e-6) F.push({fx:0, fy:Math.max(0,Wt-FA), label:'N', color:meas});
       v.fbd(ctx,{x:0, y:yc, forces:F, len:1.0, resultant:false, units:'Н'});
     }
-    // ватерлиния тела
     if(s.d>0.001 && s.d<H){
       ctx.strokeStyle=meas; ctx.setLineDash([v.lw(3),v.lw(3)]); ctx.lineWidth=v.lw(1.2);
       ctx.beginPath(); ctx.moveTo(-p.a*0.9,0); ctx.lineTo(p.a*0.9,0); ctx.stroke(); ctx.setLineDash([]);
       v.label(ctx,`под водой ${(100*this.subVol(p,s.d)/this.vol(p)).toFixed(0)} %`,p.a*0.9,0,6,14,meas);
     }
-    // вывод
     const f=this.floats(p);
-    v.label(ctx, f? `ρт < ρж — плавает, погружено ρт/ρж = ${(100*this.frac(p)).toFixed(1)} % объёма`
+    v.label(ctx, p.mode==='scale'?'динамометр показывает вес минус силу Архимеда':f? `ρт < ρж — плавает, погружено ρт/ρж = ${(100*this.frac(p)).toFixed(1)} % объёма`
                   : `ρт > ρж — тонет: веса больше, чем может вытолкнуть жидкость`,
-      -W,-D,0,26,f?sec:dang);
-    v.label(ctx,'сила Архимеда равна весу вытесненной жидкости, а не весу тела',
-      -W,-D,0,42,ink3);
+      -W,-D,0,26,p.mode==='scale'?acc:f?sec:dang);
+    v.label(ctx,'сила Архимеда равна весу вытесненной жидкости, а не весу тела',-W,-D,0,42,ink3);
   }
 }
 ,

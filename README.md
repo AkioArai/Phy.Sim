@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-9.4.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-9.4.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-9.4.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-9.4.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-9.5.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-9.5.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-9.5.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-9.5.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -112,6 +112,26 @@ KaTeX and its fonts ship inside the repository.
 | **86** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 9.5: a stricter look, and scenes you can take apart
+
+- **Flat, strict drawing in mechanics, fluids and thermodynamics.** No gradients, no flames, no
+  glossy glass: one ink line for a vessel, a liquid as a flat tint of the theme colour, a gas whose
+  colour is its temperature, heat shown as an arrow onto a flat plate. Every scene follows the theme
+  and the dark background.
+- **Tools that belong to the scene.** Every simulation in the first three sections has its own
+  tools in the toolbar. *Grips* are square handles on the drawing: drag the level of the water,
+  the hole, the end of a thread, the slope of a plane, a vertex of a cycle, a radius or the starting
+  speed, and the matching setting changes with it; arrow keys nudge the selected grip. A *probe*
+  reads local quantities at any point: pressure and jet speed in a vessel, flow speed in a pipe,
+  gravity and the first and second cosmic speeds around a planet, the share of molecules faster
+  than a given speed.
+- **Models that solve more than one problem.** A gas process can have two legs (an isobar, then an
+  isochore; an adiabat, then an isotherm), with heat, work and ΔU counted along the whole path. A
+  vessel can have one, two or three holes and can be topped up. A body can hang on a spring scale
+  in any liquid, including one of unknown density. A falling ball can start with any speed in a
+  liquid of your own, and the stopwatch times it between two marks. The Maxwell scene can show the
+  energy distribution and compare two temperatures or two gases.
 
 ### New in 9.4: thermodynamics by the problem book, and a section for fluids
 

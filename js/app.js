@@ -1492,7 +1492,7 @@ function updatePVBox(a){
   // диапазоны
   let Pmin=1e18,Pmax=-1e18,Vmin=1e18,Vmax=-1e18;
   for(let u=0;u<=fmax;u+=fstep){ const st=T.stateAt(p,u); Pmin=Math.min(Pmin,st.P);Pmax=Math.max(Pmax,st.P);Vmin=Math.min(Vmin,st.V);Vmax=Math.max(Vmax,st.V); }
-  if(!isCarnot && p.proc==='isochor'){ Vmin=p.V0-2; Vmax=p.V0+2; }
+  if(!isCarnot && Vmax-Vmin<0.5){ Vmin-=2; Vmax+=2; }
   const pd=(Pmax-Pmin)*0.12||Pmax*0.1; Pmin=Math.max(0,Pmin-pd); Pmax+=pd;
   const vd=(Vmax-Vmin)*0.1||1; Vmin=Math.max(0,Vmin-vd); Vmax+=vd;
   const W=300,H=210,mL=12,mB=20;
@@ -1510,7 +1510,7 @@ function updatePVBox(a){
   if(isCarnot && p.showArea){
     area='M'; for(let u=0;u<=fmax+1e-9;u+=fstep){ const q=T.stateAt(p,u); area+=X(q.V).toFixed(1)+' '+Y(q.P).toFixed(1)+' L'; }
     area=area.slice(0,-1)+'Z';
-  } else if(!isCarnot && p.proc!=='isochor' && p.showWork!==false){
+  } else if(!isCarnot && (p.proc!=='isochor'||T.цепь&&T.цепь(p)) && p.showWork!==false){
     const base=(H-mB);                       // основание — ось V, а не Y(0)
     area='M'+X(p.V0).toFixed(1)+' '+base+' ';
     for(let u=0;u<=s.u+1e-9;u+=0.02){ const q=T.stateAt(p,u); area+='L'+X(q.V).toFixed(1)+' '+CY(Y(q.P))+' '; }
@@ -1529,9 +1529,10 @@ function updatePVBox(a){
     /* ΔU — с той же теплоёмкостью Cv = R/(γ−1), что и в показаниях сцены.
        До 9.4 здесь стояло 3/2·R, и при γ ≠ 5/3 панель расходилась с окном
        величин: у адиабаты Q выходило не нулём. */
-    const W_=T.workTo(p,s.u), dU=p.proc==='iso'?0:p.n*T.Cv(p)*(st.T-p.T0), Q=dU+W_;
-    nm={iso:'изотерма PV=const',isobar:'изобара P=const',isochor:'изохора V=const',adiab:'адиабата PVᵞ=const',
-        line:'прямая на pV-диаграмме',poly:'политропа PVⁿ=const'}[p.proc];
+    const цепь=T.цепь&&T.цепь(p), W_=T.workTo(p,s.u), dU=(p.proc==='iso'&&!цепь)?0:p.n*T.Cv(p)*(st.T-p.T0), Q=dU+W_;
+    const ИМ={iso:'изотерма PV=const',isobar:'изобара P=const',isochor:'изохора V=const',adiab:'адиабата PVᵞ=const',
+        line:'прямая на pV-диаграмме',poly:'политропа PVⁿ=const'};
+    nm=цепь?`${ИМ[p.proc].split(' ')[0]} → ${ИМ[p.proc2].split(' ')[0]}`:ИМ[p.proc];
     rows=`<div class="pvrow"><span>V</span><span>${st.V.toFixed(1)} л</span></div>`+
          `<div class="pvrow"><span>P</span><span>${(st.P/1000).toFixed(0)} кПа</span></div>`+
          `<div class="pvrow"><span>T</span><span>${st.T.toFixed(0)} K</span></div>`+
@@ -7921,5 +7922,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.4.0';
+window.PHYSIM_BUILD = '9.5.0';
 window.PHYSIM_READY = true;
