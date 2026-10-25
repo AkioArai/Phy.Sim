@@ -1633,7 +1633,9 @@ function record(a){
      временем, и лента снимков только ела бы память. */
   if(a.def.timeless) return;
   if(typeof слоиЗапись==='function') слоиЗапись(a);
-  if(a.def.graphs){
+  /* у самодельной модели (10.0.0) точки графиков считает её поток и
+     присылает пачками — здесь их не дублируем */
+  if(a.def.graphs&&!a.def.внешниеТочки){
     a.hist.push({t:a.state.t, v:a.def.graphs.map(g=>g.get(a.state,a.params))});
     /* Переполнение истории раньше выбрасывало САМЫЕ СТАРЫЕ точки: на длинном
        прогоне начало кривой пропадало, а сама кривая уползала вправо, потому
@@ -2688,6 +2690,7 @@ function openSim(id){
   S.playing=true; setPlayIcon(); acc=0;
   загрузитьЗаметки(a,id); renderNotes();
   renderParams(); buildGraphs(); renderPresets(); renderSimTools();
+  if(typeof обновитьМенюМастерской==='function') обновитьМенюМастерской();
   /* Сцены-схемы во всю ширину (hudAware) открываются со свёрнутой панелью
      показаний: иначе она закрывает половину рисунка. Сохранённое состояние
      панели не трогаем — у остальных симуляций оно возвращается как было. */
@@ -5330,6 +5333,7 @@ window.physimBack=function(){
   if(vis('#cmdk')){ cmdkClose(); return true; }
   if(vis('#modal-kb')){ $('#modal-kb').classList.add('hidden'); return true; }
   if(vis('#prefs')){ closePrefs(); return true; }
+  if(typeof мастерскаяОткрыта==='function'&&мастерскаяОткрыта()){ закрытьМастерскую(); return true; }
   const sb=$('#simbottom');
   if(sb && sb.classList.contains('msheet-open')){ mSheet(false); return true; }
   const side=$('#sidebar');
@@ -7419,6 +7423,7 @@ function режимыКомпиляции(a){
 function открытьКомпиляцию(){
   const a=A();
   if(!a){ toast('Сначала откройте симуляцию'); return; }
+  if(a.def.самодельная){ toast('Компиляция пересчитывает модель заново, а самодельная живёт в песочнице — снимите кадр или графики с экрана'); return; }
   const можно=режимыКомпиляции(a);
   if(!можно.time&&!можно.sweep){
     toast('Этой симуляции нечего компилировать: ни времени, ни числовых показателей'); return;
@@ -7922,5 +7927,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '9.5.0';
+window.PHYSIM_BUILD = '10.0.0';
 window.PHYSIM_READY = true;

@@ -148,6 +148,14 @@ jobs:
           56 topics, 139 step-by-step derivations, 431 formulas and 693 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 10.0.0 — the workshop: a simulation of your own, written by any AI
+
+          Describe a phenomenon in words, give the generated task to any AI, paste the answer and run it: the
+          result has parameters, examples, readouts, graphs, events, grips and a probe, like a built-in scene.
+          The model draws with the course's own shapes and palette, so it always looks like the rest of the
+          course, and runs in a sandboxed worker with no access to the page, storage or network. Check runs
+          the model on many parameter sets and turns every error, with its line, into one message for the AI.
+
           ## 9.5.0 — a stricter look, and scenes you can take apart
 
           Mechanics, fluids and thermodynamics are redrawn flat and strict: no gradients, no flames, theme

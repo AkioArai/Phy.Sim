@@ -54,9 +54,9 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-9.5.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-9.5.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-9.5.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-9.5.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-10.0.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-10.0.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-10.0.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-10.0.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -110,8 +110,37 @@ KaTeX and its fonts ship inside the repository.
 | **147** glossary terms | short definitions, in search and in the *More* menu; optionally the first mention in the notes is underlined |
 | **reference sheet** | symbols, constants, units and the 41 techniques in Settings — the thing you would otherwise keep a browser tab open for |
 | **86** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
+| **workshop** | your own simulation without programming: describe it in words, give the generated task to any AI, paste the answer — parameters, readouts, graphs, grips and a probe, drawn in the course's own style and run in a sandbox |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 10.0: the workshop — a simulation of your own, written by any AI
+
+- **Describe it, paste it, run it.** The new *Workshop* (top bar, phone drawer, the scene menu, the
+  home page) turns a description in plain words into a working simulation. It builds a task — our
+  instruction plus your description — that you paste into any AI chat; the AI answers with code; you
+  paste the code back and press *Run*. The result has everything a built-in scene has except notes
+  and problems: parameters with groups and conditions, examples, readouts, graphs over time, events
+  that stop the clock, square grips on the drawing and a probe.
+- **A model that can solve more than its problem.** One simulation, many questions: change any
+  parameter, drag a grip, probe a point — so a scene asked for one problem answers the next ones too.
+- **One drawing language, so it always looks like the course.** The model never paints pixels: it
+  sends a list of shapes — line, ball, block, spring, support with hatching, force by kind, angle,
+  dimension, vessel, liquid, jet, gas, piston cylinder, thermometer — and the app draws them with its
+  own functions and theme colours. Colours are names (*accent*, *danger*, *ink2*…); anything else is
+  snapped to the nearest colour of the palette, and gradients simply do not exist. Light and dark
+  themes follow automatically.
+- **Check, then send the errors back.** *Check* runs the model on defaults, every example, the ends
+  of every range and random sets, and reports exceptions with the line in the AI's code, NaN in the
+  state, readouts or graphs, a clock that does not move, a drawing that never changes, unknown
+  colours and slow steps. *Copy the report for the AI* puts it all, with the offending lines, into one
+  message for the same chat.
+- **A sandbox, not trust.** The model runs in a separate worker started from a `data:` address: no
+  page, no storage, no network, no bridge to the Android app. A model that hangs is stopped by a
+  watchdog and restarts with *Reset*.
+- **Yours to keep and share.** Simulations are kept on the device; copy the code or download a
+  `.physim.js` file to move it; *Paste ready code* or *Open file* brings it back. Three working
+  examples ship with the instruction and run from the workshop.
 
 ### New in 9.5: a stricter look, and scenes you can take apart
 

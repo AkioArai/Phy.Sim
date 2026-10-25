@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="9.5.0">
+<meta name="physim-build" content="10.0.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -179,6 +179,8 @@
 <script defer src="js/scene.js"></script>
 <script defer src="js/lab.js"></script>
 <script defer src="js/app.js"></script>
+<script defer src="js/sandbox.js"></script>
+<script defer src="js/workshop.js"></script>
 <script defer src="js/bench.js"></script>
 </head>
 <body>
@@ -194,6 +196,7 @@
       <button class="tbtn" id="btn-home" title="Главная"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Главная</span></button>
       <button class="tbtn on" id="tab-topics" title="Курс: список тем и конспекты"><svg viewBox="0 0 24 24"><path d="M12 3.5 21 8l-9 4.5L3 8z"/><path d="M3 12l9 4.5 9-4.5M3 16l9 4.5 9-4.5"/></svg><span>Курс</span></button>
       <button class="tbtn" id="btn-path" title="Мой путь: что повторить, карта тем, диагностика, навыки (Ctrl+M)"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg><span>Мой путь</span><b class="badge hidden" id="path-badge"></b></button>
+      <button class="tbtn" id="btn-workshop" title="Мастерская: своя симуляция с помощью ИИ"><svg viewBox="0 0 24 24"><path d="M14.5 5.5l4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M13 7l4 4"/></svg><span>Мастерская</span></button>
     </nav>
     <div class="spacer"></div>
     <button class="tsearch" id="btn-cmdk" title="Поиск по курсу: темы, формулы, симуляции, команды (Ctrl+P)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Поиск по курсу…</span><kbd>Ctrl P</kbd></button>
@@ -262,6 +265,7 @@
       <div class="tree" id="tree"></div>
       <!-- подвал ящика: на телефоне отсюда попадают в помощь и настройки -->
       <div class="drawer-foot mobile-only">
+        <button class="btn d-wk" id="d-workshop" title="Мастерская: своя симуляция"><svg viewBox="0 0 24 24"><path d="M14.5 5.5l4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M13 7l4 4"/></svg>Мастерская</button>
         <div class="spacer"></div>
         
         <button class="iconbtn" id="d-settings" title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
@@ -557,6 +561,7 @@
   <div class="mt-tabs" id="simmenu-tabs"></div>
   <div class="mt-body">
     <div class="mt-page" data-page="scene">
+      <button class="item hidden" id="mi-wk-edit"><svg viewBox="0 0 24 24"><path d="M14.5 5.5l4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M13 7l4 4"/></svg>Править в Мастерской</button>
       <button class="item" id="mi-png"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-2 4 3"/></svg>Снимок кадра (PNG)</button>
       <button class="item" id="mi-rec"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span id="rec-label">Записать симуляцию (WebM)</span></button>
       <div class="ttl">Слои сцены</div>
@@ -585,6 +590,7 @@
     <div class="mt-page hidden" data-page="more">
       <button class="item" id="mi-calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01"/></svg>Вычислитель</button>
       <button class="item" id="mi-path"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg>Мой путь</button>
+      <button class="item" id="mi-workshop"><svg viewBox="0 0 24 24"><path d="M14.5 5.5l4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M13 7l4 4"/></svg>Мастерская</button>
       <button class="item" id="mi-lesson"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg>Урок по слайдам</button>
       <button class="item" id="mi-gloss"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>Словарь терминов</button>
       <button class="item" id="mi-share"><svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></svg>Ссылка на этот опыт</button>

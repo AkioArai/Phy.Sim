@@ -800,7 +800,7 @@ async function сторож(b) {
        одиннадцать команд разом. «Конструктор» есть только там, где сцену
        действительно собирают мышью, и открывается сразу. */
     const menu = await p.evaluate(async () => {
-      const видно = () => [...document.querySelectorAll('#pop-simmenu .mt-page:not(.hidden) .item')]
+      const видно = () => [...document.querySelectorAll('#pop-simmenu .mt-page:not(.hidden) .item:not(.hidden)')]
                             .map(i => i.textContent.trim());
       openSim('kin1d'); await new Promise(z => setTimeout(z, 150));
       openSimMenu(500, 300);
@@ -817,7 +817,7 @@ async function сторож(b) {
     });
     ok('меню сцены разложено по вкладкам',
         menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
-        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 9 && menu.обычная.ещё.includes('Мой путь') && menu.обычная.ещё.includes('Ссылка на этот опыт') && menu.обычная.ещё.includes('Урок по слайдам')
+        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 10 && menu.обычная.ещё.includes('Мой путь') && menu.обычная.ещё.includes('Мастерская') && menu.обычная.ещё.includes('Ссылка на этот опыт') && menu.обычная.ещё.includes('Урок по слайдам')
         && menu.всего > menu.обычная.сцена.length, menu.обычная);
     ok('конструктор получает свою вкладку и открывает её сразу',
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
@@ -2125,6 +2125,67 @@ async function сторож(b) {
         Object.values(т).every(v => v === true), т);
     }
 
+    /* ============ 10.0.0: Мастерская и песочница ============
+       Примеры из инструкции и шесть сцен, написанных строго по ней (как их
+       написал бы ИИ), проходят проверку без единого замечания и запускаются.
+       Песочница не видит страницу и хранилище; синтаксическая ошибка
+       называет строку; зависание ловит сторож; ручка самодельной сцены
+       двигает параметры; чужой цвет становится цветом палитры. */
+    {
+      const образцы = fs.readdirSync(path.join(ROOT, 'tests/workshop')).filter(f => f.endsWith('.js')).sort()
+        .map(f => [f, fs.readFileSync(path.join(ROOT, 'tests/workshop', f), 'utf8')]);
+      const т = await p.evaluate(async (образцы) => {
+        const жди = ms => new Promise(r => setTimeout(r, ms)); const r = {}; закрытьГлавную();
+        const все = ПРИМЕРЫ_МАСТЕРСКОЙ.map(x => [x.id, текстПримера(x.f)]).concat(образцы);
+        const плохие = [];
+        for (const [имя, код] of все) { const о = await проверитьКод(код);
+          if ((о.ошибки || []).length || (о.предупреждения || []).length) плохие.push(имя + ': ' + (о.ошибки || []).concat(о.предупреждения || []).map(e => e.msg).join('; ')); }
+        r.образцы = !плохие.length || плохие;
+        // песочница: ни хранилища, ни страницы; данные страницы целы
+        LS.set('секрет', 'не трогать');
+        const о1 = await проверитьКод("simulation({ title: 'x', init(p){ localStorage.setItem('physim.секрет', 'взлом'); return { t: 0 }; }, step(s,dt){ s.t += dt; }, draw(d){ d.dot(0,0); } });");
+        const о2 = await проверитьКод("simulation({ title: 'x', init(p){ document.title = 'взлом'; return { t: 0 }; }, step(s,dt){ s.t += dt; }, draw(d){ d.dot(0,0); } });");
+        const о3 = await проверитьКод("simulation({ title: 'x', init(p){ fetch('https://example.com'); return { t: 0 }; }, step(s,dt){ s.t += dt; }, draw(d){ d.dot(0,0); } });");
+        r.песочница = о1.ошибки.length === 1 && о2.ошибки.length === 1 && о3.ошибки.length === 1 && LS.get('секрет') === 'не трогать' && document.title !== 'взлом'
+          || [о1.ошибки, о2.ошибки, о3.ошибки].map(x => x.map(e => e.msg).join());
+        // синтаксис: номер строки
+        const о4 = await проверитьКод("simulation({\n  title: 'x',\n  params: [ { key: 'a', min: 0, max: 1, default: 0.5 ],\n  init(p){ return { t: 0 }; }, draw(d){ d.dot(0,0); }\n});");
+        r.строка = (о4.ошибки[0] || {}).line === 3 || о4.ошибки;
+        // ошибка в draw названа и показана с номером строки
+        const о5 = await проверитьКод("simulation({ title: 'x',\n  init(p){ return { t: 0 }; },\n  step(s,dt){ s.t += dt; },\n  draw(d){ d.fillRect(0, 0, 1, 1); } });");
+        r.неТотМетод = /нет метода fillRect/.test((о5.ошибки[0] || {}).msg) && о5.ошибки[0].line === 4 || о5.ошибки;
+        // зависание
+        const t0 = Date.now();
+        const о6 = await проверитьКод("simulation({ title: 'x', init(p){ return { t: 0 }; }, step(s,dt){ s.t += dt; if (s.t > 0.3) for(;;){} }, draw(d,s){ d.dot(s.t,0); } });");
+        r.сторож = /не отвечает/.test((о6.ошибки[0] || {}).msg) && Date.now() - t0 < 9000 || [о6.ошибки, Date.now() - t0];
+        // запуск примера и ручка
+        await запуститьИзМастерской({ id: 'ex-pendulum', title: 'M', code: текстПримера(примерМаятник), пример: true });
+        await жди(400); const a = A();
+        r.запуск = a.def.самодельная && a.state.list.length > 3 && a.state.ro.length === 3 && /самодельная/.test(a.def.title) || [a.def.title, a.state.list.length];
+        S.playing = false; setTool('sim:grips');
+        const инс = инструментыМодели(a).find(x => x.id === 'grips'), h = инс.список(контекстИнструмента(a, 0, 0))[0];
+        const [sx, sy] = toScreen(h.x, h.y), т0 = контекстИнструмента(a, sx, sy);
+        инс.down(т0); const т2 = контекстИнструмента(a, sx + 40, sy + 30); т2.выбор = т0.выбор; инс.move(т2);
+        await жди(300); применитьИнструмент(a, true);
+        r.ручка = a.params.L !== 1 && a.params.th0 !== 40 || a.params;
+        setTool('pan');
+        // цвета: имя палитры и чужой цвет
+        r.цвета = цветСам('accent') === css('--accent') && цветСам('#ff1010') === css('--danger') && цветСам('green') === css('--ok');
+        // Мастерская: новая запись, код, проверка, хранение, задание для ИИ
+        const з = мастНовая({ request: 'Маятник', code: текстПримера(примерМаятник) });
+        const о7 = await мастПроверить(з.id, з.code);
+        r.хранение = !о7.ошибки.length && мастНайти(з.id).check && мастНайти(з.id).check.ошибок === 0 && мастНайти(з.id).title === 'Маятник с затуханием';
+        const зад = инструкцияДляИИ('Шар на пружине');
+        r.задание = /simulation\(\{/.test(зад) && /Шар на пружине\s*$/.test(зад) && зад.includes(текстПримера(примерИстечение).slice(0, 200));
+        открытьМастерскую('edit', з.id); await жди(100);
+        r.окно = !!document.querySelector('#workshop:not(.hidden) #wk-code') && /Проверка пройдена/.test(document.getElementById('wk-report').textContent);
+        закрытьМастерскую(); мастЗаписать(мастСписок().filter(x => x.id !== з.id)); LS.set('секрет', null);
+        return r;
+      }, образцы);
+      ok('10.0: Мастерская — примеры и образцы проходят проверку, песочница изолирована, ошибки со строкой, сторож, ручки, палитра, хранение',
+        Object.values(т).every(v => v === true), т);
+    }
+
     await p.close();
 
     // --- телефон ---
@@ -2153,6 +2214,10 @@ async function сторож(b) {
         mob.шапка === 46 && mob.симшапка > 0 && mob.симшапка <= 56, mob);
     ok('карандаш и пуск в нижней панели', mob.ключ && mob.пуск2, mob);
     ok('инструменты папками', mob.папки >= 3, mob);
+    ok('10.0: Мастерская на телефоне — во весь экран, без горизонтальной прокрутки, вход из ящика',
+      await m.p.evaluate(() => { открытьМастерскую('list'); const b = document.querySelector('#workshop .path-body'), r = b.getBoundingClientRect();
+        const ок = r.width >= innerWidth - 12 && b.scrollWidth <= b.clientWidth + 1 && !!document.getElementById('d-workshop');
+        закрытьМастерскую(); return ок; }), null);
 
     const mpen = await m.p.evaluate(() => {
       setTool('pencil');

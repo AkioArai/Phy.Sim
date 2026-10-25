@@ -315,6 +315,7 @@ function рисоватьГлавную(h){
           <figcaption><b>Рис. 1.</b> Сорок восемь двойных маятников отпущены почти одинаково — углы различаются на стотысячные доли градуса. Первые секунды они идут как один, потом расходятся веером. Законы точные, а будущее не предсказать: это хаос. Коснитесь — маятники поднимутся к пальцу и начнут заново.</figcaption></figure>
         <button class="hm9-row hm9-search" id="hm-search">${ic('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>')}<b>Найти тему или формулу</b><kbd>Ctrl P</kbd></button>
         ${путь}
+        <button class="hm9-row" id="hm-workshop"><b>Мастерская</b><span>Своя симуляция: опишите явление словами — ИИ напишет модель, приложение её запустит</span></button>
         ${задача}
       </aside>
     </div>
@@ -328,6 +329,7 @@ function рисоватьГлавную(h){
     openTopic(t.id); закрытьГлавную();
   });
   h.querySelectorAll('[data-path]').forEach(b=>b.onclick=()=>открытьПуть(b.dataset.path));
+  const мс=h.querySelector('#hm-workshop'); if(мс) мс.onclick=()=>{ if(typeof открытьМастерскую==='function') открытьМастерскую('list'); };
   const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}

@@ -1,0 +1,4 @@
+10.0.0 — the workshop: a simulation of your own, written by any AI.
+• Describe it in words, give the task to any AI, paste the code and run it.
+• Parameters, graphs, grips and a probe — drawn in the course's own style.
+• Check finds errors and sends them back to the AI; the model runs in a sandbox.

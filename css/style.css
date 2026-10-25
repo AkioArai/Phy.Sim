@@ -3674,3 +3674,59 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 .pr-filter button+button{border-left:1px solid var(--line)}
 .pr-filter button.on{background:var(--ink);color:var(--panel)}
 .problem .btn.setup{border-color:var(--second);color:var(--second)}
+
+/* ===================== МАСТЕРСКАЯ (10.0.0) =====================
+   Окно того же устройства, что «Мой путь»: шапка с вкладками и тело.
+   Внутри — строгие карточки, поля ввода и отчёт проверки. */
+.wk-on .tbtn#btn-workshop{background:var(--panel);border-color:transparent;color:var(--accent)}
+.wk-body{display:flex;flex-direction:column;gap:14px}
+.wk-how{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel-2)}
+.wk-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:14px}
+.wk-steps div{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink-2);line-height:1.5}
+.wk-steps b,.wk-sh b{flex:0 0 auto;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);
+  display:grid;place-items:center;font-size:11.5px;font-weight:600;font-family:var(--mono)}
+.wk-acts,.wk-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.wk-h{font-size:14px;font-weight:600;margin:8px 0 0;color:var(--ink)}
+.wk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.wk-card{display:flex;flex-direction:column;gap:6px;padding:14px 15px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel)}
+.wk-card b{font-size:14px;color:var(--ink)}
+.wk-card>span{font-size:12px;color:var(--ink-3)}
+.wk-card p{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.45}
+.wk-card .wk-row{margin-top:auto;padding-top:6px;gap:6px}
+.wk-card .btn{padding:5px 10px;font-size:12px}
+.wk-ex{background:var(--panel-2)}
+.wk-st.bad{color:var(--danger)}
+.wk-st.good{color:var(--ok)}
+.wk-empty,.wk-note{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin:0}
+.wk-file{cursor:pointer}
+.wk-ed{display:flex;flex-direction:column;gap:20px}
+.wk-sec{display:flex;flex-direction:column;gap:8px}
+.wk-sec:empty{display:none}
+.wk-sh{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px;color:var(--ink)}
+.wk-saved{margin-left:auto;font-weight:400;font-size:11.5px;color:var(--ink-3)}
+.wk-ta{width:100%;box-sizing:border-box;font:inherit;font-size:13px;line-height:1.5;padding:10px 12px;border:1px solid var(--line);
+  border-radius:var(--radius);background:var(--canvas);color:var(--ink);resize:vertical;-webkit-user-select:text;user-select:text}
+.wk-ta:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.wk-code{font-family:var(--mono);font-size:12px;line-height:1.55;tab-size:2;-moz-tab-size:2;white-space:pre;overflow:auto;min-height:240px}
+.wk-hint{font-size:12px;color:var(--ink-3);line-height:1.45}
+.wk-rep{border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.wk-rep-h{font-weight:600;font-size:13.5px;color:var(--ink-2)}
+.wk-rep-h.bad{color:var(--danger)}
+.wk-rep-h.good{color:var(--ok)}
+.wk-list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.wk-list li.bad::marker{color:var(--danger)}
+.wk-list li.warn::marker{color:var(--measure)}
+.wk-list b{font-weight:600;font-family:var(--mono);font-size:11.5px}
+.wk-list small{color:var(--ink-3)}
+.wk-sub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+.wk-guide{display:flex;flex-direction:column;gap:10px}
+.wk-pre{margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--canvas);color:var(--ink-2);
+  font-family:var(--mono);font-size:11.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
+.d-wk{display:inline-flex;align-items:center;gap:6px}
+.d-wk svg,.tbtn#btn-workshop svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.d-wk svg{width:16px;height:16px}
+[data-ui="mobile"] .wk-steps{grid-template-columns:1fr;gap:10px}
+[data-ui="mobile"] .wk-grid{grid-template-columns:1fr}
+[data-ui="mobile"] .path.wk .path-body{padding:14px 14px 40px}
+.wk .path-tabs button.hidden{display:none}
+.popmenu .item.hidden{display:none}
