@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="10.0.0">
+<meta name="physim-build" content="10.0.1">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -17988,14 +17988,19 @@ photoeffect:{
     {name:'Ярче — больше ток, запирание то же',values:{metal:'na',lam:400,inten:100,U:-0.5}},
     {name:'Цинк: нужен ультрафиолет',values:{metal:'zn',lam:250,inten:60,U:0}}
   ],
+  /* на телефоне стоя график I(U) уходит под трубку на всю ширину: рядом
+     с лестницей энергий ему не хватало места, и подписи наползали друг на друга */
+  узко(W,H){ return (W||460)<1.05*(H||320); },
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    if(this.узко(W,H)&&p.graph) return {x:-0.1,y:-2.1,scale:clamp(Math.min((W-16)/(10.6*PX_PER_M),(H-16)/(13.6*PX_PER_M)),0.002,30)};
     const scale=clamp(Math.min((W-16)/(10.6*PX_PER_M),(H-16)/(10.2*PX_PER_M)),0.002,30);
     return {x:-0.1,y:-0.1,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), ok=v.c('--ok');
     const W0=this.W0(p), E=this.Ephot(p), Em=this.Emax(p), works=Em>0, свет=this.цвет(p.lam,v);
+    const уз=typeof CW!=='undefined'&&this.узко(CW,CH);
     const K=this.K, A=this.A, D=A-K, TY=1.4;             // трубка поднята: под ней цепь и графики
     ctx.save(); ctx.translate(0,TY);
     /* подписи рисуются в экранных координатах мимо ctx.translate — им сдвиг добавляем сами */
@@ -18010,8 +18015,9 @@ photoeffect:{
     L('вакуум',0,1.7,-20,-8,ink3);
     // катод и анод
     ctx.fillStyle=ink; ctx.fillRect(K-0.18,-1.15,0.18,2.3); ctx.fillRect(A,-1.15,0.18,2.3);
-    L(`катод: ${({cs:'цезий',na:'натрий',zn:'цинк',pt:'платина'})[p.metal]}, W₀ = ${W0} эВ`,K,-1.15,-60,16,ink);
-    L('анод',A,-1.15,-8,16,ink);
+    // подписи электродов — под трубкой, чтобы не резать её контур
+    L(`катод: ${({cs:'цезий',na:'натрий',zn:'цинк',pt:'платина'})[p.metal]}, W₀ = ${W0} эВ`,K,-1.7,-60,15,ink);
+    L('анод',A,-1.7,-12,15,ink);
 
     /* ---- свет: пучок и бегущие фотоны ---- */
     const sx=-4.4, sy=2.9;                               // лампа (в системе трубки)
@@ -18052,14 +18058,14 @@ photoeffect:{
     ctx.lineWidth=v.lw(2.4);
     ctx.beginPath(); ctx.moveTo(плюсСправа?0.35:-0.35,yw-0.45); ctx.lineTo(плюсСправа?0.35:-0.35,yw+0.45);
     ctx.moveTo(плюсСправа?-0.35:0.35,yw-0.22); ctx.lineTo(плюсСправа?-0.35:0.35,yw+0.22); ctx.stroke();
-    L(`U = ${p.U>0?'+':''}${p.U.toFixed(2)} В`,0,yw,-34,-22,p.U<0?dang:ok);
+    L(`U = ${p.U>0?'+':''}${p.U.toFixed(2)} В`,0,yw,-34,уз?24:-22,p.U<0?dang:ok);
     // амперметр
     const I=this.Isat(p)*this.frac(p);
     ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
     ctx.beginPath(); ctx.arc(1.5,yw,0.4,0,7); ctx.fill(); ctx.stroke();
     const ang=Math.PI*(0.8-0.6*I);
     ctx.strokeStyle=dang; ctx.beginPath(); ctx.moveTo(1.5,yw-0.15); ctx.lineTo(1.5+0.32*Math.cos(ang),yw-0.15+0.32*Math.sin(ang)); ctx.stroke();
-    L(`I = ${(I*100).toFixed(0)} % от насыщения при 100 %`,1.5,yw,-60,26,ink);
+    L(`I = ${(I*100).toFixed(0)} % насыщения`,A+0.09,yw,10,0,ink);
 
     ctx.restore();
 
@@ -18077,7 +18083,7 @@ photoeffect:{
 
     /* ---- вольт-амперная характеристика ---- */
     if(p.graph){
-      const gx=0.6, gy=-4.7, gw=4.3, gh=2.7, Umin=-5, Umax=5;
+      const gx=уз?-4.8:0.6, gy=уз?-8.0:-4.7, gw=уз?9.6:4.3, gh=2.7, Umin=-5, Umax=5;
       const X=U=>gx+gw*(U-Umin)/(Umax-Umin), Y=I=>gy+gh*I;
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.moveTo(X(0),gy); ctx.lineTo(X(0),gy+gh*1.08); ctx.stroke();
@@ -18094,7 +18100,7 @@ photoeffect:{
         v.label(ctx,`−U₃ = −${Em.toFixed(2)} В`,X(-Em),gy,-40,14,dang);
       }
       ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(X(p.U),Y(I),v.lw(4.5),0,7); ctx.fill();
-      v.label(ctx,'I',X(0),gy+gh*1.08,4,0,ink3);
+      v.label(ctx,'I',X(0),gy+gh*1.08,-12,4,ink3);
       v.label(ctx,'U, В',gx+gw,gy,-30,14,ink3);
       v.label(ctx,'насыщение — растёт с яркостью',X(0.4),Y(1),0,-10,ink3);
     }
@@ -20291,9 +20297,6 @@ xray:{
         v.text(ctx,'электрон тормозит у ядра → фотон',cx,0.95+0.25,ink,9,'center',true);
       }
     }
-    // ---- фотоны летят в спектр
-    for(const f of s.фотоны){ const x=-1.7+(f.tx+1.7)*f.w, y=f.y-0.4+(f.ty-f.y+0.4)*f.w;
-      КС.точка(ctx,v,x,y,2.6,f.f.вид==='торм'?sec:meas); }
     // ---- спектр
     { const gy=-4.95, gh=5.45, yb=gy+0.7, H=gh-1.55, bw=(X(LM)-X(0))/this.BINS;
       const есть=p.lines&&this.linesVisible(p), пик=l=>есть&&(Math.abs(l-this.lamKa(p))<LM/this.BINS||Math.abs(l-this.lamKb(p))<LM/this.BINS);
@@ -20306,6 +20309,12 @@ xray:{
       for(let b=0;b<this.BINS;b++) if(s.bins[b]){ const l=(b+0.5)*LM/this.BINS;
         const хар=пик(l);
         ctx.fillStyle=хар?meas:sec; ctx.globalAlpha=.7; ctx.fillRect(X(0)+b*bw,yb,bw*0.92,H*Math.min(1,s.bins[b]/mx)); }
+      ctx.globalAlpha=1;
+      /* фотоны выходят из-под анода в щель между рамками и падают в свой столбик:
+         летят только внутри рамки спектра, а не через всю сцену */
+      for(const f of s.фотоны){ const b=clamp(Math.floor(f.f.l/LM*this.BINS),0,this.BINS-1), верх=yb+H*Math.min(1,s.bins[b]/mx)+0.08;
+        const q=f.w*f.w*(3-2*f.w), x=-1.7+(f.tx+1.7)*q, y=gy+gh+0.12+(верх-gy-gh-0.12)*q;
+        ctx.globalAlpha=Math.min(1,f.w*6); КС.точка(ctx,v,x,y,2.6,f.f.вид==='торм'?sec:meas); }
       ctx.globalAlpha=1;
       // теоретическая кривая тормозного спектра под ту же высоту
       if(p.brems && s.N>30){ let сум=0; for(let b=0;b<this.BINS;b++) if(!пик((b+0.5)*LM/this.BINS)) сум+=s.bins[b];
@@ -23338,7 +23347,7 @@ relmotion:{
       ctx.fillStyle=ink3; ctx.globalAlpha=.55; ctx.fillRect(xl,yE,Math.min(unit,cap),0.4); ctx.globalAlpha=1;
       ctx.fillStyle=meas; ctx.fillRect(xl+unit,yE,Math.max(0,full-unit),0.4);
       if(Ls>cap) v.arrow(ctx,xl+cap-0.3,yE+0.2,xl+cap+0.3,yE+0.2,meas);
-      v.label(ctx,'mc²',xl,yE+0.2,6,0,v.c('--panel'));
+      v.text(ctx,'mc²',xl+Math.min(unit,cap)/2,yE+0.2,'#fff',9.5,'center',true);
       v.label(ctx,`E = γmc² = ${r.g.toFixed(3)} mc²; K = ${(r.K/this.keV).toFixed(1)} кэВ`,xl,yE,0,18,meas);
       v.label(ctx,'энергия растёт без предела, а скорость упирается в c',xl,yE,0,34,ink3);
     }
@@ -26429,7 +26438,9 @@ const ВОЛНЫ7={
     const m=Math.max(r,g,b,1e-30); r=Math.max(0,r/m); g=Math.max(0,g/m); b=Math.max(0,b/m);
     const гамма=u=>u<=0.0031308?12.92*u:1.055*Math.pow(u,1/2.4)-0.055;
     return [гамма(r),гамма(g),гамма(b)].map(u=>Math.round(255*clamp(u,0,1))); },
-  цветВолны(l){ const c=this.цветСпектра(x=>Math.abs(x-l)<3?1:0).map(u=>Math.round(u*0.62+140*0.38)); return `rgb(${c[0]},${c[1]},${c[2]})`; },
+  /* дальше 680 нм оттенок у глаза уже не меняется, а хвосты приближения CIE
+     там дают Y > X — красный превращался в зелёный; держим край на 680 нм */
+  цветВолны(l){ l=clamp(l,382,680); const c=this.цветСпектра(x=>Math.abs(x-l)<3?1:0).map(u=>Math.round(u*0.62+140*0.38)); return `rgb(${c[0]},${c[1]},${c[2]})`; },
   /* генератор с зерном: рисунок одинаков от кадра к кадру и от запуска к запуску */
   гсч(зерно){ let s=(зерно>>>0)||1; return ()=>{ s^=s<<13; s>>>=0; s^=s>>17; s^=s<<5; s>>>=0; return s/4294967296; }; },
   _точки:{},
@@ -27023,10 +27034,8 @@ blackbody:{
     const bx=-4.6, by=0, ц=this.цвет(p.T), яр=clamp(Math.log10(this.M(p)/1e3+1)/4.6,0.07,1);
     const цТ=`rgb(${Math.round(ц[0]*яр)},${Math.round(ц[1]*яр)},${Math.round(ц[2]*яр)})`;
     for(const ф of s.фот||[]){ const x=bx+ф.x, y=by+ф.y, а=Math.max(0,1-ф.возр/1.6);
-      if(ф.λ>=380&&ф.λ<=780){ ВОЛНЫ7.искра(ctx,v,x,y,2.2,ВОЛНЫ7.цветВолны(ф.λ),а); }
+      if(ф.λ>=380&&ф.λ<=780){ ctx.fillStyle=ВОЛНЫ7.цветВолны(ф.λ); ctx.globalAlpha=а; ctx.beginPath(); ctx.arc(x,y,v.lw(2),0,7); ctx.fill(); ctx.globalAlpha=1; }
       else { ctx.fillStyle=ink3; ctx.globalAlpha=а*0.35; ctx.beginPath(); ctx.arc(x,y,v.lw(1.4),0,7); ctx.fill(); ctx.globalAlpha=1; } }
-    if(яр>0.12){ const г=ctx.createRadialGradient(bx,by,0.9,bx,by,2.4); г.addColorStop(0,`rgba(${ц[0]},${ц[1]},${ц[2]},${(0.35*яр).toFixed(3)})`); г.addColorStop(1,`rgba(${ц[0]},${ц[1]},${ц[2]},0)`);
-      ctx.fillStyle=г; ctx.beginPath(); ctx.arc(bx,by,2.4,0,7); ctx.fill(); }
     ctx.fillStyle=цТ; ctx.beginPath(); ctx.arc(bx,by,1,0,7); ctx.fill();
     ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.stroke();
     v.text(ctx,`${p.T} К`,bx,by-2.75,ink2,11,'center');
@@ -27116,9 +27125,8 @@ photometry:{
   draw(ctx,s,v,p){
     const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second');
     const лампа=(x,y,I)=>{ const r=(0.07+0.04*Math.log10(I))*(p.mode==='two'?0.55:1);
-      const g=ctx.createRadialGradient(x,y,0,x,y,r*5); g.addColorStop(0,'rgba(255,200,60,.5)'); g.addColorStop(1,'rgba(255,200,60,0)');
-      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*5,0,7); ctx.fill();
-      ctx.fillStyle='#f5b400'; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); };
+      ctx.fillStyle='#f5b400'; ctx.globalAlpha=.18; ctx.beginPath(); ctx.arc(x,y,r*2.6,0,7); ctx.fill(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1); ctx.stroke(); };
     const полёт=л=>{ const x=л.x0+(л.x1-л.x0)*л.u, y=л.y0+(л.y1-л.y0)*л.u; ctx.beginPath(); ctx.arc(x,y,v.lw(1.6),0,7); ctx.fill(); };
     if(p.mode==='two'){
       const xs=Math.min(p.xs,p.D-0.05), E1=p.I/(xs*xs), E2=p.I2/((p.D-xs)*(p.D-xs)), равно=Math.abs(E1/E2-1)<0.03;
@@ -27227,8 +27235,7 @@ relforce:{
     const дорожка=(y,подп)=>{ ctx.strokeStyle=ink3; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(X0,y); ctx.lineTo(X0+Wd,y); ctx.stroke(); ctx.globalAlpha=1;
       v.text(ctx,подп,X0,y+0.32,ink3,10,'left'); };
     const бегун=(y,x,цв,хвост,полый)=>{ const xx=X0+Math.min(x,Lm*1.04)*k;
-      if(хвост>0){ const г=ctx.createLinearGradient(xx-хвост,y,xx,y); г.addColorStop(0,'rgba(0,0,0,0)'); г.addColorStop(1,цв);
-        ctx.strokeStyle=г; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(Math.max(X0,xx-хвост),y); ctx.lineTo(xx,y); ctx.stroke(); ctx.globalAlpha=1; }
+      if(хвост>0){ ctx.strokeStyle=цв; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(Math.max(X0,xx-хвост),y); ctx.lineTo(xx,y); ctx.stroke(); ctx.globalAlpha=1; }
       if(полый){ ctx.strokeStyle=цв; ctx.lineWidth=v.lw(1.8); ctx.setLineDash([v.lw(3),v.lw(2)]); ctx.beginPath(); ctx.arc(xx,y,v.lw(6),0,7); ctx.stroke(); ctx.setLineDash([]); }
       else ВОЛНЫ7.искра(ctx,v,xx,y,4.5,цв); };
     дорожка(2.9,'свет'); дорожка(1.9,'частица'); if(p.cls) дорожка(0.9,'классика');
@@ -27328,8 +27335,7 @@ rutherford:{
     // пучок слева
     ctx.fillStyle=acc; ctx.globalAlpha=.06; ctx.fillRect(-W,-Math.min(p.bmax,W),W*0.35,2*Math.min(p.bmax,W)); ctx.globalAlpha=1;
     // ядро: зона, куда частице с энергией K не подойти ближе d
-    const г=ctx.createRadialGradient(0,0,0,0,0,Math.max(d,30)); г.addColorStop(0,'rgba(220,80,60,.35)'); г.addColorStop(1,'rgba(220,80,60,0)');
-    ctx.fillStyle=г; ctx.beginPath(); ctx.arc(0,0,Math.max(d,30),0,7); ctx.fill();
+    ctx.fillStyle=dang; ctx.globalAlpha=.12; ctx.beginPath(); ctx.arc(0,0,Math.max(d,30),0,7); ctx.fill(); ctx.globalAlpha=1;
     ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(0,0,Math.max(v.lw(4),7),0,7); ctx.fill();
     // траектории: короткие хвосты
     for(const q of s.ч){ if(!q.жив&&s.t-q.t>0.4) continue; const п=q.путь, n=п.length, от=Math.max(0,n-14), а=q.жив?1:1-(s.t-q.t)/0.4;
@@ -27364,7 +27370,7 @@ chain:{
     {key:'lc',label:'Пробег до захвата без деления λ_c',unit:'см',min:3,max:80,step:0.5,default:30},
     {key:'n0',label:'Нейтронов в начале',min:1,max:40,step:1,default:12}
   ],
-  ν:2.5, V:6, МАКС:2600, E:200,
+  ν:2.5, V:6, МАКС:900, E:200,                                       // дальше шар превращается в сплошное синее пятно
   /* бесконечная среда: на одно поглощение приходится доля делений λ_c/(λ_f + λ_c) */
   kинф(p){ return this.ν*p.lc/(p.lf+p.lc); },
   init(p){ const г=МОД7.гсч(1234567+Math.round(p.R*10)+p.rods*31), n=[];
@@ -27398,7 +27404,7 @@ chain:{
     let сум=0,раз=0; const тек=Math.min(...s.n.map(q=>q.пок),60);
     for(let g=0;g+1<тек&&g<58;g++) if(s.пок[g]>=8){ сум+=s.пок[g+1]/s.пок[g]; раз++; }
     s.k=раз?сум/раз:null;
-    if(s.n.length>this.МАКС&&!s.event){ s.event={type:'boom',t:s.t}; s.__stop='Надкритично: нейтронов стало в сотни раз больше — мощность растёт лавиной'; }
+    if(s.n.length>this.МАКС&&!s.event){ s.event={type:'boom',t:s.t}; s.__stop='Надкритично: нейтронов стало в десятки раз больше — мощность растёт лавиной'; }
     if(!s.n.length&&!s.event){ s.event={type:'out',t:s.t}; s.__stop='Реакция затухла: все нейтроны утекли или поглощены'; }
   },
   режим(s,p){ if(s.k==null) return 'идёт счёт поколений…'; return s.k<0.95?'подкритический: реакция гаснет':s.k>1.05?'надкритический: лавина':'около критического'; },
@@ -56845,7 +56851,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '10.0.0';
+window.PHYSIM_BUILD = '10.0.1';
 window.PHYSIM_READY = true;
 
 ;

@@ -513,7 +513,7 @@ relmotion:{
       ctx.fillStyle=ink3; ctx.globalAlpha=.55; ctx.fillRect(xl,yE,Math.min(unit,cap),0.4); ctx.globalAlpha=1;
       ctx.fillStyle=meas; ctx.fillRect(xl+unit,yE,Math.max(0,full-unit),0.4);
       if(Ls>cap) v.arrow(ctx,xl+cap-0.3,yE+0.2,xl+cap+0.3,yE+0.2,meas);
-      v.label(ctx,'mc²',xl,yE+0.2,6,0,v.c('--panel'));
+      v.text(ctx,'mc²',xl+Math.min(unit,cap)/2,yE+0.2,'#fff',9.5,'center',true);
       v.label(ctx,`E = γmc² = ${r.g.toFixed(3)} mc²; K = ${(r.K/this.keV).toFixed(1)} кэВ`,xl,yE,0,18,meas);
       v.label(ctx,'энергия растёт без предела, а скорость упирается в c',xl,yE,0,34,ink3);
     }

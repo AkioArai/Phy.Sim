@@ -2186,6 +2186,19 @@ async function сторож(b) {
         Object.values(т).every(v => v === true), т);
     }
 
+    // 10.0.1: дальний красный не зеленеет, тепловые сцены без ореолов-градиентов, фотоэффект на узком экране
+    {
+      const т = await p.evaluate(() => {
+        const rgb = s => s.match(/\d+/g).map(Number), r = {};
+        r.красный = [650, 700, 750, 780].every(l => { const [R, G, B] = rgb(ВОЛНЫ7.цветВолны(l)); return R > G + 40 && R > B + 40; });
+        r.плоско = ['blackbody', 'photometry', 'relforce', 'rutherford'].every(id => !/create(Radial|Linear)Gradient/.test(String(SIMS[id].draw)));
+        r.узко = SIMS.photoeffect.fit({ graph: true }, { W: 390, H: 700 }).y < -1 && SIMS.photoeffect.fit({ graph: true }, { W: 1200, H: 700 }).y > -1;
+        return r;
+      });
+      ok('10.0.1: спектр за 680 нм красный, тепловые и релятивистские сцены плоские, фотоэффект перестраивается на телефоне',
+        Object.values(т).every(v => v === true), т);
+    }
+
     await p.close();
 
     // --- телефон ---

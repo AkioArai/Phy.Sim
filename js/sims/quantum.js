@@ -99,14 +99,19 @@ photoeffect:{
     {name:'Ярче — больше ток, запирание то же',values:{metal:'na',lam:400,inten:100,U:-0.5}},
     {name:'Цинк: нужен ультрафиолет',values:{metal:'zn',lam:250,inten:60,U:0}}
   ],
+  /* на телефоне стоя график I(U) уходит под трубку на всю ширину: рядом
+     с лестницей энергий ему не хватало места, и подписи наползали друг на друга */
+  узко(W,H){ return (W||460)<1.05*(H||320); },
   fit(p,vp){
     const W=(vp&&vp.W)||460,H=(vp&&vp.H)||320;
+    if(this.узко(W,H)&&p.graph) return {x:-0.1,y:-2.1,scale:clamp(Math.min((W-16)/(10.6*PX_PER_M),(H-16)/(13.6*PX_PER_M)),0.002,30)};
     const scale=clamp(Math.min((W-16)/(10.6*PX_PER_M),(H-16)/(10.2*PX_PER_M)),0.002,30);
     return {x:-0.1,y:-0.1,scale};
   },
   draw(ctx,s,v,p){
     const acc=v.c('--accent'), meas=v.c('--measure'), dang=v.c('--danger'), ink=v.c('--ink-2'), ink3=v.c('--ink-3'), line=v.c('--line'), ok=v.c('--ok');
     const W0=this.W0(p), E=this.Ephot(p), Em=this.Emax(p), works=Em>0, свет=this.цвет(p.lam,v);
+    const уз=typeof CW!=='undefined'&&this.узко(CW,CH);
     const K=this.K, A=this.A, D=A-K, TY=1.4;             // трубка поднята: под ней цепь и графики
     ctx.save(); ctx.translate(0,TY);
     /* подписи рисуются в экранных координатах мимо ctx.translate — им сдвиг добавляем сами */
@@ -121,8 +126,9 @@ photoeffect:{
     L('вакуум',0,1.7,-20,-8,ink3);
     // катод и анод
     ctx.fillStyle=ink; ctx.fillRect(K-0.18,-1.15,0.18,2.3); ctx.fillRect(A,-1.15,0.18,2.3);
-    L(`катод: ${({cs:'цезий',na:'натрий',zn:'цинк',pt:'платина'})[p.metal]}, W₀ = ${W0} эВ`,K,-1.15,-60,16,ink);
-    L('анод',A,-1.15,-8,16,ink);
+    // подписи электродов — под трубкой, чтобы не резать её контур
+    L(`катод: ${({cs:'цезий',na:'натрий',zn:'цинк',pt:'платина'})[p.metal]}, W₀ = ${W0} эВ`,K,-1.7,-60,15,ink);
+    L('анод',A,-1.7,-12,15,ink);
 
     /* ---- свет: пучок и бегущие фотоны ---- */
     const sx=-4.4, sy=2.9;                               // лампа (в системе трубки)
@@ -163,14 +169,14 @@ photoeffect:{
     ctx.lineWidth=v.lw(2.4);
     ctx.beginPath(); ctx.moveTo(плюсСправа?0.35:-0.35,yw-0.45); ctx.lineTo(плюсСправа?0.35:-0.35,yw+0.45);
     ctx.moveTo(плюсСправа?-0.35:0.35,yw-0.22); ctx.lineTo(плюсСправа?-0.35:0.35,yw+0.22); ctx.stroke();
-    L(`U = ${p.U>0?'+':''}${p.U.toFixed(2)} В`,0,yw,-34,-22,p.U<0?dang:ok);
+    L(`U = ${p.U>0?'+':''}${p.U.toFixed(2)} В`,0,yw,-34,уз?24:-22,p.U<0?dang:ok);
     // амперметр
     const I=this.Isat(p)*this.frac(p);
     ctx.fillStyle=v.c('--canvas'); ctx.strokeStyle=ink; ctx.lineWidth=v.lw(1.6);
     ctx.beginPath(); ctx.arc(1.5,yw,0.4,0,7); ctx.fill(); ctx.stroke();
     const ang=Math.PI*(0.8-0.6*I);
     ctx.strokeStyle=dang; ctx.beginPath(); ctx.moveTo(1.5,yw-0.15); ctx.lineTo(1.5+0.32*Math.cos(ang),yw-0.15+0.32*Math.sin(ang)); ctx.stroke();
-    L(`I = ${(I*100).toFixed(0)} % от насыщения при 100 %`,1.5,yw,-60,26,ink);
+    L(`I = ${(I*100).toFixed(0)} % насыщения`,A+0.09,yw,10,0,ink);
 
     ctx.restore();
 
@@ -188,7 +194,7 @@ photoeffect:{
 
     /* ---- вольт-амперная характеристика ---- */
     if(p.graph){
-      const gx=0.6, gy=-4.7, gw=4.3, gh=2.7, Umin=-5, Umax=5;
+      const gx=уз?-4.8:0.6, gy=уз?-8.0:-4.7, gw=уз?9.6:4.3, gh=2.7, Umin=-5, Umax=5;
       const X=U=>gx+gw*(U-Umin)/(Umax-Umin), Y=I=>gy+gh*I;
       ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1);
       ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+gw,gy); ctx.moveTo(X(0),gy); ctx.lineTo(X(0),gy+gh*1.08); ctx.stroke();
@@ -205,7 +211,7 @@ photoeffect:{
         v.label(ctx,`−U₃ = −${Em.toFixed(2)} В`,X(-Em),gy,-40,14,dang);
       }
       ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(X(p.U),Y(I),v.lw(4.5),0,7); ctx.fill();
-      v.label(ctx,'I',X(0),gy+gh*1.08,4,0,ink3);
+      v.label(ctx,'I',X(0),gy+gh*1.08,-12,4,ink3);
       v.label(ctx,'U, В',gx+gw,gy,-30,14,ink3);
       v.label(ctx,'насыщение — растёт с яркостью',X(0.4),Y(1),0,-10,ink3);
     }

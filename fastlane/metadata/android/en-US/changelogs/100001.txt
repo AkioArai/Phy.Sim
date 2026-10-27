@@ -1,0 +1,5 @@
+10.0.1 — fixes in modern-physics scenes.
+• Thermal radiation: the spectrum no longer turns green past the red end.
+• X-rays: photons drop into their own bar instead of flying across the scene.
+• Photoeffect: labels no longer overlap; on a phone the graph sits under the tube.
+• Flat drawing without glows in several quantum and relativity scenes.

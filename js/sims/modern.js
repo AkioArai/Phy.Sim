@@ -76,8 +76,7 @@ relforce:{
     const дорожка=(y,подп)=>{ ctx.strokeStyle=ink3; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(1); ctx.beginPath(); ctx.moveTo(X0,y); ctx.lineTo(X0+Wd,y); ctx.stroke(); ctx.globalAlpha=1;
       v.text(ctx,подп,X0,y+0.32,ink3,10,'left'); };
     const бегун=(y,x,цв,хвост,полый)=>{ const xx=X0+Math.min(x,Lm*1.04)*k;
-      if(хвост>0){ const г=ctx.createLinearGradient(xx-хвост,y,xx,y); г.addColorStop(0,'rgba(0,0,0,0)'); г.addColorStop(1,цв);
-        ctx.strokeStyle=г; ctx.globalAlpha=.6; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(Math.max(X0,xx-хвост),y); ctx.lineTo(xx,y); ctx.stroke(); ctx.globalAlpha=1; }
+      if(хвост>0){ ctx.strokeStyle=цв; ctx.globalAlpha=.3; ctx.lineWidth=v.lw(3); ctx.beginPath(); ctx.moveTo(Math.max(X0,xx-хвост),y); ctx.lineTo(xx,y); ctx.stroke(); ctx.globalAlpha=1; }
       if(полый){ ctx.strokeStyle=цв; ctx.lineWidth=v.lw(1.8); ctx.setLineDash([v.lw(3),v.lw(2)]); ctx.beginPath(); ctx.arc(xx,y,v.lw(6),0,7); ctx.stroke(); ctx.setLineDash([]); }
       else ВОЛНЫ7.искра(ctx,v,xx,y,4.5,цв); };
     дорожка(2.9,'свет'); дорожка(1.9,'частица'); if(p.cls) дорожка(0.9,'классика');
@@ -177,8 +176,7 @@ rutherford:{
     // пучок слева
     ctx.fillStyle=acc; ctx.globalAlpha=.06; ctx.fillRect(-W,-Math.min(p.bmax,W),W*0.35,2*Math.min(p.bmax,W)); ctx.globalAlpha=1;
     // ядро: зона, куда частице с энергией K не подойти ближе d
-    const г=ctx.createRadialGradient(0,0,0,0,0,Math.max(d,30)); г.addColorStop(0,'rgba(220,80,60,.35)'); г.addColorStop(1,'rgba(220,80,60,0)');
-    ctx.fillStyle=г; ctx.beginPath(); ctx.arc(0,0,Math.max(d,30),0,7); ctx.fill();
+    ctx.fillStyle=dang; ctx.globalAlpha=.12; ctx.beginPath(); ctx.arc(0,0,Math.max(d,30),0,7); ctx.fill(); ctx.globalAlpha=1;
     ctx.fillStyle=dang; ctx.beginPath(); ctx.arc(0,0,Math.max(v.lw(4),7),0,7); ctx.fill();
     // траектории: короткие хвосты
     for(const q of s.ч){ if(!q.жив&&s.t-q.t>0.4) continue; const п=q.путь, n=п.length, от=Math.max(0,n-14), а=q.жив?1:1-(s.t-q.t)/0.4;
@@ -213,7 +211,7 @@ chain:{
     {key:'lc',label:'Пробег до захвата без деления λ_c',unit:'см',min:3,max:80,step:0.5,default:30},
     {key:'n0',label:'Нейтронов в начале',min:1,max:40,step:1,default:12}
   ],
-  ν:2.5, V:6, МАКС:2600, E:200,
+  ν:2.5, V:6, МАКС:900, E:200,                                       // дальше шар превращается в сплошное синее пятно
   /* бесконечная среда: на одно поглощение приходится доля делений λ_c/(λ_f + λ_c) */
   kинф(p){ return this.ν*p.lc/(p.lf+p.lc); },
   init(p){ const г=МОД7.гсч(1234567+Math.round(p.R*10)+p.rods*31), n=[];
@@ -247,7 +245,7 @@ chain:{
     let сум=0,раз=0; const тек=Math.min(...s.n.map(q=>q.пок),60);
     for(let g=0;g+1<тек&&g<58;g++) if(s.пок[g]>=8){ сум+=s.пок[g+1]/s.пок[g]; раз++; }
     s.k=раз?сум/раз:null;
-    if(s.n.length>this.МАКС&&!s.event){ s.event={type:'boom',t:s.t}; s.__stop='Надкритично: нейтронов стало в сотни раз больше — мощность растёт лавиной'; }
+    if(s.n.length>this.МАКС&&!s.event){ s.event={type:'boom',t:s.t}; s.__stop='Надкритично: нейтронов стало в десятки раз больше — мощность растёт лавиной'; }
     if(!s.n.length&&!s.event){ s.event={type:'out',t:s.t}; s.__stop='Реакция затухла: все нейтроны утекли или поглощены'; }
   },
   режим(s,p){ if(s.k==null) return 'идёт счёт поколений…'; return s.k<0.95?'подкритический: реакция гаснет':s.k>1.05?'надкритический: лавина':'около критического'; },

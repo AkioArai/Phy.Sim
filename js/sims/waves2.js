@@ -39,7 +39,9 @@ const ВОЛНЫ7={
     const m=Math.max(r,g,b,1e-30); r=Math.max(0,r/m); g=Math.max(0,g/m); b=Math.max(0,b/m);
     const гамма=u=>u<=0.0031308?12.92*u:1.055*Math.pow(u,1/2.4)-0.055;
     return [гамма(r),гамма(g),гамма(b)].map(u=>Math.round(255*clamp(u,0,1))); },
-  цветВолны(l){ const c=this.цветСпектра(x=>Math.abs(x-l)<3?1:0).map(u=>Math.round(u*0.62+140*0.38)); return `rgb(${c[0]},${c[1]},${c[2]})`; },
+  /* дальше 680 нм оттенок у глаза уже не меняется, а хвосты приближения CIE
+     там дают Y > X — красный превращался в зелёный; держим край на 680 нм */
+  цветВолны(l){ l=clamp(l,382,680); const c=this.цветСпектра(x=>Math.abs(x-l)<3?1:0).map(u=>Math.round(u*0.62+140*0.38)); return `rgb(${c[0]},${c[1]},${c[2]})`; },
   /* генератор с зерном: рисунок одинаков от кадра к кадру и от запуска к запуску */
   гсч(зерно){ let s=(зерно>>>0)||1; return ()=>{ s^=s<<13; s>>>=0; s^=s>>17; s^=s<<5; s>>>=0; return s/4294967296; }; },
   _точки:{},
@@ -633,10 +635,8 @@ blackbody:{
     const bx=-4.6, by=0, ц=this.цвет(p.T), яр=clamp(Math.log10(this.M(p)/1e3+1)/4.6,0.07,1);
     const цТ=`rgb(${Math.round(ц[0]*яр)},${Math.round(ц[1]*яр)},${Math.round(ц[2]*яр)})`;
     for(const ф of s.фот||[]){ const x=bx+ф.x, y=by+ф.y, а=Math.max(0,1-ф.возр/1.6);
-      if(ф.λ>=380&&ф.λ<=780){ ВОЛНЫ7.искра(ctx,v,x,y,2.2,ВОЛНЫ7.цветВолны(ф.λ),а); }
+      if(ф.λ>=380&&ф.λ<=780){ ctx.fillStyle=ВОЛНЫ7.цветВолны(ф.λ); ctx.globalAlpha=а; ctx.beginPath(); ctx.arc(x,y,v.lw(2),0,7); ctx.fill(); ctx.globalAlpha=1; }
       else { ctx.fillStyle=ink3; ctx.globalAlpha=а*0.35; ctx.beginPath(); ctx.arc(x,y,v.lw(1.4),0,7); ctx.fill(); ctx.globalAlpha=1; } }
-    if(яр>0.12){ const г=ctx.createRadialGradient(bx,by,0.9,bx,by,2.4); г.addColorStop(0,`rgba(${ц[0]},${ц[1]},${ц[2]},${(0.35*яр).toFixed(3)})`); г.addColorStop(1,`rgba(${ц[0]},${ц[1]},${ц[2]},0)`);
-      ctx.fillStyle=г; ctx.beginPath(); ctx.arc(bx,by,2.4,0,7); ctx.fill(); }
     ctx.fillStyle=цТ; ctx.beginPath(); ctx.arc(bx,by,1,0,7); ctx.fill();
     ctx.strokeStyle=ink3; ctx.lineWidth=v.lw(1); ctx.stroke();
     v.text(ctx,`${p.T} К`,bx,by-2.75,ink2,11,'center');
@@ -726,9 +726,8 @@ photometry:{
   draw(ctx,s,v,p){
     const ink2=v.c('--ink-2'), ink3=v.c('--ink-3'), meas=v.c('--measure'), dang=v.c('--danger'), sec=v.c('--second');
     const лампа=(x,y,I)=>{ const r=(0.07+0.04*Math.log10(I))*(p.mode==='two'?0.55:1);
-      const g=ctx.createRadialGradient(x,y,0,x,y,r*5); g.addColorStop(0,'rgba(255,200,60,.5)'); g.addColorStop(1,'rgba(255,200,60,0)');
-      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*5,0,7); ctx.fill();
-      ctx.fillStyle='#f5b400'; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); };
+      ctx.fillStyle='#f5b400'; ctx.globalAlpha=.18; ctx.beginPath(); ctx.arc(x,y,r*2.6,0,7); ctx.fill(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.strokeStyle=ink2; ctx.lineWidth=v.lw(1); ctx.stroke(); };
     const полёт=л=>{ const x=л.x0+(л.x1-л.x0)*л.u, y=л.y0+(л.y1-л.y0)*л.u; ctx.beginPath(); ctx.arc(x,y,v.lw(1.6),0,7); ctx.fill(); };
     if(p.mode==='two'){
       const xs=Math.min(p.xs,p.D-0.05), E1=p.I/(xs*xs), E2=p.I2/((p.D-xs)*(p.D-xs)), равно=Math.abs(E1/E2-1)<0.03;

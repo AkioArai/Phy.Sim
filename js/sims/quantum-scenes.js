@@ -1023,9 +1023,6 @@ xray:{
         v.text(ctx,'электрон тормозит у ядра → фотон',cx,0.95+0.25,ink,9,'center',true);
       }
     }
-    // ---- фотоны летят в спектр
-    for(const f of s.фотоны){ const x=-1.7+(f.tx+1.7)*f.w, y=f.y-0.4+(f.ty-f.y+0.4)*f.w;
-      КС.точка(ctx,v,x,y,2.6,f.f.вид==='торм'?sec:meas); }
     // ---- спектр
     { const gy=-4.95, gh=5.45, yb=gy+0.7, H=gh-1.55, bw=(X(LM)-X(0))/this.BINS;
       const есть=p.lines&&this.linesVisible(p), пик=l=>есть&&(Math.abs(l-this.lamKa(p))<LM/this.BINS||Math.abs(l-this.lamKb(p))<LM/this.BINS);
@@ -1038,6 +1035,12 @@ xray:{
       for(let b=0;b<this.BINS;b++) if(s.bins[b]){ const l=(b+0.5)*LM/this.BINS;
         const хар=пик(l);
         ctx.fillStyle=хар?meas:sec; ctx.globalAlpha=.7; ctx.fillRect(X(0)+b*bw,yb,bw*0.92,H*Math.min(1,s.bins[b]/mx)); }
+      ctx.globalAlpha=1;
+      /* фотоны выходят из-под анода в щель между рамками и падают в свой столбик:
+         летят только внутри рамки спектра, а не через всю сцену */
+      for(const f of s.фотоны){ const b=clamp(Math.floor(f.f.l/LM*this.BINS),0,this.BINS-1), верх=yb+H*Math.min(1,s.bins[b]/mx)+0.08;
+        const q=f.w*f.w*(3-2*f.w), x=-1.7+(f.tx+1.7)*q, y=gy+gh+0.12+(верх-gy-gh-0.12)*q;
+        ctx.globalAlpha=Math.min(1,f.w*6); КС.точка(ctx,v,x,y,2.6,f.f.вид==='торм'?sec:meas); }
       ctx.globalAlpha=1;
       // теоретическая кривая тормозного спектра под ту же высоту
       if(p.brems && s.N>30){ let сум=0; for(let b=0;b<this.BINS;b++) if(!пик((b+0.5)*LM/this.BINS)) сум+=s.bins[b];

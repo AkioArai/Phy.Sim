@@ -148,6 +148,15 @@ jobs:
           56 topics, 139 step-by-step derivations, 431 formulas and 693 problems. Runs
           offline, asks for nothing, sends nothing.
 
+          ## 10.0.1 — fixes in modern-physics scenes
+
+          Thermal radiation: wavelengths past 680 nm were coloured green, so the spectrum went red and then
+          green again; the same colour helper is used by interference scenes. X-rays: photons now fall into
+          their own bar of the spectrum instead of crossing the whole scene. Photoeffect: labels no longer
+          overlap the tube and each other, and on a phone held upright the I(U) graph moves under the tube.
+          Thermal radiation, illuminance, Rutherford scattering and relativistic motion are drawn flat, without
+          glows; a supercritical chain reaction stops before the sphere turns into a solid blue blot.
+
           ## 10.0.0 — the workshop: a simulation of your own, written by any AI
 
           Describe a phenomenon in words, give the generated task to any AI, paste the answer and run it: the
