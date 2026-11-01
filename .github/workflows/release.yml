@@ -55,9 +55,18 @@ jobs:
       - name: Install build tools
         working-directory: packaging/windows
         run: npm ci
+      # fpm прячет вывод rpmbuild: при ошибке видно лишь «rpmbuild failed». Тогда
+      # повторяем сборку с --verbose у fpm, чтобы в журнале была сама причина.
       - name: Build rpm
         working-directory: packaging/windows
-        run: npm run dist:fedora
+        run: |
+          npm run dist:fedora || {
+            echo "::group::rpmbuild подробно"
+            node -e "const j=require('./package.json').build; j.rpm=Object.assign({},j.rpm,{fpm:['--verbose']}); require('fs').writeFileSync('rpm-debug.json',JSON.stringify(j))"
+            npx electron-builder --linux rpm --x64 -c rpm-debug.json 2>&1 | tail -150
+            echo "::endgroup::"
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: fedora
