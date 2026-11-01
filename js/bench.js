@@ -44,7 +44,7 @@ function собрать9(){
   // шапка содержания — закрыть
   const sb=document.getElementById('sidebar');
   const шп=document.createElement('div'); шп.className='b9-tochead'; шп.id='b9-tochead';
-  шп.innerHTML='<b>Содержание</b><span class="spacer"></span>';
+  шп.innerHTML='<b id="b9-tocttl">Содержание</b><button class="b9-allt hidden" id="b9-allt" title="Показать все темы курса">все темы</button><span class="spacer"></span>';
   шп.append(кн9('b9-tocx','iconbtn',знак9.крест,'Закрыть содержание (B)'));
   sb.prepend(шп);
   подключить9();
@@ -53,17 +53,36 @@ function собрать9(){
 function подключить9(){
   const содержание=()=>{ if(typeof закрытьГлавную==='function') закрытьГлавную();
     if(typeof путьОткрыт==='function'&&путьОткрыт()&&typeof закрытьПуть==='function') закрытьПуть();
+    // «Содержание» — всегда весь курс, даже если перед этим смотрели закладки
+    const открыто=!document.getElementById('sidebar').classList.contains('hidden');
+    if(S.markMode){ режимЗакладок(false); if(открыто){ отметить9(); return; } }
     toggleSidebar(); LS.set('b9Toc',!document.getElementById('sidebar').classList.contains('hidden')); отметить9();
     requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
   document.getElementById('b9-toc').onclick=e=>{ e.stopPropagation(); содержание(); };
-  document.getElementById('b9-tocx').onclick=()=>{ toggleSidebar(true); LS.set('b9Toc',false); отметить9(); requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
+  const закрыть=()=>{ toggleSidebar(true); LS.set('b9Toc',false); if(S.markMode) режимЗакладок(false); отметить9(); requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
+  document.getElementById('b9-tocx').onclick=закрыть;
+  document.getElementById('b9-allt').onclick=()=>режимЗакладок(false);
+  // Esc закрывает содержание и закладки, если поверх ничего другого не открыто
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape'||!стенд()) return; const sb=document.getElementById('sidebar');
+    if(!sb||sb.classList.contains('hidden')) return;
+    if(document.querySelector('.modal-bg:not(.hidden),.cmdk:not(.hidden),#prefs:not(.hidden),#workshop:not(.hidden)')) return;
+    if(e.target&&e.target.closest&&e.target.closest('input,textarea,select')&&e.target.id!=='search') return;
+    e.preventDefault(); закрыть();
+  });
   // на узком экране содержание лежит поверх: щелчок мимо закрывает
   document.addEventListener('pointerdown',e=>{
     if(!стенд()||!поверх9()) return; const sb=document.getElementById('sidebar');
     if(sb&&!sb.classList.contains('hidden')&&!e.target.closest('#sidebar,#b9-toc,#tab-marks,#tab-topics,.pop,.modal-bg,.cmdk,.prefs')){ toggleSidebar(true); отметить9(); }
   },true);
   const закл=document.getElementById('tab-marks');
-  if(закл) закл.addEventListener('click',()=>{ if(стенд()){ toggleSidebar(false); отметить9(); } });
+  // обработчик в app.js уже переключил режим: открыть панель с закладками или закрыть её
+  // закрыв закладки, возвращаем панель как была: на широком экране содержание обычно открыто
+  let былоОткрыто=false;
+  if(закл) закл.addEventListener('click',()=>{ if(!стенд()) return; const sb=document.getElementById('sidebar');
+    if(S.markMode){ былоОткрыто=!sb.classList.contains('hidden')&&!поверх9(); toggleSidebar(false); }
+    else toggleSidebar(!былоОткрыто);
+    отметить9(); requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); });
   const курс=document.getElementById('tab-topics');
   if(курс) курс.addEventListener('click',()=>{ if(стенд()){ toggleSidebar(false); отметить9(); } });
   document.getElementById('rail').addEventListener('click',()=>{ if(стенд()) setTimeout(отметить9,0); });
@@ -92,6 +111,10 @@ function отметить9(){
     ог.querySelector('.b9-sec').textContent=sec?sec.title:(t.section||'');
     ог.querySelector('.b9-t').textContent=(t.ch&&t.kind!=='recap'?t.ch+' · ':'')+t.title; }
   const видно=!document.getElementById('sidebar').classList.contains('hidden');
+  const загл=document.getElementById('b9-tocttl'), все=document.getElementById('b9-allt');
+  if(загл) загл.textContent=S.markMode?'Закладки':'Содержание';
+  if(все) все.classList.toggle('hidden',!S.markMode);
+  const кз=document.getElementById('tab-marks'); if(кз) кз.classList.toggle('on',S.markMode&&видно);
   if(ог){ ог.classList.toggle('on',видно); ог.setAttribute('aria-expanded',String(видно)); }
 }
 

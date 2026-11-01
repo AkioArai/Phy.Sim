@@ -77,13 +77,15 @@ function песочницаПотока(){
     'handles','probe','description','format','timeUnit']);
   const числ=v=>typeof v==='number'&&isFinite(v);
   let М=null;                              // разобранное определение
-  const предупреждения=[], ошибки=[];
+  const предупреждения=[], ошибки=[], советы=[];        // советы (10.1) — про качество, не про ошибки
   function разобрать(D){
     if(!D||typeof D!=='object'){ ошибки.push({где:'simulation',msg:'simulation({...}) не вызвана или вызвана не с объектом'}); return null; }
     for(const k of Object.keys(D)) if(!ИЗВЕСТНЫЕ.has(k)) предупреждения.push({где:'simulation',msg:`неизвестное поле «${k}» — оно не используется`});
     for(const k of ['init','draw']) if(typeof D[k]!=='function') ошибки.push({где:k,msg:`нет функции ${k}(...)`});
     if(!D.static && typeof D.step!=='function') ошибки.push({где:'step',msg:'нет функции step(s, dt, p); у неподвижной сцены поставьте static: true'});
     const m={title:String(D.title||D.name||'Без названия').slice(0,90), params:[], видимость:{}, presets:[], graphs:[],
+      // 10.1: короткое описание модели — допущения и формулы; показывается в Мастерской
+      description:typeof D.description==='string'?D.description.trim().slice(0,600):'',
       static:!!D.static, schema:!!D.schema, dt:1/240, timeUnit:typeof D.timeUnit==='string'?D.timeUnit.slice(0,8):'с',
       handles:typeof D.handles==='function', probe:typeof D.probe==='function'};
     if(D.dt!=null){ if(числ(D.dt)&&D.dt>=1e-5&&D.dt<=0.1) m.dt=D.dt; else предупреждения.push({где:'dt',msg:'dt должен быть числом от 0.00001 до 0.1 с — взят 1/240'}); }
@@ -122,6 +124,8 @@ function песочницаПотока(){
       const v={}; for(const [k,x] of Object.entries(пр.values)) if(ключПар.has(k)) v[k]=x; else предупреждения.push({где:`presets[${i}]`,msg:`в примере неизвестный параметр «${k}»`});
       m.presets.push({name:String(пр.name||`Пример ${i+1}`).slice(0,80),values:v});
     }
+    if(!m.description) советы.push({где:'description',msg:'нет description — 2–4 предложения: какая модель, какие допущения и формулы (их видно в Мастерской)'});
+    if(!m.static&&m.params.some(q=>q.key)&&!m.presets.length) советы.push({где:'presets',msg:'нет presets — добавьте 2–4 набора, показывающих главные случаи'});
     m.графикиФ=[];
     for(const [i,g] of (Array.isArray(D.graphs)?D.graphs:[]).entries()){
       if(!g||typeof g.get!=='function'){ ошибки.push({где:`graphs[${i}]`,msg:'у графика нет функции get(s, p)'}); continue; }
@@ -295,7 +299,7 @@ function песочницаПотока(){
   }
   function поУмолчанию(){ const p={}; for(const q of М.params) if(q.key) p[q.key]=q.default; return p; }
   function проверить(){
-    const rnd=помощь.seeded(1234), отчёт={ошибки:ошибки.slice(),предупреждения:предупреждения.slice(),наборов:0,шагов:0,мсШаг:0,мсРисунок:0,команд:0};
+    const rnd=помощь.seeded(1234), отчёт={ошибки:ошибки.slice(),предупреждения:предупреждения.slice(),советы:советы.slice(),наборов:0,шагов:0,мсШаг:0,мсРисунок:0,команд:0};
     if(отчёт.ошибки.length) return отчёт;
     const база=поУмолчанию(), наборы=[{имя:'значения по умолчанию',p:база}];
     for(const пр of М.presets) наборы.push({имя:`пример «${пр.name}»`,p:Object.assign({},база,пр.values)});
@@ -371,7 +375,7 @@ function песочницаПотока(){
     if(!М||ошибки.length){ послать({k:'fail',ошибки,предупреждения}); }
     else {
       мета={title:М.title,params:М.params,presets:М.presets,graphs:М.static?[]:М.graphs,static:М.static,schema:М.schema,
-        handles:М.handles,probe:М.probe,timeUnit:М.timeUnit,предупреждения};
+        handles:М.handles,probe:М.probe,timeUnit:М.timeUnit,description:М.description,предупреждения,советы};
       послать({k:'meta',мета});
     }
   }catch(e){ послать({k:'fail',ошибки:[наружу(e)],предупреждения}); }

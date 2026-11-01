@@ -4025,7 +4025,23 @@ function autoCloseRail(){
 const tabOn=s=>['#tab-topics','#tab-search','#tab-marks'].forEach(x=>$(x).classList.toggle('on',x===s));
 $$('#tab-topics').onclick=()=>{ S.markMode=false; tabOn('#tab-topics'); $('#search').value=''; renderTree(); };
 $$('#tab-search').onclick=()=>{ tabOn('#tab-search'); $('#sidebar').classList.remove('hidden'); $('#search').focus(); };
-$$('#tab-marks').onclick=()=>{ S.markMode=true; tabOn('#tab-marks'); renderTree(); };
+/* Закладки — переключатель: второе нажатие возвращает полный список тем.
+   Раньше режим закладок включался навсегда: на «стенде» панель с ними нельзя
+   было закрыть кнопкой, а «Содержание» потом открывалось всё с теми же
+   закладками вместо курса (10.1.0). */
+function режимЗакладок(вкл){
+  S.markMode=!!вкл; tabOn(вкл?'#tab-marks':'#tab-topics');
+  if(!вкл&&$('#search').value&&document.documentElement.dataset.lay==='bench') $('#search').value='';
+  renderTree($('#search').value);
+  const з=$('#tab-marks'); if(з) з.setAttribute('aria-pressed',String(!!вкл));
+  document.querySelectorAll('#side-seg button').forEach(b=>b.classList.toggle('on',(b.dataset.m==='1')===!!вкл));
+  if(typeof отметить9==='function') отметить9();
+}
+document.querySelectorAll('#side-seg button').forEach(b=>b.onclick=()=>режимЗакладок(b.dataset.m==='1'));
+$$('#tab-marks').onclick=()=>{
+  const открыты=S.markMode&&!$('#sidebar').classList.contains('hidden');
+  режимЗакладок(!открыты);
+};
 $$('#search').oninput=e=>{ S.markMode=false; renderTree(e.target.value); };
 $$('#search').onkeydown=e=>e.stopPropagation();
 
@@ -4440,7 +4456,8 @@ const PREFS=[
    name:'Свой акцентный цвет',desc:'Любой цвет — оттенки для текста, заливок и границ приложение подберёт само. Действует, когда выше выбран «Свой цвет».'},
   {cat:'look',key:'palette',type:'select',def:'std',
    name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага и графит» (9.0) — тёплая бумага днём и графит вечером; «Сепия» — ещё теплее, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
-   options:[['std','Бумага и графит'],['sepia','Сепия'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
+   options:[['std','Бумага и графит'],['sepia','Сепия'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст'],
+            ['blueprint','Чертёж'],['chalk','Доска'],['solar','Солнечная'],['solarnight','Солнечная ночь'],['lavender','Лаванда'],['coffee','Кофе'],['mine','Своя тема']]},
   {cat:'look',key:'bar',type:'select',def:'light',
    name:'Верхняя панель',desc:'«Чернильная» — тёмная полоса с логотипом, отделяет управление от содержания (4.0.0). «Светлая» — как до 4.0, в цвет страницы.',
    options:[['ink','Чернильная'],['light','Светлая']]},
@@ -4887,7 +4904,9 @@ const ТЕМЫ_ОФОРМЛЕНИЯ=[
   {id:'mint',  имя:'Мята',     theme:'light',palette:'mint',    c:['#eef4f1','#fbfdfc','#14211b','#0d9488']},
   {id:'nord',  имя:'Северная', theme:'dark', palette:'nord',    c:['#1f2530','#262e3b','#e6ebf2','#88c0d0']},
   {id:'oled',  имя:'Полночь',  theme:'dark', palette:'oled',    c:['#000000','#0a0a0d','#f0f0f4','#9184d9']},
-  {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']}
+  {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']},
+  // 10.1.0: темы на движке themes.js — из пяти цветов
+  ...Object.keys(typeof ТЕМЫ_ДВИЖКА!=='undefined'?ТЕМЫ_ДВИЖКА:{}).map(id=>карточкаТемы(id,ТЕМЫ_ДВИЖКА[id]))
 ];
 const АКЦЕНТЫ={ink:'#2346c8',violet:'#5b48e8',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
   green:'#16a34a',indigo:'#4f46e5',orange:'#ea580c',pink:'#db2777',graphite:'#475569'};
@@ -4903,6 +4922,7 @@ const ГОТОВЫЕ_ПРОФИЛИ=[
 ];
 function темаСейчас(){
   const t=prefGet('theme'), p=prefGet('palette');
+  if(p==='mine'){ const м=S.settings.mine; return м&&м.id?м.id:''; }
   const x=ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.theme===t&&y.palette===p);
   return x?x.id:'';
 }
@@ -4911,12 +4931,27 @@ function страницаГлавное(){
   const свои=LS.get('profiles',{});
   const сег=(k,опции)=>`<div class="seg" data-seg="${k}">${опции.map(([v,t])=>
     `<button class="${String(prefGet(k))===String(v)?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>`;
+  const мои=typeof моиТемы==='function'?моиТемы():[];
+  const все=ТЕМЫ_ОФОРМЛЕНИЯ.concat(мои.map(т=>карточкаТемы(т.id,т)));
+  const р=S.settings.sched||{};
+  const выбор=(имя,зн)=>`<select class="q-sel" data-sched="${имя}">${все.filter(x=>x.id!=='auto').map(x=>
+    `<option value="${x.id}"${x.id===зн?' selected':''}>${esc(x.имя)}</option>`).join('')}</select>`;
+  const часы=(имя,зн)=>`<select class="q-sel q-h" data-sched="${имя}">${Array.from({length:24},(_,h)=>
+    `<option value="${h}"${h===+зн?' selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select>`;
   return `<div class="q">
-  <section class="q-s"><h4>Тема</h4><div class="q-themes">${ТЕМЫ_ОФОРМЛЕНИЯ.map(x=>
-    `<button class="q-theme${x.id===тм?' on':''}" data-theme-id="${x.id}" title="${x.имя}">
+  <section class="q-s"><h4>Тема</h4><div class="q-themes">${все.map(x=>
+    `<div class="q-tcell"><button class="q-theme${x.id===тм?' on':''}" data-theme-id="${x.id}" title="${esc(x.имя)}">
        <span class="q-prev" style="background:${x.c[0]}">${x.id==='auto'?`<span class="q-half" style="background:${x.c[1]}"></span>`:''}
-         <span class="q-win" style="background:${x.c[1]}"><i style="background:${x.c[2]}"></i><i style="background:${x.c[2]};width:55%"></i><b style="background:${x.c[3]}"></b></span></span>
-       <span class="q-name">${x.имя}</span></button>`).join('')}</div></section>
+         <span class="q-win" style="background:${x.c[1]}"><i style="background:${x.c[2]}"></i><i style="background:${x.c[2]};width:55%"></i><b style="background:${x.c[3]}"></b>${x.c[4]?`<em style="background:${x.c[4]}"></em>`:''}</span></span>
+       <span class="q-name">${esc(x.имя)}</span></button>${/^my-/.test(x.id)?`<span class="q-tact"><button class="iconbtn" data-th-edit="${x.id}" title="Изменить тему">✎</button><button class="iconbtn" data-th-del="${x.id}" title="Удалить тему">×</button></span>`:''}</div>`).join('')}
+    <button class="q-theme q-new" id="q-th-new" title="Собрать свою тему из пяти цветов"><span class="q-prev q-plus">＋</span><span class="q-name">Своя тема</span></button></div>
+    <div class="q-ed hidden" id="q-ed"></div>
+    <div class="q-th-io"><label class="btn ghost">Открыть тему из файла<input type="file" id="q-th-file" accept=".json,application/json" hidden></label>
+      <span class="q-help">Тему можно передать кодом: «Код темы» в конструкторе, «Вставить код» в профилях ниже.</span></div>
+    <div class="q-sched">
+      <label class="chk"><input type="checkbox" id="q-sched-on"${р.вкл?' checked':''}> <span>День и ночь: менять тему по часам</span></label>
+      <div class="q-sched-row${р.вкл?'':' off'}">днём ${выбор('день',р.день||'light')} ночью ${выбор('ночь',р.ночь||'dark')} с ${часы('с',р.с==null?21:р.с)} до ${часы('до',р.до==null?7:р.до)}</div>
+    </div></section>
   <section class="q-s"><h4>Акцентный цвет</h4><div class="q-acc">${Object.keys(АКЦЕНТЫ).map(k=>
     `<button class="q-sw${ак===k?' on':''}" data-acc="${k}" style="--c:${АКЦЕНТЫ[k]}" title="${(PREFS.find(p=>p.key==='accent').options.find(o=>o[0]===k)||[0,k])[1]}"></button>`).join('')}
     <label class="q-sw q-own${ак==='custom'?' on':''}" title="Свой цвет" style="--c:${prefGet('accentCustom')}"><input type="color" id="q-own" value="${prefGet('accentCustom')}"></label></div></section>
@@ -4979,9 +5014,16 @@ function разобратьКод(код){
 function подключитьГлавное(body){
   typeset(body);
   body.querySelectorAll('[data-theme-id]').forEach(b=>b.onclick=()=>{
-    const x=ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.id===b.dataset.themeId);
-    S.settings.theme=x.theme; S.settings.palette=x.palette; applySettings(); renderPrefs(); renderPrefsSide();
+    const id=b.dataset.themeId, x=typeof разобратьИдТемы==='function'?разобратьИдТемы(id):ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.id===id);
+    if(!x) return;
+    сменитьТемуПлавно(()=>{ S.settings.theme=x.theme; S.settings.palette=x.palette;
+      if(x.palette==='mine') S.settings.mine=x.seed;
+      // выбрали тему руками — расписание больше не спорит с выбором
+      if(S.settings.sched&&S.settings.sched.вкл){ S.settings.sched.вкл=false; toast('Смена по часам выключена: тема выбрана вручную'); }
+      applySettings(); });
+    renderPrefs(); renderPrefsSide();
   });
+  подключитьКонструкторТем(body);
   body.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>prefSet('accent',b.dataset.acc));
   const own=body.querySelector('#q-own');
   own.oninput=()=>{ S.settings.accentCustom=own.value; S.settings.accent='custom'; own.parentElement.style.setProperty('--c',own.value); applySettings(); };
@@ -5018,9 +5060,11 @@ function подключитьГлавное(body){
       else toast(ок?'Код скопирован':'Выделите код и скопируйте'); };
   };
   body.querySelector('#q-paste').onclick=()=>{
-    коробка.classList.remove('hidden'); текст.rows=3; текст.value=''; текст.placeholder='Вставьте код вида PHYSIM1:…';
+    коробка.classList.remove('hidden'); текст.rows=3; текст.value=''; текст.placeholder='Вставьте код настроек PHYSIM1:… или темы PHYTHEME1:…';
     го.textContent='Применить код'; текст.focus();
-    го.onclick=()=>{ try{ const н=разобратьКод(текст.value);
+    го.onclick=()=>{ try{
+        if(/PHYTHEME1:|"формат"\s*:\s*"physim-theme"/.test(текст.value)&&typeof темаИзКода==='function'){ принятьТему(темаИзКода(текст.value)); return; }
+        const н=разобратьКод(текст.value);
         if(!Object.keys(н).length){ toast('В коде нет знакомых настроек'); return; }
         применитьПрофиль(н,'из кода'); }catch(e){ toast('Не получилось: '+e.message); } };
   };
@@ -5150,7 +5194,21 @@ function uiMode(){
   const экран=window.screen&&screen.width&&screen.height ? Math.min(screen.width,screen.height) : innerHeight;
   const narrow = matchMedia('(max-width:900px)').matches || экран<=560;
   const uaMob  = /Android|iPhone|iPad|iPod|IEMobile|Mobile Safari|Silk/i.test(navigator.userAgent||'');
-  return (((coarse&&noHover)||uaMob) && narrow) ? 'mobile' : 'desktop';
+  if(!((coarse&&noHover)||uaMob)) return 'desktop';
+  /* Планшет (10.1.0): боком — компьютерная раскладка, стоя — телефонная, как бы
+     широк он ни был. Раньше решала одна ширина, и iPad Pro или большой
+     Android-планшет стоя получали «стенд» в узкую высокую колонку. */
+  return (narrow || портретЭкрана()) ? 'mobile' : 'desktop';
+}
+/* Ориентацию берём у экрана, а не у окна: экранная клавиатура делает окно
+   планшета стоя «альбомным», и раскладка переключалась бы от каждого поля ввода. */
+function портретЭкрана(){
+  /* Окно заметно выше, чем шире, — тоже стоя: клавиатура окно только укорачивает,
+     а старые Safari на iPad не знают screen.orientation. */
+  if(innerHeight>innerWidth*1.1) return true;
+  try{ const t=screen.orientation&&screen.orientation.type; if(t) return /^portrait/.test(t); }catch(_){}
+  if(typeof window.orientation==='number') return Math.abs(window.orientation)!==90;
+  return false;
 }
 function applyUiMode(){
   const m=uiMode(), root=document.documentElement;
@@ -5641,6 +5699,10 @@ function onViewportChange(){
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
     lastNarrow=now;
+    /* Нижняя панель телефона перекладывается по своему событию resize, а оно
+       приходит раньше этого (здесь задержка 90 мс): она ещё видела прежний режим
+       и оставалась на «стенде» после поворота планшета боком (10.1.0). */
+    if(typeof м6Разместить==='function') try{ м6Разместить(); }catch(_){}
     /* Смена раскладки на лету (планшет повернули): всё временное, открытое
        в прежней, закрываем. Ящик тем, меню и карточки принадлежат своей
        раскладке и в чужой оказывались не на месте или под другими слоями. */
@@ -5661,8 +5723,11 @@ function onViewportChange(){
         $('#splitter').classList.remove('hidden');
         $('#content').classList.remove('wide');
       }
-      // на средней ширине панель тем ложится поверх текста — не распахиваем её
-      toggleSidebar(innerWidth<1200);
+      // на средней ширине панель тем ложится поверх текста — не распахиваем её;
+      // у «стенда» содержание поверх конспекта вплоть до 1600 px
+      const стенд=document.documentElement.dataset.lay==='bench';
+      toggleSidebar(innerWidth<(стенд?1600:1200));
+      if(typeof отметить9==='function') try{ отметить9(); }catch(_){}
       syncSheet();                      // снять то, что телефонный лист прятал руками
     }
   }
@@ -5686,8 +5751,11 @@ function applySettings(){
   if(s.fs>16) s.fs=12;                                  // миграция со старой px-шкалы
   const root=document.documentElement;
   // «как в системе»: слушаем текущее значение prefers-color-scheme
-  root.dataset.theme = s.theme==='auto'
-    ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : s.theme;
+  /* расписание «день — ночь» (10.1.0) подменяет тему на время, не трогая настройки */
+  const поРасп=typeof темаПоРасписанию==='function'?темаПоРасписанию(s):null;
+  const тон=поРасп?поРасп.theme:s.theme;
+  root.dataset.theme = тон==='auto'
+    ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : тон;
   root.dataset.density=s.density||'cozy';
   root.dataset.serif = prefGet('serifNotes') ? '1' : '0';
   root.dataset.dock  = prefGet('dockSize')==='big' ? 'big' : 'norm';
@@ -5695,7 +5763,11 @@ function applySettings(){
   root.style.setProperty('--fs',s.fs+'pt');
   root.style.setProperty('--hudk',String(prefGet('hudScale')||1));
   // палитра поверх тона (2.0.0): бумага, мята, северная, полночь, контраст
-  root.dataset.palette = prefGet('palette')||'std';
+  const палитра=поРасп?поРасп.palette:(prefGet('palette')||'std');
+  /* темы движка (themes.js) кладут токены инлайном поверх «Бумаги и графита» */
+  const семя=поРасп&&поРасп.seed?поРасп.seed:(typeof семяТемы==='function'?семяТемы(палитра,s):null);
+  root.dataset.palette = семя?'std':палитра;
+  root.dataset.ptheme = семя?(палитра==='mine'?'mine':палитра):'';
   /* Акцентный цвет. Оттенки -300/-700/-800 выводятся из него же: раньше
      менялся только сам акцент, а подписи и заливки оставались фиолетовыми. */
   const тёмная=root.dataset.theme==='dark';
@@ -5703,14 +5775,16 @@ function applySettings(){
   /* «Чернила» (9.0) — не один цвет, а пара из палитры: густо-синие на бумаге и
      светлые на графите; поэтому их оттенки задаёт CSS, а не эта функция */
   const акц = s.accent==='custom' ? (/^#[0-9a-f]{6}$/i.test(prefGet('accentCustom'))?prefGet('accentCustom'):null) : (s.accent==='ink'?null:ACC[s.accent]);
-  const оттенки=['--accent','--accent-soft','--accent-300','--accent-700','--accent-800'];
+  const оттенки=['--accent','--accent-soft','--accent-300','--accent-700','--accent-800','--on-accent'];
   if(акц){
     root.style.setProperty('--accent',акц);
     root.style.setProperty('--accent-soft',акц+(тёмная?'2e':'1f'));
     root.style.setProperty('--accent-300',тёмная?смешать(акц,'#ffffff',.6):смешать(акц,'#000000',.22));
     root.style.setProperty('--accent-700',тёмная?смешать(акц,'#000000',.3):смешать(акц,'#ffffff',.2));
     root.style.setProperty('--accent-800',тёмная?смешать(акц,'#000000',.55):смешать(акц,'#ffffff',.78));
+    if(typeof тмКонтраст==='function') root.style.setProperty('--on-accent',тмКонтраст(акц,'#ffffff')>=3?'#ffffff':'#14130f');
   } else for(const v of оттенки) root.style.removeProperty(v);
+  if(typeof применитьТокеныТемы==='function') применитьТокеныТемы(root,семя,акц);
   // форма и типографика
   const рад=+prefGet('radius'); root.style.setProperty('--radius',рад+'px'); root.style.setProperty('--radius-sm',Math.max(0,Math.round(рад*0.75))+'px');
   const ШРИФТЫ={sans:'var(--sans)',humanist:'"Segoe UI","Noto Sans","Open Sans","Helvetica Neue",Arial,sans-serif',
@@ -7927,5 +8001,5 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '10.0.1';
+window.PHYSIM_BUILD = '10.1.0';
 window.PHYSIM_READY = true;

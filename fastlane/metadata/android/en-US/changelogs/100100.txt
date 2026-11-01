@@ -1,0 +1,6 @@
+10.1.0 — themes of your own, tablets and a smarter workshop.
+• 6 new themes and a constructor: five colours, live preview, contrast check, share by code.
+• Day and night: the theme changes by the clock.
+• Tablet: upright — phone layout, sideways — desktop bench.
+• Workshop: school/university level, short task, versions, jump to error.
+• Fixed: bookmarks could not be closed.

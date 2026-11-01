@@ -57,6 +57,8 @@ function проверитьВерсии() {
     'sw.js':       взять('sw.js', /const ВЕРСИЯ = '([^']*)'/),
     'index.html':  взять('index.html', /<meta name="physim-build" content="([^"]*)">/),
     'js/app.js':   взять('js/app.js', /window\.PHYSIM_BUILD = '([^']*)'/),
+    // 10.1: PKGBUILD для Arch качает архив тега — с другой версией он собрал бы старое пособие
+    'packaging/arch/PKGBUILD': взять('packaging/arch/PKGBUILD', /^pkgver=(\S+)$/m),
   };
   const плохие = Object.entries(где).filter(([, x]) => x !== v);
   ok('версия одна во всех файлах', плохие.length === 0, { 'package.json': v, ...где });
@@ -109,7 +111,7 @@ async function планшеты(b, url, label) {
   ok('планшет: поворот без ошибок', errs.length === 0, errs.slice(0, 3));
   ok('планшет боком: конспекту не меньше 360 px, панель тем поверх',
     альбом.ui === 'desktop' && альбом.конспект >= 360 && альбом.темыПоверх && !альбом.темыОткрыты &&
-    растянули.конспект >= 360 && про.конспект >= 360, { альбом, растянули, про });
+    растянули.конспект >= 360 && про.ui === 'mobile', { альбом, растянули, про });   // 10.1: iPad Pro стоя — телефонная раскладка
   ok('планшет: после поворота ширина сцены не перебивает телефонную раскладку',
     портрет.ui === 'mobile' && назад.ui === 'mobile' && назад.styleСцены === '' && назад.сцена === 820,
     { портрет, назад });
@@ -121,6 +123,17 @@ async function планшеты(b, url, label) {
       .filter(x => { const b = x.getBoundingClientRect(); return getComputedStyle(x).display !== 'none' && b.width > 0 && (b.width < 34 || b.height < 34); })
       .map(x => x.id || x.className) }; });
   ok('9.0 планшет боком: шапка, инструменты и пульт «стенда» под палец', стенд9.lay === 'bench' && стенд9.мелкие.length === 0, стенд9);
+  // 10.1: стоя — телефон при любой ширине (iPad Pro 1024), боком — «стенд» без нижней панели телефона
+  const режим = () => p.evaluate(() => { const d = document.getElementById('m6dock');
+    return { ui: document.documentElement.dataset.ui, lay: document.documentElement.dataset.lay,
+             панельТелефона: !!d && getComputedStyle(d).display !== 'none' && d.getBoundingClientRect().height > 0,
+             содержание: !document.getElementById('sidebar').classList.contains('hidden') }; });
+  await p.setViewportSize({ width: 1024, height: 1366 }); await p.waitForTimeout(500);
+  const стоя = await режим();
+  await p.setViewportSize({ width: 1366, height: 1024 }); await p.waitForTimeout(500);
+  const боком = await режим();
+  ok('10.1 планшет: стоя телефонная раскладка при любой ширине, боком «стенд» без телефонной панели и открытого содержания',
+    стоя.ui === 'mobile' && боком.ui === 'desktop' && боком.lay === 'bench' && !боком.панельТелефона && !боком.содержание, { стоя, боком });
   await ctx.close();
 
   /* Настройки на Android-планшете. Поле поиска получало фокус, выезжала
@@ -2196,6 +2209,47 @@ async function сторож(b) {
         return r;
       });
       ok('10.0.1: спектр за 680 нм красный, тепловые и релятивистские сцены плоские, фотоэффект перестраивается на телефоне',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    // 10.1: закладки закрываются, темы движка, конструктор и обмен темой, расписание, Мастерская
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms)), r = {}, root = document.documentElement, ц = n => getComputedStyle(root).getPropertyValue(n).trim();
+        try { закрытьГлавную(); } catch (_) {}
+        const былоНастроек = JSON.parse(JSON.stringify(S.settings)), былаРаскладка = prefGet('deskLayout');
+        // закладки на «стенде»: открыть, закрыть повторным нажатием, «Содержание» — снова весь курс
+        prefSet('deskLayout', 'bench'); await жди(150);
+        const мет = S.marks.slice(); S.marks = ['mech.2d']; toggleSidebar(true);
+        const кн = document.getElementById('tab-marks');
+        кн.click(); await жди(80); const открыли = S.markMode && !document.getElementById('sidebar').classList.contains('hidden');
+        кн.click(); await жди(80); const закрыли = !S.markMode && document.getElementById('sidebar').classList.contains('hidden');
+        кн.click(); await жди(80); document.getElementById('b9-toc').click(); await жди(80);
+        r.закладки = открыли && закрыли && !S.markMode || { открыли, закрыли, режим: S.markMode };
+        toggleSidebar(true); S.marks = мет; prefSet('deskLayout', былаРаскладка);
+        // темы движка: токены и цвет текста на светлом акценте
+        S.settings.theme = 'dark'; S.settings.palette = 'blueprint'; S.settings.accent = 'ink'; applySettings();
+        r.чертёж = ц('--bg') === '#0c2140' && ц('--on-accent') === '#14130f' && root.dataset.palette === 'std' && root.dataset.theme === 'dark' || [ц('--bg'), ц('--on-accent')];
+        S.settings.palette = 'std'; S.settings.theme = 'light'; applySettings();
+        r.сняли = ц('--bg') !== '#0c2140';
+        // своя тема: код туда-обратно, чистка опасного ввода, контраст
+        const т1 = { имя: 'Проба', тон: 'light', фон: '#eeeeee', лист: '#ffffff', текст: '#111111', акцент: '#2255cc', карандаш: '#cc5500' };
+        const т2 = темаИзКода(кодТемы(т1));
+        r.код = т2.фон === '#eeeeee' && т2.имя === 'Проба' && тмОчистить({ ...т1, фон: 'url(javascript:alert(1))' }) === null;
+        r.контраст = Math.abs(тмКонтраст('#000000', '#ffffff') - 21) < 0.01;
+        // расписание: окно, в которое попадает текущий час, — ночная тема
+        const ч = new Date().getHours();
+        r.расписание = JSON.stringify(темаПоРасписанию({ sched: { вкл: true, день: 'light', ночь: 'chalk', с: ч, до: (ч + 2) % 24 } })) === JSON.stringify(разобратьИдТемы('chalk'))
+          && темаПоРасписанию({ sched: { вкл: false } }) === null;
+        S.settings = былоНастроек; applySettings();
+        // Мастерская: уровни, короткое задание, описание в примерах, советы в отчёте
+        const полн = инструкцияДляИИ('Шар', { уровень: 'uni' }), кор = инструкцияДляИИ('Шар', { коротко: true });
+        r.инструкция = /Уровень: вуз/.test(полн) && /Уровень: школа/.test(кор) && кор.length < полн.length * 0.8 && /Частые ошибки/.test(полн) && /Шар\s*$/.test(кор);
+        const о = await проверитьКод("simulation({ title: 'x', params: [{ key: 'a', label: 'a', min: 0, max: 1, default: 0.5 }], init(p){ return { t: 0, x: 0 }; }, step(s,dt,p){ s.t += dt; s.x = Math.sin(s.t) * p.a; }, draw(d,s){ d.dot(s.x, 0); } });");
+        r.советы = !о.ошибки.length && (о.советы || []).length === 2 && !(о.предупреждения || []).some(e => /description|presets/.test(e.где));
+        return r;
+      });
+      ok('10.1: закладки закрываются, темы движка и своя тема, обмен кодом, расписание, инструкция по уровням, советы Мастерской',
         Object.values(т).every(v => v === true), т);
     }
 

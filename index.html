@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="10.0.1">
+<meta name="physim-build" content="10.1.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -178,6 +178,7 @@
 <script defer src="js/share.js"></script>
 <script defer src="js/scene.js"></script>
 <script defer src="js/lab.js"></script>
+<script defer src="js/themes.js"></script>
 <script defer src="js/app.js"></script>
 <script defer src="js/sandbox.js"></script>
 <script defer src="js/workshop.js"></script>
@@ -261,6 +262,10 @@
         <input id="search" type="search" placeholder="Поиск по темам и формулам…">
         <button class="iconbtn side-close" id="side-close" title="Скрыть список тем (Tab)">
           <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <!-- на телефоне кнопки закладок в шапке нет: переключатель прямо в ящике -->
+      <div class="side-seg mobile-only" id="side-seg" role="tablist">
+        <button class="on" data-m="0" role="tab">Все темы</button><button data-m="1" role="tab">★ Закладки</button>
       </div>
       <div class="tree" id="tree"></div>
       <!-- подвал ящика: на телефоне отсюда попадают в помощь и настройки -->

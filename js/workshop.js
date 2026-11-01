@@ -15,6 +15,7 @@
 function примерМаятник(){
   simulation({
     title: 'Маятник с затуханием',
+    description: 'Математический маятник: точечный груз на невесомой нити. Уравнение θ″ = −(g/L)·sin θ − b·θ′ решается численно, поэтому большие углы честные; период малых колебаний T = 2π√(L/g).',
     params: [
       { type: 'group', label: 'Маятник' },
       { key: 'L', label: 'Длина нити', unit: 'м', min: 0.2, max: 3, step: 0.05, default: 1 },
@@ -75,12 +76,18 @@ function примерИстечение(){
 
   simulation({
     title: 'Истечение из сосуда',
+    description: 'Вода вытекает через малое отверстие в стенке. Скорость струи по Торричелли v = μ√(2gh), уровень падает как dh/dt = −(s/S)·v; струя — парабола свободного падения.',
     params: [
       { key: 'H', label: 'Начальный уровень воды', unit: 'м', min: 0.2, max: 1.8, step: 0.05, default: 1.2 },
       { key: 'z', label: 'Высота отверстия над дном', unit: 'м', min: 0, max: 1, step: 0.05, default: 0.2 },
       { key: 'D', label: 'Диаметр сосуда', unit: 'см', min: 10, max: 80, step: 1, default: 40 },
       { key: 'dh', label: 'Диаметр отверстия', unit: 'мм', min: 2, max: 30, step: 1, default: 12 },
       { key: 'mu', label: 'Коэффициент расхода μ', min: 0.5, max: 1, step: 0.01, default: 0.62 },
+    ],
+    presets: [
+      { name: 'Отверстие у дна: струя бьёт дальше всего вначале', values: { H: 1.6, z: 0, mu: 0.62 } },
+      { name: 'Отверстие посередине', values: { H: 1.6, z: 0.8, mu: 0.62 } },
+      { name: 'Идеальная жидкость: μ = 1', values: { H: 1.2, z: 0.2, mu: 1 } },
     ],
     view: { x: [-0.6, 2.4], y: [-0.25, 2.4] },
 
@@ -136,12 +143,18 @@ function примерИстечение(){
 function примерБрусок(){
   simulation({
     title: 'Брусок на наклонной плоскости',
+    description: 'Брусок на плоскости с углом α и трением μ. Если tg α > μ, он скользит с ускорением a = g(sin α − μ cos α); иначе покоится, и трение покоя равно mg sin α.',
     params: [
       { key: 'a', label: 'Угол наклона α', unit: '°', min: 5, max: 60, step: 1, default: 30 },
       { key: 'L', label: 'Длина плоскости', unit: 'м', min: 1, max: 5, step: 0.1, default: 3 },
       { key: 'm', label: 'Масса бруска', unit: 'кг', min: 0.1, max: 10, step: 0.1, default: 2 },
       { key: 'mu', label: 'Коэффициент трения μ', min: 0, max: 1, step: 0.01, default: 0.2 },
       { key: 'forces', label: 'Показывать силы', type: 'check', default: true },
+    ],
+    presets: [
+      { name: 'Скользит: tg α > μ', values: { a: 30, mu: 0.2 } },
+      { name: 'Стоит: трения хватает', values: { a: 20, mu: 0.5 } },
+      { name: 'Без трения: a = g sin α', values: { a: 30, mu: 0 } },
     ],
     view: p => ({ x: [-0.5, p.L + 0.4], y: [-0.7, p.L * 0.9 + 0.3] }),
 
@@ -206,11 +219,32 @@ const ПРИМЕРЫ_МАСТЕРСКОЙ=[
 ];
 
 /* ---------- Инструкция для ИИ ---------- */
-function инструкцияДляИИ(запрос){
-  const пр=ПРИМЕРЫ_МАСТЕРСКОЙ.map((x,i)=>`### Пример ${i+1}. ${x.title} (${x.что})\n\n\`\`\`js\n${текстПримера(x.f)}\n\`\`\``).join('\n\n');
+/* опц (10.1): уровень — 'school' | 'uni'; коротко — один пример вместо трёх
+   (для ИИ с маленьким окном: бесплатные тарифы, локальные модели) */
+const УРОВНИ_МАСТ={
+  school:`Уровень — школьный курс (9–11 класс). Формулы — школьные: равноускоренное движение, законы Ньютона, сохранение энергии и импульса, газовые законы, закон Ома. Подписи и показания — простыми словами («скорость», «высота»), без производных и векторных обозначений в тексте. Параметров немного (3–6), каждый понятен без объяснений.`,
+  uni:`Уровень — вузовский курс общей физики (как у Иродова, Савельева). Можно дифференциальные уравнения, интегрирование численно, векторные величины, фазовые портреты, точные и приближённые решения рядом для сравнения. В показаниях — величины, которые проверяют теорию (сохраняющиеся энергия, импульс, момент; период по формуле и измеренный). В description — уравнения модели.`};
+function инструкцияДляИИ(запрос,опц){
+  опц=опц||{};
+  const примеры=опц.коротко?ПРИМЕРЫ_МАСТЕРСКОЙ.slice(0,1):ПРИМЕРЫ_МАСТЕРСКОЙ;
+  const пр=примеры.map((x,i)=>`### Пример ${i+1}. ${x.title} (${x.что})\n\n\`\`\`js\n${текстПримера(x.f)}\n\`\`\``).join('\n\n');
+  const задача=(запрос||'').trim();
   return `# Задание: симуляция для приложения Phy.Sim (формат ${ФОРМАТ_САМОДЕЛЬНЫХ})
 
 Ты пишешь код интерактивной физической симуляции для учебного приложения Phy.Sim. Человек вставит твой код в «Мастерскую» приложения и запустит. Код выполняется в изолированной песочнице: нет страницы, DOM, canvas, сети, таймеров и хранилища. Панель параметров, показания, графики, управление временем, масштаб и инструменты приложение делает само — от тебя нужна только модель по описанному ниже формату.
+${задача?`
+Коротко, что попросили (полностью — в конце): ${задача.split('\n')[0].slice(0,200)}
+`:''}
+## Как действовать
+
+1. Сначала физика, потом код: какие тела и величины, какие уравнения их связывают, какие допущения (точка, без трения, малые углы…). Запиши это в \`description\`.
+2. Реши, что человек будет менять (params), что видеть (рисунок), что читать (readouts) и как это меняется со временем (graphs). Подбери 2–4 \`presets\`, каждый показывает отдельный случай.
+3. Подбери \`view\` так, чтобы движение помещалось при любых параметрах и во всех presets: обычно это функция от p.
+4. Напиши код и пройди список «Перед ответом проверь себя» в конце.
+
+## ${опц.уровень==='uni'?'Уровень: вуз':'Уровень: школа'}
+
+${УРОВНИ_МАСТ[опц.уровень==='uni'?'uni':'school']}
 
 ## Что прислать в ответ
 
@@ -221,8 +255,9 @@ function инструкцияДляИИ(запрос){
 \`\`\`js
 simulation({
   title: 'Короткое название',
+  description: 'Какая модель: 2–4 предложения — допущения и уравнения',
   params: [ /* параметры, см. ниже */ ],
-  presets: [ /* необязательно: готовые наборы */ ],
+  presets: [ /* 2–4 готовых набора: каждый показывает свой случай */ ],
   view: { x: [xmin, xmax], y: [ymin, ymax] },   // что видно, в метрах; можно функцией p => ({ x: [...], y: [...] })
   init(p) { return { t: 0 /* … состояние … */ }; },
   step(s, dt, p) { /* … */ s.t += dt; },
@@ -322,6 +357,19 @@ ink, ink2, ink3 — чернила: основное, вторичное, бле
 
 \`deg\` = π/180; \`g\` = 9.81; \`clamp(x, a, b)\`; \`lerp(a, b, k)\`; \`rk4(f, y, t, dt)\` — шаг Рунге — Кутты, где \`f(t, y)\` возвращает массив производных, \`y\` — массив; \`seeded(42)\` — генератор случайных чисел (вызов возвращает число от 0 до 1; одинаковое зерно — одинаковая картина).
 
+## Частые ошибки (их находит проверка — лучше не допускать)
+
+- Угол из параметров в градусах подставлен в \`Math.sin\` без \`* deg\`.
+- Ось y считается направленной вниз: тело «падает» вверх. Здесь y — ВВЕРХ, g тянет к −y.
+- \`s.t\` не растёт, или после события \`step\` продолжает менять тела — показания уходят.
+- Деление на параметр, который может быть 0 (min: 0), или корень из отрицательного при краевых значениях → NaN.
+- \`view\` подобран под default, а при max тело улетает за край; или наоборот, при min всё сжимается в точку.
+- Цвета \`'#ff0000'\`, \`'red'\`, \`'rgba(…)'\` — приложение заменит ближайшими, пиши имена из палитры.
+- Тяжёлый \`step\`: попарные взаимодействия тысяч частиц (O(n²)) или большие массивы в каждом шаге.
+- \`readouts\` возвращает \`undefined\` или объект вместо числа; \`graphs.get\` возвращает строку.
+- Свои функции вызываются как \`this.f()\` из стрелочных функций — объяви их выше \`simulation\` обычными функциями.
+- Подписи наезжают друг на друга: подписывай \`d.label\` — она сама отходит, а длинный текст выноси в \`d.caption\`.
+
 ## Перед ответом проверь себя
 
 1. Физика верная, единицы СИ (или указаны в unit), знаки и направления осей согласованы с картинкой (y вверх).
@@ -329,14 +377,15 @@ ink, ink2, ink3 — чернила: основное, вторичное, бле
 3. \`s.t\` растёт в step; событие останавливает время один раз.
 4. Каждый параметр на что-то влияет, каждое показание считается из состояния.
 5. Рисунок строгий: имена цветов из палитры, ничего лишнего.
+6. Есть \`description\` и 2–4 \`presets\`; при переключении каждого набора картинка помещается во \`view\`.
 
-## Примеры
+## ${опц.коротко?'Пример':'Примеры'}
 
 ${пр}
 
 ## Что нужно сделать
 
-${(запрос||'').trim()||'(опишите здесь, какую симуляцию сделать: явление, что менять, что показывать)'}
+${задача||'(опишите здесь, какую симуляцию сделать: явление, что менять, что показывать)'}
 `;
 }
 
@@ -362,7 +411,7 @@ function мастЗаголовок(код){
 function мастОшибкаСтрокой(e){
   return `${e.где?e.где:'код'}${e.line?', строка '+e.line:''}: ${e.msg}${e.набор?` (параметры: ${e.набор})`:''}`;
 }
-function мастОтчётДляИИ(запись,отчёт,замечание){
+function мастОтчётДляИИ(запись,отчёт,замечание,сКодом){
   const код=очиститьКодИИ(запись.code), строки=код.split('\n');
   const кусок=L=>{ if(!L) return ''; const a=Math.max(1,L-2), b=Math.min(строки.length,L+2), out=[];
     for(let i=a;i<=b;i++) out.push(`${i===L?'>':' '} ${String(i).padStart(3)} | ${строки[i-1]}`); return '\n```\n'+out.join('\n')+'\n```'; };
@@ -371,9 +420,27 @@ function мастОтчётДляИИ(запись,отчёт,замечание
   if(!ош.length&&!пр.length) т=`Симуляция для Phy.Sim${отчёт.мета?` «${отчёт.мета.title}»`:''} проходит проверку. Доработай её, как описано ниже, и пришли код целиком одним блоком \`\`\`js.\n`;
   if(ош.length) т+=`\nОшибки (${ош.length}):\n`+ош.map((e,i)=>`${i+1}. ${мастОшибкаСтрокой(e)}${e.params?`\n   значения: ${JSON.stringify(e.params)}`:''}${кусок(e.line)}`).join('\n');
   if(пр.length) т+=`\n\nПредупреждения (${пр.length}):\n`+пр.map((e,i)=>`${i+1}. ${мастОшибкаСтрокой(e)}`).join('\n');
+  const сов=отчёт.советы||(отчёт.мета&&отчёт.мета.советы)||[];
+  if(сов.length) т+=`\n\nСоветы (${сов.length}):\n`+сов.map((e,i)=>`${i+1}. ${мастОшибкаСтрокой(e)}`).join('\n');
   if(замечание&&замечание.trim()) т+=`\n\nЗамечания от меня:\n${замечание.trim()}`;
+  if(сКодом) т+=`\n\nТекущий код:\n\`\`\`js\n${код}\n\`\`\``;
   return т;
 }
+
+/* ---------- Подсказки к описанию (10.1) ----------
+   Хорошее описание — половина успеха: ИИ угадывает меньше. Кнопки «структуры»
+   дописывают заготовки строк, «идеи» — готовые описания, с которых легко начать. */
+const СТРУКТУРА_ЗАПРОСА=[['Явление','Явление: '],['Менять','Менять (параметры): '],['Показывать','Показывать на рисунке: '],
+  ['Показания','Показания (числа): '],['Графики','Графики по времени: '],['Ручки','Ручки (тянуть мышью): '],['Задача','Проверить на задаче: ']];
+const ИДЕИ_МАСТ=[
+  ['Бросок с сопротивлением','Тело бросают под углом к горизонту с учётом сопротивления воздуха F = −kv. Менять: скорость, угол, массу, k. Показывать траекторию с сопротивлением и без, дальность и высоту; графики vx(t) и vy(t). Ручка — вектор начальной скорости.'],
+  ['Маятник Фуко','Маятник Фуко на широте φ: плоскость качаний поворачивается. Вид сверху: след груза-розетка. Менять: широту, длину, начальную амплитуду, ускорение времени. Показания: период поворота плоскости 24 ч / sin φ и измеренный угол поворота.'],
+  ['LC-контур','Колебательный LC-контур с сопротивлением R. Схема, заряд на конденсаторе и ток в катушке; энергия перетекает между полями. Менять L, C, R. Графики q(t), I(t) и энергий. Показания: период по Томсону и измеренный.'],
+  ['Эффект Доплера','Источник звука движется мимо неподвижного наблюдателя; волновые фронты — окружности. Менять скорость источника (до сверхзвуковой) и частоту. Показывать частоту, которую слышит наблюдатель, до и после пролёта; при v > c — конус Маха.'],
+  ['Броуновское движение','Крупная частица в газе мелких молекул, которые её толкают. Менять температуру, массу частицы, число молекул. След частицы; график среднего квадрата смещения ⟨x²⟩(t) и прямая по Эйнштейну.'],
+  ['Связанные маятники','Два одинаковых маятника, соединённых пружиной: биения, энергия переходит от одного к другому. Менять жёсткость связи и начальные отклонения. Графики углов обоих; показания — период биений по теории и измеренный.'],
+  ['Заряд в поле','Заряженная частица в однородных электрическом и магнитном полях: циклоида, дрейф E×B. Менять q/m, E, B и начальную скорость. Показывать траекторию и вектор скорости; показания — скорость дрейфа E/B.'],
+  ['Цикл Карно','Цикл Карно для идеального газа: цилиндр с поршнем и pV-диаграмма. Менять температуры нагревателя и холодильника, объёмы. Показания: работа за цикл, КПД измеренный и 1 − T₂/T₁.']];
 
 /* ---------- Окно Мастерской ---------- */
 const ВКЛАДКИ_МАСТ=[['list','Мои симуляции'],['edit','Редактор'],['guide','Инструкция для ИИ']];
@@ -441,8 +508,9 @@ function рисоватьСписокМаст(body){
     <h3 class="wk-h">Мои симуляции</h3>
     ${л.length?`<div class="wk-grid">${л.map(з=>`<div class="wk-card" data-id="${esc(з.id)}">
         <b>${esc(з.title||'Без названия')}</b><span>${мастДата(з.updated)} · ${мастСтатус(з)}</span>
-        ${з.request?`<p>${esc(з.request.slice(0,140))}${з.request.length>140?'…':''}</p>`:''}
+        ${з.description?`<p class="wk-cdesc">${esc(з.description.slice(0,170))}${з.description.length>170?'…':''}</p>`:з.request?`<p>${esc(з.request.slice(0,140))}${з.request.length>140?'…':''}</p>`:''}
         <div class="wk-row"><button class="btn primary" data-act="run"${з.code&&з.code.trim()?'':' disabled'}>Запустить</button><button class="btn" data-act="edit">Править</button>
+          <button class="btn ghost" data-act="dup" title="Копия — чтобы попробовать другой вариант, не трогая этот">Копия</button>
           <button class="btn ghost" data-act="copy" title="Скопировать код — чтобы отправить другу">Код</button><button class="btn ghost" data-act="file" title="Скачать файл .js">Файл</button>
           <button class="btn ghost" data-act="del" title="Удалить">Удалить</button></div></div>`).join('')}</div>`
       :`<p class="wk-empty">Пока пусто. Начните с «Новой симуляции» или посмотрите примеры ниже — это те же примеры, что ИИ видит в инструкции.</p>`}
@@ -461,6 +529,8 @@ function рисоватьСписокМаст(body){
       const act=b.dataset.act;
       if(act==='run') запуститьИзМастерской(з);
       else if(act==='edit'){ МАСТ.текущая=id; вкладкаМастерской('edit'); }
+      else if(act==='dup'){ const к=мастНовая({title:з.title+' (копия)',request:з.request,code:з.code,level:з.level,short:з.short,description:з.description});
+        МАСТ.текущая=к.id; вкладкаМастерской('edit'); toast('Копия создана'); }
       else if(act==='copy'){ copyText(мастФайл(з)); toast('Код скопирован — его можно вставить в Мастерскую на другом устройстве'); }
       else if(act==='file'){ скачать(мастИмяФайла(з),new Blob([мастФайл(з)],{type:'text/javascript'})); }
       else if(act==='del') askConfirm(`Удалить «${з.title}»? Код пропадёт с этого устройства.`,()=>{ мастЗаписать(мастСписок().filter(x=>x.id!==id)); if(МАСТ.текущая===id) МАСТ.текущая=null; рисоватьСписокМаст(body); },'Удалить симуляцию',{ok:'Удалить'});
@@ -482,15 +552,24 @@ function рисоватьРедакторМаст(body){
     <div class="wk-ed">
       <section class="wk-sec">
         <div class="wk-sh"><b>1</b><span>Что должна показывать симуляция</span></div>
+        <div class="wk-chips" id="wk-struct"><span class="wk-chips-l">Добавить строку:</span>${СТРУКТУРА_ЗАПРОСА.map(([и,т],i)=>`<button class="wk-chip" data-st="${i}" title="Дописать «${esc(т.trim())}»">${и}</button>`).join('')}</div>
         <textarea id="wk-req" class="wk-ta" rows="5" placeholder="Например: шар бросают под углом к горизонту с учётом сопротивления воздуха. Менять: скорость, угол, массу, коэффициент сопротивления. Показывать траекторию с сопротивлением и без, дальность и высоту, графики скоростей vx и vy. Ручка — направление и величина начальной скорости.">${esc(з.request||'')}</textarea>
+        ${(з.request||'').trim()?'':`<div class="wk-chips wk-ideas"><span class="wk-chips-l">Идеи:</span>${ИДЕИ_МАСТ.map(([и],i)=>`<button class="wk-chip" data-idea="${i}">${esc(и)}</button>`).join('')}</div>`}
+        <div class="wk-opts">
+          <span>Уровень</span><div class="seg" id="wk-level"><button data-v="school" class="${з.level!=='uni'?'on':''}">Школа</button><button data-v="uni" class="${з.level==='uni'?'on':''}">Вуз</button></div>
+          <span>Задание</span><div class="seg" id="wk-len"><button data-v="full" class="${з.short?'':'on'}">Полное</button><button data-v="short" class="${з.short?'on':''}" title="Один пример вместо трёх — для ИИ с маленьким окном">Короткое</button></div>
+          <span class="wk-hint" id="wk-len-n"></span>
+        </div>
         <div class="wk-row"><button class="btn primary" id="wk-copy-task">Скопировать задание для ИИ</button>
           <span class="wk-hint">Инструкция и ваше описание — одним текстом. Вставьте в чат с ИИ и отправьте.</span></div>
       </section>
       <section class="wk-sec">
-        <div class="wk-sh"><b>2</b><span>Ответ ИИ — код симуляции</span><span class="wk-saved" id="wk-saved"></span></div>
+        <div class="wk-sh"><b>2</b><span>Ответ ИИ — код симуляции</span><span class="wk-saved" id="wk-saved"></span>
+          <button class="btn ghost wk-vbtn${(з.versions||[]).length?'':' hidden'}" id="wk-vers" title="Прежние версии кода: вернуть, если новый ответ ИИ оказался хуже">Версии · ${(з.versions||[]).length}</button></div>
+        <div class="wk-vlist hidden" id="wk-vlist"></div>
         <textarea id="wk-code" class="wk-ta wk-code" rows="16" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Вставьте сюда ответ ИИ целиком — блок кода найдётся сам">${esc(з.code||'')}</textarea>
         <div class="wk-row"><button class="btn" id="wk-check">Проверить</button><button class="btn primary" id="wk-run">Запустить</button>
-          <span class="wk-hint">Проверка гоняет модель на разных параметрах и ищет ошибки, NaN и зависания.</span></div>
+          <span class="wk-hint">Проверка гоняет модель на разных параметрах и ищет ошибки, NaN и зависания. Вставленный ответ проверяется сам.</span></div>
       </section>
       <section class="wk-sec" id="wk-report">${отчёт?отчётHTML(з,отчёт):''}</section>
     </div>`;
@@ -499,12 +578,40 @@ function рисоватьРедакторМаст(body){
   const сохранить=()=>{ clearTimeout(таймер); таймер=setTimeout(()=>{ const t=мастЗаголовок(code.value);
     мастОбновить(з.id,{request:req.value,code:code.value,title:t||(з.title==='Новая симуляция'&&req.value.trim()?req.value.trim().split(/[.\n]/)[0].slice(0,60):з.title)});
     saved.textContent='сохранено'; setTimeout(()=>{ saved.textContent=''; },1200); },350); };
-  req.oninput=сохранить; code.oninput=()=>{ delete МАСТ.отчёты[з.id]; сохранить(); };
+  req.oninput=сохранить;
+  /* вставили ответ ИИ (код заметно изменился разом) — проверяем сами, без лишнего нажатия */
+  let прежде=code.value, авто=0;
+  code.oninput=()=>{ delete МАСТ.отчёты[з.id]; сохранить();
+    const скачок=Math.abs(code.value.length-прежде.length)>120; прежде=code.value;
+    clearTimeout(авто); if(скачок&&очиститьКодИИ(code.value)) авто=setTimeout(()=>мастПроверить(з.id,code.value),700); };
+  // Tab в коде — два пробела, а не уход фокуса; Shift+Tab — как обычно
+  code.addEventListener('keydown',e=>{ if(e.key==='Tab'&&!e.shiftKey&&!e.ctrlKey&&!e.altKey){ e.preventDefault();
+    const a=code.selectionStart, b=code.selectionEnd; code.setRangeText('  ',a,b,'end'); code.dispatchEvent(new Event('input')); } });
+  const опции=()=>({уровень:(мастНайти(з.id)||з).level==='uni'?'uni':'school',коротко:!!(мастНайти(з.id)||з).short});
+  const длина=()=>{ const n=body.querySelector('#wk-len-n'); if(n) n.textContent=`≈ ${Math.round(инструкцияДляИИ(req.value,опции()).length/1000)} тыс. знаков`; };
+  длина();
+  body.querySelectorAll('#wk-level button').forEach(b=>b.onclick=()=>{ мастОбновить(з.id,{level:b.dataset.v});
+    body.querySelectorAll('#wk-level button').forEach(x=>x.classList.toggle('on',x===b)); длина(); });
+  body.querySelectorAll('#wk-len button').forEach(b=>b.onclick=()=>{ мастОбновить(з.id,{short:b.dataset.v==='short'});
+    body.querySelectorAll('#wk-len button').forEach(x=>x.classList.toggle('on',x===b)); длина(); });
+  body.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ const т=СТРУКТУРА_ЗАПРОСА[+b.dataset.st][1];
+    const v=req.value.replace(/\s+$/,''); req.value=(v?v+'\n':'')+т; req.focus(); req.setSelectionRange(req.value.length,req.value.length); сохранить(); длина(); });
+  body.querySelectorAll('[data-idea]').forEach(b=>b.onclick=()=>{ req.value=ИДЕИ_МАСТ[+b.dataset.idea][1]; сохранить(); длина();
+    const и=b.closest('.wk-ideas'); if(и) и.remove(); req.focus(); });
   body.querySelector('#wk-copy-task').onclick=()=>{ мастОбновить(з.id,{request:req.value});
     if(!req.value.trim()){ toast('Сначала опишите, что должна показывать симуляция'); req.focus(); return; }
-    copyText(инструкцияДляИИ(req.value)); toast('Задание скопировано — вставьте его в чат с ИИ'); };
+    copyText(инструкцияДляИИ(req.value,опции())); toast('Задание скопировано — вставьте его в чат с ИИ'); };
+  // версии кода: список и возврат
+  const вб=body.querySelector('#wk-vers'), вл=body.querySelector('#wk-vlist');
+  if(вб) вб.onclick=()=>{ const зз=мастНайти(з.id)||з; вл.classList.toggle('hidden');
+    вл.innerHTML=(зз.versions||[]).slice().reverse().map((в,i,a)=>`<div class="wk-v"><span>${мастДата(в.at)} · ${esc(в.title||'')} · ${в.ошибок==null?'не проверялась':в.ошибок?`<b class="bad">ошибок: ${в.ошибок}</b>`:'<b class="good">проверена</b>'} · ${в.code.split('\n').length} строк</span>
+      <button class="btn ghost" data-vback="${a.length-1-i}">Вернуть</button></div>`).join('');
+    вл.querySelectorAll('[data-vback]').forEach(x=>x.onclick=()=>{ const зз2=мастНайти(з.id); const в=(зз2.versions||[])[+x.dataset.vback]; if(!в) return;
+      мастСохранитьВерсию(з.id); мастОбновить(з.id,{code:в.code,title:мастЗаголовок(в.code)||зз2.title,versionBase:в.code,versionAt:Date.now()}); delete МАСТ.отчёты[з.id];
+      вкладкаМастерской('edit'); toast('Версия возвращена — текущий код тоже сохранён в версиях'); }); };
   body.querySelector('#wk-check').onclick=()=>мастПроверить(з.id,code.value);
-  body.querySelector('#wk-run').onclick=()=>{ мастОбновить(з.id,{code:code.value,request:req.value,title:мастЗаголовок(code.value)||з.title}); запуститьИзМастерской(мастНайти(з.id)); };
+  body.querySelector('#wk-run').onclick=()=>{ мастНоваяВерсия(з.id,code.value);
+    мастОбновить(з.id,{code:code.value,request:req.value,title:мастЗаголовок(code.value)||з.title,versionBase:code.value,versionAt:Date.now()}); запуститьИзМастерской(мастНайти(з.id)); };
   привязатьОтчёт(body,з);
 }
 function отчётHTML(з,о){
@@ -512,31 +619,62 @@ function отчётHTML(з,о){
   const ош=о.ошибки||[], пр=о.предупреждения||[];
   const заг=ош.length?`<div class="wk-rep-h bad">Найдено ошибок: ${ош.length}</div>`
     :`<div class="wk-rep-h good">Проверка пройдена${о.наборов?`: ${о.наборов} ${plural(о.наборов,'набор','набора','наборов').replace(/^\d+\s/,'')} параметров`:''}${о.мсШаг?`, шаг модели ${о.мсШаг<0.01?(о.мсШаг*1000).toFixed(1)+' мкс':о.мсШаг.toFixed(2)+' мс'}`:''}</div>`;
-  const пункт=(e,кл)=>`<li class="${кл}"><b>${esc(e.где||'код')}${e.line?`, строка ${e.line}`:''}</b> — ${esc(e.msg)}${e.набор?` <small>(${esc(e.набор)})</small>`:''}</li>`;
+  const сов=о.советы||(о.мета&&о.мета.советы)||[], оп=о.мета&&о.мета.description;
+  const пункт=(e,кл)=>`<li class="${кл}${e.line?' wk-goto':''}"${e.line?` data-line="${e.line}" title="Показать строку ${e.line} в коде"`:''}><b>${esc(e.где||'код')}${e.line?`, строка ${e.line}`:''}</b> — ${esc(e.msg)}${e.набор?` <small>(${esc(e.набор)})</small>`:''}</li>`;
   return `<div class="wk-rep">${заг}
+    ${оп?`<p class="wk-desc"><b>Модель.</b> ${esc(оп)}</p>`:''}
     ${ош.length?`<ul class="wk-list">${ош.map(e=>пункт(e,'bad')).join('')}</ul>`:''}
     ${пр.length?`<div class="wk-sub">Замечания</div><ul class="wk-list">${пр.map(e=>пункт(e,'warn')).join('')}</ul>`:''}
+    ${сов.length?`<div class="wk-sub">Советы — сделают модель понятнее</div><ul class="wk-list">${сов.map(e=>пункт(e,'tip')).join('')}</ul>`:''}
     <div class="wk-sub">Что ещё поправить — по желанию</div>
     <textarea id="wk-note" class="wk-ta" rows="2" placeholder="Например: шар слишком мелкий; добавь график энергии; трение должно зависеть от скорости">${esc(з.note||'')}</textarea>
     <div class="wk-row"><button class="btn${ош.length||пр.length?' primary':''}" id="wk-copy-rep">${ош.length||пр.length?'Скопировать отчёт для ИИ':'Скопировать замечания для ИИ'}</button>
+      <label class="chk wk-withcode" title="Нужно, если пишете в новый чат: там ИИ не видит прежний код"><input type="checkbox" id="wk-withcode"> <span>приложить код</span></label>
       <span class="wk-hint">Отправьте в тот же чат — ИИ пришлёт исправленный код.</span></div></div>`;
 }
 function привязатьОтчёт(body,з){
   const b=body.querySelector('#wk-copy-rep'); if(!b) return;
   const n=body.querySelector('#wk-note');
   if(n) n.oninput=()=>мастОбновить(з.id,{note:n.value});
-  b.onclick=()=>{ const о=МАСТ.отчёты[з.id]; if(!о) return; copyText(мастОтчётДляИИ(мастНайти(з.id)||з,о,n?n.value:'')); toast('Отчёт скопирован — отправьте его ИИ'); };
+  const к=body.querySelector('#wk-withcode');
+  b.onclick=()=>{ const о=МАСТ.отчёты[з.id]; if(!о) return; copyText(мастОтчётДляИИ(мастНайти(з.id)||з,о,n?n.value:'',к&&к.checked)); toast('Отчёт скопирован — отправьте его ИИ'); };
+  // щелчок по ошибке со строкой — выделить эту строку в коде
+  body.querySelectorAll('.wk-goto').forEach(li=>li.onclick=()=>{ const ta=document.getElementById('wk-code'); if(!ta) return;
+    const L=+li.dataset.line, строки=ta.value.split('\n'); let a=0; for(let i=0;i<L-1&&i<строки.length;i++) a+=строки[i].length+1;
+    const b2=a+((строки[L-1]||'').length); ta.focus(); ta.setSelectionRange(a,b2);
+    const lh=parseFloat(getComputedStyle(ta).lineHeight)||18; ta.scrollTop=Math.max(0,(L-4)*lh); ta.scrollIntoView({block:'center',behavior:'smooth'}); });
+}
+/* Версии (10.1): прежний код откладывается, когда на его место встаёт заметно
+   другой — новый ответ ИИ. До 12 версий на симуляцию. */
+function мастСохранитьВерсию(id){
+  const з=мастНайти(id); if(!з||!очиститьКодИИ(з.code)) return;
+  const в=(з.versions||[]).slice(), код=з.code;
+  if(в.length&&в[в.length-1].code===код) return;
+  в.push({code:код,at:з.updated||Date.now(),title:з.title,ошибок:з.check?з.check.ошибок:null});
+  мастОбновить(id,{versions:в.slice(-12)});
+}
+function мастНоваяВерсия(id,код){
+  const з=мастНайти(id); if(!з) return;
+  const был=очиститьКодИИ(з.versionBase||''), стал=очиститьКодИИ(код);
+  // версия — то, что уже проверяли или запускали; правка буквы версией не считается
+  if(был&&стал&&был!==стал&&Math.abs(был.length-стал.length)+(был.slice(0,200)===стал.slice(0,200)?0:200)>40){
+    const в=(з.versions||[]).slice(); if(!в.length||в[в.length-1].code!==з.versionBase) в.push({code:з.versionBase,at:з.versionAt||з.updated,title:мастЗаголовок(з.versionBase)||з.title,ошибок:з.versionErr==null?null:з.versionErr});
+    мастОбновить(id,{versions:в.slice(-12)});
+  }
 }
 function мастПроверить(id,код){
+  мастНоваяВерсия(id,код);
   мастОбновить(id,{code:код,title:мастЗаголовок(код)||(мастНайти(id)||{}).title});
   МАСТ.отчёты[id]={идёт:true};
   const перерисовать=()=>{ const box=document.getElementById('wk-report'); const з=мастНайти(id);
-    if(box&&з&&МАСТ.текущая===id){ box.innerHTML=отчётHTML(з,МАСТ.отчёты[id]); привязатьОтчёт(box,з); } };
+    if(box&&з&&МАСТ.текущая===id){ box.innerHTML=отчётHTML(з,МАСТ.отчёты[id]); привязатьОтчёт(box,з);
+      const вб=document.getElementById('wk-vers'), n=(з.versions||[]).length; if(вб){ вб.classList.toggle('hidden',!n); вб.textContent='Версии · '+n; } } };
   перерисовать();
   if(!очиститьКодИИ(код)){ МАСТ.отчёты[id]={ошибки:[{где:'код',msg:'код пуст — вставьте ответ ИИ'}],предупреждения:[]}; перерисовать(); return Promise.resolve(МАСТ.отчёты[id]); }
   return проверитьКод(код).then(о=>{
     МАСТ.отчёты[id]=о;
-    мастОбновить(id,{check:{ошибок:(о.ошибки||[]).length,предупреждений:(о.предупреждения||[]).length,at:Date.now()}});
+    мастОбновить(id,{check:{ошибок:(о.ошибки||[]).length,предупреждений:(о.предупреждения||[]).length,at:Date.now()},
+      description:о.мета&&о.мета.description||'',versionBase:код,versionAt:Date.now(),versionErr:(о.ошибки||[]).length});
     перерисовать(); return о;
   });
 }

@@ -63,6 +63,32 @@ jobs:
           name: fedora
           path: packaging/windows/out/Phy.Sim-*.rpm
 
+  # Arch Linux и любые другие дистрибутивы: пакет pacman со своим Electron и
+  # AppImage. fpm собирает пакет pacman через bsdtar — его в образе нет.
+  # Пакет на системном Electron собирается из packaging/arch/PKGBUILD у себя.
+  arch:
+    name: Arch package and AppImage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install bsdtar
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+      - name: Install build tools
+        working-directory: packaging/windows
+        run: npm ci
+      - name: Build pacman package and AppImage
+        working-directory: packaging/windows
+        run: npm run dist:arch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: |
+            packaging/windows/out/Phy.Sim-*.pkg.tar.xz
+            packaging/windows/out/Phy.Sim-*.AppImage
+
   android:
     name: Android APK
     runs-on: ubuntu-latest
@@ -118,7 +144,7 @@ jobs:
 
   release:
     name: Attach to release
-    needs: [windows, fedora, android]
+    needs: [windows, fedora, arch, android]
     if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
     runs-on: ubuntu-latest
     steps:
@@ -147,6 +173,16 @@ jobs:
           **Phy.Sim — a physics course you revise by running it.** 132 live simulations,
           56 topics, 139 step-by-step derivations, 431 formulas and 693 problems. Runs
           offline, asks for nothing, sends nothing.
+
+          ## 10.1.0 — themes of your own, tablets, Arch Linux and a smarter workshop
+
+          Six new themes and a theme constructor: five colours give the whole interface and the scene, with a
+          live preview and a contrast check; themes pass on as a code or a file, and a day-and-night schedule
+          switches them by the clock. Tablets: upright is the phone layout, sideways the desktop bench. Arch
+          Linux: a pacman package, an AppImage and a PKGBUILD on the system Electron; native Wayland. The
+          workshop's AI task gained a work plan, school and university levels, common mistakes and a short
+          mode; the workshop checks a pasted answer at once, jumps to the line of an error, keeps earlier
+          versions and duplicates simulations. Fixed: bookmarks on the bench could not be closed.
 
           ## 10.0.1 — fixes in modern-physics scenes
 
@@ -479,6 +515,8 @@ jobs:
           | Windows 10/11 | `Phy.Sim-Setup-__VER__.exe` — setup wizard, pick your folder and shortcuts, no admin rights |
           | Windows, no install | `Phy.Sim-portable-__VER__.exe` — runs from a flash drive |
           | Fedora | `Phy.Sim-__VER__.x86_64.rpm` — double-click, or `sudo dnf install ./Phy.Sim-__VER__.x86_64.rpm` |
+          | Arch Linux | `Phy.Sim-__VER__-x86_64.pkg.tar.xz` — `sudo pacman -U ./Phy.Sim-__VER__-x86_64.pkg.tar.xz`; or build a 6 MB package on the system Electron with `packaging/arch/PKGBUILD` (`makepkg -si`) |
+          | Any Linux | `Phy.Sim-__VER__-x86_64.AppImage` — `chmod +x` and run; nothing to install |
           | Android | `phy-sim.apk` — zero permissions. Installs over an earlier version, keeping your progress. |
           | Anything else | `phy-sim-standalone.html` in the repository — one file, opens in any browser |
 

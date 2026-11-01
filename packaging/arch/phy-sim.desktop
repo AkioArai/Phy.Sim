@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Phy.Sim
+GenericName=Physics course
+GenericName[ru]=Курс физики
+Comment=Interactive physics course
+Comment[ru]=Курс физики в живых моделях
+Exec=phy-sim %U
+Icon=phy-sim
+Terminal=false
+Categories=Education;Science;Physics;
+Keywords=physics;simulation;education;Irodov;физика;
+StartupWMClass=Phy.Sim

@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="10.0.1">
+<meta name="physim-build" content="10.1.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -673,7 +673,7 @@ table.ref tr:last-child td{border-bottom:0}
 .answer input{width:140px;padding:7px 9px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2);font-family:var(--mono);font-size:13px}
 .btn{padding:7px 12px;border:1px solid var(--line);border-radius:var(--radius);font-size:12.5px;color:var(--ink-2);transition:.12s}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
 .verdict{font-size:12.5px;font-family:var(--mono)}
 .verdict.ok{color:var(--ok)}.verdict.no{color:var(--danger)}
 
@@ -866,7 +866,7 @@ table.ref tr:last-child td{border-bottom:0}
 .mt-page.hidden{display:none}
 .seg{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
 .seg button{flex:1;padding:5px;font-size:12px;color:var(--ink-2)}
-.seg button.on{background:var(--accent);color:#fff}
+.seg button.on{background:var(--accent);color:var(--on-accent,#fff)}
 .preset{display:flex;align-items:center;gap:6px;padding:5px 9px;font-size:12.5px}
 .preset button{font-size:12px;color:var(--accent);text-align:left}
 .preset .del{color:var(--ink-3);margin-left:auto}
@@ -1327,7 +1327,7 @@ table.ref tr:last-child td{border-bottom:0}
 [data-ui="mobile"] .mbar .mb-speed{min-width:34px;text-align:center;font-family:var(--mono);font-size:12px;
     color:var(--ink-2);font-variant-numeric:tabular-nums}
 [data-ui="mobile"] .mbplay{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
-    background:var(--accent);color:#fff;border:none;cursor:pointer;margin:0 2px}
+    background:var(--accent);color:var(--on-accent,#fff);border:none;cursor:pointer;margin:0 2px}
 [data-ui="mobile"] .mbplay:active{filter:brightness(.9);transform:scale(.93)}
 [data-ui="mobile"] .mbplay svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
@@ -1842,7 +1842,7 @@ table.ref tr:last-child td{border-bottom:0}
 .nc-p{padding:3px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
   font-size:11px;color:var(--ink-2);white-space:nowrap;flex:0 0 auto}
 .nc-p:hover{border-color:var(--accent);color:var(--accent)}
-.nc-p.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.nc-p.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
 .nc-back{color:var(--ink-3);font-size:11px;padding:3px 6px;flex:0 0 auto}
 .nc-back:hover{color:var(--accent)}
 /* Уголок изменения размера. */
@@ -1855,8 +1855,8 @@ table.ref tr:last-child td{border-bottom:0}
   border-radius:50%;border:2px solid var(--accent);background:var(--panel);
   display:none;place-items:center;color:var(--accent);font-size:13px;z-index:2}
 .linking .nc-dot{display:grid}
-.linking .nc-dot:hover{background:var(--accent);color:#fff}
-.nc-dot.from{background:var(--accent);color:#fff}
+.linking .nc-dot:hover{background:var(--accent);color:var(--on-accent,#fff)}
+.nc-dot.from{background:var(--accent);color:var(--on-accent,#fff)}
 /* Спрятанная заметка сворачивается в ярлычок: не мешает, но и не теряется. */
 .ncard.tucked{min-width:0;min-height:0;width:auto!important;height:auto!important}
 .ncard.tucked .nc-body,.ncard.tucked .nc-pager,.ncard.tucked .nc-grip{display:none}
@@ -2000,7 +2000,7 @@ table.ref tr:last-child td{border-bottom:0}
 .tbtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tbtn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .tbtn:active{transform:scale(.96)}
-.path-on .tbtn#btn-path{background:var(--accent);border-color:var(--accent);color:#fff}
+.path-on .tbtn#btn-path{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
 .badge{min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--measure);color:#fff;
   font-size:10.5px;font-weight:700;line-height:17px;text-align:center;font-family:var(--mono)}
 .badge.hidden{display:none}
@@ -2856,7 +2856,7 @@ h2.sect{font-size:.7em;letter-spacing:.14em;color:var(--ink-2);font-weight:650}
 /* ---------- кнопки ---------- */
 .btn{font-weight:550;border-radius:var(--radius);border-color:var(--line);background:var(--panel);color:var(--ink)}
 .btn:hover{border-color:var(--ink-3);color:var(--ink);background:var(--panel)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff);font-weight:600}
 .btn.primary:hover{filter:none;background:var(--accent-300);border-color:var(--accent-300);color:#fff}
 [data-theme="dark"] .btn.primary{color:#0b0d12;background:var(--accent);border-color:var(--accent)}
 [data-theme="dark"] .btn.primary:hover{background:var(--accent-300);border-color:var(--accent-300);color:#0b0d12}
@@ -3022,7 +3022,7 @@ details.deep>summary{font-family:var(--head)}
 
 /* кнопки: одна форма во всём приложении */
 .btn{border-radius:10px;font-family:var(--sans);font-weight:600;letter-spacing:0;box-shadow:none!important}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
 [data-theme="dark"] .btn.primary{color:#0b0b14}
 
 /* разбор графика появляется только по касанию — пустой блок не занимает места */
@@ -3172,7 +3172,7 @@ details.deep>summary{font-family:var(--head)}
 .m6b:active{background:var(--panel-2)}
 .m6b.on{color:var(--accent);background:var(--accent-soft)}
 .m6-speed{width:52px;border:1px solid var(--line);font:600 14px var(--mono);color:var(--ink)}
-.m6-play{flex:1 1 auto;max-width:120px;height:48px;border-radius:16px;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer}
+.m6-play{flex:1 1 auto;max-width:120px;height:48px;border-radius:16px;border:0;background:var(--accent);color:var(--on-accent,#fff);display:grid;place-items:center;cursor:pointer}
 .m6-play svg{width:24px;height:24px}
 .m6-play .m6-is{display:none}
 .m6-play.on .m6-ip{display:none}
@@ -3189,7 +3189,7 @@ details.deep>summary{font-family:var(--head)}
 .m6c-step b{flex:1;text-align:center;font:700 22px var(--mono);color:var(--ink)}
 .m6c-chips{display:flex;flex-wrap:wrap;gap:6px}
 .m6c-chips button{height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:none;font:600 13.5px var(--mono);color:var(--ink-2)}
-.m6c-chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.m6c-chips button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
 .m6c-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .m6c-grid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:72px;padding:8px 4px;border-radius:14px;
   border:1px solid var(--hair);background:var(--panel-2);color:var(--ink-2);font:inherit;font-size:11.5px;line-height:1.2;text-align:center}
@@ -3361,7 +3361,7 @@ body{font-family:var(--ui-font,var(--sans));font-feature-settings:"tnum" 0;lette
 .btn{font:500 13px/1.2 var(--sans);min-height:30px;padding:6px 12px;border-radius:var(--radius)!important;border:1px solid var(--line)!important;
   background:var(--panel)!important;color:var(--ink)!important;box-shadow:none!important;letter-spacing:0;transition:background .12s,border-color .12s}
 .btn:hover{border-color:var(--ink-3)!important;background:var(--panel-2)!important}
-.btn.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+.btn.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--on-accent,#fff)!important}
 .btn.primary:hover{background:var(--accent-300)!important;border-color:var(--accent-300)!important}
 [data-theme="dark"] .btn.primary{background:var(--accent-700)!important;border-color:var(--accent-700)!important;color:#fff!important}
 [data-theme="dark"] .btn.primary:hover{filter:brightness(1.12)}
@@ -3562,6 +3562,9 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 [data-lay="bench"] #app.b9-over .sidebar{position:absolute;left:0;top:0;bottom:0;width:340px;z-index:70;box-shadow:var(--pop-shadow)}
 [data-lay="bench"] .b9-tochead{display:flex;align-items:center;gap:6px;height:44px;flex:0 0 44px;padding:0 6px 0 16px;border-bottom:1px solid var(--line-soft)}
 [data-lay="bench"] .b9-tochead b{font:600 11px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+[data-lay="bench"] .b9-allt{font:500 12px var(--sans);color:var(--accent);background:none;border:0;padding:4px 6px;cursor:pointer;border-radius:var(--r-sm,3px)}
+[data-lay="bench"] .b9-allt:hover{background:var(--hover,rgba(0,0,0,.05))}
+[data-lay="bench"] .b9-allt.hidden{display:none}
 [data-lay="bench"] .b9-tochead .iconbtn svg{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round}
 [data-lay="bench"] .side-close{display:none!important}
 [data-lay="bench"] .content{grid-column:2;grid-row:1;width:var(--b9-nw,560px);flex:none;border:0}
@@ -3605,7 +3608,7 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 [data-lay="bench"] .b9-deck .group:first-of-type{border-left:0;padding-left:0}
 [data-lay="bench"] .b9-deck .iconbtn{width:30px;height:30px}
 [data-lay="bench"] .b9-deck .iconbtn svg{width:16px;height:16px}
-[data-lay="bench"] .b9-deck #btn-play{width:36px;height:32px;background:var(--accent);color:#fff;margin:0 3px}
+[data-lay="bench"] .b9-deck #btn-play{width:36px;height:32px;background:var(--accent);color:var(--on-accent,#fff);margin:0 3px}
 [data-theme="dark"][data-lay="bench"] .b9-deck #btn-play{background:var(--accent-700)}
 [data-lay="bench"] .b9-deck #btn-play:hover{filter:brightness(1.12)}
 [data-lay="bench"] .b9-deck .zoomval{height:28px;width:58px;text-align:center}
@@ -3789,7 +3792,7 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 /* ---- телефон 9.0: тот же материал, прямые углы ---- */
 [data-ui="mobile"] .mtop,[data-ui="mobile"] .simhead{background:var(--panel)}
 [data-ui="mobile"] button:not(.q-sw):not(.sc-play),[data-ui="mobile"] .m2val,[data-ui="mobile"] .ro-c,[data-ui="mobile"] .msheet-ro>*{border-radius:var(--radius)!important}
-[data-ui="mobile"] .mbplay,[data-ui="mobile"] .m6-play{background:var(--accent)!important;color:#fff!important}
+[data-ui="mobile"] .mbplay,[data-ui="mobile"] .m6-play{background:var(--accent)!important;color:var(--on-accent,#fff)!important}
 [data-theme="dark"][data-ui="mobile"] .mbplay,[data-theme="dark"][data-ui="mobile"] .m6-play{background:var(--accent-700)!important}
 [data-ui="mobile"] .chead h1{font-size:1.65em}
 
@@ -3867,6 +3870,78 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 [data-ui="mobile"] .path.wk .path-body{padding:14px 14px 40px}
 .wk .path-tabs button.hidden{display:none}
 .popmenu .item.hidden{display:none}
+
+/* 10.1: переключатель «Все темы | Закладки» в ящике телефона; звёздочка видна бледно,
+   чтобы тему можно было отметить пальцем (наведения на телефоне нет) */
+[data-ui="mobile"] .side-seg{display:flex;gap:0;margin:0 14px 6px;border:1px solid var(--line);border-radius:var(--r-sm,4px);overflow:hidden}
+.side-seg button{flex:1;font:500 13px var(--sans);padding:8px 6px;background:none;border:0;color:var(--ink-2);cursor:pointer}
+.side-seg button+button{border-left:1px solid var(--line)}
+.side-seg button.on{background:var(--accent);color:var(--on-accent,#fff)}
+[data-ui="mobile"] .topic-item .star{opacity:.28;width:26px;flex:0 0 26px;font-size:15px;text-align:center;margin-left:-6px}
+[data-ui="mobile"] .topic-item .star.on{opacity:1}
+
+/* ===================== 10.1: ТЕМЫ — ГАЛЕРЕЯ, КОНСТРУКТОР, РАСПИСАНИЕ ===================== */
+.q-tcell{position:relative;display:flex}
+.q-tcell>.q-theme{flex:1;min-width:0}
+.q-tact{position:absolute;top:8px;right:8px;display:flex;gap:2px;opacity:0;transition:opacity var(--t2,.15s)}
+.q-tcell:hover .q-tact,.q-tcell:focus-within .q-tact,[data-touch="1"] .q-tact{opacity:1}
+.q-tact .iconbtn{width:24px;height:24px;min-width:24px;font-size:13px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm)}
+.q-win em{position:absolute;right:8px;bottom:6px;width:14px;height:3px;border-radius:2px}
+.q-win{overflow:hidden}
+.q-new .q-plus{display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-3);background:none;border:1px dashed var(--line)}
+.q-new:hover .q-plus{color:var(--accent);border-color:var(--accent)}
+.q-ed{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel-2)}
+.q-ed-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.q-ed-head input{flex:1;min-width:160px;font:600 14px var(--ui-font,var(--sans));padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--panel);color:var(--ink)}
+.q-ed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.q-ed-c{display:flex;align-items:center;gap:9px;padding:6px 8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:var(--panel);cursor:pointer}
+.q-ed-c input[type=color]{width:34px;height:34px;flex:0 0 34px;padding:0;border:1px solid var(--line);border-radius:var(--radius-sm);background:none;cursor:pointer}
+.q-ed-c input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+.q-ed-c input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
+.q-ed-c span{display:flex;flex-direction:column;line-height:1.25}
+.q-ed-c b{font:600 12.5px var(--ui-font,var(--sans));color:var(--ink)}
+.q-ed-c i{font:400 11.5px var(--ui-font,var(--sans));font-style:normal;color:var(--ink-3)}
+.q-ed-base{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;font-size:12.5px;color:var(--ink-3)}
+.q-chip{font:500 12px var(--ui-font,var(--sans));padding:4px 9px 4px 22px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink-2);cursor:pointer;position:relative}
+.q-chip::before{content:"";position:absolute;left:7px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:linear-gradient(90deg,var(--a,var(--line)) 50%,var(--b,var(--accent)) 50%)}
+.q-chip:hover{border-color:var(--accent);color:var(--ink)}
+.q-ed-check{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.q-cr{font:400 11.5px var(--ui-font,var(--sans));padding:3px 8px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);color:var(--ink-2);background:var(--panel)}
+.q-cr b{font-family:var(--mono);font-weight:600}
+.q-cr.ok b{color:var(--ok)}
+.q-cr.bad{border-color:var(--danger);color:var(--danger)}
+.q-th-io{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.q-th-io .q-help{margin:0}
+.q-sched{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.q-sched .chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink)}
+.q-sched-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;font-size:13px;color:var(--ink-2)}
+.q-sched-row.off{opacity:.45;pointer-events:none}
+.q-sel{font:500 12.5px var(--ui-font,var(--sans));padding:5px 6px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--panel);color:var(--ink)}
+.q-sel.q-h{font-family:var(--mono)}
+/* мягкая смена темы (View Transitions): только перетекание цвета, без сдвигов */
+::view-transition-old(root),::view-transition-new(root){animation-duration:.32s;animation-timing-function:ease}
+
+/* ===================== 10.1: МАСТЕРСКАЯ ===================== */
+.wk-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:0 0 8px}
+.wk-chips.wk-ideas{margin:8px 0 0}
+.wk-chips-l{font-size:12px;color:var(--ink-3);margin-right:2px}
+.wk-chip{font:500 12px var(--ui-font,var(--sans));padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink-2);cursor:pointer}
+.wk-chip:hover{border-color:var(--accent);color:var(--accent)}
+.wk-ideas .wk-chip{border-style:dashed}
+.wk-opts{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:10px 0 2px;font-size:12.5px;color:var(--ink-2)}
+.wk-opts .seg button{padding:4px 10px;font-size:12px}
+.wk-vbtn{margin-left:auto;font-size:12px;padding:3px 9px}
+.wk-vlist{margin:0 0 8px;border:1px solid var(--line-soft);border-radius:var(--radius);background:var(--panel-2)}
+.wk-v{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:6px 10px;font-size:12.5px;color:var(--ink-2)}
+.wk-v+.wk-v{border-top:1px solid var(--line-soft)}
+.wk-v .bad{color:var(--danger);font-weight:600}.wk-v .good{color:var(--ok);font-weight:600}
+.wk-desc{margin:8px 0 10px;font-size:13px;line-height:1.55;color:var(--ink-2);padding:8px 10px;border-left:3px solid var(--accent);background:var(--panel-2)}
+.wk-cdesc{color:var(--ink-2)}
+.wk-list li.tip::marker{color:var(--accent)}
+.wk-list li.wk-goto{cursor:pointer}
+.wk-list li.wk-goto:hover b{color:var(--accent);text-decoration:underline}
+.wk-withcode{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-2)}
+.wk-vbtn.hidden,.wk-vlist.hidden,.q-ed.hidden{display:none}
 </style>
 </head>
 <body>
@@ -3947,6 +4022,10 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
         <input id="search" type="search" placeholder="Поиск по темам и формулам…">
         <button class="iconbtn side-close" id="side-close" title="Скрыть список тем (Tab)">
           <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <!-- на телефоне кнопки закладок в шапке нет: переключатель прямо в ящике -->
+      <div class="side-seg mobile-only" id="side-seg" role="tablist">
+        <button class="on" data-m="0" role="tab">Все темы</button><button data-m="1" role="tab">★ Закладки</button>
       </div>
       <div class="tree" id="tree"></div>
       <!-- подвал ящика: на телефоне отсюда попадают в помощь и настройки -->
@@ -48923,6 +49002,257 @@ function подключитьЛабу(){
 
 ;
 'use strict';
+/* ===================== ТЕМЫ ОФОРМЛЕНИЯ (10.1.0) =====================
+   До 10.1 каждая палитра была десятком токенов, выписанных руками в CSS.
+   Здесь — движок: тема задаётся пятью цветами (фон, лист, текст, акцент,
+   «красный карандаш» для измерений) и тоном (светлая или тёмная), а все
+   остальные токены — линии, сетка сцены, вторичный текст, полоса управления,
+   оттенки акцента — выводятся из них смешиванием. На этом движке стоят
+   встроенные темы 10.1 («Чертёж», «Доска», «Солнечная»…), свои темы из
+   конструктора и обмен темами кодом или файлом.
+
+   Токены кладутся инлайном на <html> поверх палитры «Бумага и графит»: всё,
+   чего движок не задаёт (тени, герой главной), остаётся от неё. */
+
+const ТЕМЫ_ДВИЖКА={
+  blueprint: {имя:'Чертёж',        тон:'dark',  фон:'#0c2140',лист:'#11305a',текст:'#e7eefc',акцент:'#ffd166',карандаш:'#ff8a5c',сцена:'#0e2850'},
+  chalk:     {имя:'Доска',         тон:'dark',  фон:'#17221c',лист:'#1e2c25',текст:'#eef1e6',акцент:'#f2d06b',карандаш:'#ff9c7a',сцена:'#1b2821'},
+  solar:     {имя:'Солнечная',     тон:'light', фон:'#eee8d5',лист:'#fdf6e3',текст:'#073642',акцент:'#2072b8',карандаш:'#c4470f'},
+  solarnight:{имя:'Солнечная ночь',тон:'dark',  фон:'#00212b',лист:'#022d39',текст:'#eee8d5',акцент:'#3cb8ad',карандаш:'#e8834a'},
+  lavender:  {имя:'Лаванда',       тон:'light', фон:'#efedf7',лист:'#fbfaff',текст:'#1d1a2b',акцент:'#6a4cd6',карандаш:'#c2410c'},
+  coffee:    {имя:'Кофе',          тон:'dark',  фон:'#18140f',лист:'#221c16',текст:'#efe6da',акцент:'#e2a65a',карандаш:'#f0855a'}
+};
+/* цвета, которые тема не задаёт: опасность, второй и третий ряд, «верно» */
+const ТЕМЫ_ЦВЕТА_ТОНА={
+  light:{danger:'#c23b22',second:'#1f7a6d',ok:'#2c7a3f',third:'#8a3a9e'},
+  dark: {danger:'#ff7a5e',second:'#59c4b3',ok:'#7fd18f',third:'#d59ae6'}
+};
+
+/* ---- цвет: разбор, смешивание, контраст ---- */
+function тмRGB(h){ h=String(h||'').trim().replace('#',''); if(h.length===3) h=h.replace(/./g,'$&$&');
+  if(!/^[0-9a-f]{6}$/i.test(h)) return [0,0,0]; return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); }
+function тмHEX(c){ return '#'+c.map(v=>Math.round(Math.min(255,Math.max(0,v))).toString(16).padStart(2,'0')).join(''); }
+/* смесь a и b: t = 0 — чистый a, t = 1 — чистый b */
+function тмСмесь(a,b,t){ const x=тмRGB(a), y=тмRGB(b); return тмHEX(x.map((v,i)=>v+(y[i]-v)*t)); }
+function тмЯркость(h){ const lin=v=>{ v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4); };
+  const [r,g,b]=тмRGB(h).map(lin); return 0.2126*r+0.7152*g+0.0722*b; }
+/* контраст по WCAG 2: 4,5 — норма для текста, 3 — для крупного и значков */
+function тмКонтраст(a,b){ const x=тмЯркость(a), y=тмЯркость(b); return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); }
+const тмЦвет=v=>/^#[0-9a-f]{6}$/i.test(String(v||''));
+
+/* Проверка темы, пришедшей снаружи (код, файл, хранилище): только известные
+   поля и только цвета вида #rrggbb — иначе в style попало бы что угодно. */
+function тмОчистить(т){
+  if(!т||typeof т!=='object') return null;
+  const out={имя:String(т.имя||'Своя тема').replace(/[<>&"]/g,'').slice(0,40)||'Своя тема', тон:т.тон==='dark'?'dark':'light'};
+  for(const k of ['фон','лист','текст','акцент','карандаш']){ if(!тмЦвет(т[k])) return null; out[k]=т[k].toLowerCase(); }
+  if(тмЦвет(т.сцена)) out.сцена=т.сцена.toLowerCase();
+  if(т.id&&/^[a-z0-9-]{1,40}$/i.test(т.id)) out.id=т.id;
+  return out;
+}
+
+/* Все токены из пяти цветов. Пропорции подобраны по «Бумаге и графиту»:
+   вторичный текст ~4,5:1 к листу, линии видны, но не спорят с текстом. */
+function токеныТемы(т){
+  const тём=т.тон==='dark', л=т.лист, ф=т.фон, к=т.текст, а=т.акцент;
+  const сц=т.сцена||тмСмесь(л,тём?'#000000':'#ffffff',тём?0.12:0.35);
+  const ц=ТЕМЫ_ЦВЕТА_ТОНА[тём?'dark':'light'];
+  return {
+    '--bg':ф, '--panel':л, '--panel-2':тмСмесь(л,ф,0.55), '--chrome':л, '--rail':тмСмесь(л,ф,0.4),
+    '--well':тмСмесь(л,ф,0.35), '--ground':ф, '--canvas':сц, '--hero-bg':тмСмесь(л,ф,0.5),
+    '--ink':к, '--ink-2':тмСмесь(к,л,0.28), '--ink-3':тмСмесь(к,л,0.44),
+    '--line':тмСмесь(к,л,0.8), '--line-soft':тмСмесь(к,л,0.89), '--hair':тмСмесь(к,л,0.89),
+    '--grid':тмСмесь(к,сц,0.91), '--grid-major':тмСмесь(к,сц,0.82), '--divider':к+'26',
+    '--measure':т.карандаш, '--danger':ц.danger, '--second':ц.second, '--ok':ц.ok, '--third':ц.third,
+    '--bar':л, '--bar-2':тмСмесь(л,ф,0.55), '--bar-ink':к, '--bar-ink-2':тмСмесь(к,л,0.28),
+    '--bar-line':тмСмесь(к,л,0.8), '--bar-accent':а, '--f-app':а
+  };
+}
+/* оттенки акцента — так же, как applySettings выводит их для своего цвета */
+function токеныАкцента(а,тём){
+  return {'--accent':а,'--accent-soft':а+(тём?'2e':'1f'),
+    // текст и значки на заливке акцентом: белые на тёмном акценте, тёмные на светлом (жёлтый «Чертежа»)
+    '--on-accent':тмКонтраст(а,'#ffffff')>=3?'#ffffff':'#14130f',
+    '--accent-300':тём?тмСмесь(а,'#ffffff',.6):тмСмесь(а,'#000000',.22),
+    '--accent-700':тём?тмСмесь(а,'#000000',.3):тмСмесь(а,'#ffffff',.2),
+    '--accent-800':тём?тмСмесь(а,'#000000',.55):тмСмесь(а,'#ffffff',.78)};
+}
+let тмПоставлено=[];
+/* Положить токены темы на <html> (или снять, если тема — CSS-палитра).
+   свойАкцент — цвет, выбранный в «Акцентный цвет» поверх темы, или null. */
+function применитьТокеныТемы(root,т,свойАкцент){
+  for(const k of тмПоставлено) root.style.removeProperty(k);
+  тмПоставлено=[];
+  if(!т) return;
+  const н=токеныТемы(т);
+  if(!свойАкцент) Object.assign(н,токеныАкцента(т.акцент,т.тон==='dark'));
+  for(const k in н){ root.style.setProperty(k,н[k]); тмПоставлено.push(k); }
+}
+
+/* ---- свои темы: хранятся отдельно от настроек ---- */
+function моиТемы(){ let x=[]; try{ x=LS.get('myThemes',[]); }catch(_){} return (Array.isArray(x)?x:[]).map(тмОчистить).filter(Boolean); }
+function сохранитьМоиТемы(список){ LS.set('myThemes',список.map(тмОчистить).filter(Boolean).slice(0,24)); }
+/* карточка для галереи из темы движка */
+function карточкаТемы(id,т){ return {id, имя:т.имя, theme:т.тон, palette:id.startsWith('my-')?'mine':id, seed:т,
+  c:[т.фон,т.лист,т.текст,т.акцент,т.карандаш]}; }
+
+/* Какая тема действует сейчас: с учётом расписания «день — ночь».
+   Возвращает {theme, palette, seed} или null — тогда берутся сами настройки. */
+function темаПоРасписанию(s){
+  const р=s&&s.sched; if(!р||!р.вкл) return null;
+  const ч=new Date().getHours(), с=+р.с, до=+р.до;
+  const ночь = с===до ? false : с<до ? (ч>=с&&ч<до) : (ч>=с||ч<до);
+  return разобратьИдТемы(ночь?р.ночь:р.день);
+}
+/* id карточки → тон, палитра и (для тем движка) сами цвета */
+function разобратьИдТемы(id){
+  if(!id) return null;
+  if(ТЕМЫ_ДВИЖКА[id]) return {theme:ТЕМЫ_ДВИЖКА[id].тон,palette:id,seed:ТЕМЫ_ДВИЖКА[id]};
+  if(/^my-/.test(id)){ const т=моиТемы().find(x=>x.id===id); return т?{theme:т.тон,palette:'mine',seed:т}:null; }
+  const x=(typeof ТЕМЫ_ОФОРМЛЕНИЯ!=='undefined'?ТЕМЫ_ОФОРМЛЕНИЯ:[]).find(y=>y.id===id);
+  return x?{theme:x.theme,palette:x.palette,seed:null}:null;
+}
+/* тема движка для текущих настроек (или null — палитра из CSS) */
+function семяТемы(палитра,s){
+  if(ТЕМЫ_ДВИЖКА[палитра]) return ТЕМЫ_ДВИЖКА[палитра];
+  if(палитра==='mine') return тмОчистить(s&&s.mine);
+  return null;
+}
+
+/* ---- обмен: код и файл ---- */
+function кодТемы(т){ const ч=тмОчистить(т); delete ч.id; return 'PHYTHEME1:'+btoa(unescape(encodeURIComponent(JSON.stringify(ч)))); }
+function темаИзКода(код){
+  const s=String(код||'').replace(/\s+/g,'');
+  let ч=null;
+  const m=/PHYTHEME1:([A-Za-z0-9+/=]+)/.exec(s);
+  if(m) ч=JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+  else if(/^\{/.test(String(код).trim())) ч=JSON.parse(String(код));          // содержимое файла .physim-theme.json
+  const т=тмОчистить(ч&&ч.тема?ч.тема:ч);
+  if(!т) throw new Error('это не тема Phy.Sim');
+  return т;
+}
+
+/* ---- смена темы: мягкий переход, где браузер умеет (View Transitions) ---- */
+function сменитьТемуПлавно(сделать){
+  const м=document.documentElement.dataset.motion;
+  if(typeof document.startViewTransition==='function'&&м!=='off'&&м!=='calm'){
+    try{ document.startViewTransition(()=>{ сделать(); }); return; }catch(_){}
+  }
+  сделать();
+}
+
+/* расписание проверяем раз в минуту: тема меняется сама, когда наступает вечер */
+{ let было='';
+  setInterval(()=>{ try{
+    if(typeof S==='undefined'||!S.settings||!S.settings.sched||!S.settings.sched.вкл) return;
+    const сейчас=JSON.stringify(темаПоРасписанию(S.settings)||{});
+    if(сейчас!==было){ const первый=!было; было=сейчас; if(!первый) сменитьТемуПлавно(()=>applySettings()); }
+  }catch(_){} },60000); }
+
+/* ===================== КОНСТРУКТОР ТЕМЫ =====================
+   Пять цветов и тон. Пока конструктор открыт, тема применяется вживую — всё
+   пособие и сцена сразу перекрашиваются; «Отмена» возвращает как было.
+   Под цветами — проверка контраста по WCAG: если текст на листе читается
+   хуже 4,5:1, конструктор об этом говорит. */
+const ТМ_ПОЛЯ=[
+  ['фон','Фон','за листом, под полосами'],['лист','Лист','конспект и панели'],['текст','Текст','основной'],
+  ['акцент','Акцент','выделение и кнопки'],['карандаш','Карандаш','размеры и измерения'],['сцена','Сцена','поле симуляции']];
+function тмКHEX(v,запас){
+  try{ const c=document.createElement('canvas').getContext('2d'); c.fillStyle='#010203'; c.fillStyle=String(v||'').trim();
+    const x=c.fillStyle; if(/^#[0-9a-f]{6}$/i.test(x)&&x!=='#010203') return x; }catch(_){}
+  return запас;
+}
+/* тема из того, что сейчас на экране: начало для новой своей темы */
+function тмТекущая(){
+  const ц=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const тём=document.documentElement.dataset.theme==='dark';
+  return {имя:'Своя тема', тон:тём?'dark':'light', фон:тмКHEX(ц('--bg'),тём?'#0f0f0e':'#efede6'),
+    лист:тмКHEX(ц('--panel'),тём?'#181816':'#fbfaf6'), текст:тмКHEX(ц('--ink'),тём?'#ebe8e0':'#1c1b18'),
+    акцент:тмКHEX(ц('--accent'),тём?'#8ea4ff':'#2346c8'), карандаш:тмКHEX(ц('--measure'),тём?'#ee9a5a':'#b4561b'),
+    сцена:тмКHEX(ц('--canvas'),тём?'#141413':'#fefdf9')};
+}
+function тмПроверка(т){
+  const н=токеныТемы(т), строки=[
+    ['Текст на листе',тмКонтраст(т.текст,т.лист),4.5],
+    ['Второстепенный текст',тмКонтраст(н['--ink-3'],т.лист),4.5],
+    ['Акцент на листе',тмКонтраст(т.акцент,т.лист),3],
+    ['Карандаш на сцене',тмКонтраст(т.карандаш,н['--canvas']),3],
+    ['Текст на фоне',тмКонтраст(т.текст,т.фон),4.5]];
+  return строки.map(([и,к,нужно])=>`<span class="q-cr ${к>=нужно?'ok':'bad'}" title="нужно не меньше ${String(нужно).replace('.',',')}:1">${и} <b>${к.toFixed(1).replace('.',',')}:1</b> ${к>=нужно?'✓':'— мало'}</span>`).join('');
+}
+function подключитьКонструкторТем(body){
+  const ed=body.querySelector('#q-ed'); if(!ed) return;
+  let было=null, черн=null, правим=null;
+  const снимок=()=>({theme:S.settings.theme,palette:S.settings.palette,mine:S.settings.mine});
+  const живьём=()=>{ S.settings.theme=черн.тон; S.settings.palette='mine'; S.settings.mine=черн; applySettings();
+    const п=ed.querySelector('#q-ed-check'); if(п) п.innerHTML=тмПроверка(черн); };
+  const закрыть=(вернуть)=>{ if(вернуть&&было){ Object.assign(S.settings,было); applySettings(); }
+    ed.classList.add('hidden'); ed.innerHTML=''; было=черн=правим=null; };
+  const открыть=(т,id)=>{
+    было=снимок(); черн=Object.assign({},т); правим=id||null;
+    if(!черн.сцена) черн.сцена=тмСмесь(черн.лист,черн.тон==='dark'?'#000000':'#ffffff',черн.тон==='dark'?0.12:0.35);
+    ed.innerHTML=`<div class="q-ed-head"><input id="q-ed-name" maxlength="40" value="${esc(черн.имя||'Своя тема')}" aria-label="Название темы">
+        <div class="seg" id="q-ed-tone"><button data-v="light" class="${черн.тон==='light'?'on':''}">Светлая</button><button data-v="dark" class="${черн.тон==='dark'?'on':''}">Тёмная</button></div></div>
+      <div class="q-ed-grid">${ТМ_ПОЛЯ.map(([k,и,п])=>`<label class="q-ed-c"><input type="color" data-k="${k}" value="${черн[k]}"><span><b>${и}</b><i>${п}</i></span></label>`).join('')}</div>
+      <div class="q-ed-base"><span>Начать с:</span>${Object.keys(ТЕМЫ_ДВИЖКА).map(id=>`<button class="q-chip" data-base="${id}" style="--a:${ТЕМЫ_ДВИЖКА[id].лист};--b:${ТЕМЫ_ДВИЖКА[id].акцент}">${ТЕМЫ_ДВИЖКА[id].имя}</button>`).join('')}<button class="q-chip" data-base="__now">как сейчас</button></div>
+      <div class="q-ed-check" id="q-ed-check"></div>
+      <div class="q-act"><button class="btn primary" id="q-ed-save">Сохранить тему</button><button class="btn" id="q-ed-code">Код темы</button><button class="btn" id="q-ed-file">В файл</button>
+        <button class="btn ghost" id="q-ed-x">Отмена</button></div>
+      <div class="q-codebox hidden" id="q-ed-codebox"><textarea rows="2" spellcheck="false" readonly></textarea></div>`;
+    ed.classList.remove('hidden'); живьём();
+    ed.querySelectorAll('input[type=color]').forEach(i=>i.oninput=()=>{ черн[i.dataset.k]=i.value; живьём(); });
+    ed.querySelector('#q-ed-name').oninput=e=>{ черн.имя=e.target.value; };
+    ed.querySelectorAll('#q-ed-tone button').forEach(b=>b.onclick=()=>{ черн.тон=b.dataset.v;
+      ed.querySelectorAll('#q-ed-tone button').forEach(x=>x.classList.toggle('on',x===b)); живьём(); });
+    ed.querySelectorAll('[data-base]').forEach(b=>b.onclick=()=>{
+      const осн=b.dataset.base==='__now'?Object.assign(тмТекущая(),было&&было.palette==='mine'&&было.mine?было.mine:{}):ТЕМЫ_ДВИЖКА[b.dataset.base];
+      const имя=черн.имя; Object.assign(черн,осн,{имя}); if(!осн.сцена) черн.сцена=тмСмесь(черн.лист,черн.тон==='dark'?'#000000':'#ffffff',черн.тон==='dark'?0.12:0.35);
+      const id=правим; открыть(черн,id); });
+    ed.querySelector('#q-ed-x').onclick=()=>закрыть(true);
+    ed.querySelector('#q-ed-save').onclick=()=>{
+      const т=тмОчистить(Object.assign({},черн,{id:правим||('my-'+Date.now().toString(36))})); if(!т) return;
+      const список=моиТемы().filter(x=>x.id!==т.id); список.push(т); сохранитьМоиТемы(список);
+      S.settings.theme=т.тон; S.settings.palette='mine'; S.settings.mine=т; было=null;
+      if(S.settings.sched&&S.settings.sched.вкл) S.settings.sched.вкл=false;
+      applySettings(); renderPrefs(); renderPrefsSide(); toast(`Тема «${т.имя}» сохранена`); };
+    ed.querySelector('#q-ed-code').onclick=()=>{ const к=ed.querySelector('#q-ed-codebox'); к.classList.remove('hidden');
+      const ta=к.querySelector('textarea'); ta.value=кодТемы(черн); ta.select();
+      try{ navigator.clipboard.writeText(ta.value).then(()=>toast('Код темы скопирован'),()=>{}); }catch(_){} };
+    ed.querySelector('#q-ed-file').onclick=()=>{ const т=тмОчистить(черн); delete т.id;
+      const blob=new Blob([JSON.stringify({формат:'physim-theme',версия:1,тема:т},null,2)],{type:'application/json'});
+      сохранитьФайл((т.имя||'тема').replace(/[\\/:*?"<>|]+/g,'_')+'.physim-theme.json',blob); };
+  };
+  const нов=body.querySelector('#q-th-new'); if(нов) нов.onclick=()=>открыть(тмТекущая());
+  body.querySelectorAll('[data-th-edit]').forEach(b=>b.onclick=e=>{ e.stopPropagation();
+    const т=моиТемы().find(x=>x.id===b.dataset.thEdit); if(т) открыть(т,т.id); });
+  body.querySelectorAll('[data-th-del]').forEach(b=>b.onclick=e=>{ e.stopPropagation();
+    const т=моиТемы().find(x=>x.id===b.dataset.thDel); if(!т) return;
+    askConfirm(`Удалить тему «${т.имя}»?`,()=>{ сохранитьМоиТемы(моиТемы().filter(x=>x.id!==т.id));
+      if(S.settings.palette==='mine'&&S.settings.mine&&S.settings.mine.id===т.id){ S.settings.palette='std'; S.settings.theme=т.тон; S.settings.mine=null; applySettings(); }
+      renderPrefs(); }); });
+  const файл=body.querySelector('#q-th-file');
+  if(файл) файл.onchange=()=>{ const f=файл.files&&файл.files[0]; if(!f) return;
+    const r=new FileReader(); r.onload=()=>{ try{ принятьТему(темаИзКода(String(r.result))); }catch(e){ toast('Не получилось: '+e.message); } };
+    r.readAsText(f); };
+  // расписание «день — ночь»
+  const вкл=body.querySelector('#q-sched-on');
+  if(вкл) вкл.onchange=()=>{ const р=S.settings.sched=Object.assign({день:'light',ночь:'dark',с:21,до:7},S.settings.sched||{});
+    р.вкл=вкл.checked; body.querySelector('.q-sched-row').classList.toggle('off',!р.вкл);
+    body.querySelectorAll('[data-sched]').forEach(x=>{ р[x.dataset.sched]=/^(с|до)$/.test(x.dataset.sched)?+x.value:x.value; });
+    сменитьТемуПлавно(()=>applySettings()); renderPrefsSide(); };
+  body.querySelectorAll('[data-sched]').forEach(x=>x.onchange=()=>{ const р=S.settings.sched=Object.assign({день:'light',ночь:'dark',с:21,до:7},S.settings.sched||{});
+    р[x.dataset.sched]=/^(с|до)$/.test(x.dataset.sched)?+x.value:x.value; if(р.вкл) сменитьТемуПлавно(()=>applySettings()); else LS.set('settings',S.settings); });
+}
+/* принять тему из кода или файла (кнопка «Вставить код» в профилях понимает и темы) */
+function принятьТему(т){
+  т=тмОчистить(Object.assign({},т,{id:'my-'+Date.now().toString(36)}));
+  const список=моиТемы(); список.push(т); сохранитьМоиТемы(список);
+  S.settings.theme=т.тон; S.settings.palette='mine'; S.settings.mine=т;
+  applySettings(); renderPrefs(); renderPrefsSide(); toast(`Тема «${т.имя}» добавлена`);
+}
+
+;
+'use strict';
 /* =============================== СОСТОЯНИЕ ============================== */
 const LS={get:(k,d)=>{try{const v=localStorage.getItem('physim.'+k);return v?JSON.parse(v):d}catch(_){return d}},
           set:(k,v)=>{try{localStorage.setItem('physim.'+k,JSON.stringify(v))}catch(_){}}};
@@ -52949,7 +53279,23 @@ function autoCloseRail(){
 const tabOn=s=>['#tab-topics','#tab-search','#tab-marks'].forEach(x=>$(x).classList.toggle('on',x===s));
 $$('#tab-topics').onclick=()=>{ S.markMode=false; tabOn('#tab-topics'); $('#search').value=''; renderTree(); };
 $$('#tab-search').onclick=()=>{ tabOn('#tab-search'); $('#sidebar').classList.remove('hidden'); $('#search').focus(); };
-$$('#tab-marks').onclick=()=>{ S.markMode=true; tabOn('#tab-marks'); renderTree(); };
+/* Закладки — переключатель: второе нажатие возвращает полный список тем.
+   Раньше режим закладок включался навсегда: на «стенде» панель с ними нельзя
+   было закрыть кнопкой, а «Содержание» потом открывалось всё с теми же
+   закладками вместо курса (10.1.0). */
+function режимЗакладок(вкл){
+  S.markMode=!!вкл; tabOn(вкл?'#tab-marks':'#tab-topics');
+  if(!вкл&&$('#search').value&&document.documentElement.dataset.lay==='bench') $('#search').value='';
+  renderTree($('#search').value);
+  const з=$('#tab-marks'); if(з) з.setAttribute('aria-pressed',String(!!вкл));
+  document.querySelectorAll('#side-seg button').forEach(b=>b.classList.toggle('on',(b.dataset.m==='1')===!!вкл));
+  if(typeof отметить9==='function') отметить9();
+}
+document.querySelectorAll('#side-seg button').forEach(b=>b.onclick=()=>режимЗакладок(b.dataset.m==='1'));
+$$('#tab-marks').onclick=()=>{
+  const открыты=S.markMode&&!$('#sidebar').classList.contains('hidden');
+  режимЗакладок(!открыты);
+};
 $$('#search').oninput=e=>{ S.markMode=false; renderTree(e.target.value); };
 $$('#search').onkeydown=e=>e.stopPropagation();
 
@@ -53364,7 +53710,8 @@ const PREFS=[
    name:'Свой акцентный цвет',desc:'Любой цвет — оттенки для текста, заливок и границ приложение подберёт само. Действует, когда выше выбран «Свой цвет».'},
   {cat:'look',key:'palette',type:'select',def:'std',
    name:'Палитра',desc:'Основа поверх светлой или тёмной темы. «Бумага и графит» (9.0) — тёплая бумага днём и графит вечером; «Сепия» — ещё теплее, для долгого чтения; «Полночь» — чёрная, для OLED-экранов; «Контраст» — для яркого солнца и слабого зрения.',
-   options:[['std','Бумага и графит'],['sepia','Сепия'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст']]},
+   options:[['std','Бумага и графит'],['sepia','Сепия'],['mint','Мята'],['nord','Северная'],['oled','Полночь'],['contrast','Контраст'],
+            ['blueprint','Чертёж'],['chalk','Доска'],['solar','Солнечная'],['solarnight','Солнечная ночь'],['lavender','Лаванда'],['coffee','Кофе'],['mine','Своя тема']]},
   {cat:'look',key:'bar',type:'select',def:'light',
    name:'Верхняя панель',desc:'«Чернильная» — тёмная полоса с логотипом, отделяет управление от содержания (4.0.0). «Светлая» — как до 4.0, в цвет страницы.',
    options:[['ink','Чернильная'],['light','Светлая']]},
@@ -53811,7 +54158,9 @@ const ТЕМЫ_ОФОРМЛЕНИЯ=[
   {id:'mint',  имя:'Мята',     theme:'light',palette:'mint',    c:['#eef4f1','#fbfdfc','#14211b','#0d9488']},
   {id:'nord',  имя:'Северная', theme:'dark', palette:'nord',    c:['#1f2530','#262e3b','#e6ebf2','#88c0d0']},
   {id:'oled',  имя:'Полночь',  theme:'dark', palette:'oled',    c:['#000000','#0a0a0d','#f0f0f4','#9184d9']},
-  {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']}
+  {id:'contrast',имя:'Контраст',theme:'light',palette:'contrast',c:['#ffffff','#ffffff','#000000','#3b2fb3']},
+  // 10.1.0: темы на движке themes.js — из пяти цветов
+  ...Object.keys(typeof ТЕМЫ_ДВИЖКА!=='undefined'?ТЕМЫ_ДВИЖКА:{}).map(id=>карточкаТемы(id,ТЕМЫ_ДВИЖКА[id]))
 ];
 const АКЦЕНТЫ={ink:'#2346c8',violet:'#5b48e8',blue:'#3b82f6',teal:'#0d9488',amber:'#d97706',rose:'#e11d48',
   green:'#16a34a',indigo:'#4f46e5',orange:'#ea580c',pink:'#db2777',graphite:'#475569'};
@@ -53827,6 +54176,7 @@ const ГОТОВЫЕ_ПРОФИЛИ=[
 ];
 function темаСейчас(){
   const t=prefGet('theme'), p=prefGet('palette');
+  if(p==='mine'){ const м=S.settings.mine; return м&&м.id?м.id:''; }
   const x=ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.theme===t&&y.palette===p);
   return x?x.id:'';
 }
@@ -53835,12 +54185,27 @@ function страницаГлавное(){
   const свои=LS.get('profiles',{});
   const сег=(k,опции)=>`<div class="seg" data-seg="${k}">${опции.map(([v,t])=>
     `<button class="${String(prefGet(k))===String(v)?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>`;
+  const мои=typeof моиТемы==='function'?моиТемы():[];
+  const все=ТЕМЫ_ОФОРМЛЕНИЯ.concat(мои.map(т=>карточкаТемы(т.id,т)));
+  const р=S.settings.sched||{};
+  const выбор=(имя,зн)=>`<select class="q-sel" data-sched="${имя}">${все.filter(x=>x.id!=='auto').map(x=>
+    `<option value="${x.id}"${x.id===зн?' selected':''}>${esc(x.имя)}</option>`).join('')}</select>`;
+  const часы=(имя,зн)=>`<select class="q-sel q-h" data-sched="${имя}">${Array.from({length:24},(_,h)=>
+    `<option value="${h}"${h===+зн?' selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select>`;
   return `<div class="q">
-  <section class="q-s"><h4>Тема</h4><div class="q-themes">${ТЕМЫ_ОФОРМЛЕНИЯ.map(x=>
-    `<button class="q-theme${x.id===тм?' on':''}" data-theme-id="${x.id}" title="${x.имя}">
+  <section class="q-s"><h4>Тема</h4><div class="q-themes">${все.map(x=>
+    `<div class="q-tcell"><button class="q-theme${x.id===тм?' on':''}" data-theme-id="${x.id}" title="${esc(x.имя)}">
        <span class="q-prev" style="background:${x.c[0]}">${x.id==='auto'?`<span class="q-half" style="background:${x.c[1]}"></span>`:''}
-         <span class="q-win" style="background:${x.c[1]}"><i style="background:${x.c[2]}"></i><i style="background:${x.c[2]};width:55%"></i><b style="background:${x.c[3]}"></b></span></span>
-       <span class="q-name">${x.имя}</span></button>`).join('')}</div></section>
+         <span class="q-win" style="background:${x.c[1]}"><i style="background:${x.c[2]}"></i><i style="background:${x.c[2]};width:55%"></i><b style="background:${x.c[3]}"></b>${x.c[4]?`<em style="background:${x.c[4]}"></em>`:''}</span></span>
+       <span class="q-name">${esc(x.имя)}</span></button>${/^my-/.test(x.id)?`<span class="q-tact"><button class="iconbtn" data-th-edit="${x.id}" title="Изменить тему">✎</button><button class="iconbtn" data-th-del="${x.id}" title="Удалить тему">×</button></span>`:''}</div>`).join('')}
+    <button class="q-theme q-new" id="q-th-new" title="Собрать свою тему из пяти цветов"><span class="q-prev q-plus">＋</span><span class="q-name">Своя тема</span></button></div>
+    <div class="q-ed hidden" id="q-ed"></div>
+    <div class="q-th-io"><label class="btn ghost">Открыть тему из файла<input type="file" id="q-th-file" accept=".json,application/json" hidden></label>
+      <span class="q-help">Тему можно передать кодом: «Код темы» в конструкторе, «Вставить код» в профилях ниже.</span></div>
+    <div class="q-sched">
+      <label class="chk"><input type="checkbox" id="q-sched-on"${р.вкл?' checked':''}> <span>День и ночь: менять тему по часам</span></label>
+      <div class="q-sched-row${р.вкл?'':' off'}">днём ${выбор('день',р.день||'light')} ночью ${выбор('ночь',р.ночь||'dark')} с ${часы('с',р.с==null?21:р.с)} до ${часы('до',р.до==null?7:р.до)}</div>
+    </div></section>
   <section class="q-s"><h4>Акцентный цвет</h4><div class="q-acc">${Object.keys(АКЦЕНТЫ).map(k=>
     `<button class="q-sw${ак===k?' on':''}" data-acc="${k}" style="--c:${АКЦЕНТЫ[k]}" title="${(PREFS.find(p=>p.key==='accent').options.find(o=>o[0]===k)||[0,k])[1]}"></button>`).join('')}
     <label class="q-sw q-own${ак==='custom'?' on':''}" title="Свой цвет" style="--c:${prefGet('accentCustom')}"><input type="color" id="q-own" value="${prefGet('accentCustom')}"></label></div></section>
@@ -53903,9 +54268,16 @@ function разобратьКод(код){
 function подключитьГлавное(body){
   typeset(body);
   body.querySelectorAll('[data-theme-id]').forEach(b=>b.onclick=()=>{
-    const x=ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.id===b.dataset.themeId);
-    S.settings.theme=x.theme; S.settings.palette=x.palette; applySettings(); renderPrefs(); renderPrefsSide();
+    const id=b.dataset.themeId, x=typeof разобратьИдТемы==='function'?разобратьИдТемы(id):ТЕМЫ_ОФОРМЛЕНИЯ.find(y=>y.id===id);
+    if(!x) return;
+    сменитьТемуПлавно(()=>{ S.settings.theme=x.theme; S.settings.palette=x.palette;
+      if(x.palette==='mine') S.settings.mine=x.seed;
+      // выбрали тему руками — расписание больше не спорит с выбором
+      if(S.settings.sched&&S.settings.sched.вкл){ S.settings.sched.вкл=false; toast('Смена по часам выключена: тема выбрана вручную'); }
+      applySettings(); });
+    renderPrefs(); renderPrefsSide();
   });
+  подключитьКонструкторТем(body);
   body.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>prefSet('accent',b.dataset.acc));
   const own=body.querySelector('#q-own');
   own.oninput=()=>{ S.settings.accentCustom=own.value; S.settings.accent='custom'; own.parentElement.style.setProperty('--c',own.value); applySettings(); };
@@ -53942,9 +54314,11 @@ function подключитьГлавное(body){
       else toast(ок?'Код скопирован':'Выделите код и скопируйте'); };
   };
   body.querySelector('#q-paste').onclick=()=>{
-    коробка.classList.remove('hidden'); текст.rows=3; текст.value=''; текст.placeholder='Вставьте код вида PHYSIM1:…';
+    коробка.classList.remove('hidden'); текст.rows=3; текст.value=''; текст.placeholder='Вставьте код настроек PHYSIM1:… или темы PHYTHEME1:…';
     го.textContent='Применить код'; текст.focus();
-    го.onclick=()=>{ try{ const н=разобратьКод(текст.value);
+    го.onclick=()=>{ try{
+        if(/PHYTHEME1:|"формат"\s*:\s*"physim-theme"/.test(текст.value)&&typeof темаИзКода==='function'){ принятьТему(темаИзКода(текст.value)); return; }
+        const н=разобратьКод(текст.value);
         if(!Object.keys(н).length){ toast('В коде нет знакомых настроек'); return; }
         применитьПрофиль(н,'из кода'); }catch(e){ toast('Не получилось: '+e.message); } };
   };
@@ -54074,7 +54448,21 @@ function uiMode(){
   const экран=window.screen&&screen.width&&screen.height ? Math.min(screen.width,screen.height) : innerHeight;
   const narrow = matchMedia('(max-width:900px)').matches || экран<=560;
   const uaMob  = /Android|iPhone|iPad|iPod|IEMobile|Mobile Safari|Silk/i.test(navigator.userAgent||'');
-  return (((coarse&&noHover)||uaMob) && narrow) ? 'mobile' : 'desktop';
+  if(!((coarse&&noHover)||uaMob)) return 'desktop';
+  /* Планшет (10.1.0): боком — компьютерная раскладка, стоя — телефонная, как бы
+     широк он ни был. Раньше решала одна ширина, и iPad Pro или большой
+     Android-планшет стоя получали «стенд» в узкую высокую колонку. */
+  return (narrow || портретЭкрана()) ? 'mobile' : 'desktop';
+}
+/* Ориентацию берём у экрана, а не у окна: экранная клавиатура делает окно
+   планшета стоя «альбомным», и раскладка переключалась бы от каждого поля ввода. */
+function портретЭкрана(){
+  /* Окно заметно выше, чем шире, — тоже стоя: клавиатура окно только укорачивает,
+     а старые Safari на iPad не знают screen.orientation. */
+  if(innerHeight>innerWidth*1.1) return true;
+  try{ const t=screen.orientation&&screen.orientation.type; if(t) return /^portrait/.test(t); }catch(_){}
+  if(typeof window.orientation==='number') return Math.abs(window.orientation)!==90;
+  return false;
 }
 function applyUiMode(){
   const m=uiMode(), root=document.documentElement;
@@ -54565,6 +54953,10 @@ function onViewportChange(){
   syncViewport(); try{ syncMbar(); }catch(_){}
   if(now!==lastNarrow){
     lastNarrow=now;
+    /* Нижняя панель телефона перекладывается по своему событию resize, а оно
+       приходит раньше этого (здесь задержка 90 мс): она ещё видела прежний режим
+       и оставалась на «стенде» после поворота планшета боком (10.1.0). */
+    if(typeof м6Разместить==='function') try{ м6Разместить(); }catch(_){}
     /* Смена раскладки на лету (планшет повернули): всё временное, открытое
        в прежней, закрываем. Ящик тем, меню и карточки принадлежат своей
        раскладке и в чужой оказывались не на месте или под другими слоями. */
@@ -54585,8 +54977,11 @@ function onViewportChange(){
         $('#splitter').classList.remove('hidden');
         $('#content').classList.remove('wide');
       }
-      // на средней ширине панель тем ложится поверх текста — не распахиваем её
-      toggleSidebar(innerWidth<1200);
+      // на средней ширине панель тем ложится поверх текста — не распахиваем её;
+      // у «стенда» содержание поверх конспекта вплоть до 1600 px
+      const стенд=document.documentElement.dataset.lay==='bench';
+      toggleSidebar(innerWidth<(стенд?1600:1200));
+      if(typeof отметить9==='function') try{ отметить9(); }catch(_){}
       syncSheet();                      // снять то, что телефонный лист прятал руками
     }
   }
@@ -54610,8 +55005,11 @@ function applySettings(){
   if(s.fs>16) s.fs=12;                                  // миграция со старой px-шкалы
   const root=document.documentElement;
   // «как в системе»: слушаем текущее значение prefers-color-scheme
-  root.dataset.theme = s.theme==='auto'
-    ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : s.theme;
+  /* расписание «день — ночь» (10.1.0) подменяет тему на время, не трогая настройки */
+  const поРасп=typeof темаПоРасписанию==='function'?темаПоРасписанию(s):null;
+  const тон=поРасп?поРасп.theme:s.theme;
+  root.dataset.theme = тон==='auto'
+    ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : тон;
   root.dataset.density=s.density||'cozy';
   root.dataset.serif = prefGet('serifNotes') ? '1' : '0';
   root.dataset.dock  = prefGet('dockSize')==='big' ? 'big' : 'norm';
@@ -54619,7 +55017,11 @@ function applySettings(){
   root.style.setProperty('--fs',s.fs+'pt');
   root.style.setProperty('--hudk',String(prefGet('hudScale')||1));
   // палитра поверх тона (2.0.0): бумага, мята, северная, полночь, контраст
-  root.dataset.palette = prefGet('palette')||'std';
+  const палитра=поРасп?поРасп.palette:(prefGet('palette')||'std');
+  /* темы движка (themes.js) кладут токены инлайном поверх «Бумаги и графита» */
+  const семя=поРасп&&поРасп.seed?поРасп.seed:(typeof семяТемы==='function'?семяТемы(палитра,s):null);
+  root.dataset.palette = семя?'std':палитра;
+  root.dataset.ptheme = семя?(палитра==='mine'?'mine':палитра):'';
   /* Акцентный цвет. Оттенки -300/-700/-800 выводятся из него же: раньше
      менялся только сам акцент, а подписи и заливки оставались фиолетовыми. */
   const тёмная=root.dataset.theme==='dark';
@@ -54627,14 +55029,16 @@ function applySettings(){
   /* «Чернила» (9.0) — не один цвет, а пара из палитры: густо-синие на бумаге и
      светлые на графите; поэтому их оттенки задаёт CSS, а не эта функция */
   const акц = s.accent==='custom' ? (/^#[0-9a-f]{6}$/i.test(prefGet('accentCustom'))?prefGet('accentCustom'):null) : (s.accent==='ink'?null:ACC[s.accent]);
-  const оттенки=['--accent','--accent-soft','--accent-300','--accent-700','--accent-800'];
+  const оттенки=['--accent','--accent-soft','--accent-300','--accent-700','--accent-800','--on-accent'];
   if(акц){
     root.style.setProperty('--accent',акц);
     root.style.setProperty('--accent-soft',акц+(тёмная?'2e':'1f'));
     root.style.setProperty('--accent-300',тёмная?смешать(акц,'#ffffff',.6):смешать(акц,'#000000',.22));
     root.style.setProperty('--accent-700',тёмная?смешать(акц,'#000000',.3):смешать(акц,'#ffffff',.2));
     root.style.setProperty('--accent-800',тёмная?смешать(акц,'#000000',.55):смешать(акц,'#ffffff',.78));
+    if(typeof тмКонтраст==='function') root.style.setProperty('--on-accent',тмКонтраст(акц,'#ffffff')>=3?'#ffffff':'#14130f');
   } else for(const v of оттенки) root.style.removeProperty(v);
+  if(typeof применитьТокеныТемы==='function') применитьТокеныТемы(root,семя,акц);
   // форма и типографика
   const рад=+prefGet('radius'); root.style.setProperty('--radius',рад+'px'); root.style.setProperty('--radius-sm',Math.max(0,Math.round(рад*0.75))+'px');
   const ШРИФТЫ={sans:'var(--sans)',humanist:'"Segoe UI","Noto Sans","Open Sans","Helvetica Neue",Arial,sans-serif',
@@ -56851,7 +57255,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '10.0.1';
+window.PHYSIM_BUILD = '10.1.0';
 window.PHYSIM_READY = true;
 
 ;
@@ -56934,13 +57338,15 @@ function песочницаПотока(){
     'handles','probe','description','format','timeUnit']);
   const числ=v=>typeof v==='number'&&isFinite(v);
   let М=null;                              // разобранное определение
-  const предупреждения=[], ошибки=[];
+  const предупреждения=[], ошибки=[], советы=[];        // советы (10.1) — про качество, не про ошибки
   function разобрать(D){
     if(!D||typeof D!=='object'){ ошибки.push({где:'simulation',msg:'simulation({...}) не вызвана или вызвана не с объектом'}); return null; }
     for(const k of Object.keys(D)) if(!ИЗВЕСТНЫЕ.has(k)) предупреждения.push({где:'simulation',msg:`неизвестное поле «${k}» — оно не используется`});
     for(const k of ['init','draw']) if(typeof D[k]!=='function') ошибки.push({где:k,msg:`нет функции ${k}(...)`});
     if(!D.static && typeof D.step!=='function') ошибки.push({где:'step',msg:'нет функции step(s, dt, p); у неподвижной сцены поставьте static: true'});
     const m={title:String(D.title||D.name||'Без названия').slice(0,90), params:[], видимость:{}, presets:[], graphs:[],
+      // 10.1: короткое описание модели — допущения и формулы; показывается в Мастерской
+      description:typeof D.description==='string'?D.description.trim().slice(0,600):'',
       static:!!D.static, schema:!!D.schema, dt:1/240, timeUnit:typeof D.timeUnit==='string'?D.timeUnit.slice(0,8):'с',
       handles:typeof D.handles==='function', probe:typeof D.probe==='function'};
     if(D.dt!=null){ if(числ(D.dt)&&D.dt>=1e-5&&D.dt<=0.1) m.dt=D.dt; else предупреждения.push({где:'dt',msg:'dt должен быть числом от 0.00001 до 0.1 с — взят 1/240'}); }
@@ -56979,6 +57385,8 @@ function песочницаПотока(){
       const v={}; for(const [k,x] of Object.entries(пр.values)) if(ключПар.has(k)) v[k]=x; else предупреждения.push({где:`presets[${i}]`,msg:`в примере неизвестный параметр «${k}»`});
       m.presets.push({name:String(пр.name||`Пример ${i+1}`).slice(0,80),values:v});
     }
+    if(!m.description) советы.push({где:'description',msg:'нет description — 2–4 предложения: какая модель, какие допущения и формулы (их видно в Мастерской)'});
+    if(!m.static&&m.params.some(q=>q.key)&&!m.presets.length) советы.push({где:'presets',msg:'нет presets — добавьте 2–4 набора, показывающих главные случаи'});
     m.графикиФ=[];
     for(const [i,g] of (Array.isArray(D.graphs)?D.graphs:[]).entries()){
       if(!g||typeof g.get!=='function'){ ошибки.push({где:`graphs[${i}]`,msg:'у графика нет функции get(s, p)'}); continue; }
@@ -57152,7 +57560,7 @@ function песочницаПотока(){
   }
   function поУмолчанию(){ const p={}; for(const q of М.params) if(q.key) p[q.key]=q.default; return p; }
   function проверить(){
-    const rnd=помощь.seeded(1234), отчёт={ошибки:ошибки.slice(),предупреждения:предупреждения.slice(),наборов:0,шагов:0,мсШаг:0,мсРисунок:0,команд:0};
+    const rnd=помощь.seeded(1234), отчёт={ошибки:ошибки.slice(),предупреждения:предупреждения.slice(),советы:советы.slice(),наборов:0,шагов:0,мсШаг:0,мсРисунок:0,команд:0};
     if(отчёт.ошибки.length) return отчёт;
     const база=поУмолчанию(), наборы=[{имя:'значения по умолчанию',p:база}];
     for(const пр of М.presets) наборы.push({имя:`пример «${пр.name}»`,p:Object.assign({},база,пр.values)});
@@ -57228,7 +57636,7 @@ function песочницаПотока(){
     if(!М||ошибки.length){ послать({k:'fail',ошибки,предупреждения}); }
     else {
       мета={title:М.title,params:М.params,presets:М.presets,graphs:М.static?[]:М.graphs,static:М.static,schema:М.schema,
-        handles:М.handles,probe:М.probe,timeUnit:М.timeUnit,предупреждения};
+        handles:М.handles,probe:М.probe,timeUnit:М.timeUnit,description:М.description,предупреждения,советы};
       послать({k:'meta',мета});
     }
   }catch(e){ послать({k:'fail',ошибки:[наружу(e)],предупреждения}); }
@@ -57538,6 +57946,7 @@ function определениеСамодельной(id,запись,поток
 function примерМаятник(){
   simulation({
     title: 'Маятник с затуханием',
+    description: 'Математический маятник: точечный груз на невесомой нити. Уравнение θ″ = −(g/L)·sin θ − b·θ′ решается численно, поэтому большие углы честные; период малых колебаний T = 2π√(L/g).',
     params: [
       { type: 'group', label: 'Маятник' },
       { key: 'L', label: 'Длина нити', unit: 'м', min: 0.2, max: 3, step: 0.05, default: 1 },
@@ -57598,12 +58007,18 @@ function примерИстечение(){
 
   simulation({
     title: 'Истечение из сосуда',
+    description: 'Вода вытекает через малое отверстие в стенке. Скорость струи по Торричелли v = μ√(2gh), уровень падает как dh/dt = −(s/S)·v; струя — парабола свободного падения.',
     params: [
       { key: 'H', label: 'Начальный уровень воды', unit: 'м', min: 0.2, max: 1.8, step: 0.05, default: 1.2 },
       { key: 'z', label: 'Высота отверстия над дном', unit: 'м', min: 0, max: 1, step: 0.05, default: 0.2 },
       { key: 'D', label: 'Диаметр сосуда', unit: 'см', min: 10, max: 80, step: 1, default: 40 },
       { key: 'dh', label: 'Диаметр отверстия', unit: 'мм', min: 2, max: 30, step: 1, default: 12 },
       { key: 'mu', label: 'Коэффициент расхода μ', min: 0.5, max: 1, step: 0.01, default: 0.62 },
+    ],
+    presets: [
+      { name: 'Отверстие у дна: струя бьёт дальше всего вначале', values: { H: 1.6, z: 0, mu: 0.62 } },
+      { name: 'Отверстие посередине', values: { H: 1.6, z: 0.8, mu: 0.62 } },
+      { name: 'Идеальная жидкость: μ = 1', values: { H: 1.2, z: 0.2, mu: 1 } },
     ],
     view: { x: [-0.6, 2.4], y: [-0.25, 2.4] },
 
@@ -57659,12 +58074,18 @@ function примерИстечение(){
 function примерБрусок(){
   simulation({
     title: 'Брусок на наклонной плоскости',
+    description: 'Брусок на плоскости с углом α и трением μ. Если tg α > μ, он скользит с ускорением a = g(sin α − μ cos α); иначе покоится, и трение покоя равно mg sin α.',
     params: [
       { key: 'a', label: 'Угол наклона α', unit: '°', min: 5, max: 60, step: 1, default: 30 },
       { key: 'L', label: 'Длина плоскости', unit: 'м', min: 1, max: 5, step: 0.1, default: 3 },
       { key: 'm', label: 'Масса бруска', unit: 'кг', min: 0.1, max: 10, step: 0.1, default: 2 },
       { key: 'mu', label: 'Коэффициент трения μ', min: 0, max: 1, step: 0.01, default: 0.2 },
       { key: 'forces', label: 'Показывать силы', type: 'check', default: true },
+    ],
+    presets: [
+      { name: 'Скользит: tg α > μ', values: { a: 30, mu: 0.2 } },
+      { name: 'Стоит: трения хватает', values: { a: 20, mu: 0.5 } },
+      { name: 'Без трения: a = g sin α', values: { a: 30, mu: 0 } },
     ],
     view: p => ({ x: [-0.5, p.L + 0.4], y: [-0.7, p.L * 0.9 + 0.3] }),
 
@@ -57729,11 +58150,32 @@ const ПРИМЕРЫ_МАСТЕРСКОЙ=[
 ];
 
 /* ---------- Инструкция для ИИ ---------- */
-function инструкцияДляИИ(запрос){
-  const пр=ПРИМЕРЫ_МАСТЕРСКОЙ.map((x,i)=>`### Пример ${i+1}. ${x.title} (${x.что})\n\n\`\`\`js\n${текстПримера(x.f)}\n\`\`\``).join('\n\n');
+/* опц (10.1): уровень — 'school' | 'uni'; коротко — один пример вместо трёх
+   (для ИИ с маленьким окном: бесплатные тарифы, локальные модели) */
+const УРОВНИ_МАСТ={
+  school:`Уровень — школьный курс (9–11 класс). Формулы — школьные: равноускоренное движение, законы Ньютона, сохранение энергии и импульса, газовые законы, закон Ома. Подписи и показания — простыми словами («скорость», «высота»), без производных и векторных обозначений в тексте. Параметров немного (3–6), каждый понятен без объяснений.`,
+  uni:`Уровень — вузовский курс общей физики (как у Иродова, Савельева). Можно дифференциальные уравнения, интегрирование численно, векторные величины, фазовые портреты, точные и приближённые решения рядом для сравнения. В показаниях — величины, которые проверяют теорию (сохраняющиеся энергия, импульс, момент; период по формуле и измеренный). В description — уравнения модели.`};
+function инструкцияДляИИ(запрос,опц){
+  опц=опц||{};
+  const примеры=опц.коротко?ПРИМЕРЫ_МАСТЕРСКОЙ.slice(0,1):ПРИМЕРЫ_МАСТЕРСКОЙ;
+  const пр=примеры.map((x,i)=>`### Пример ${i+1}. ${x.title} (${x.что})\n\n\`\`\`js\n${текстПримера(x.f)}\n\`\`\``).join('\n\n');
+  const задача=(запрос||'').trim();
   return `# Задание: симуляция для приложения Phy.Sim (формат ${ФОРМАТ_САМОДЕЛЬНЫХ})
 
 Ты пишешь код интерактивной физической симуляции для учебного приложения Phy.Sim. Человек вставит твой код в «Мастерскую» приложения и запустит. Код выполняется в изолированной песочнице: нет страницы, DOM, canvas, сети, таймеров и хранилища. Панель параметров, показания, графики, управление временем, масштаб и инструменты приложение делает само — от тебя нужна только модель по описанному ниже формату.
+${задача?`
+Коротко, что попросили (полностью — в конце): ${задача.split('\n')[0].slice(0,200)}
+`:''}
+## Как действовать
+
+1. Сначала физика, потом код: какие тела и величины, какие уравнения их связывают, какие допущения (точка, без трения, малые углы…). Запиши это в \`description\`.
+2. Реши, что человек будет менять (params), что видеть (рисунок), что читать (readouts) и как это меняется со временем (graphs). Подбери 2–4 \`presets\`, каждый показывает отдельный случай.
+3. Подбери \`view\` так, чтобы движение помещалось при любых параметрах и во всех presets: обычно это функция от p.
+4. Напиши код и пройди список «Перед ответом проверь себя» в конце.
+
+## ${опц.уровень==='uni'?'Уровень: вуз':'Уровень: школа'}
+
+${УРОВНИ_МАСТ[опц.уровень==='uni'?'uni':'school']}
 
 ## Что прислать в ответ
 
@@ -57744,8 +58186,9 @@ function инструкцияДляИИ(запрос){
 \`\`\`js
 simulation({
   title: 'Короткое название',
+  description: 'Какая модель: 2–4 предложения — допущения и уравнения',
   params: [ /* параметры, см. ниже */ ],
-  presets: [ /* необязательно: готовые наборы */ ],
+  presets: [ /* 2–4 готовых набора: каждый показывает свой случай */ ],
   view: { x: [xmin, xmax], y: [ymin, ymax] },   // что видно, в метрах; можно функцией p => ({ x: [...], y: [...] })
   init(p) { return { t: 0 /* … состояние … */ }; },
   step(s, dt, p) { /* … */ s.t += dt; },
@@ -57845,6 +58288,19 @@ ink, ink2, ink3 — чернила: основное, вторичное, бле
 
 \`deg\` = π/180; \`g\` = 9.81; \`clamp(x, a, b)\`; \`lerp(a, b, k)\`; \`rk4(f, y, t, dt)\` — шаг Рунге — Кутты, где \`f(t, y)\` возвращает массив производных, \`y\` — массив; \`seeded(42)\` — генератор случайных чисел (вызов возвращает число от 0 до 1; одинаковое зерно — одинаковая картина).
 
+## Частые ошибки (их находит проверка — лучше не допускать)
+
+- Угол из параметров в градусах подставлен в \`Math.sin\` без \`* deg\`.
+- Ось y считается направленной вниз: тело «падает» вверх. Здесь y — ВВЕРХ, g тянет к −y.
+- \`s.t\` не растёт, или после события \`step\` продолжает менять тела — показания уходят.
+- Деление на параметр, который может быть 0 (min: 0), или корень из отрицательного при краевых значениях → NaN.
+- \`view\` подобран под default, а при max тело улетает за край; или наоборот, при min всё сжимается в точку.
+- Цвета \`'#ff0000'\`, \`'red'\`, \`'rgba(…)'\` — приложение заменит ближайшими, пиши имена из палитры.
+- Тяжёлый \`step\`: попарные взаимодействия тысяч частиц (O(n²)) или большие массивы в каждом шаге.
+- \`readouts\` возвращает \`undefined\` или объект вместо числа; \`graphs.get\` возвращает строку.
+- Свои функции вызываются как \`this.f()\` из стрелочных функций — объяви их выше \`simulation\` обычными функциями.
+- Подписи наезжают друг на друга: подписывай \`d.label\` — она сама отходит, а длинный текст выноси в \`d.caption\`.
+
 ## Перед ответом проверь себя
 
 1. Физика верная, единицы СИ (или указаны в unit), знаки и направления осей согласованы с картинкой (y вверх).
@@ -57852,14 +58308,15 @@ ink, ink2, ink3 — чернила: основное, вторичное, бле
 3. \`s.t\` растёт в step; событие останавливает время один раз.
 4. Каждый параметр на что-то влияет, каждое показание считается из состояния.
 5. Рисунок строгий: имена цветов из палитры, ничего лишнего.
+6. Есть \`description\` и 2–4 \`presets\`; при переключении каждого набора картинка помещается во \`view\`.
 
-## Примеры
+## ${опц.коротко?'Пример':'Примеры'}
 
 ${пр}
 
 ## Что нужно сделать
 
-${(запрос||'').trim()||'(опишите здесь, какую симуляцию сделать: явление, что менять, что показывать)'}
+${задача||'(опишите здесь, какую симуляцию сделать: явление, что менять, что показывать)'}
 `;
 }
 
@@ -57885,7 +58342,7 @@ function мастЗаголовок(код){
 function мастОшибкаСтрокой(e){
   return `${e.где?e.где:'код'}${e.line?', строка '+e.line:''}: ${e.msg}${e.набор?` (параметры: ${e.набор})`:''}`;
 }
-function мастОтчётДляИИ(запись,отчёт,замечание){
+function мастОтчётДляИИ(запись,отчёт,замечание,сКодом){
   const код=очиститьКодИИ(запись.code), строки=код.split('\n');
   const кусок=L=>{ if(!L) return ''; const a=Math.max(1,L-2), b=Math.min(строки.length,L+2), out=[];
     for(let i=a;i<=b;i++) out.push(`${i===L?'>':' '} ${String(i).padStart(3)} | ${строки[i-1]}`); return '\n```\n'+out.join('\n')+'\n```'; };
@@ -57894,9 +58351,27 @@ function мастОтчётДляИИ(запись,отчёт,замечание
   if(!ош.length&&!пр.length) т=`Симуляция для Phy.Sim${отчёт.мета?` «${отчёт.мета.title}»`:''} проходит проверку. Доработай её, как описано ниже, и пришли код целиком одним блоком \`\`\`js.\n`;
   if(ош.length) т+=`\nОшибки (${ош.length}):\n`+ош.map((e,i)=>`${i+1}. ${мастОшибкаСтрокой(e)}${e.params?`\n   значения: ${JSON.stringify(e.params)}`:''}${кусок(e.line)}`).join('\n');
   if(пр.length) т+=`\n\nПредупреждения (${пр.length}):\n`+пр.map((e,i)=>`${i+1}. ${мастОшибкаСтрокой(e)}`).join('\n');
+  const сов=отчёт.советы||(отчёт.мета&&отчёт.мета.советы)||[];
+  if(сов.length) т+=`\n\nСоветы (${сов.length}):\n`+сов.map((e,i)=>`${i+1}. ${мастОшибкаСтрокой(e)}`).join('\n');
   if(замечание&&замечание.trim()) т+=`\n\nЗамечания от меня:\n${замечание.trim()}`;
+  if(сКодом) т+=`\n\nТекущий код:\n\`\`\`js\n${код}\n\`\`\``;
   return т;
 }
+
+/* ---------- Подсказки к описанию (10.1) ----------
+   Хорошее описание — половина успеха: ИИ угадывает меньше. Кнопки «структуры»
+   дописывают заготовки строк, «идеи» — готовые описания, с которых легко начать. */
+const СТРУКТУРА_ЗАПРОСА=[['Явление','Явление: '],['Менять','Менять (параметры): '],['Показывать','Показывать на рисунке: '],
+  ['Показания','Показания (числа): '],['Графики','Графики по времени: '],['Ручки','Ручки (тянуть мышью): '],['Задача','Проверить на задаче: ']];
+const ИДЕИ_МАСТ=[
+  ['Бросок с сопротивлением','Тело бросают под углом к горизонту с учётом сопротивления воздуха F = −kv. Менять: скорость, угол, массу, k. Показывать траекторию с сопротивлением и без, дальность и высоту; графики vx(t) и vy(t). Ручка — вектор начальной скорости.'],
+  ['Маятник Фуко','Маятник Фуко на широте φ: плоскость качаний поворачивается. Вид сверху: след груза-розетка. Менять: широту, длину, начальную амплитуду, ускорение времени. Показания: период поворота плоскости 24 ч / sin φ и измеренный угол поворота.'],
+  ['LC-контур','Колебательный LC-контур с сопротивлением R. Схема, заряд на конденсаторе и ток в катушке; энергия перетекает между полями. Менять L, C, R. Графики q(t), I(t) и энергий. Показания: период по Томсону и измеренный.'],
+  ['Эффект Доплера','Источник звука движется мимо неподвижного наблюдателя; волновые фронты — окружности. Менять скорость источника (до сверхзвуковой) и частоту. Показывать частоту, которую слышит наблюдатель, до и после пролёта; при v > c — конус Маха.'],
+  ['Броуновское движение','Крупная частица в газе мелких молекул, которые её толкают. Менять температуру, массу частицы, число молекул. След частицы; график среднего квадрата смещения ⟨x²⟩(t) и прямая по Эйнштейну.'],
+  ['Связанные маятники','Два одинаковых маятника, соединённых пружиной: биения, энергия переходит от одного к другому. Менять жёсткость связи и начальные отклонения. Графики углов обоих; показания — период биений по теории и измеренный.'],
+  ['Заряд в поле','Заряженная частица в однородных электрическом и магнитном полях: циклоида, дрейф E×B. Менять q/m, E, B и начальную скорость. Показывать траекторию и вектор скорости; показания — скорость дрейфа E/B.'],
+  ['Цикл Карно','Цикл Карно для идеального газа: цилиндр с поршнем и pV-диаграмма. Менять температуры нагревателя и холодильника, объёмы. Показания: работа за цикл, КПД измеренный и 1 − T₂/T₁.']];
 
 /* ---------- Окно Мастерской ---------- */
 const ВКЛАДКИ_МАСТ=[['list','Мои симуляции'],['edit','Редактор'],['guide','Инструкция для ИИ']];
@@ -57964,8 +58439,9 @@ function рисоватьСписокМаст(body){
     <h3 class="wk-h">Мои симуляции</h3>
     ${л.length?`<div class="wk-grid">${л.map(з=>`<div class="wk-card" data-id="${esc(з.id)}">
         <b>${esc(з.title||'Без названия')}</b><span>${мастДата(з.updated)} · ${мастСтатус(з)}</span>
-        ${з.request?`<p>${esc(з.request.slice(0,140))}${з.request.length>140?'…':''}</p>`:''}
+        ${з.description?`<p class="wk-cdesc">${esc(з.description.slice(0,170))}${з.description.length>170?'…':''}</p>`:з.request?`<p>${esc(з.request.slice(0,140))}${з.request.length>140?'…':''}</p>`:''}
         <div class="wk-row"><button class="btn primary" data-act="run"${з.code&&з.code.trim()?'':' disabled'}>Запустить</button><button class="btn" data-act="edit">Править</button>
+          <button class="btn ghost" data-act="dup" title="Копия — чтобы попробовать другой вариант, не трогая этот">Копия</button>
           <button class="btn ghost" data-act="copy" title="Скопировать код — чтобы отправить другу">Код</button><button class="btn ghost" data-act="file" title="Скачать файл .js">Файл</button>
           <button class="btn ghost" data-act="del" title="Удалить">Удалить</button></div></div>`).join('')}</div>`
       :`<p class="wk-empty">Пока пусто. Начните с «Новой симуляции» или посмотрите примеры ниже — это те же примеры, что ИИ видит в инструкции.</p>`}
@@ -57984,6 +58460,8 @@ function рисоватьСписокМаст(body){
       const act=b.dataset.act;
       if(act==='run') запуститьИзМастерской(з);
       else if(act==='edit'){ МАСТ.текущая=id; вкладкаМастерской('edit'); }
+      else if(act==='dup'){ const к=мастНовая({title:з.title+' (копия)',request:з.request,code:з.code,level:з.level,short:з.short,description:з.description});
+        МАСТ.текущая=к.id; вкладкаМастерской('edit'); toast('Копия создана'); }
       else if(act==='copy'){ copyText(мастФайл(з)); toast('Код скопирован — его можно вставить в Мастерскую на другом устройстве'); }
       else if(act==='file'){ скачать(мастИмяФайла(з),new Blob([мастФайл(з)],{type:'text/javascript'})); }
       else if(act==='del') askConfirm(`Удалить «${з.title}»? Код пропадёт с этого устройства.`,()=>{ мастЗаписать(мастСписок().filter(x=>x.id!==id)); if(МАСТ.текущая===id) МАСТ.текущая=null; рисоватьСписокМаст(body); },'Удалить симуляцию',{ok:'Удалить'});
@@ -58005,15 +58483,24 @@ function рисоватьРедакторМаст(body){
     <div class="wk-ed">
       <section class="wk-sec">
         <div class="wk-sh"><b>1</b><span>Что должна показывать симуляция</span></div>
+        <div class="wk-chips" id="wk-struct"><span class="wk-chips-l">Добавить строку:</span>${СТРУКТУРА_ЗАПРОСА.map(([и,т],i)=>`<button class="wk-chip" data-st="${i}" title="Дописать «${esc(т.trim())}»">${и}</button>`).join('')}</div>
         <textarea id="wk-req" class="wk-ta" rows="5" placeholder="Например: шар бросают под углом к горизонту с учётом сопротивления воздуха. Менять: скорость, угол, массу, коэффициент сопротивления. Показывать траекторию с сопротивлением и без, дальность и высоту, графики скоростей vx и vy. Ручка — направление и величина начальной скорости.">${esc(з.request||'')}</textarea>
+        ${(з.request||'').trim()?'':`<div class="wk-chips wk-ideas"><span class="wk-chips-l">Идеи:</span>${ИДЕИ_МАСТ.map(([и],i)=>`<button class="wk-chip" data-idea="${i}">${esc(и)}</button>`).join('')}</div>`}
+        <div class="wk-opts">
+          <span>Уровень</span><div class="seg" id="wk-level"><button data-v="school" class="${з.level!=='uni'?'on':''}">Школа</button><button data-v="uni" class="${з.level==='uni'?'on':''}">Вуз</button></div>
+          <span>Задание</span><div class="seg" id="wk-len"><button data-v="full" class="${з.short?'':'on'}">Полное</button><button data-v="short" class="${з.short?'on':''}" title="Один пример вместо трёх — для ИИ с маленьким окном">Короткое</button></div>
+          <span class="wk-hint" id="wk-len-n"></span>
+        </div>
         <div class="wk-row"><button class="btn primary" id="wk-copy-task">Скопировать задание для ИИ</button>
           <span class="wk-hint">Инструкция и ваше описание — одним текстом. Вставьте в чат с ИИ и отправьте.</span></div>
       </section>
       <section class="wk-sec">
-        <div class="wk-sh"><b>2</b><span>Ответ ИИ — код симуляции</span><span class="wk-saved" id="wk-saved"></span></div>
+        <div class="wk-sh"><b>2</b><span>Ответ ИИ — код симуляции</span><span class="wk-saved" id="wk-saved"></span>
+          <button class="btn ghost wk-vbtn${(з.versions||[]).length?'':' hidden'}" id="wk-vers" title="Прежние версии кода: вернуть, если новый ответ ИИ оказался хуже">Версии · ${(з.versions||[]).length}</button></div>
+        <div class="wk-vlist hidden" id="wk-vlist"></div>
         <textarea id="wk-code" class="wk-ta wk-code" rows="16" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Вставьте сюда ответ ИИ целиком — блок кода найдётся сам">${esc(з.code||'')}</textarea>
         <div class="wk-row"><button class="btn" id="wk-check">Проверить</button><button class="btn primary" id="wk-run">Запустить</button>
-          <span class="wk-hint">Проверка гоняет модель на разных параметрах и ищет ошибки, NaN и зависания.</span></div>
+          <span class="wk-hint">Проверка гоняет модель на разных параметрах и ищет ошибки, NaN и зависания. Вставленный ответ проверяется сам.</span></div>
       </section>
       <section class="wk-sec" id="wk-report">${отчёт?отчётHTML(з,отчёт):''}</section>
     </div>`;
@@ -58022,12 +58509,40 @@ function рисоватьРедакторМаст(body){
   const сохранить=()=>{ clearTimeout(таймер); таймер=setTimeout(()=>{ const t=мастЗаголовок(code.value);
     мастОбновить(з.id,{request:req.value,code:code.value,title:t||(з.title==='Новая симуляция'&&req.value.trim()?req.value.trim().split(/[.\n]/)[0].slice(0,60):з.title)});
     saved.textContent='сохранено'; setTimeout(()=>{ saved.textContent=''; },1200); },350); };
-  req.oninput=сохранить; code.oninput=()=>{ delete МАСТ.отчёты[з.id]; сохранить(); };
+  req.oninput=сохранить;
+  /* вставили ответ ИИ (код заметно изменился разом) — проверяем сами, без лишнего нажатия */
+  let прежде=code.value, авто=0;
+  code.oninput=()=>{ delete МАСТ.отчёты[з.id]; сохранить();
+    const скачок=Math.abs(code.value.length-прежде.length)>120; прежде=code.value;
+    clearTimeout(авто); if(скачок&&очиститьКодИИ(code.value)) авто=setTimeout(()=>мастПроверить(з.id,code.value),700); };
+  // Tab в коде — два пробела, а не уход фокуса; Shift+Tab — как обычно
+  code.addEventListener('keydown',e=>{ if(e.key==='Tab'&&!e.shiftKey&&!e.ctrlKey&&!e.altKey){ e.preventDefault();
+    const a=code.selectionStart, b=code.selectionEnd; code.setRangeText('  ',a,b,'end'); code.dispatchEvent(new Event('input')); } });
+  const опции=()=>({уровень:(мастНайти(з.id)||з).level==='uni'?'uni':'school',коротко:!!(мастНайти(з.id)||з).short});
+  const длина=()=>{ const n=body.querySelector('#wk-len-n'); if(n) n.textContent=`≈ ${Math.round(инструкцияДляИИ(req.value,опции()).length/1000)} тыс. знаков`; };
+  длина();
+  body.querySelectorAll('#wk-level button').forEach(b=>b.onclick=()=>{ мастОбновить(з.id,{level:b.dataset.v});
+    body.querySelectorAll('#wk-level button').forEach(x=>x.classList.toggle('on',x===b)); длина(); });
+  body.querySelectorAll('#wk-len button').forEach(b=>b.onclick=()=>{ мастОбновить(з.id,{short:b.dataset.v==='short'});
+    body.querySelectorAll('#wk-len button').forEach(x=>x.classList.toggle('on',x===b)); длина(); });
+  body.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ const т=СТРУКТУРА_ЗАПРОСА[+b.dataset.st][1];
+    const v=req.value.replace(/\s+$/,''); req.value=(v?v+'\n':'')+т; req.focus(); req.setSelectionRange(req.value.length,req.value.length); сохранить(); длина(); });
+  body.querySelectorAll('[data-idea]').forEach(b=>b.onclick=()=>{ req.value=ИДЕИ_МАСТ[+b.dataset.idea][1]; сохранить(); длина();
+    const и=b.closest('.wk-ideas'); if(и) и.remove(); req.focus(); });
   body.querySelector('#wk-copy-task').onclick=()=>{ мастОбновить(з.id,{request:req.value});
     if(!req.value.trim()){ toast('Сначала опишите, что должна показывать симуляция'); req.focus(); return; }
-    copyText(инструкцияДляИИ(req.value)); toast('Задание скопировано — вставьте его в чат с ИИ'); };
+    copyText(инструкцияДляИИ(req.value,опции())); toast('Задание скопировано — вставьте его в чат с ИИ'); };
+  // версии кода: список и возврат
+  const вб=body.querySelector('#wk-vers'), вл=body.querySelector('#wk-vlist');
+  if(вб) вб.onclick=()=>{ const зз=мастНайти(з.id)||з; вл.classList.toggle('hidden');
+    вл.innerHTML=(зз.versions||[]).slice().reverse().map((в,i,a)=>`<div class="wk-v"><span>${мастДата(в.at)} · ${esc(в.title||'')} · ${в.ошибок==null?'не проверялась':в.ошибок?`<b class="bad">ошибок: ${в.ошибок}</b>`:'<b class="good">проверена</b>'} · ${в.code.split('\n').length} строк</span>
+      <button class="btn ghost" data-vback="${a.length-1-i}">Вернуть</button></div>`).join('');
+    вл.querySelectorAll('[data-vback]').forEach(x=>x.onclick=()=>{ const зз2=мастНайти(з.id); const в=(зз2.versions||[])[+x.dataset.vback]; if(!в) return;
+      мастСохранитьВерсию(з.id); мастОбновить(з.id,{code:в.code,title:мастЗаголовок(в.code)||зз2.title,versionBase:в.code,versionAt:Date.now()}); delete МАСТ.отчёты[з.id];
+      вкладкаМастерской('edit'); toast('Версия возвращена — текущий код тоже сохранён в версиях'); }); };
   body.querySelector('#wk-check').onclick=()=>мастПроверить(з.id,code.value);
-  body.querySelector('#wk-run').onclick=()=>{ мастОбновить(з.id,{code:code.value,request:req.value,title:мастЗаголовок(code.value)||з.title}); запуститьИзМастерской(мастНайти(з.id)); };
+  body.querySelector('#wk-run').onclick=()=>{ мастНоваяВерсия(з.id,code.value);
+    мастОбновить(з.id,{code:code.value,request:req.value,title:мастЗаголовок(code.value)||з.title,versionBase:code.value,versionAt:Date.now()}); запуститьИзМастерской(мастНайти(з.id)); };
   привязатьОтчёт(body,з);
 }
 function отчётHTML(з,о){
@@ -58035,31 +58550,62 @@ function отчётHTML(з,о){
   const ош=о.ошибки||[], пр=о.предупреждения||[];
   const заг=ош.length?`<div class="wk-rep-h bad">Найдено ошибок: ${ош.length}</div>`
     :`<div class="wk-rep-h good">Проверка пройдена${о.наборов?`: ${о.наборов} ${plural(о.наборов,'набор','набора','наборов').replace(/^\d+\s/,'')} параметров`:''}${о.мсШаг?`, шаг модели ${о.мсШаг<0.01?(о.мсШаг*1000).toFixed(1)+' мкс':о.мсШаг.toFixed(2)+' мс'}`:''}</div>`;
-  const пункт=(e,кл)=>`<li class="${кл}"><b>${esc(e.где||'код')}${e.line?`, строка ${e.line}`:''}</b> — ${esc(e.msg)}${e.набор?` <small>(${esc(e.набор)})</small>`:''}</li>`;
+  const сов=о.советы||(о.мета&&о.мета.советы)||[], оп=о.мета&&о.мета.description;
+  const пункт=(e,кл)=>`<li class="${кл}${e.line?' wk-goto':''}"${e.line?` data-line="${e.line}" title="Показать строку ${e.line} в коде"`:''}><b>${esc(e.где||'код')}${e.line?`, строка ${e.line}`:''}</b> — ${esc(e.msg)}${e.набор?` <small>(${esc(e.набор)})</small>`:''}</li>`;
   return `<div class="wk-rep">${заг}
+    ${оп?`<p class="wk-desc"><b>Модель.</b> ${esc(оп)}</p>`:''}
     ${ош.length?`<ul class="wk-list">${ош.map(e=>пункт(e,'bad')).join('')}</ul>`:''}
     ${пр.length?`<div class="wk-sub">Замечания</div><ul class="wk-list">${пр.map(e=>пункт(e,'warn')).join('')}</ul>`:''}
+    ${сов.length?`<div class="wk-sub">Советы — сделают модель понятнее</div><ul class="wk-list">${сов.map(e=>пункт(e,'tip')).join('')}</ul>`:''}
     <div class="wk-sub">Что ещё поправить — по желанию</div>
     <textarea id="wk-note" class="wk-ta" rows="2" placeholder="Например: шар слишком мелкий; добавь график энергии; трение должно зависеть от скорости">${esc(з.note||'')}</textarea>
     <div class="wk-row"><button class="btn${ош.length||пр.length?' primary':''}" id="wk-copy-rep">${ош.length||пр.length?'Скопировать отчёт для ИИ':'Скопировать замечания для ИИ'}</button>
+      <label class="chk wk-withcode" title="Нужно, если пишете в новый чат: там ИИ не видит прежний код"><input type="checkbox" id="wk-withcode"> <span>приложить код</span></label>
       <span class="wk-hint">Отправьте в тот же чат — ИИ пришлёт исправленный код.</span></div></div>`;
 }
 function привязатьОтчёт(body,з){
   const b=body.querySelector('#wk-copy-rep'); if(!b) return;
   const n=body.querySelector('#wk-note');
   if(n) n.oninput=()=>мастОбновить(з.id,{note:n.value});
-  b.onclick=()=>{ const о=МАСТ.отчёты[з.id]; if(!о) return; copyText(мастОтчётДляИИ(мастНайти(з.id)||з,о,n?n.value:'')); toast('Отчёт скопирован — отправьте его ИИ'); };
+  const к=body.querySelector('#wk-withcode');
+  b.onclick=()=>{ const о=МАСТ.отчёты[з.id]; if(!о) return; copyText(мастОтчётДляИИ(мастНайти(з.id)||з,о,n?n.value:'',к&&к.checked)); toast('Отчёт скопирован — отправьте его ИИ'); };
+  // щелчок по ошибке со строкой — выделить эту строку в коде
+  body.querySelectorAll('.wk-goto').forEach(li=>li.onclick=()=>{ const ta=document.getElementById('wk-code'); if(!ta) return;
+    const L=+li.dataset.line, строки=ta.value.split('\n'); let a=0; for(let i=0;i<L-1&&i<строки.length;i++) a+=строки[i].length+1;
+    const b2=a+((строки[L-1]||'').length); ta.focus(); ta.setSelectionRange(a,b2);
+    const lh=parseFloat(getComputedStyle(ta).lineHeight)||18; ta.scrollTop=Math.max(0,(L-4)*lh); ta.scrollIntoView({block:'center',behavior:'smooth'}); });
+}
+/* Версии (10.1): прежний код откладывается, когда на его место встаёт заметно
+   другой — новый ответ ИИ. До 12 версий на симуляцию. */
+function мастСохранитьВерсию(id){
+  const з=мастНайти(id); if(!з||!очиститьКодИИ(з.code)) return;
+  const в=(з.versions||[]).slice(), код=з.code;
+  if(в.length&&в[в.length-1].code===код) return;
+  в.push({code:код,at:з.updated||Date.now(),title:з.title,ошибок:з.check?з.check.ошибок:null});
+  мастОбновить(id,{versions:в.slice(-12)});
+}
+function мастНоваяВерсия(id,код){
+  const з=мастНайти(id); if(!з) return;
+  const был=очиститьКодИИ(з.versionBase||''), стал=очиститьКодИИ(код);
+  // версия — то, что уже проверяли или запускали; правка буквы версией не считается
+  if(был&&стал&&был!==стал&&Math.abs(был.length-стал.length)+(был.slice(0,200)===стал.slice(0,200)?0:200)>40){
+    const в=(з.versions||[]).slice(); if(!в.length||в[в.length-1].code!==з.versionBase) в.push({code:з.versionBase,at:з.versionAt||з.updated,title:мастЗаголовок(з.versionBase)||з.title,ошибок:з.versionErr==null?null:з.versionErr});
+    мастОбновить(id,{versions:в.slice(-12)});
+  }
 }
 function мастПроверить(id,код){
+  мастНоваяВерсия(id,код);
   мастОбновить(id,{code:код,title:мастЗаголовок(код)||(мастНайти(id)||{}).title});
   МАСТ.отчёты[id]={идёт:true};
   const перерисовать=()=>{ const box=document.getElementById('wk-report'); const з=мастНайти(id);
-    if(box&&з&&МАСТ.текущая===id){ box.innerHTML=отчётHTML(з,МАСТ.отчёты[id]); привязатьОтчёт(box,з); } };
+    if(box&&з&&МАСТ.текущая===id){ box.innerHTML=отчётHTML(з,МАСТ.отчёты[id]); привязатьОтчёт(box,з);
+      const вб=document.getElementById('wk-vers'), n=(з.versions||[]).length; if(вб){ вб.classList.toggle('hidden',!n); вб.textContent='Версии · '+n; } } };
   перерисовать();
   if(!очиститьКодИИ(код)){ МАСТ.отчёты[id]={ошибки:[{где:'код',msg:'код пуст — вставьте ответ ИИ'}],предупреждения:[]}; перерисовать(); return Promise.resolve(МАСТ.отчёты[id]); }
   return проверитьКод(код).then(о=>{
     МАСТ.отчёты[id]=о;
-    мастОбновить(id,{check:{ошибок:(о.ошибки||[]).length,предупреждений:(о.предупреждения||[]).length,at:Date.now()}});
+    мастОбновить(id,{check:{ошибок:(о.ошибки||[]).length,предупреждений:(о.предупреждения||[]).length,at:Date.now()},
+      description:о.мета&&о.мета.description||'',versionBase:код,versionAt:Date.now(),versionErr:(о.ошибки||[]).length});
     перерисовать(); return о;
   });
 }
@@ -58174,7 +58720,7 @@ function собрать9(){
   // шапка содержания — закрыть
   const sb=document.getElementById('sidebar');
   const шп=document.createElement('div'); шп.className='b9-tochead'; шп.id='b9-tochead';
-  шп.innerHTML='<b>Содержание</b><span class="spacer"></span>';
+  шп.innerHTML='<b id="b9-tocttl">Содержание</b><button class="b9-allt hidden" id="b9-allt" title="Показать все темы курса">все темы</button><span class="spacer"></span>';
   шп.append(кн9('b9-tocx','iconbtn',знак9.крест,'Закрыть содержание (B)'));
   sb.prepend(шп);
   подключить9();
@@ -58183,17 +58729,36 @@ function собрать9(){
 function подключить9(){
   const содержание=()=>{ if(typeof закрытьГлавную==='function') закрытьГлавную();
     if(typeof путьОткрыт==='function'&&путьОткрыт()&&typeof закрытьПуть==='function') закрытьПуть();
+    // «Содержание» — всегда весь курс, даже если перед этим смотрели закладки
+    const открыто=!document.getElementById('sidebar').classList.contains('hidden');
+    if(S.markMode){ режимЗакладок(false); if(открыто){ отметить9(); return; } }
     toggleSidebar(); LS.set('b9Toc',!document.getElementById('sidebar').classList.contains('hidden')); отметить9();
     requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
   document.getElementById('b9-toc').onclick=e=>{ e.stopPropagation(); содержание(); };
-  document.getElementById('b9-tocx').onclick=()=>{ toggleSidebar(true); LS.set('b9Toc',false); отметить9(); requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
+  const закрыть=()=>{ toggleSidebar(true); LS.set('b9Toc',false); if(S.markMode) режимЗакладок(false); отметить9(); requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); };
+  document.getElementById('b9-tocx').onclick=закрыть;
+  document.getElementById('b9-allt').onclick=()=>режимЗакладок(false);
+  // Esc закрывает содержание и закладки, если поверх ничего другого не открыто
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape'||!стенд()) return; const sb=document.getElementById('sidebar');
+    if(!sb||sb.classList.contains('hidden')) return;
+    if(document.querySelector('.modal-bg:not(.hidden),.cmdk:not(.hidden),#prefs:not(.hidden),#workshop:not(.hidden)')) return;
+    if(e.target&&e.target.closest&&e.target.closest('input,textarea,select')&&e.target.id!=='search') return;
+    e.preventDefault(); закрыть();
+  });
   // на узком экране содержание лежит поверх: щелчок мимо закрывает
   document.addEventListener('pointerdown',e=>{
     if(!стенд()||!поверх9()) return; const sb=document.getElementById('sidebar');
     if(sb&&!sb.classList.contains('hidden')&&!e.target.closest('#sidebar,#b9-toc,#tab-marks,#tab-topics,.pop,.modal-bg,.cmdk,.prefs')){ toggleSidebar(true); отметить9(); }
   },true);
   const закл=document.getElementById('tab-marks');
-  if(закл) закл.addEventListener('click',()=>{ if(стенд()){ toggleSidebar(false); отметить9(); } });
+  // обработчик в app.js уже переключил режим: открыть панель с закладками или закрыть её
+  // закрыв закладки, возвращаем панель как была: на широком экране содержание обычно открыто
+  let былоОткрыто=false;
+  if(закл) закл.addEventListener('click',()=>{ if(!стенд()) return; const sb=document.getElementById('sidebar');
+    if(S.markMode){ былоОткрыто=!sb.classList.contains('hidden')&&!поверх9(); toggleSidebar(false); }
+    else toggleSidebar(!былоОткрыто);
+    отметить9(); requestAnimationFrame(()=>{ try{ resize(); }catch(_){} }); });
   const курс=document.getElementById('tab-topics');
   if(курс) курс.addEventListener('click',()=>{ if(стенд()){ toggleSidebar(false); отметить9(); } });
   document.getElementById('rail').addEventListener('click',()=>{ if(стенд()) setTimeout(отметить9,0); });
@@ -58222,6 +58787,10 @@ function отметить9(){
     ог.querySelector('.b9-sec').textContent=sec?sec.title:(t.section||'');
     ог.querySelector('.b9-t').textContent=(t.ch&&t.kind!=='recap'?t.ch+' · ':'')+t.title; }
   const видно=!document.getElementById('sidebar').classList.contains('hidden');
+  const загл=document.getElementById('b9-tocttl'), все=document.getElementById('b9-allt');
+  if(загл) загл.textContent=S.markMode?'Закладки':'Содержание';
+  if(все) все.classList.toggle('hidden',!S.markMode);
+  const кз=document.getElementById('tab-marks'); if(кз) кз.classList.toggle('on',S.markMode&&видно);
   if(ог){ ог.classList.toggle('on',видно); ог.setAttribute('aria-expanded',String(видно)); }
 }
 

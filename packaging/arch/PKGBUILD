@@ -1,0 +1,42 @@
+# Maintainer: AkioArai <akioarai@users.noreply.github.com>
+#
+# Phy.Sim для Arch Linux на системном Electron. Пособие — это страница и
+# скрипты, своей Chromium ему не нужно: пакет весит несколько мегабайт вместо
+# 77, а Electron обновляется вместе с системой. Собрать и поставить:
+#   makepkg -si
+# Готовый пакет со своим Electron (Phy.Sim-*.pkg.tar.xz) и AppImage лежат в
+# релизах на GitHub — для тех, кто не хочет собирать.
+pkgname=phy-sim
+pkgver=10.1.0
+pkgrel=1
+pkgdesc='Interactive physics course: notes, problems and 132 live simulations (offline)'
+arch=('any')
+url='https://github.com/AkioArai/Phy.Sim'
+license=('GPL-3.0-only')
+depends=('electron')
+makedepends=()
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
+        'phy-sim.sh'
+        'phy-sim.desktop')
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP')
+
+package() {
+  local src="$srcdir/Phy.Sim-$pkgver" dst="$pkgdir/usr/lib/$pkgname"
+  install -d "$dst/app"
+  # оболочка: main.js открывает app/index.html рядом с собой
+  install -Dm644 "$src/packaging/windows/main.js"    "$dst/main.js"
+  install -Dm644 "$src/packaging/windows/preload.js" "$dst/preload.js"
+  printf '{"name":"phy-sim","productName":"Phy.Sim","version":"%s","main":"main.js","desktopName":"phy-sim.desktop"}\n' \
+    "$pkgver" > "$dst/package.json"
+  install -Dm644 "$src/index.html" "$dst/app/index.html"
+  cp -r --no-preserve=ownership "$src/css" "$src/js" "$src/vendor" "$dst/app/"
+  install -Dm644 "$src/packaging/icon-512.png" "$dst/build/icon.png"
+
+  install -Dm755 "$srcdir/phy-sim.sh"      "$pkgdir/usr/bin/phy-sim"
+  install -Dm644 "$srcdir/phy-sim.desktop" "$pkgdir/usr/share/applications/phy-sim.desktop"
+  install -Dm644 "$src/packaging/icon-512.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/phy-sim.png"
+  install -Dm644 "$src/packaging/icon.svg"     "$pkgdir/usr/share/icons/hicolor/scalable/apps/phy-sim.svg"
+  install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

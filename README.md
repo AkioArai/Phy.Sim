@@ -54,9 +54,11 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-10.0.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-10.0.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-10.0.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-10.0.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. Fedora is the only Linux distribution this package is built and tested for. |
+| **Windows 10/11** | `Phy.Sim-Setup-10.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-10.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-10.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-10.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. |
+| **Arch Linux** | `Phy.Sim-10.1.0-x86_64.pkg.tar.xz` | `sudo pacman -U ./Phy.Sim-10.1.0-x86_64.pkg.tar.xz`. Or build a 6 MB package on the system Electron from [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) with `makepkg -si`. Runs natively on Wayland (GNOME, Plasma, Hyprland, Sway) and on X11. |
+| **Any Linux** | `Phy.Sim-10.1.0-x86_64.AppImage` | `chmod +x` the file and run it. Nothing is installed. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -109,10 +111,32 @@ KaTeX and its fonts ship inside the repository.
 | **181** cross-links | the same idea traced across mechanics, thermodynamics and quantum physics |
 | **147** glossary terms | short definitions, in search and in the *More* menu; optionally the first mention in the notes is underlined |
 | **reference sheet** | symbols, constants, units and the 41 techniques in Settings — the thing you would otherwise keep a browser tab open for |
-| **86** settings, profiles | 8 themes, any accent colour, corners, fonts, column width, line spacing, animation level, button style; save your own profile and pass it on as a short code |
+| **86** settings, profiles | 14 themes and your own from five colours with a contrast check, a day-and-night schedule, any accent colour, corners, fonts, column width, line spacing, animation level, button style; profiles and themes pass on as a short code or a file |
 | **workshop** | your own simulation without programming: describe it in words, give the generated task to any AI, paste the answer — parameters, readouts, graphs, grips and a probe, drawn in the course's own style and run in a sandbox |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 10.1: themes of your own, tablets, Arch Linux and a smarter workshop
+
+- **Themes.** Six new built-in themes — *Blueprint*, *Chalkboard*, *Solarized*, *Solarized night*,
+  *Lavender*, *Coffee* — run on a small engine that derives every colour of the interface and the
+  scene from five: background, sheet, text, accent and the red pencil for measurements. The same
+  engine powers **your own theme**: pick the five colours, see the whole course repaint live, read the
+  WCAG contrast of text, secondary text, accent and measurements, then save it, share it as a code
+  or a `.physim-theme.json` file. **Day and night** switches between two chosen themes by the clock.
+  Text on accent fills turns dark when the accent is light, and themes change with a soft fade.
+- **Tablets.** Upright is the phone layout at any width (an iPad Pro included), sideways is the
+  desktop bench. Rotating no longer leaves the phone dock or an open contents panel on the bench.
+- **Arch Linux.** A `pacman` package and an AppImage in every release, and a PKGBUILD that installs
+  a 6 MB package on the system Electron. On Linux the window is native Wayland when the session is.
+- **Workshop.** The AI task now starts with a work plan, has a school or university level, a list
+  of the mistakes the checker catches and a short mode for AIs with a small context. Models carry
+  a `description`; the checker gives *tips* apart from warnings. Ideas and line templates help to
+  describe a model, a pasted answer is checked at once, an error jumps to its line, earlier versions
+  of the code can be restored, a simulation can be duplicated, and a report can carry the code for a
+  new chat.
+- **Fixed:** bookmarks opened on the bench could not be closed, and *Contents* then kept showing only
+  the bookmarks. On a phone the drawer now has *All topics | Bookmarks* and a star you can tap.
 
 ### New in 10.0: the workshop — a simulation of your own, written by any AI
 
@@ -1020,11 +1044,23 @@ cd packaging/windows && npm install && npm run dist:fedora
 ```
 
 Needs `rpmbuild` on the build machine. Installs into `/opt/Phy.Sim` and adds a
-desktop entry. Other distributions are not packaged — use the standalone HTML file.
+desktop entry.
+
+### Arch Linux and AppImage
+
+```bash
+cd packaging/windows && npm install && npm run dist:arch   # .pkg.tar.xz + .AppImage
+cd packaging/arch && makepkg -si                           # on the system Electron
+```
+
+The pacman package needs `bsdtar` (`libarchive-tools` on Debian/Ubuntu) on the build
+machine. The PKGBUILD installs the course into `/usr/lib/phy-sim` and runs it with the
+`electron` package; extra Electron flags go one per line into
+`~/.config/phy-sim-flags.conf` (for example `--ozone-platform=x11`).
 
 ### Everything at once
 
-Push a tag and GitHub Actions builds all four and attaches them to a release:
+Push a tag and GitHub Actions builds every package and attaches them to a release:
 
 ```bash
 git tag v1.0.0 && git push origin v1.0.0

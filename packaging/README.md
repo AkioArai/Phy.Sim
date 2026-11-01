@@ -166,3 +166,23 @@ settings through `preload.js`.
 If 83 MB feels excessive, build nothing: `phy-sim-standalone.html` (one file,
 2.6 MB) opens by double-clicking in any browser and works offline exactly the same
 way — it just has no Start-menu icon of its own.
+
+---
+
+## Arch Linux — `.pkg.tar.xz`, AppImage and a PKGBUILD
+
+```bash
+cd packaging/windows && npm run dist:arch    # → out/Phy.Sim-<ver>-x86_64.pkg.tar.xz and .AppImage
+cd packaging/arch && makepkg -si             # native package on the system `electron`
+```
+
+`dist:arch` uses the same Electron shell and electron-builder setup as the `.exe` and
+`.rpm`; fpm needs `bsdtar` for the pacman format. The PKGBUILD takes the tagged source
+archive from GitHub and installs only the course and the shell (`main.js`,
+`preload.js`) into `/usr/lib/phy-sim` — about 6 MB — and starts it with the system
+Electron through `/usr/bin/phy-sim`. Keep `pkgver` equal to the version in the root
+`package.json`; the regression test checks it.
+
+On Linux the shell asks Chromium for `--ozone-platform-hint=auto`: native Wayland when
+the session is Wayland, X11 otherwise, with Electron's own window decorations. A user
+can add flags one per line in `~/.config/phy-sim-flags.conf`.

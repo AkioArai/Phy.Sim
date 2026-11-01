@@ -1,10 +1,20 @@
-/* Оболочка Windows для Phy.Sim: одно окно Electron, внутри — то же пособие.
+/* Оболочка Phy.Sim для Windows и Linux: одно окно Electron, внутри — то же пособие.
    Интернет не нужен: содержимое (папка app/) лежит рядом с .exe. */
 const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const path = require('path');
 
 // Один экземпляр: второй запуск разворачивает уже открытое окно, а не плодит копии
 if (!app.requestSingleInstanceLock()) app.quit();
+
+/* Linux (10.1.0): на Wayland (GNOME, KDE Plasma 6, Hyprland, Sway — по умолчанию
+   и в Arch) окно иначе шло через XWayland — мыльный текст при дробном
+   масштабе и чужая рамка. Подсказка «auto» выбирает Wayland, если он есть, и
+   X11 — если нет; рамку окна рисует сам Electron. Имя .desktop-файла, чтобы
+   окно и значок в доке совпали, Electron берёт из desktopName в package.json. */
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+  app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations');
+}
 
 let win = null;
 
