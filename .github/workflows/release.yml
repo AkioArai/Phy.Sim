@@ -43,7 +43,10 @@ jobs:
 
   fedora:
     name: Fedora package
-    runs-on: ubuntu-latest
+    # Закреплено на 24.04 (rpm 4.18): rpm 4.20 из новых образов кладёт сборку в
+    # BUILD/<имя>-build/BUILDROOT, а fpm из electron-builder передаёт прежний
+    # buildroot — rpmbuild не находит ни одного файла (выпуск 10.1.0).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
