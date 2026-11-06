@@ -1,0 +1,5 @@
+10.2.0 — quantum physics as a laboratory.
+• Instead of “waves with arrows”: apparatus, detectors, counters, a journal and plots with error bars.
+• Measure it yourself: h, λC, Rydberg, ħ/2, Franck–Hertz 4.9 eV, half-life, μ, laser threshold.
+• 16 scenes reworked, 3 new: Mach–Zehnder and a quantum eraser, photon polarisation, Bell's inequality.
+• Detector clicks as sound.

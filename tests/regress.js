@@ -282,7 +282,7 @@ async function сторож(b) {
       topics: ALL.length,
       problems: ALL.reduce((n, t) => n + (t.problems || []).length, 0),
     }));
-    ok('132 симуляции', counts.sims === 132, counts);
+    ok('135 симуляций', counts.sims === 135, counts);
     ok('темы и задачи на месте', counts.topics >= 40 && counts.problems >= 430, counts);
 
     // Каждая симуляция: настоящая инициализация приложения → 300 шагов → отрисовка
@@ -344,7 +344,7 @@ async function сторож(b) {
     });
     ok('на схемах и графиках числовых осей нет', оси.нет.length === 0, оси.нет.slice(0, 5));
     ok('настройка убирает числовые оси', оси.неубралось.length === 0, оси.неубралось.slice(0, 5));
-    ok('схемы размечены', оси.схем === 76, оси.схем);
+    ok('схемы размечены', оси.схем === 79, оси.схем);
 
     // Формулы: ни одна не должна вылезать за свой блок.
     const wide = await p.evaluate(async () => {
@@ -1557,7 +1557,8 @@ async function сторож(b) {
         const плоский = (() => { openSim('proj2d'); loadPreset({ d3:false }); return !(typeof A().def.rotate3d === 'function' && A().def.rotate3d(A().params)); })();
         const маятник = !SIMS.conical || !SIMS.conical.rotate3d;
         const тело = крутится('rigid3d', { mode:'axis' });
-        const ящик = крутится('box', { d3:true, n:2 });
+        /* 10.2: лоток с водой в «частице в ящике» заменён измерением координаты и спектром — сцена плоская */
+        const ящик = !SIMS.box.rotate3d && typeof SIMS.box.нажать === 'function';
         openSim('xray'); const x = A(); restart(x); for (let k = 0; k < 4 / DT; k++) x.def.step(x.state, DT, x.params);
         openSim('laser'); const л = A(); loadPreset({ P:1.5, R:95 }); restart(л); for (let k = 0; k < 40 / DT; k++) л.def.step(л.state, DT, л.params);
         openTopic('q.laser'); const тема = S.topic && S.topic.id === 'q.laser' && S.topic.problems.length === 6;
@@ -1961,7 +1962,7 @@ async function сторож(b) {
           && SECTIONS[0].topics.some(t => t.id === 'intro.dim') && !!ПРИЁМЫ['размерности'];
         openTopic('intro.dim'); await жди(250);
         r.темаРазмерностей = S.active === 'dims' && /X=k/.test(S.topic.formulas[0].tex) && document.querySelector('#t-sub').textContent.includes('вводная');
-        r.сцен = Object.keys(SIMS).length === 132 || Object.keys(SIMS).length;
+        r.сцен = Object.keys(SIMS).length === 135 || Object.keys(SIMS).length;
         return r;
       });
       ok('9.1: инструменты модели (перенос тела, стрелки клавиатуры), участки разгона и торможения, три тела, сближение тел, метод размерностей',
@@ -2250,6 +2251,52 @@ async function сторож(b) {
         return r;
       });
       ok('10.1: закладки закрываются, темы движка и своя тема, обмен кодом, расписание, инструкция по уровням, советы Мастерской',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    // 10.2: квантовая физика как лаборатория — приборы, кнопки на сцене, журнал, честная статистика
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms)), r = {}, DT = 1 / 120;
+        try { закрытьГлавную(); } catch (_) {}
+        const прогон = (id, vals, сек) => { openSim(id); loadPreset(vals); const a = A(); restart(a);
+          for (let k = 0; k < сек / DT; k++) a.def.step(a.state, DT, a.params); return a; };
+        // кнопка на приборе: нажатие по сцене пишет точку в журнал и не перезапускает сцену
+        openSim('photoeffect'); loadPreset({ plot: 'Uf', U: -0.82 }); await жди(400);
+        const a = A(), имя = a.def.жимя(a.params); ЛАБ.очистить(имя);
+        const t0 = a.state.t, кн = ЛАБ._кн.find(b => /Записать U/.test(b.текст)), сц = document.querySelector('#scene').getBoundingClientRect();
+        if (кн) { const x = сц.left + (кн.x0 + кн.x1) / 2, y = сц.top + (кн.y0 + кн.y1) / 2;
+          document.querySelector('#scene').dispatchEvent(new PointerEvent('pointerdown', { clientX: x, clientY: y, button: 0, bubbles: true, pointerId: 7, pointerType: 'mouse' }));
+          window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y, button: 0, bubbles: true, pointerId: 7 })); }
+        r.кнопка = !!кн && ЛАБ.журнал(имя).length === 1 && A().state.t >= t0 || { кн: !!кн, ж: ЛАБ.журнал(имя).length };
+        // журнал переживает смену параметра; по пяти длинам волн — h
+        for (const [lam, U] of [[350, -1.26], [300, -1.85], [250, -2.68], [450, -0.48]]) { loadPreset({ lam, U }); ЛАБ.записать(A().def.жимя(A().params), { x: A().def.freq(A().params) / 1e14, y: -U, σ: 0.03 }); }
+        const R = ЛАБ.мнк(ЛАБ.журнал(имя)), h = R && R.a * 1.602176634e-19 / 1e14;
+        r.планк = !!R && Math.abs(h / 6.626e-34 - 1) < 0.03 || h;
+        // статистика: Белл даёт S > 2 у квантового источника и не больше 2 у скрытых параметров
+        const q = прогон('bell', { model: 'q', rate: 4000 }, 6), Sq = q.def.итог(q.state, q.params).S;
+        const л = прогон('bell', { model: 'lhv', rate: 4000 }, 6), Sl = л.def.итог(л.state, л.params).S;
+        r.белл = Sq > 2.6 && Sl < 2.12 || { Sq, Sl };
+        // Франк — Герц: пики через 4,9 В; Мах — Цендер: при 180° всё в D2
+        const фг = прогон('bohr', { gas: 'hg', Ur: 1.5 }, 30), пк = фг.def.пики(фг.state, фг.params);
+        r.франк = !!пк && Math.abs(пк.E - 4.89) < 0.25 || пк;
+        const мц = прогон('machzehnder', { phi: 180, which: false, rate: 1000 }, 2);
+        r.мах = мц.state.N2 > 1500 && мц.state.N1 < 40 || { N1: мц.state.N1, N2: мц.state.N2 };
+        const ласт = прогон('machzehnder', { phi: 0, which: true, eraser: false, rate: 1000 }, 2), f = ласт.state.N1 / (ласт.state.N1 + ласт.state.N2);
+        r.путь = Math.abs(f - 0.5) < 0.05 || f;
+        // распад: оценка T½ по счёту сходится к заданному
+        const р = прогон('decay', { type: 'beta', A: 14, Z: 6, half: 10, N0: 200000, r: 1 }, 40), оц = р.def.оценка(р.state, р.params);
+        r.распад = !!оц && Math.abs(оц.T - 10) < 3 * оц.σT + 0.3 || оц;
+        // новые сцены в темах, прежние показания на месте, никаких «волн со стрелочкой» и градиентов
+        openTopic('q.spin'); const спин = [...document.querySelectorAll('#simsel option')].map(o => o.value);
+        openTopic('q.slits'); const щели = [...document.querySelectorAll('#simsel option')].map(o => o.value);
+        r.темы = спин.includes('polar1') && спин.includes('bell') && щели.includes('machzehnder') || { спин, щели };
+        const лаб = ['slits1', 'photoeffect', 'sterngerlach', 'decay', 'compton', 'debroglie', 'uncertainty', 'box', 'tunnel', 'bohr', 'hspectrum', 'xray', 'rutherford', 'shield', 'laser', 'antimatter', 'machzehnder', 'polar1', 'bell'];
+        r.плоско = лаб.every(id => !/create(Radial|Linear)Gradient|\.photon\(|КС\.пакет\(/.test(String(SIMS[id].draw))) || лаб.filter(id => /create(Radial|Linear)Gradient|\.photon\(|КС\.пакет\(/.test(String(SIMS[id].draw)));
+        r.кнопки = лаб.every(id => typeof SIMS[id].нажать === 'function');
+        return r;
+      });
+      ok('10.2: квантовая лаборатория — кнопка на приборе пишет в журнал, h по фотоэффекту, Белл S > 2, Франк — Герц 4,9 В, Мах — Цендер, T½ по счёту, новые сцены в темах',
         Object.values(т).every(v => v === true), т);
     }
 

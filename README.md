@@ -54,11 +54,11 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-10.1.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-10.1.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-10.1.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-10.1.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. |
-| **Arch Linux** | `Phy.Sim-10.1.0-x86_64.pkg.tar.xz` | `sudo pacman -U ./Phy.Sim-10.1.0-x86_64.pkg.tar.xz`. Or build a 6 MB package on the system Electron from [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) with `makepkg -si`. Runs natively on Wayland (GNOME, Plasma, Hyprland, Sway) and on X11. |
-| **Any Linux** | `Phy.Sim-10.1.0-x86_64.AppImage` | `chmod +x` the file and run it. Nothing is installed. |
+| **Windows 10/11** | `Phy.Sim-Setup-10.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-10.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-10.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-10.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. |
+| **Arch Linux** | `Phy.Sim-10.2.0-x86_64.pkg.tar.xz` | `sudo pacman -U ./Phy.Sim-10.2.0-x86_64.pkg.tar.xz`. Or build a 6 MB package on the system Electron from [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) with `makepkg -si`. Runs natively on Wayland (GNOME, Plasma, Hyprland, Sway) and on X11. |
+| **Any Linux** | `Phy.Sim-10.2.0-x86_64.AppImage` | `chmod +x` the file and run it. Nothing is installed. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -115,6 +115,37 @@ KaTeX and its fonts ship inside the repository.
 | **workshop** | your own simulation without programming: describe it in words, give the generated task to any AI, paste the answer — parameters, readouts, graphs, grips and a probe, drawn in the course's own style and run in a sandbox |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 10.2: quantum physics as a laboratory
+
+Nobody has ever seen a wave function, an orbit or an electron in flight between two slits. What a
+physicist sees is a click of a detector, a number on a counter, a picoammeter reading, a dot on a
+screen. So the quantum section is now built the way the real experiments are: a source, the
+apparatus, detectors and counters, a journal of measurements and a plot with error bars of
+±√N. The theory is a dashed curve you can lay over your own data — not a picture instead of it.
+
+- **Shared instrument kit** (`js/sims/qlab.js`): seeded randomness and Poisson statistics,
+  detectors with efficiency, background and dead time, digital displays, buttons right on the
+  apparatus, a scanning spectrometer, a measurement journal that survives parameter changes and a
+  least-squares line through it. Optional detector clicks as sound.
+- **Every experiment ends in a number you measured yourself.** Planck's constant from the stopping
+  voltage of the photo-effect and from the Duane–Hunt edge of the X-ray spectrum; the Compton
+  wavelength from the peak shift at several angles; λ = h/p from electron diffraction peaks; the
+  Rydberg constant from hydrogen lines measured with a grating; ħ/2 from the spread of transverse
+  momentum behind a diaphragm; 4.9 eV from Franck–Hertz peaks; the half-life from a Geiger counter;
+  the attenuation coefficient behind an absorber; the 1/sin⁴(θ/2) law with a scintillation counter
+  on a rotating arm; the laser threshold from the light–current curve.
+- **Reworked scenes:** double slit (position-sensitive screen or a counter on a carriage),
+  photo-effect, Stern–Gerlach, decay, Compton, de Broglie, uncertainty, particle in a well
+  (position measurement and absorption spectrum), tunnelling (counters and an STM), Franck–Hertz in
+  place of the Bohr orbit, hydrogen spectrum, X-rays, Rutherford, shielding, laser and antimatter
+  (coincidences and a 511 keV peak). The “wave with an arrow” is gone.
+- **Three new experiments:** a single-photon Mach–Zehnder interferometer with which-path marking
+  and a quantum eraser; single-photon polarisation (Malus by clicks, the third polariser, the
+  quantum Zeno effect); a CHSH test of Bell's inequality with entangled pairs — S ≈ 2√2, against
+  S ≤ 2 for a hidden-variable source.
+- All parameters and readouts the problems rely on are kept; on the desktop bench the readouts of
+  diagram scenes are no longer folded away.
 
 ### New in 10.1: themes of your own, tablets, Arch Linux and a smarter workshop
 
