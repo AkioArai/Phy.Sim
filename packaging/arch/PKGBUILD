@@ -7,7 +7,7 @@
 # Готовый пакет со своим Electron (Phy.Sim-*.pkg.tar.xz) и AppImage лежат в
 # релизах на GitHub — для тех, кто не хочет собирать.
 pkgname=phy-sim
-pkgver=10.2.0
+pkgver=10.2.1
 pkgrel=1
 pkgdesc='Interactive physics course: notes, problems and 132 live simulations (offline)'
 arch=('any')

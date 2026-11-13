@@ -466,6 +466,7 @@ function собратьМастерскую(){
 function открытьМастерскую(вкладка,id){
   const p=собратьМастерскую();
   if(id) МАСТ.текущая=id;
+  if(typeof скрытьТостСцены==='function') скрытьТостСцены();
   p.classList.remove('hidden'); document.documentElement.classList.add('wk-on');
   if(typeof закрытьПуть==='function'&&typeof путьОткрыт==='function'&&путьОткрыт()) закрытьПуть();
   вкладкаМастерской(вкладка||МАСТ.вкладка);

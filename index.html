@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="10.2.0">
+<meta name="physim-build" content="10.2.1">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -624,9 +624,11 @@
   <div class="prefs-side" id="prefs-side"></div>
   <div class="prefs-main">
     <div class="prefs-top">
+      <button class="iconbtn prefs-back" id="prefs-back" title="Все разделы" aria-label="Все разделы настроек">
+        <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <h3 id="prefs-title">Настройки</h3>
       <input class="prefs-search" id="prefs-search" type="search" placeholder="Найти настройку…">
-      <button class="iconbtn" id="prefs-close" title="Закрыть (Esc)">
+      <button class="iconbtn" id="prefs-close" title="Закрыть (Esc)" aria-label="Закрыть настройки">
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="prefs-body" id="prefs-body"></div>

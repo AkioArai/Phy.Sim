@@ -1,0 +1,5 @@
+10.2.1 — scenes fill the frame, settings on a phone.
+• The picture fills the frame: pendulum, induction, inclined plane and more no longer sit in a corner.
+• § 1 opens with a ball dropped from 20 m.
+• Settings on a phone: a list of sections, then the section with a back arrow.
+• A scene message no longer hangs over other screens.

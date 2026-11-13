@@ -1080,6 +1080,10 @@ async function сторож(b) {
       await p.evaluate(([тема, сим, секунд]) => {
         openTopic(тема); openSim(сим); S.playing = false;
         const a = A();
+        /* 10.2.1: сцена может открываться со своего набора (§ 1 — падение до земли);
+           касательная и площадь сверяются на умолчаниях параметров */
+        for (const q of a.def.params) if (q.key) a.params[q.key] = q.default;
+        restart(a);
         for (let k = 0; k < секунд / DT; k++) { a.def.step(a.state, DT, a.params); if (++a.tick % 6 === 0) record(a); }
         drawGraphs();
       }, [тема, сим, секунд]);
@@ -1367,6 +1371,10 @@ async function сторож(b) {
       await p.click('.ncard.tucked .nc-head'); await p.waitForTimeout(150);
       const ярлычок = await p.evaluate(() => !A().notes[0].tucked);
       await p.evaluate(() => { const n = A().notes[0]; n.x = 0.97; n.y = 0.95; renderNotes(); });
+      /* Chromium из Playwright 1.63 по-настоящему уходит в полноэкранный режим,
+         если до этого его включил какой-нибудь тест, — и тогда окно не меняет
+         размер. Выходим из него перед сменой размера. */
+      await p.evaluate(() => document.fullscreenElement && document.exitFullscreen().catch(() => {})); await p.waitForTimeout(150);
       await p.setViewportSize({ width: 1100, height: 760 }); await p.waitForTimeout(400);
       const вКадре = await p.evaluate(() => { const c = document.querySelector('.ncard').getBoundingClientRect(), l = document.querySelector('#notelayer').getBoundingClientRect();
         return c.right <= l.right + 1 && c.bottom <= l.bottom + 1 && c.left >= l.left - 1; });
@@ -2296,7 +2304,39 @@ async function сторож(b) {
         r.кнопки = лаб.every(id => typeof SIMS[id].нажать === 'function');
         return r;
       });
-      ok('10.2: квантовая лаборатория — кнопка на приборе пишет в журнал, h по фотоэффекту, Белл S > 2, Франк — Герц 4,9 В, Мах — Цендер, T½ по счёту, новые сцены в темах',
+      ok('10.2.0: квантовая лаборатория — кнопка на приборе пишет в журнал, h по фотоэффекту, Белл S > 2, Франк — Герц 4,9 В, Мах — Цендер, T½ по счёту, новые сцены в темах',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    // 10.2.1: сообщение сцены не висит над окнами; кадр по следу рисунка; § 1 открывается падением
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms)), r = {};
+        try { закрытьГлавную(); } catch (_) {}
+        const тост = document.getElementById('toast'), былиПодсказки = prefGet('toasts');
+        prefSet('toasts', true);
+        // сообщение сцены показано, окно открылось — сообщение ушло; пока окно открыто, новое не появляется
+        toast('Тело 1 упало', true); const было = тост.classList.contains('show');
+        openPrefs(); await жди(30); const ушло = !тост.classList.contains('show');
+        toast('Тело 2 упало', true); const неВсплыло = !тост.classList.contains('show');
+        closePrefs(); toast('просто подсказка'); const обычный = тост.classList.contains('show');
+        r.тост = было && ушло && неВсплыло && обычный || { было, ушло, неВсплыло, обычный };
+        prefSet('toasts', былиПодсказки);
+        // маятник: по следу рисунка кадр крупнее, чем по запасному fit; схема не трогается
+        openSim('pendulum'); await жди(400); resize();
+        const a = A(), v0 = видВКадре(a.def, a.params), v1 = уточнитьПоСледу(a, v0);
+        r.маятник = v1.scale / v0.scale > 1.3 || v1.scale / v0.scale;
+        openSim('quarks'); await жди(200); const q = A(), q0 = видВКадре(q.def, q.params);
+        r.схема = уточнитьПоСледу(q, q0) === q0;
+        // § 1: падение с высоты 20 м, «изменено» не горит, сброс возвращает к нему же
+        delete RT.kin1d; openSim('kin1d'); await жди(200);
+        const k = A();
+        r.первый = k.params.axis === 'y' && k.params.x01 === 20 && k.params.ground === true && !document.querySelector('#params .param.changed');
+        k.params.v01 = 7; document.getElementById('btn-pdefaults') && document.getElementById('btn-pdefaults').click();
+        r.сброс = A().params.v01 === 0 && A().params.axis === 'y';
+        return r;
+      });
+      ok('10.2.1: сообщение сцены не висит над окнами, кадр по следу рисунка (схемы не трогаются), § 1 открывается падением с высоты',
         Object.values(т).every(v => v === true), т);
     }
 
@@ -2602,6 +2642,23 @@ async function сторож(b) {
     ok('6.0 телефон: шапка по эскизу, рамка у смены симуляции, стоп без сброса, инструменты сеткой, настройки только в ящике',
       /^m6-notes,simpick,m6-params,m-menu$/.test(экран6.шапка) && экран6.рамка && экран6.безНастроек && экран6.стоп &&
       экран6.инструментов >= 8 && экран6.безНастроекВМеню, экран6);
+
+    // 10.2.1: настройки на телефоне в два шага — список разделов с подписями, затем раздел со стрелкой назад
+    {
+      const н = await m.p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms)), r = {}, виден = q => { const e = document.querySelector(q); return !!e && e.offsetParent !== null && e.getBoundingClientRect().width > 0; };
+        openPrefs(); await жди(150);
+        const пр = document.getElementById('prefs'), кат = document.querySelector('.prefs-cat');
+        r.список = пр.dataset.m === 'list' && !виден('.prefs-main') && кат.getBoundingClientRect().width > innerWidth * 0.8 && getComputedStyle(кат.querySelector('span')).display !== 'none';
+        кат.click(); await жди(120);
+        r.раздел = пр.dataset.m === 'main' && виден('.prefs-main') && !виден('.prefs-side') && виден('#prefs-back') && document.querySelector('.prefs-body').getBoundingClientRect().width > innerWidth * 0.9;
+        document.getElementById('prefs-back').click(); await жди(80);
+        r.назад = пр.dataset.m === 'list' && виден('.prefs-side');
+        closePrefs();
+        return r;
+      });
+      ok('10.2.1 телефон: настройки — список разделов во весь экран, раздел во весь экран, стрелка назад', Object.values(н).every(v => v === true), н);
+    }
 
     await m.p.close();
 

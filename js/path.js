@@ -219,6 +219,7 @@ function открытьПуть(вкладка,опц){
   опц=опц||{};
   if(опц.тема) путь.тема=опц.тема;
   if(опц.навык) путь.навык=опц.навык;
+  if(typeof скрытьТостСцены==='function') скрытьТостСцены();
   p.classList.remove('hidden');
   document.documentElement.classList.add('path-on');
   if(typeof обновитьНав==='function') обновитьНав();

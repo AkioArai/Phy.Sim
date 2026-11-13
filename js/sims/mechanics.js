@@ -110,6 +110,7 @@ function meetTime(p){
 
 Object.assign(SIMS,{
 kin1d:{
+  набор0:0,
   title:'Одномерное движение',
   params:[
     {key:'bodies',label:'Система',type:'select',default:'1',

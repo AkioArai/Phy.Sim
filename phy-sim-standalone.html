@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="10.2.0">
+<meta name="physim-build" content="10.2.1">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -3942,6 +3942,33 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
 .wk-list li.wk-goto:hover b{color:var(--accent);text-decoration:underline}
 .wk-withcode{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-2)}
 .wk-vbtn.hidden,.wk-vlist.hidden,.q-ed.hidden{display:none}
+
+/* =====================================================================
+   10.2.1: НАСТРОЙКИ НА ТЕЛЕФОНЕ — сначала список разделов, потом раздел.
+   Раньше слева стояла колонка значков без подписей шириной в полэкрана
+   (правило 9.0 с width:248px перебивало узкие 64px), а сами настройки
+   ютились в узкой полосе справа. Теперь на узком экране два шага, как в
+   системных настройках телефона: список с подписями во весь экран →
+   раздел во весь экран со стрелкой «назад».
+   ===================================================================== */
+.prefs-back{display:none}
+@media (max-width:760px){
+  .prefs .prefs-side{width:100%;padding:14px 12px 24px;border-right:0}
+  .prefs .prefs-side .grp{display:block}
+  .prefs .prefs-cat{justify-content:flex-start;padding:13px 12px;font-size:15px;min-height:48px}
+  .prefs .prefs-cat span{display:inline}
+  .prefs .prefs-cat svg{width:18px;height:18px}
+  .prefs[data-m="list"] .prefs-main{display:none}
+  .prefs[data-m="main"] .prefs-side{display:none}
+  .prefs[data-m="main"] .prefs-back{display:inline-flex}
+  .prefs .prefs-top{padding:10px 10px 10px 6px}
+  .prefs .prefs-top h3{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .prefs .prefs-search{flex:1 1 90px;max-width:none}
+  .prefs .prefs-body{padding:4px 16px 48px}
+  .prefs-side-top{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 10px}
+  .prefs-side-top h3{font:600 22px var(--serif)}
+}
+@media (min-width:761px){ .prefs-side-top{display:none} }
 </style>
 </head>
 <body>
@@ -4382,9 +4409,11 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
   <div class="prefs-side" id="prefs-side"></div>
   <div class="prefs-main">
     <div class="prefs-top">
+      <button class="iconbtn prefs-back" id="prefs-back" title="Все разделы" aria-label="Все разделы настроек">
+        <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <h3 id="prefs-title">Настройки</h3>
       <input class="prefs-search" id="prefs-search" type="search" placeholder="Найти настройку…">
-      <button class="iconbtn" id="prefs-close" title="Закрыть (Esc)">
+      <button class="iconbtn" id="prefs-close" title="Закрыть (Esc)" aria-label="Закрыть настройки">
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="prefs-body" id="prefs-body"></div>
@@ -5041,6 +5070,7 @@ function meetTime(p){
 
 Object.assign(SIMS,{
 kin1d:{
+  набор0:0,
   title:'Одномерное движение',
   params:[
     {key:'bodies',label:'Система',type:'select',default:'1',
@@ -48740,6 +48770,7 @@ function открытьПуть(вкладка,опц){
   опц=опц||{};
   if(опц.тема) путь.тема=опц.тема;
   if(опц.навык) путь.навык=опц.навык;
+  if(typeof скрытьТостСцены==='function') скрытьТостСцены();
   p.classList.remove('hidden');
   document.documentElement.classList.add('path-on');
   if(typeof обновитьНав==='function') обновитьНав();
@@ -51245,6 +51276,7 @@ function лабЗначение(a,ист,st,params){
 }
 
 function открытьЛабу(){
+  if(typeof скрытьТостСцены==='function') скрытьТостСцены();
   const a=A();
   if(!a){ toast('Сначала откройте симуляцию'); return; }
   /* лаборатория пересчитывает модель сама, шаг за шагом, — у самодельной
@@ -51697,11 +51729,20 @@ const S={topic:null,tab:'notes',active:null,playing:false,tool:'pan',markMode:fa
    syncBottomInset(); на компьютере всегда 0. */
 let MBOT=0;
 
+/* Исходное значение параметра (10.2.1). Умолчания в описании параметров —
+   опора задач и проверок, их не трогаем; но сцена может открываться
+   нагляднее — с набора def.набор0: § 1 начинается падением с высоты 20 м,
+   а не телом, которое улетает за край кадра. «Сбросить» и отметки
+   «изменено» считают от этого исходного. */
+function исходное(def,p){
+  const н=def.набор0!=null&&def.presets&&def.presets[def.набор0];
+  return н&&н.values&&(p.key in н.values)?н.values[p.key]:p.default;
+}
 function rt(id){
   if(!RT[id]){
     const def=SIMS[id];
     const params={};
-    for(const p of def.params) if(p.type!=='group') params[p.key]=p.default;
+    for(const p of def.params) if(p.type!=='group') params[p.key]=исходное(def,p);
     RT[id]={def,params,state:def.init(params),view:Object.assign({}, def.fit(params,{W:CW,H:CH})),
             hist:[],tick:0,annos:[],draft:null,undo:[JSON.stringify(params)],redo:[]};
   }
@@ -53339,7 +53380,7 @@ function stopEvent(a){
   // по настройке событие может лишь помечаться плашкой, не останавливая время
   if(prefGet('eventPause')!==false){ S.playing=false; setPlayIcon(); }
   const f=$('#eventflag'); f.textContent=msg; f.classList.remove('hidden');
-  toast(msg);
+  toast(msg,true);
 }
 
 /* ============================== ДЕРЕВО ТЕМ ============================== */
@@ -54494,12 +54535,13 @@ function renderParams(){
     // помечаем параметры, изменённые относительно значения по умолчанию,
     // и даём вернуть исходное щелчком: средняя кнопка мыши делала это и
     // раньше, но о ней никто не догадывался, а на телефоне её попросту нет
-    if(p.default!==undefined && String(a.params[p.key])!==String(p.default)){
+    const исх=исходное(a.def,p);
+    if(исх!==undefined && String(a.params[p.key])!==String(исх)){
       d.classList.add('changed');
       const r=document.createElement('button');
       r.type='button'; r.className='p-undo'; r.textContent='⟲';
-      r.title=`Вернуть исходное: ${p.default}${p.unit?' '+p.unit:''}`;
-      r.onclick=()=>{ commit(p.key,p.default); renderParams(); buildGraphs(); };
+      r.title=`Вернуть исходное: ${исх}${p.unit?' '+p.unit:''}`;
+      r.onclick=()=>{ commit(p.key,исх); renderParams(); buildGraphs(); };
       d.append(r);
     }
     d.dataset.search=(p.label+' '+(p.unit||'')).toLowerCase();
@@ -54539,7 +54581,7 @@ if($('#pfilter')){
 }
 if($('#btn-pdefaults')) $('#btn-pdefaults').onclick=()=>{
   const a=A(); if(!a) return;
-  for(const p of a.def.params) if(p.type!=='group') a.params[p.key]=p.default;
+  for(const p of a.def.params) if(p.type!=='group') a.params[p.key]=исходное(a.def,p);
   pushUndo(a); restart(a); renderParams(); buildGraphs(); toast('Параметры сброшены к исходным');
 };
 if($('#btn-prand')) $('#btn-prand').onclick=()=>{
@@ -55109,7 +55151,84 @@ function видВКадре(def,params){
   if(!лучший||лучший.scale<f.scale*0.5) return f;
   return лучший;
 }
-function fitView(){ const a=A(); if(!a) return; Object.assign(a.view,видВКадре(a.def,a.params)); setZoom(); }
+/* Кадр по следу рисунка (10.2.1).
+   def.fit каждая сцена писала сама, с запасом «на всякий случай», и у
+   половины сцен рисунок занимал треть кадра, а на телефоне стоя — пятую
+   часть: точка на осях ±600 м, крошечная балка посреди пустого поля.
+   Править 135 вписываний по одному — значит сломать их заново при первой
+   же смене параметров. Поэтому общее правило: после def.fit сцену молча
+   прогоняем вперёд на копии состояния (до 8 с или до её остановки) и
+   рисуем в невидимый холст; объединение того, что было нарисовано за это
+   время, — честный размер рисунка вместе с будущей траекторией. Под него и
+   подгоняем масштаб и центр: рисунок занимает ~88 % кадра по большей
+   стороне. Только увеличиваем и не больше чем втрое; схемы-панели не
+   трогаем. Сцены, у которых состояние не копируется, меряются по одному
+   кадру. */
+let _следХолст=null;
+function следРисунка(a,v){
+  /* меряем в половинном разрешении: след нужен с точностью до пикселя
+     экрана, а getImageData полного холста на телефоне — десятки мс */
+  const DPR0=DPR; DPR=0.5;
+  try{ return следРисункаПри(a,v); } finally{ DPR=DPR0; }
+}
+function следРисункаПри(a,v){
+  const W=Math.max(1,Math.round(CW*DPR)), H=Math.max(1,Math.round(CH*DPR));
+  const c=_следХолст||(_следХолст=document.createElement('canvas'));
+  if(c.width!==W||c.height!==H){ c.width=W; c.height=H; }
+  const g=c.getContext('2d',{willReadFrequently:true});
+  const бывший=a.view; a.view=Object.assign({},бывший,v);
+  let st=null; try{ st=typeof structuredClone==='function'?structuredClone(a.state):JSON.parse(JSON.stringify(a.state)); }catch(_){ st=null; }
+  const кадров=st?11:1, шаг=1/120, шаговМежду=96;                  // 11 кадров через 0,8 с = 8 с модели
+  /* Счёт попаданий по строкам и столбцам: линия оси во всю ширину кадра —
+     не рисунок, иначе у одномерного движения «рисунок» всегда занимал бы
+     весь кадр по ширине. Строки и столбцы, закрашенные больше чем на 85 %,
+     в след не идут. */
+  const s=1, nx=W, ny=H;
+  const сетка=new Uint8Array(nx*ny);
+  let x0=W,x1=-1,y0=H,y1=-1;
+  const звук=typeof ЛАБ!=='undefined'?ЛАБ.звукВкл:false;
+  try{
+    for(let k=0;k<кадров;k++){
+      if(k>0) for(let i=0;i<шаговМежду;i++){ a.def.step(st,шаг,a.params); if(st.__stop) break; }
+      if(typeof ЛАБ!=='undefined'){ ЛАБ.звукВкл=false; ЛАБ.кадр(); }
+      VIEW.labelFrame();
+      applyWorld(g); g.save();
+      try{ a.def.draw(g,st||a.state,VIEW,a.params); }finally{ g.restore(); }
+      const d=g.getImageData(0,0,W,H).data;
+      for(let j=0;j<ny;j++){ const o=j*s*W*4;
+        for(let i=0;i<nx;i++) if(d[o+i*s*4+3]>10) сетка[j*nx+i]=1; }
+      if(st&&st.__stop) break;
+    }
+    const стр=new Uint16Array(ny), стл=new Uint16Array(nx);
+    for(let j=0;j<ny;j++) for(let i=0;i<nx;i++) if(сетка[j*nx+i]){ стр[j]++; стл[i]++; }
+    for(let j=0;j<ny;j++){ if(стр[j]>nx*0.85) continue;
+      for(let i=0;i<nx;i++) if(сетка[j*nx+i]&&стл[i]<=ny*0.85){ const x=i*s, y=j*s; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+  }catch(_){ x1=-1; }
+  finally{ a.view=бывший; VIEW.labelFrame(); if(typeof ЛАБ!=='undefined'){ ЛАБ.звукВкл=звук; ЛАБ.кадр(); } }
+  if(x1<0) return null;
+  return {l:x0/DPR,r:x1/DPR,t:y0/DPR,b:y1/DPR};
+}
+function уточнитьПоСледу(a,v){
+  /* схемы-панели (schema/hudAware) свёрстаны во весь кадр сами — их не трогаем */
+  if(!a||!a.def||a.def.безСледа||a.def.rotate3d||a.def.schema||a.def.hudAware) return v;
+  if(!(CW>140&&CH>140)) return v;                                  // полоса над конспектом — своё правило
+  const сл=следРисунка(a,v); if(!сл) return v;
+  const bw=Math.max(1,сл.r-сл.l), bh=Math.max(1,сл.b-сл.t);
+  const поле=prefGet('fitMargin')!=null?+prefGet('fitMargin'):0.88;
+  let k=Math.min(CW*поле/bw, CH*поле/bh);
+  /* только увеличиваем: что «вылезает» за кадр — это силовые линии и оси,
+     они и должны уходить за край */
+  if(k<1.12) return v;
+  k=Math.min(k,3);
+  const ppm0=PX_PER_M*v.scale;
+  const cx=(сл.l+сл.r)/2, cy=(сл.t+сл.b)/2;                          // центр следа на экране
+  const wx=v.x+(cx-CW/2)/ppm0, wy=v.y-(cy-CH/2)/ppm0;               // он же в мире
+  return Object.assign({},v,{x:wx,y:wy,scale:clamp(v.scale*k,ZMIN,ZMAX)});
+}
+function fitView(){ const a=A(); if(!a) return;
+  let v=видВКадре(a.def,a.params);
+  if(prefGet('fitByInk')!==false){ try{ v=уточнитьПоСледу(a,v); }catch(_){} }
+  Object.assign(a.view,v); setZoom(); }
 const kzs=()=>clamp(+prefGet('keyZoomStep')||1.8,1.2,2.6);   // настраиваемый шаг зума
 $$('#btn-zin').onclick=()=>zoom(kzs());
 $$('#btn-zout').onclick=()=>zoom(1/kzs());
@@ -55634,7 +55753,7 @@ function применитьИнструмент(a,итог){
   for(const k of т) полеПараметра(k,a.params[k]);
   if(итог){ restart(a); pushUndo(a); т.clear();
     document.querySelectorAll('#params .param').forEach(d=>{ const pd=(a.def.params||[]).find(x=>x.key===d.dataset.key);
-      if(pd) d.classList.toggle('changed',String(a.params[pd.key])!==String(pd.default)); }); }
+      if(pd) d.classList.toggle('changed',String(a.params[pd.key])!==String(исходное(a.def,pd))); }); }
   else { a.state=a.def.init(a.params); a.hist=[]; a.tick=0; }
 }
 
@@ -56007,7 +56126,7 @@ function savePresetAs(a,name){
 };
 $$('#mi-reset').onclick=()=>{
   const a=A(); if(!a) return;
-  a.params={}; for(const p of a.def.params) if(p.type!=='group') a.params[p.key]=p.default;
+  a.params={}; for(const p of a.def.params) if(p.type!=='group') a.params[p.key]=исходное(a.def,p);
   restart(a); a.annos=[];
   renderParams(); buildGraphs(); fitView(); toast('Всё сброшено');
 };
@@ -56355,7 +56474,9 @@ function renderPrefsSide(){
   const box=$('#prefs-side'); if(!box) return;
   // сколько настроек раздела отличается от исходных — видно, где вы уже что-то меняли
   const изменено=id=>PREFS.filter(p=>p.cat===id&&String(prefGet(p.key))!==String(p.def)).length;
-  box.innerHTML='<div class="grp">Разделы</div>'+PREF_CATS.map(c=>{ const n=изменено(c.id);
+  // на телефоне список разделов — отдельный экран, и у него свой заголовок и крестик
+  box.innerHTML=`<div class="prefs-side-top"><h3>Настройки</h3><button class="iconbtn" id="prefs-close2" title="Закрыть" aria-label="Закрыть настройки"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`+
+    '<div class="grp">Разделы</div>'+PREF_CATS.map(c=>{ const n=изменено(c.id);
     return `<button class="prefs-cat${c.id===prefCat?' on':''}" data-cat="${c.id}">
        <svg viewBox="0 0 24 24">${c.icon}</svg><span>${c.name}</span>${n?`<b class="pc-n" title="Изменено настроек: ${n}">${n}</b>`:''}</button>`; }).join('');
   box.querySelectorAll('.prefs-cat').forEach(b=>b.onclick=()=>{
@@ -56364,7 +56485,9 @@ function renderPrefsSide(){
     // поэтому сам список разделов иначе остался бы со старой отметкой
     box.querySelectorAll('.prefs-cat').forEach(x=>x.classList.toggle('on',x===b));
     $('#prefs-search').value=''; renderPrefs();
+    настройкиЭкран('main');
   });
+  const кр=box.querySelector('#prefs-close2'); if(кр) кр.onclick=closePrefs;
 }
 function сегментами(p){
   return p.options.length<=4 && p.options.every(o=>String(o[1]).length<=15) && p.options.reduce((a,o)=>a+String(o[1]).length,0)<=40;
@@ -56839,15 +56962,21 @@ function очиститьВсё(){
   const дальше=()=>setTimeout(()=>location.reload(),600);
   Promise.all(ждать).then(дальше,дальше);
 }
+/* Телефон (10.2.1): настройки в два шага — список разделов, затем раздел.
+   На широком экране оба видны рядом, атрибут ни на что не влияет. */
+function настройкиЭкран(m){ const p=$('#prefs'); if(p) p.dataset.m=m; }
 function openPrefs(cat){
   if(cat) prefCat=cat;
+  скрытьТостСцены();
   $('#prefs').classList.remove('hidden');
+  настройкиЭкран(cat?'main':'list');
   renderPrefsSide(); renderPrefs();
   // на сенсоре фокус в поле поиска выдвигает клавиатуру ради ничего — не ставим
   if(document.documentElement.dataset.touch!=='1') setTimeout(()=>$('#prefs-search').focus(),30);
 }
 function closePrefs(){ $('#prefs').classList.add('hidden'); resize(); }
 $$('#prefs-close').onclick=closePrefs;
+$$('#prefs-back').onclick=()=>{ $('#prefs-search').value=''; renderPrefs(); настройкиЭкран('list'); };
 $$('#prefs-search').oninput=()=>renderPrefs();
 $$('#prefs').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagation(); closePrefs(); } });
 
@@ -57755,10 +57884,21 @@ function askText(title,value,onOk){
   askBox({title,input:true,value,onOk:v=>{ v=(v||'').trim(); if(v) onOk(v); }});
 }
 
-function toast(m){
+/* Сообщение сцены («Тело 1 упало…») относится к рисунку. Пока поверх сцены
+   открыто окно — настройки, «Мой путь», Мастерская, поиск, лаборатория, —
+   такое сообщение не показываем, а уже показанное убираем при открытии окна
+   (10.2.1): раньше оно висело поверх чужого экрана. Плашка на сцене остаётся. */
+function окноПоверхСцены(){
+  const root=document.documentElement;
+  return root.classList.contains('path-on')||root.classList.contains('wk-on')||
+    !!document.querySelector('#prefs:not(.hidden), #cmdk:not(.hidden), .modal-bg:not(.hidden)');
+}
+function скрытьТостСцены(){ const t=$('#toast'); if(t&&t.dataset.scene==='1'){ t.classList.remove('show'); t.dataset.scene=''; } }
+function toast(m,сцена){
   if(prefGet('toasts')===false) return;     // подсказки можно выключить в настройках
-  const t=$('#toast'); t.textContent=m; t.classList.add('show');
-  clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
+  if(сцена&&окноПоверхСцены()) return;
+  const t=$('#toast'); t.textContent=m; t.classList.add('show'); t.dataset.scene=сцена?'1':'';
+  clearTimeout(tt); tt=setTimeout(()=>{ t.classList.remove('show'); t.dataset.scene=''; },2400); }
 
 /* ==================== ПЛАВАЮЩИЕ ПАНЕЛИ НАД СЦЕНОЙ ====================
    Показатели, энергия, PV-диаграмма, гистограмма и сравнение ведут себя как
@@ -57975,6 +58115,7 @@ const CMDS=[
 let cmdkSel=0, cmdkItems=[];
 function cmdkOpen(prefix){
   const el=$('#cmdk'); if(!el) return;
+  скрытьТостСцены();
   el.classList.remove('hidden');
   const inp=$('#cmdk-inp');
   inp.value=prefix||''; cmdkSel=0; cmdkRender();
@@ -59686,7 +59827,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '10.2.0';
+window.PHYSIM_BUILD = '10.2.1';
 window.PHYSIM_READY = true;
 
 ;
@@ -60828,6 +60969,7 @@ function собратьМастерскую(){
 function открытьМастерскую(вкладка,id){
   const p=собратьМастерскую();
   if(id) МАСТ.текущая=id;
+  if(typeof скрытьТостСцены==='function') скрытьТостСцены();
   p.classList.remove('hidden'); document.documentElement.classList.add('wk-on');
   if(typeof закрытьПуть==='function'&&typeof путьОткрыт==='function'&&путьОткрыт()) закрытьПуть();
   вкладкаМастерской(вкладка||МАСТ.вкладка);

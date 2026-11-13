@@ -54,11 +54,11 @@ double-click it, done. No console, no toolchain, nothing to compile.
 
 | System | File | What happens |
 |---|---|---|
-| **Windows 10/11** | `Phy.Sim-Setup-10.2.0.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
-| **Windows, no install** | `Phy.Sim-portable-10.2.0.exe` | Runs straight from a flash drive. Nothing is written to the system. |
-| **Fedora** | `Phy.Sim-10.2.0.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-10.2.0.x86_64.rpm`. Adds Phy.Sim to the applications menu. |
-| **Arch Linux** | `Phy.Sim-10.2.0-x86_64.pkg.tar.xz` | `sudo pacman -U ./Phy.Sim-10.2.0-x86_64.pkg.tar.xz`. Or build a 6 MB package on the system Electron from [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) with `makepkg -si`. Runs natively on Wayland (GNOME, Plasma, Hyprland, Sway) and on X11. |
-| **Any Linux** | `Phy.Sim-10.2.0-x86_64.AppImage` | `chmod +x` the file and run it. Nothing is installed. |
+| **Windows 10/11** | `Phy.Sim-Setup-10.2.1.exe` | A normal setup wizard: a notice about how the course was written, your choice of folder, tick boxes for a Desktop and a Start-menu shortcut, then *Run Phy.Sim* or *Finish*. No admin rights required. |
+| **Windows, no install** | `Phy.Sim-portable-10.2.1.exe` | Runs straight from a flash drive. Nothing is written to the system. |
+| **Fedora** | `Phy.Sim-10.2.1.x86_64.rpm` | Double-click → *Software Install*, or `sudo dnf install ./Phy.Sim-10.2.1.x86_64.rpm`. Adds Phy.Sim to the applications menu. |
+| **Arch Linux** | `Phy.Sim-10.2.1-x86_64.pkg.tar.xz` | `sudo pacman -U ./Phy.Sim-10.2.1-x86_64.pkg.tar.xz`. Or build a 6 MB package on the system Electron from [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) with `makepkg -si`. Runs natively on Wayland (GNOME, Plasma, Hyprland, Sway) and on X11. |
+| **Any Linux** | `Phy.Sim-10.2.1-x86_64.AppImage` | `chmod +x` the file and run it. Nothing is installed. |
 | **Android** | `phy-sim.apk` | Allow installing from your browser, then open the file. Asks for zero permissions, needs no Google services, and is signed with APK signature schemes v1, v2 and v3 so modern Android installs it without complaint. |
 | **Any phone, no app store** | *open the web app → «Install»* | Works where an `.apk` cannot: Google services blocked, a vendor installer that refuses unknown sources, or an iPhone. The browser offers **Install**, you get a home-screen icon, no address bar, and it keeps working offline. |
 | **Anything else** | [`phy-sim-standalone.html`](phy-sim-standalone.html) | One file, 3.6 MB. Open it in any browser — phone, tablet, school computer. Works offline. |
@@ -115,6 +115,21 @@ KaTeX and its fonts ship inside the repository.
 | **workshop** | your own simulation without programming: describe it in words, give the generated task to any AI, paste the answer — parameters, readouts, graphs, grips and a probe, drawn in the course's own style and run in a sandbox |
 | **lab** | take noisy readings, straighten the axes (T² against L), fit a least-squares line with its uncertainties, export a CSV |
 | **printable tests** | any number of variants, each with its own numbers, plus an answer key |
+
+### New in 10.2.1: scenes that fill the frame, settings on a phone
+
+- **The picture fills the frame.** When a scene opens, it is quietly run ahead for a few seconds
+  on a copy of its state and drawn into an invisible canvas; the view is then fitted to what was
+  actually drawn, future trajectory included. Pendulum, induction, the inclined plane, standing
+  waves and a dozen more no longer sit in a third of the frame. Full-frame diagrams are left alone,
+  and the view is only ever enlarged.
+- **§ 1 opens with a ball dropped from 20 m** instead of a body that flies off the edge. Reset and
+  the “changed” marks count from this opening set; problem defaults are untouched.
+- **Settings on a phone** in two steps, like a phone's own settings: a full-screen list of sections
+  with names, then the section full-screen with a back arrow. Before, a column of unlabelled icons
+  took half the screen and the settings were squeezed into a strip.
+- **A scene message no longer hangs over other screens.** “Body 1 landed…” is hidden when settings,
+  My path, the workshop, search or the lab opens, and does not pop up while they are open.
 
 ### New in 10.2: quantum physics as a laboratory
 
