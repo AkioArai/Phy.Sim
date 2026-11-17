@@ -16,8 +16,8 @@ F-Droid и инструменты Google Play.
 `versionCode` считается из версии: `MAJOR·10000 + MINOR·100 + PATCH`
 (`packaging/android/build-apk.mjs`), для 3.0.0 это `30000`.
 
-Снимки экрана лежат в `docs/media/` (`05-mobile.png`, `06-mobile-tools.png` —
-телефон; `01…04` — планшет и компьютер). Для F-Droid их копируют в
+Снимки экрана лежат в `docs/media/` (`phone.png` — три экрана телефона;
+`topic.png`, `lab.png`, `problems.png`, `path.png`, `home.png` — компьютер). Для F-Droid их копируют в
 `fastlane/metadata/android/ru-RU/images/phoneScreenshots/` при подаче; в
 репозитории их второй раз не держим, чтобы не раздувать историю.
 

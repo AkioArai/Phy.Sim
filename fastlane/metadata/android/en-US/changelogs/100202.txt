@@ -1,0 +1,3 @@
+10.2.2 — a new introduction and a tidier lab panel on a phone.
+• «How the handbook works» is rewritten: shorter, to the point — what is inside, how to read a topic, how the screen is laid out.
+• Double-slit lab on a phone: panel labels no longer overlap.

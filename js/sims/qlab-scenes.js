@@ -163,8 +163,9 @@ function лабНажать(s,p,wx,wy,px,py){ return ЛАБ.нажать(s,p,wx,
       const px=Lр.px, py=Lр.py;
       ЛАБ.прибор(ctx,v,px,py+0.95,7.6,2.65,p.det==='scan'?'счётчик каретки':'экран: счёт попаданий');
       const N=p.det==='scan'?s.N:s.hits.length, r=s.tE>0?N/s.tE:0;
-      ЛАБ.табло(ctx,v,px+0.25,py+2.25,3.5,0.72,String(N),{имя:'отсчётов N',ед:'шт'});
-      ЛАБ.табло(ctx,v,px+3.95,py+2.25,3.4,0.72,s.tE.toFixed(1),{имя:'экспозиция',ед:'с'});
+      // верхний ряд ниже края прибора: на телефоне подпись прибора иначе налезает на подписи табло
+      ЛАБ.табло(ctx,v,px+0.25,py+2.12,3.5,0.66,String(N),{имя:'отсчётов N',ед:'шт'});
+      ЛАБ.табло(ctx,v,px+3.95,py+2.12,3.4,0.66,s.tE.toFixed(1),{имя:'экспозиция',ед:'с'});
       ЛАБ.табло(ctx,v,px+0.25,py+1.15,7.1,0.66,`${r.toFixed(2)} ± ${(Math.sqrt(Math.max(N,1))/Math.max(s.tE,1e-9)).toFixed(2)}`,{имя:'скорость счёта N/t ± √N/t',ед:'1/с'});
       const жимя='slits1:'+[p.E,p.d,p.a,p.L,p.open,p.which].join('|');
       const ж=ЛАБ.журнал(жимя);
@@ -175,7 +176,7 @@ function лабНажать(s,p,wx,wy,px,py){ return ЛАБ.нажать(s,p,wx,
         ЛАБ.кнопка(ctx,v,px+5.05,py+0.2,2.55,0.55,'Очистить журнал',()=>ЛАБ.очистить(жимя));
       } else {
         ЛАБ.кнопка(ctx,v,px,py+0.2,3.7,0.55,'Очистить экран',(s)=>{ s.hits.length=0; s.bins.fill(0); s.tE=0; s.путь=[0,0]; });
-        v.text(ctx,'каждая точка — один электрон',px+5.6,py+0.47,c.ink3,9,'center');
+        if(3.8*ppm()>=150) v.text(ctx,'каждая точка — один электрон',px+5.6,py+0.47,c.ink3,9,'center');
       }
       // график
       if(p.det==='scan'){
@@ -554,7 +555,7 @@ function лабНажать(s,p,wx,wy,px,py){ return ЛАБ.нажать(s,p,wx,
         const Y=M.Y(fon); ctx.beginPath(); ctx.moveTo(M.x,Y); ctx.lineTo(M.x+M.w,Y); ctx.stroke(); ctx.restore();
         v.text(ctx,'фон',M.x+M.w-ЛАБ.px(4),M.Y(fon)+ЛАБ.px(8),c.ink3,8.5,'right'); }
       const оц=this.оценка(s,p);
-      v.text(ctx,оц?`по наклону ln(n − фон), с поправкой на мёртвое время: T½ = ${ЛАБ.спогр(оц.T,оц.σT)} с`:'T½ появится после 4–5 интервалов',M.x+M.w-ЛАБ.px(6),M.y+M.h-ЛАБ.px(10),оц?c.acc:c.ink3,9.5,'right',true);
+      v.text(ctx,оц?`по наклону ln n: T½ = ${ЛАБ.спогр(оц.T,оц.σT)} с`:'T½ появится после 4–5 интервалов',M.x+M.w-ЛАБ.px(6),M.y+M.h-ЛАБ.px(10),оц?c.acc:c.ink3,9.5,'right',true);
       ЛАБ.кнопка(ctx,v,px,py+2.95,3.6,0.6,'Новый образец',(s)=>{ Object.assign(s,SIMS.decay.init(p)); });
       ЛАБ.кнопка(ctx,v,px+3.75,py+2.95,3.85,0.6,p.logy?'Шкала: линейная':'Шкала: логарифм',(s,p)=>{ p.logy=!p.logy; if(typeof renderParams==='function') renderParams(); });
     }
