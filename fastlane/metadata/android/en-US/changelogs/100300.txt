@@ -1,0 +1,4 @@
+10.3.0 — a new home screen, tidy buttons and a New Year theme.
+• Home: a big «Continue» card with progress, sections as tiles with pictures, the problem of the day and «My path». No filler text.
+• Every button lives in one place: the scene menu and full screen moved into the scene header, duplicates removed from menus.
+• «New Year» theme: snow on the home screen, a garland and a hat on the logo. Scenes stay light.

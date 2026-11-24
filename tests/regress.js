@@ -814,7 +814,7 @@ async function сторож(b) {
        действительно собирают мышью, и открывается сразу. */
     const menu = await p.evaluate(async () => {
       const видно = () => [...document.querySelectorAll('#pop-simmenu .mt-page:not(.hidden) .item:not(.hidden)')]
-                            .map(i => i.textContent.trim());
+                            .filter(i => getComputedStyle(i).display !== 'none').map(i => i.textContent.trim());
       openSim('kin1d'); await new Promise(z => setTimeout(z, 150));
       openSimMenu(500, 300);
       const обычная = { вкладки: [...document.querySelectorAll('#simmenu-tabs .mt-t')].map(t => t.textContent),
@@ -830,7 +830,7 @@ async function сторож(b) {
     });
     ok('меню сцены разложено по вкладкам',
         menu.обычная.вкладки.join('|') === 'Сцена|Данные|Наборы|Ещё'
-        && menu.обычная.сцена.length === 9 && menu.обычная.ещё.length === 10 && menu.обычная.ещё.includes('Мой путь') && menu.обычная.ещё.includes('Мастерская') && menu.обычная.ещё.includes('Ссылка на этот опыт') && menu.обычная.ещё.includes('Урок по слайдам')
+        && menu.обычная.сцена.length === 7 && menu.обычная.ещё.length === 5 && !menu.обычная.ещё.includes('Мой путь') && !menu.обычная.ещё.includes('Мастерская') && menu.обычная.ещё.includes('Ссылка на этот опыт') && menu.обычная.ещё.includes('Урок по слайдам')
         && menu.всего > menu.обычная.сцена.length, menu.обычная);
     ok('конструктор получает свою вкладку и открывает её сразу',
         menu.цепь.вкладки.includes('Конструктор') && menu.цепь.активна === 'build'
@@ -1315,13 +1315,13 @@ async function сторож(b) {
       const hErrs = []; hp.on('pageerror', e => hErrs.push(e.message));
       await hp.route('**cdnjs.cloudflare.com**', r => r.abort());
       await hp.goto(url); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
-      const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm-sec').length,
-        цвета: [...document.querySelectorAll('#home .hm-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
-        поиск: !!document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm9-logo').length }));
-      await hp.click('#home .hm-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
+      const главная = await hp.evaluate(() => ({ видна: главнаяОткрыта(), разделов: document.querySelectorAll('#home .hm10-sec').length,
+        цвета: [...document.querySelectorAll('#home .hm10-sec')].map(x => getComputedStyle(x).getPropertyValue('--sec').trim()),
+        поиск: !document.querySelector('#hm-search'), миниатюр: document.querySelectorAll('#home .hm10-art').length }));
+      await hp.click('#home .hm10-sec[data-sec="optics"]'); await hp.waitForTimeout(250);
       const тема = await hp.evaluate(() => ({ тема: S.topic.id, скрыта: !главнаяОткрыта() }));
       await hp.click('#tbrand'); await hp.waitForTimeout(200);
-      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm9-go') || {}).textContent || '' }));
+      const снова = await hp.evaluate(() => ({ видна: главнаяОткрыта(), продолжить: (document.querySelector('#home .hm10-go') || {}).textContent || '' }));
       await hp.evaluate(() => { S.settings.startScreen = 'last'; applySettings(); });
       await hp.reload(); await hp.waitForSelector('#splash', { state: 'detached', timeout: 20000 }).catch(() => {}); await hp.waitForTimeout(500);
       const безГлавной = await hp.evaluate(() => ({ видна: главнаяОткрыта(), тема: S.topic.id }));
@@ -1663,7 +1663,7 @@ async function сторож(b) {
         открытьГлавную();
         const bg = (el, псевдо) => el ? getComputedStyle(el, псевдо || null).backgroundImage : 'нет элемента';
         const r = { шапка: bg(document.querySelector('.chead'), '::before'), герой: bg(document.querySelector('.hm-hero'), '::before'),
-          раздел: bg(document.querySelector('.hm-sec'), '::before'), кнопка: bg(document.querySelector('.btn.primary')) };
+          раздел: bg(document.querySelector('.hm10-sec'), '::before'), кнопка: bg(document.querySelector('.btn.primary')) };
         закрытьГлавную(); return r;
       });
       ok('декоративных градиентов нет', Object.values(град).every(x => !/gradient/.test(x)), град);
@@ -1689,7 +1689,7 @@ async function сторож(b) {
           && [...document.fonts].some(f => /Literata/.test(f.family) && f.status === 'loaded');
         открытьГлавную(); await жди(400);
         const cv = document.querySelector('#hm-cv');
-        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm9-logo').length === 8 && !document.querySelector('#home canvas[data-mini]');
+        r.поле = !!cv && cv.width > 0 && document.querySelectorAll('#home .hm10-art').length === 8 && !document.querySelector('#home canvas[data-mini]');
         r.знак = !!document.querySelector('#tbrand svg ellipse') && /svg/.test(document.querySelector('link[rel=icon]').href);
         r.безЛишнего = !document.querySelector('#home .hm-q, #home .hm-tools, #home .hm4-heat, #home .hm-foot');
         const кн = document.querySelector('#hm-task-go'), зд = { т: кн.dataset.t, i: кн.dataset.i };
@@ -1733,11 +1733,11 @@ async function сторож(b) {
         const жди = ms => new Promise(r => setTimeout(r, ms));
         const r = {};
         S.settings.theme = 'light'; applySettings(); открытьГлавную(); await жди(300);
-        const фон = getComputedStyle(document.querySelector('.hm9-plate')).backgroundColor.match(/\d+/g).map(Number);
+        const фон = getComputedStyle(document.querySelector('.hm10-plate')).backgroundColor.match(/\d+/g).map(Number);
         r.светлая = фон[0] > 200 && фон[1] > 200 && фон[2] > 200;
-        const лого = [...document.querySelectorAll('#home .hm9-logo')];
-        // 6.3.0: до авторских логотипов — квадратик цвета раздела, без плиток
-        r.значки = лого.length === 8 && лого.every(svg => svg.classList.contains('sec-mark') && !svg.querySelector('linearGradient') && getComputedStyle(svg).backgroundColor.match(/\d+/g).slice(3).join() === '0')
+        const лого = [...document.querySelectorAll('#home .hm10-art')];
+        // 10.3: на плитках главной — плоские рисунки разделов; в оглавлении — квадратик цвета раздела
+        r.значки = лого.length === 8 && лого.every(svg => !svg.querySelector('linearGradient') && getComputedStyle(svg).backgroundColor.match(/\d+/g).slice(3).join() === '0')
           && document.querySelectorAll('#tree .sec-ic.sec-mark circle, .sec>.hd .sec-mark circle').length >= 7;
         закрытьГлавную(); openTopic('mech.energy'); await жди(150);
         const sp = document.querySelector('#simpane'); sp.style.width = '500px'; sp.style.flex = '0 0 500px';
@@ -1909,9 +1909,10 @@ async function сторож(b) {
         r.вузКниг = ['mech.sound', 'op.matter', 'op.interf', 'op.optics', 'rel.sr', 'q.thermal', 'q.wave', 'q.hydrogen', 'q.nuclear', 'q.reactions', 'q.particles'].every(id => естьВуз({ id }));
         // титульный лист: заглавие, «Продолжить», оглавление с отточиями, рисунок с рябью
         открытьГлавную(); await жди(300);
-        r.титул = !!$('#home .hm9-h') && !!$('#home .hm9-go[data-topic]') && document.querySelectorAll('#home .hm9-secs .hm9-sec').length === 8
-          && document.querySelectorAll('#home .hm9-dots').length === 8 && !!$('#home .hm9-plate #hm-cv') && /Рис\. 1/.test($('#home figcaption').textContent)
-          && $('#home .hm9-ver').textContent.includes(document.querySelector('meta[name=physim-build]').content);
+        // 10.3: «Продолжить» с кнопкой, разделы плитками, рисунок без подписи; ни выпуска, ни поиска, ни мастерской
+        r.титул = !!$('#home .hm10-go [data-topic]') && document.querySelectorAll('#home .hm10-grid .hm10-sec').length === 8
+          && !!$('#home .hm10-plate #hm-cv') && !$('#home figcaption') && !/выпуск|Рис\. 1/.test($('#home').textContent)
+          && !$('#home #hm-search') && !$('#home #hm-workshop');
         закрытьГлавную();
         // облик: чернила вместо фиолетового, прямые углы, книжный шрифт темы
         const кс = getComputedStyle(document.documentElement);
@@ -2337,6 +2338,37 @@ async function сторож(b) {
         return r;
       });
       ok('10.2.1: сообщение сцены не висит над окнами, кадр по следу рисунка (схемы не трогаются), § 1 открывается падением с высоты',
+        Object.values(т).every(v => v === true), т);
+    }
+
+    // 10.3: одно действие — одно место; меню сцены в шапке сцены; новогодняя тема со снегом
+    {
+      const т = await p.evaluate(async () => {
+        const жди = ms => new Promise(r => setTimeout(r, ms)), r = {};
+        const виден = s => { const e = document.querySelector(s); return !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0; };
+        закрытьГлавную(); openTopic('mech.2d'); await жди(200);
+        r.меню = !document.getElementById('mi-cmdk') && !document.getElementById('mi-workshop') && !document.getElementById('mi-clear') && !document.getElementById('mi-reset');
+        openSimMenu(200, 200); setMenuTab('more'); await жди(50);
+        r.ещё = !виден('#mi-calc') && !виден('#mi-path') && !виден('#mi-prefs') && виден('#mi-lesson') && виден('#mi-keys');
+        document.querySelector('#pop-simmenu').classList.add('hidden');
+        if (document.documentElement.dataset.lay === 'bench')
+          r.шапкаСцены = !!document.querySelector('.simhead #btn-simmenu') && !!document.querySelector('.simhead #btn-simfull') && document.querySelector('.topbar').lastElementChild.id === 'btn-settings';
+        открытьГлавную(); await жди(100);
+        r.главнаяБезСцены = !виден('#btn-simmenu') && !виден('#btn-simfull') && !виден('#btn-reading');
+        // новый год: тема из движка, снег только на главной и только в этой теме
+        const было = { theme: S.settings.theme, palette: S.settings.palette };
+        const x = разобратьИдТемы('newyear'); S.settings.theme = x.theme; S.settings.palette = x.palette; applySettings(); открытьГлавную(); await жди(400);
+        const сн = document.querySelector('#home .ny-snow');
+        r.снег = !!сн && сн.width > 0 && НГ.хлопья.length >= 30 && НГ.хлопья.length <= 70
+          && /svg/.test(getComputedStyle(document.querySelector('.topbar'), '::after').backgroundImage);
+        закрытьГлавную(); await жди(80);
+        r.сценаБезСнега = !document.querySelector('#simpane .ny-snow') && !НГ.живёт;
+        S.settings.theme = было.theme; S.settings.palette = было.palette; applySettings(); открытьГлавную(); await жди(150);
+        r.снегУшёл = !document.querySelector('.ny-snow') && getComputedStyle(document.querySelector('.topbar'), '::after').content === 'none';
+        закрытьГлавную();
+        return r;
+      });
+      ok('10.3: без дублей в меню сцены, меню сцены в её шапке, новогодняя тема — снег только на главной',
         Object.values(т).every(v => v === true), т);
     }
 

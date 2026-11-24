@@ -21,7 +21,8 @@ const ИК6={
   ещё:'<circle cx="5.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
   пуск:'<path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/>',
   стоп:'<rect x="7" y="5.5" width="3.6" height="13" rx="1" fill="currentColor" stroke="none"/><rect x="13.4" y="5.5" width="3.6" height="13" rx="1" fill="currentColor" stroke="none"/>',
-  закрыть:'<path d="M6 6l12 12M18 6L6 18"/>'
+  закрыть:'<path d="M6 6l12 12M18 6L6 18"/>',
+  кадр:'<path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/><circle cx="12" cy="12" r="3"/>'
 };
 const св6=(п,кл)=>`<svg viewBox="0 0 24 24"${кл?` class="${кл}"`:''} aria-hidden="true">${п}</svg>`;
 
@@ -50,7 +51,7 @@ function м6Собрать(){
       <button class="m6-play" id="m6-play" title="Пуск / стоп">${св6(ИК6.пуск,'m6-ip')}${св6(ИК6.стоп,'m6-is')}</button>
       <button class="m6b" id="m6-reset" title="Сбросить">${св6(ИК6.сброс)}</button>
       <button class="m6b" id="m6-tools" title="Инструменты">${св6(ИК6.карандаш)}</button>
-      <button class="m6b" id="m6-more" title="Ещё">${св6(ИК6.ещё)}</button>
+      <button class="m6b" id="m6-more" title="Масштаб и кадры" aria-label="Масштаб и кадры">${св6(ИК6.кадр)}</button>
     </div>`;
   sp.appendChild(d);
   const $6=id=>document.getElementById(id);
@@ -130,7 +131,7 @@ function м6Карточка(что){
     /* «Ещё» — то, что на компьютере стоит в нижней строке и не вошло в
        панель: масштаб, вписывание, покадровый шаг, повтор, живой расчёт. */
     const z=(document.getElementById('zoomval')||{}).value||'100%';
-    к.innerHTML=`<div class="m6c-h">Сцена</div>
+    к.innerHTML=`<div class="m6c-h">Масштаб и кадры</div>
       <div class="m6c-step"><button id="m6z-out" aria-label="Отдалить">−</button><b>${z}</b><button id="m6z-in" aria-label="Приблизить">+</button></div>
       <div class="m6c-grid">
         <button id="m6-fit">${св6('<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/>')}<span>Вписать</span></button>

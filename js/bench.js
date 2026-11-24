@@ -123,10 +123,15 @@ function переставить9(на){
   if(на){
     const взять=(el,куда,перед)=>{ if(!el||!куда) return; С9.места.push([el,el.parentNode,el.nextSibling]);
       куда.insertBefore(el,перед||null); };
-    const tb=document.querySelector('.topbar'), меню=document.getElementById('btn-simmenu');
-    взять(document.getElementById('btn-settings'),tb,меню);
+    const tb=document.querySelector('.topbar');
     const sh=document.querySelector('#simpane .simhead');
     взять(document.getElementById('rail'),sh,document.getElementById('clock'));
+    /* 10.3: меню сцены и «во весь экран» — в шапке самой сцены, а не в
+       общей панели: они про сцену, и на главной им нечего делать.
+       Настройки — последней кнопкой общей панели. */
+    взять(document.getElementById('btn-simmenu'),sh,null);
+    взять(document.getElementById('btn-simfull'),sh,null);
+    взять(document.getElementById('btn-settings'),tb,null);
     const пульт=document.getElementById('b9-deck');
     взять(document.querySelector('.statusbar'),пульт,null);
     взять(document.getElementById('timeline'),пульт,null);

@@ -21,7 +21,7 @@
      файлом (file://) браузер их просто не запросит — на однофайловую сборку,
      .apk и .exe это никак не влияет. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="physim-build" content="10.2.2">
+<meta name="physim-build" content="10.3.0">
 <script>
   /* СТОРОЖ ЗАГРУЗКИ. Написан на ES5 нарочно: он обязан дожить до конца на
      любом движке, иначе на старом планшете некому объяснить, что случилось.
@@ -3969,6 +3969,98 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
   .prefs-side-top h3{font:600 22px var(--serif)}
 }
 @media (min-width:761px){ .prefs-side-top{display:none} }
+
+/* =====================================================================
+   10.3: ГЛАВНАЯ — «Продолжить», разделы плитками, задача дня и путь.
+   Плоско: линии и цвет раздела, без теней и градиентов.
+   ===================================================================== */
+.hm10{min-height:100%;display:flex;justify-content:center;padding:40px 40px 56px}
+.hm10-page{width:100%;max-width:1120px;display:flex;flex-direction:column;gap:36px}
+.hm10-lbl{font:600 11px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.hm10-h{font:600 20px/1.2 var(--serif);color:var(--ink);margin:0 0 14px}
+.hm10-bar{display:block;height:4px;background:var(--panel-2);overflow:hidden;border-radius:2px}
+.hm10-bar i{display:block;height:100%;background:var(--sec,var(--accent))}
+/* продолжить */
+.hm10-go{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);border:1px solid var(--line);border-radius:var(--radius-lg);
+  background:var(--panel);overflow:hidden;box-shadow:inset 4px 0 0 var(--sec)}
+.hm10-go-txt{padding:34px 36px 32px 40px;display:flex;flex-direction:column;gap:10px;min-width:0;justify-content:center}
+.hm10-go .hm10-lbl{color:var(--sec)}
+.hm10-go-t{font:600 40px/1.08 var(--serif);letter-spacing:-.015em;color:var(--ink);margin:2px 0 0}
+.hm10-go-s{font:400 14px var(--sans);color:var(--ink-3)}
+.hm10-prog{display:flex;align-items:center;gap:10px;font:500 12px var(--mono);color:var(--ink-2);max-width:320px}
+.hm10-prog .hm10-bar{flex:1}
+.hm10-go-btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.hm10-go-btns .btn{font-size:14px;padding:10px 18px;display:inline-flex;align-items:center;gap:8px}
+.hm10-open svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hm10-plate{position:relative;min-height:300px;background:var(--hero-bg,var(--well));border-left:1px solid var(--line)}
+.hm10-plate canvas{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;display:block;cursor:crosshair}
+/* разделы */
+.hm10-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.hm10-sec{width:100%;height:100%;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;cursor:pointer;
+  padding:18px 18px 16px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel);transition:border-color .12s,background .12s}
+.hm10-sec:hover{border-color:var(--sec);background:var(--panel-2)}
+.hm10-sec:focus-visible{outline:2px solid var(--sec);outline-offset:2px}
+.hm10-art{width:44px;height:44px;margin-bottom:12px;fill:none;stroke:var(--sec);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hm10-art .f{fill:var(--sec);stroke:none}
+.hm10-art .t{stroke-width:3}
+.hm10-sec-t{font:600 16px/1.25 var(--serif);color:var(--ink)}
+.hm10-sec-n{font:400 12.5px var(--sans);color:var(--ink-3)}
+.hm10-sec .hm10-bar{width:100%;margin-top:8px}
+/* задача дня и путь */
+.hm10-row{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px}
+.hm10-card{display:flex;flex-direction:column;gap:10px;padding:20px 22px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel);min-width:0}
+.hm10-card .hm4-stmt{font:400 15px/1.55 var(--serif);color:var(--ink);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.hm10-card p{margin:0;font:400 13.5px/1.5 var(--sans);color:var(--ink-2)}
+.hm10-big{font:600 30px/1.1 var(--serif);color:var(--ink)}
+.hm10-big small{font:400 14px var(--sans);color:var(--ink-3)}
+.hm10-card-f{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;font:400 12.5px var(--sans);color:var(--ink-3)}
+.hm10-card-f span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1100px){ .hm10-grid{grid-template-columns:repeat(2,minmax(0,1fr))} .hm10-go-t{font-size:34px} }
+/* телефон */
+[data-ui="mobile"] .hm10{padding:14px 14px 32px}
+[data-ui="mobile"] .hm10-page{gap:26px}
+[data-ui="mobile"] .hm10-go{grid-template-columns:1fr;box-shadow:inset 0 4px 0 var(--sec)}
+[data-ui="mobile"] .hm10-plate{order:-1;min-height:150px;border-left:0;border-bottom:1px solid var(--line)}
+[data-ui="mobile"] .hm10-go-txt{padding:20px 18px 20px}
+[data-ui="mobile"] .hm10-go-t{font-size:27px}
+[data-ui="mobile"] .hm10-go-btns .btn{flex:1;justify-content:center}
+[data-ui="mobile"] .hm10-grid{grid-template-columns:1fr 1fr;gap:10px}
+[data-ui="mobile"] .hm10-sec{padding:14px 14px 13px}
+[data-ui="mobile"] .hm10-art{width:34px;height:34px;margin-bottom:8px}
+[data-ui="mobile"] .hm10-sec-t{font-size:15px}
+[data-ui="mobile"] .hm10-row{grid-template-columns:1fr}
+[data-ui="mobile"] .hm10-h{font-size:18px;margin-bottom:10px}
+/* 10.3: одно действие — одно место.
+   Вычислитель, «Мой путь» и настройки есть в верхней панели — в меню сцены
+   они нужны только на телефоне (там панели нет); горячие клавиши без
+   клавиатуры не нужны. На главной кнопки сцены и чтения прячутся. */
+:root:not([data-ui="mobile"]) #mi-calc,:root:not([data-ui="mobile"]) #mi-path,#mi-prefs,[data-ui="mobile"] #mi-keys{display:none!important}
+.home-on #btn-reading,.home-on #btn-simmenu,.home-on #btn-simfull,.home-on #m-opensim,.home-on #m-more{display:none!important}
+[data-lay="bench"] .topbar>.sep:nth-last-of-type(1){display:none}
+[data-lay="bench"] .simhead>#btn-simmenu,[data-lay="bench"] .simhead>#btn-simfull{flex:0 0 auto}
+/* на телефоне «Вписать» — в карточке «Масштаб и кадры» внизу */
+[data-ui="mobile"] #mi-fitv,[data-ui="mobile"] #mi-fit-ttl{display:none!important}
+
+/* =====================================================================
+   10.3: НОВЫЙ ГОД — снег на главной (js/newyear.js), гирлянда и шапка.
+   Плоские круги и треугольники, без градиентов; мигание — только
+   прозрачность одного слоя, и только при полной анимации.
+   ===================================================================== */
+.ny-snow{position:sticky;top:0;left:0;display:block;width:100%;height:0;pointer-events:none;z-index:0}
+.home .ny-snow~.hm{position:relative;z-index:1}
+[data-ptheme="newyear"] .topbar,[data-ptheme="newyear"] .mtop{position:relative}
+[data-ptheme="newyear"] .topbar::after,[data-ptheme="newyear"] .mtop::after{content:'';position:absolute;left:0;right:0;bottom:-9px;height:12px;pointer-events:none;z-index:60;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='12'%3E%3Cpath d='M0 2 Q15 7 30 2 T60 2 T90 2 T120 2' fill='none' stroke='%237d8aa3' stroke-width='1'/%3E%3Ccircle cx='15' cy='7.5' r='3' fill='%23f4c04e'/%3E%3Ccircle cx='45' cy='7.5' r='3' fill='%23ff6f61'/%3E%3Ccircle cx='75' cy='7.5' r='3' fill='%235fd39a'/%3E%3Ccircle cx='105' cy='7.5' r='3' fill='%2365b2ff'/%3E%3C/svg%3E") repeat-x}
+[data-ptheme="newyear"] .topbar::before,[data-ptheme="newyear"] .mtop::before{content:'';position:absolute;left:0;right:0;bottom:-9px;height:12px;pointer-events:none;z-index:61;opacity:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='12'%3E%3Ccircle cx='15' cy='7.5' r='3' fill='%23ffffff'/%3E%3Ccircle cx='75' cy='7.5' r='3' fill='%23ffffff'/%3E%3C/svg%3E") repeat-x}
+[data-ptheme="newyear"][data-motion="full"] .topbar::before,[data-ptheme="newyear"][data-motion="full"] .mtop::before{animation:ny-blink 2.4s steps(1) infinite}
+@keyframes ny-blink{0%{opacity:0}50%{opacity:.55}}
+/* шапка на логотипе */
+[data-ptheme="newyear"] #tbrand,[data-ptheme="newyear"] #m-home{position:relative;overflow:visible}
+[data-ptheme="newyear"] #tbrand::after,[data-ptheme="newyear"] #m-home::after{content:'';position:absolute;width:17px;height:15px;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 15'%3E%3Cpath d='M2 12 L9 2 L15 7 L13 12 Z' fill='%23e0453a'/%3E%3Crect x='1' y='11' width='14' height='3.5' rx='1.5' fill='%23ffffff'/%3E%3Ccircle cx='15' cy='7.5' r='2' fill='%23ffffff'/%3E%3C/svg%3E") no-repeat}
+[data-ptheme="newyear"] #tbrand::after{left:6px;top:-1px;transform:rotate(-12deg)}
+[data-ptheme="newyear"] #m-home::after{left:9px;top:2px;transform:rotate(-12deg)}
 </style>
 </head>
 <body>
@@ -4361,10 +4453,8 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
       <button class="item tog" id="mi-ghost"><svg viewBox="0 0 24 24"><path d="M3 18c4-9 10-12 18-10" stroke-dasharray="3 3"/><circle cx="17" cy="8" r="2.4"/></svg>Призрак прошлого прогона</button>
       <button class="item tog" id="mi-follow"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="2.2"/><path d="M12 5v3M12 16v3M3 12h3M18 12h3"/></svg>Камера за телом</button>
       <button class="item tog" id="mi-legend"><svg viewBox="0 0 24 24"><path d="M4 7h4M4 12h4M4 17h4"/><path d="M11 7h9M11 12h9M11 17h6"/></svg>Легенда сил и масштаб</button>
-      <div class="ttl">Кадр</div>
+      <div class="ttl" id="mi-fit-ttl">Кадр</div>
       <button class="item" id="mi-fitv"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg>Вписать вид в кадр</button>
-      <button class="item" id="mi-clear"><svg viewBox="0 0 24 24"><path d="m6 16 6-6 6 6-3 3H9z"/><path d="M4 21h16"/></svg>Убрать все пометки</button>
-      <button class="item" id="mi-reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Всё сбросить</button>
     </div>
     <div class="mt-page hidden" data-page="data">
       <button class="item" id="mi-lab"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Лаборатория: точки и прямая</button>
@@ -4382,11 +4472,9 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
     <div class="mt-page hidden" data-page="more">
       <button class="item" id="mi-calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01"/></svg>Вычислитель</button>
       <button class="item" id="mi-path"><svg viewBox="0 0 24 24"><path d="M5 19c3-1 3-5 7-6s4-5 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="6" r="2"/></svg>Мой путь</button>
-      <button class="item" id="mi-workshop"><svg viewBox="0 0 24 24"><path d="M14.5 5.5l4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M13 7l4 4"/></svg>Мастерская</button>
       <button class="item" id="mi-lesson"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8l4 2-4 2z"/></svg>Урок по слайдам</button>
       <button class="item" id="mi-gloss"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>Словарь терминов</button>
       <button class="item" id="mi-share"><svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></svg>Ссылка на этот опыт</button>
-      <button class="item" id="mi-cmdk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 10 3 2-3 2M13 14h4"/></svg>Командная палитра</button>
       <button class="item" id="mi-teacher"><svg viewBox="0 0 24 24"><path d="M4 5h12a2 2 0 0 1 2 2v13H6a2 2 0 0 1-2-2z"/><path d="M8 9h6M8 13h6"/></svg>Собрать контрольную</button>
       <button class="item" id="mi-keys"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>Горячие клавиши</button>
       <button class="item" id="mi-prefs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Настройки</button>
@@ -49189,7 +49277,12 @@ function открытьГлавную(){
   h.classList.remove('hidden'); h.scrollTop=0;
   document.documentElement.classList.add('home-on');
   обновитьНав();
-  if(typeof isNarrow==='function'&&isNarrow()&&typeof drawer==='function') drawer(false);
+  if(typeof isNarrow==='function'&&isNarrow()){
+    if(typeof drawer==='function') drawer(false);
+    // на телефоне сцена — экран поверх всего: главную под ней не видно (10.3)
+    const sp=document.getElementById('simpane');
+    if(sp&&!sp.classList.contains('hidden')&&typeof closeSimMobile==='function'){ closeSimMobile(); if(typeof syncMbar==='function') syncMbar(); }
+  }
 }
 function закрытьГлавную(){
   const h=document.getElementById('home'); if(!h||h.classList.contains('hidden')) return;
@@ -49314,65 +49407,83 @@ function веерГлавной(cv){
   requestAnimationFrame(цикл);
 }
 
+/* ---------------- главная (10.3) ----------------
+   Устроена как у лучших учебных приложений: сверху одна крупная карточка
+   «Продолжить» — точное место и прогресс, ниже разделы плитками, внизу
+   задача дня и «Мой путь». Никаких номеров выпуска, подписей к рисункам
+   и кнопок, которые уже есть в верхней панели (поиск, мастерская). */
+const РИС_РАЗДЕЛОВ={
+  mech:'<path d="M5 41h38"/><path d="M8 41C13 15 30 9 38 33" stroke-dasharray="3 4"/><circle cx="38" cy="33" r="4" class="f"/>',
+  hydro:'<path d="M5 17c4-4 8-4 12 0s8 4 12 0 8-4 12 0M5 27c4-4 8-4 12 0s8 4 12 0 8-4 12 0M5 37c4-4 8-4 12 0s8 4 12 0 8-4 12 0"/>',
+  thermo:'<path d="M20 29V10a4 4 0 0 1 8 0v19"/><circle cx="24" cy="35" r="7"/><circle cx="24" cy="35" r="3" class="f"/><path d="M24 32V17M32 13h5M32 19h5M32 25h5"/>',
+  electro:'<circle cx="13" cy="24" r="6"/><path d="M10 24h6M13 21v6"/><circle cx="35" cy="24" r="6"/><path d="M32 24h6"/><path d="M19 21c4-4 6-4 10 0M19 27c4 4 6 4 10 0M18 16c5-8 7-8 12 0M18 32c5 8 7 8 12 0"/>',
+  em:'<path d="M14 8v16a10 10 0 0 0 20 0V8"/><path d="M10 8h8M30 8h8"/><path d="M14 13h-4M38 13h-4" class="t"/><path d="M8 40h32" stroke-dasharray="2 3"/>',
+  optics:'<path d="M24 7c5 6 5 28 0 34c-5-6-5-28 0-34z"/><path d="M4 16h20l19 8M4 32h20l19-8"/><circle cx="43" cy="24" r="1.6" class="f"/>',
+  rel:'<path d="M24 5v38M6 24h36"/><path d="M8 8l32 32M40 8L8 40" stroke-dasharray="3 3"/><path d="M14 43c6-8 6-14 10-19s4-11 10-19"/>',
+  quantum:'<path d="M4 34h7c2 0 3-7 5-7s3 14 5 14 3-20 4-20 3 20 4 20 3-14 5-14 3 7 5 7h5"/><circle cx="24" cy="11" r="3" class="f"/><path d="M14 11a10 4 0 1 0 20 0a10 4 0 1 0-20 0"/>'
+};
+function рисРаздела(id){ const d=РИС_РАЗДЕЛОВ[id]; return d?`<svg class="hm10-art" viewBox="0 0 48 48" aria-hidden="true">${d}</svg>`:''; }
 function рисоватьГлавную(h){
   const сост=(typeof естьПуть==='function'&&естьПуть())?состояниеПути():null;
   const посл=LS.get('lastTopic',null), тП=посл&&посл!=='intro'?ALL.find(t=>t.id===посл):null;
   const темыРаздела=sec=>sec.topics.filter(t=>t.kind!=='recap'&&t.id!=='intro');
-  const освоено=sec=>сост?темыРаздела(sec).filter(t=>сост.темы[t.id]&&(сост.темы[t.id].статус==='done'||сост.темы[t.id].статус==='due')).length:0;
-  const симРаздела=sec=>new Set([].concat(...sec.topics.map(t=>[...(t.formulas||[]),...(t.problems||[])].map(x=>x.sim).filter(Boolean)))).size;
+  const статус=id=>сост&&сост.темы[id]||null;
+  const освоена=id=>{ const x=статус(id); return !!x&&(x.статус==='done'||x.статус==='due'); };
   const первая=ALL.find(t=>t.id==='mech.1d')||ALL[1];
-  let номер=1;
-  /* 9.0: титульный лист. Слева — заглавие и оглавление с отточиями, как в
-     книге; справа — рисунок-вкладка с живой волновой ванной и подписью, под
-     ним задача дня и «Мой путь». Никаких карточек и слоганов во весь экран:
-     фраза-девиз осталась эпиграфом. */
-  const ic=(d)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
-  const сборка=esc((document.querySelector('meta[name=physim-build]')||{}).content||window.PHYSIM_BUILD||'');
-  const тек=тП||первая, разделТек=разделТемы(тек);
-  const продолжить=`<button class="hm9-go" data-topic="${тек.id}"><span class="hm9-go-l">${тП?'Продолжить':'Начать'}</span>
-      <span class="hm9-go-t">${тек.ch&&тек.kind!=='recap'?`<i>§ ${esc(тек.ch)}</i>`:''}${esc(тек.title)}</span>
-      <span class="hm9-go-s">${esc(разделТек?разделТек.title:'')}</span>${ic('<path d="M5 12h14M13 6l6 6-6 6"/>')}</button>`;
+  const ic=d=>`<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const тек=тП||первая, разделТек=разделТемы(тек), стТек=статус(тек.id);
+  const пр=стТек?Math.round(стТек.освоение*100):0;
+  const задач=(тек.problems||[]).length;
+  const продолжить=`<section class="hm10-go sx" style="${стильРаздела(разделТек)}" aria-label="${тП?'Продолжить':'Начать'}">
+      <div class="hm10-go-txt">
+        <div class="hm10-lbl">${тП?'Продолжить':'Начать с первой темы'}</div>
+        <h2 class="hm10-go-t">${esc(тек.title)}</h2>
+        <div class="hm10-go-s">${esc(разделТек?разделТек.title:'')}${тек.ch&&тек.kind!=='recap'?` · § ${esc(тек.ch)}`:''}${задач?` · ${plural(задач,'задача','задачи','задач')}`:''}</div>
+        ${стТек&&стТек.статус!=='new'?`<div class="hm10-prog"><span class="hm10-bar"><i style="width:${пр}%"></i></span><span>${пр} %</span></div>`:''}
+        <div class="hm10-go-btns">
+          <button class="btn primary hm10-open" data-topic="${тек.id}">${тП?'Продолжить':'Начать'}${ic('<path d="M5 12h14M13 6l6 6-6 6"/>')}</button>
+          ${тП?'':'<button class="btn hm10-intro" data-topic="intro">Как устроено пособие</button>'}
+        </div>
+      </div>
+      <div class="hm10-plate"><canvas id="hm-cv" aria-hidden="true"></canvas></div>
+    </section>`;
+  const плитки=SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
+    const темы=темыРаздела(sec), n=сост?темы.filter(t=>освоена(t.id)).length:0;
+    return `<li><button class="hm10-sec sx" style="${стильРаздела(sec)}" data-sec="${sec.id}">
+        ${рисРаздела(sec.id)}
+        <span class="hm10-sec-t">${esc(sec.title)}</span>
+        <span class="hm10-sec-n">${n?`${n} из ${темы.length}`:plural(темы.length,'тема','темы','тем')}</span>
+        ${n?`<span class="hm10-bar"><i style="width:${Math.round(100*n/темы.length)}%"></i></span>`:''}
+      </button></li>`; }).join('');
   const зд=задачаДня(сост);
-  const задача=зд?`<div class="hm9-task"><div class="hm9-lbl">Задача дня <span>· ${esc(зд.t.title)}</span></div>
+  const задача=зд?`<section class="hm10-card hm10-task">
+      <div class="hm10-lbl">Задача дня</div>
       <div class="hm4-stmt">${зд.pr.statement}</div>
-      <button class="btn" id="hm-task-go" data-t="${зд.t.id}" data-i="${зд.i}">Решить</button></div>`:'';
+      <div class="hm10-card-f"><span>${esc(зд.t.title)}</span><button class="btn" id="hm-task-go" data-t="${зд.t.id}" data-i="${зд.i}">Решить</button></div>
+    </section>`:'';
   let путь='';
   if(сост){
     const ж=журнал(), рем=УЧ.навыкиКРемонту(ж), пусто=!Object.keys(ж.задачи).length&&!ж.диагн;
+    const всего=ALL.filter(t=>t.kind!=='recap'&&t.id!=='intro'&&(t.problems||[]).length).length;
+    const освоено=Object.values(сост.темы).filter(x=>x.статус==='done'||x.статус==='due').length;
     путь=пусто
-      ? `<button class="hm9-row" data-path="diag"><b>Диагностика за 10 минут</b><span>12 задач — и станет ясно, с какой темы начать</span></button>`
-      : `<button class="hm9-row" data-path="today"><b>План на сегодня</b><span>${сост.повторить.length} ${plural(сост.повторить.length,'тема','темы','тем').replace(/^\d+\s/,'')} повторить · ${рем.length} ${plural(рем.length,'навык','навыка','навыков').replace(/^\d+\s/,'')} починить</span></button>`;
+      ? `<section class="hm10-card hm10-path"><div class="hm10-lbl">Мой путь</div>
+          <div class="hm10-big">Диагностика</div><p>12 задач покажут, с какой темы начать.</p>
+          <div class="hm10-card-f"><span>около 20 минут</span><button class="btn" data-path="diag">Пройти</button></div></section>`
+      : `<section class="hm10-card hm10-path"><div class="hm10-lbl">Мой путь</div>
+          <div class="hm10-big">${освоено} <small>из ${всего} тем освоено</small></div>
+          <p>Повторить: ${сост.повторить.length} · навыков починить: ${рем.length}</p>
+          <div class="hm10-card-f"><span></span><button class="btn" data-path="today">Открыть</button></div></section>`;
   }
-  const лого=document.querySelector('#tbrand svg');
-  h.innerHTML=`<div class="hm hm9">
-    <div class="hm9-page">
-      <header class="hm9-title">
-        <div class="hm9-kick">${лого?лого.outerHTML.replace(/id="tb-g"/,'id="hm9-g"').replace(/url\(#tb-g\)/g,'url(#hm9-g)'):''}<span>Phy.Sim</span><span class="hm9-ver">выпуск ${сборка}</span></div>
-        <h1 class="hm9-h">Курс физики<br>в&nbsp;моделях</h1>
-        <p class="hm9-epi">Не смог представить? Сейчас исправим.</p>
-      </header>
-      <section class="hm9-toc" aria-label="Содержание">
-        ${продолжить}
-        <div class="hm9-lbl hm9-lbl-toc">Содержание</div>
-        <ol class="hm-secs hm9-secs">${SECTIONS.filter(s=>s.id!=='intro').map(sec=>{
-          const темы=темыРаздела(sec), n=освоено(sec);
-          return `<li><button class="hm-sec hm9-sec sx${sec.hard?' hard':''}" style="${стильРаздела(sec)}" data-sec="${sec.id}">
-            <span class="hm9-n">${String(номер++).padStart(2,'0')}</span>
-            <span class="hm9-st">${логотипРаздела(sec.id,'hm9-logo')}<span class="hm-sec-t">${esc(sec.title)}</span></span>
-            <span class="hm9-dots"></span>
-            <span class="hm-s">${plural(темы.length,'тема','темы','тем')} · ${plural(симРаздела(sec),'модель','модели','моделей')}</span>
-            <span class="hm9-sub">${темы.slice(0,4).map(t=>esc(t.title)).join(' · ')}${темы.length>4?' …':''}</span>
-            ${n?`<span class="hm9-p" title="Освоено тем">${n}/${темы.length}</span><span class="hm-bar"><i style="width:${Math.round(100*n/темы.length)}%"></i></span>`:''}
-          </button></li>`; }).join('')}</ol>
+  h.innerHTML=`<div class="hm hm10">
+    <div class="hm10-page">
+      <h1 class="sr-only">Phy.Sim — главная</h1>
+      ${продолжить}
+      <section class="hm10-secs" aria-label="Разделы">
+        <div class="hm10-h">Разделы</div>
+        <ol class="hm10-grid">${плитки}</ol>
       </section>
-      <aside class="hm9-side">
-        <figure class="hm9-fig"><div class="hm9-plate"><canvas id="hm-cv" data-plate="1" aria-hidden="true"></canvas></div>
-          <figcaption><b>Рис. 1.</b> Сорок восемь двойных маятников отпущены почти одинаково — углы различаются на стотысячные доли градуса. Первые секунды они идут как один, потом расходятся веером. Законы точные, а будущее не предсказать: это хаос. Коснитесь — маятники поднимутся к пальцу и начнут заново.</figcaption></figure>
-        <button class="hm9-row hm9-search" id="hm-search">${ic('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>')}<b>Найти тему или формулу</b><kbd>Ctrl P</kbd></button>
-        ${путь}
-        <button class="hm9-row" id="hm-workshop"><b>Мастерская</b><span>Своя симуляция: опишите явление словами — ИИ напишет модель, приложение её запустит</span></button>
-        ${задача}
-      </aside>
+      ${задача||путь?`<div class="hm10-row">${задача}${путь}</div>`:''}
     </div>
   </div>`;
   h.querySelectorAll('[data-topic]').forEach(b=>b.onclick=()=>{ openTopic(b.dataset.topic); закрытьГлавную(); });
@@ -49384,8 +49495,6 @@ function рисоватьГлавную(h){
     openTopic(t.id); закрытьГлавную();
   });
   h.querySelectorAll('[data-path]').forEach(b=>b.onclick=()=>открытьПуть(b.dataset.path));
-  const мс=h.querySelector('#hm-workshop'); if(мс) мс.onclick=()=>{ if(typeof открытьМастерскую==='function') открытьМастерскую('list'); };
-  const qs=h.querySelector('#hm-search'); if(qs) qs.onclick=()=>{ if(typeof cmdkOpen==='function') cmdkOpen(); };
   const tg=h.querySelector('#hm-task-go'); if(tg) tg.onclick=()=>открытьЗадачу(зд.t.id,зд.i);
   const ст=h.querySelector('.hm4-stmt'); if(ст&&typeof typeset==='function') try{ typeset(ст); }catch(_){}
   веерГлавной(h.querySelector('#hm-cv'));
@@ -50550,7 +50659,8 @@ const ИК6={
   ещё:'<circle cx="5.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
   пуск:'<path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/>',
   стоп:'<rect x="7" y="5.5" width="3.6" height="13" rx="1" fill="currentColor" stroke="none"/><rect x="13.4" y="5.5" width="3.6" height="13" rx="1" fill="currentColor" stroke="none"/>',
-  закрыть:'<path d="M6 6l12 12M18 6L6 18"/>'
+  закрыть:'<path d="M6 6l12 12M18 6L6 18"/>',
+  кадр:'<path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/><circle cx="12" cy="12" r="3"/>'
 };
 const св6=(п,кл)=>`<svg viewBox="0 0 24 24"${кл?` class="${кл}"`:''} aria-hidden="true">${п}</svg>`;
 
@@ -50579,7 +50689,7 @@ function м6Собрать(){
       <button class="m6-play" id="m6-play" title="Пуск / стоп">${св6(ИК6.пуск,'m6-ip')}${св6(ИК6.стоп,'m6-is')}</button>
       <button class="m6b" id="m6-reset" title="Сбросить">${св6(ИК6.сброс)}</button>
       <button class="m6b" id="m6-tools" title="Инструменты">${св6(ИК6.карандаш)}</button>
-      <button class="m6b" id="m6-more" title="Ещё">${св6(ИК6.ещё)}</button>
+      <button class="m6b" id="m6-more" title="Масштаб и кадры" aria-label="Масштаб и кадры">${св6(ИК6.кадр)}</button>
     </div>`;
   sp.appendChild(d);
   const $6=id=>document.getElementById(id);
@@ -50659,7 +50769,7 @@ function м6Карточка(что){
     /* «Ещё» — то, что на компьютере стоит в нижней строке и не вошло в
        панель: масштаб, вписывание, покадровый шаг, повтор, живой расчёт. */
     const z=(document.getElementById('zoomval')||{}).value||'100%';
-    к.innerHTML=`<div class="m6c-h">Сцена</div>
+    к.innerHTML=`<div class="m6c-h">Масштаб и кадры</div>
       <div class="m6c-step"><button id="m6z-out" aria-label="Отдалить">−</button><b>${z}</b><button id="m6z-in" aria-label="Приблизить">+</button></div>
       <div class="m6c-grid">
         <button id="m6-fit">${св6('<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/>')}<span>Вписать</span></button>
@@ -51349,7 +51459,9 @@ const ТЕМЫ_ДВИЖКА={
   solar:     {имя:'Солнечная',     тон:'light', фон:'#eee8d5',лист:'#fdf6e3',текст:'#073642',акцент:'#2072b8',карандаш:'#c4470f'},
   solarnight:{имя:'Солнечная ночь',тон:'dark',  фон:'#00212b',лист:'#022d39',текст:'#eee8d5',акцент:'#3cb8ad',карандаш:'#e8834a'},
   lavender:  {имя:'Лаванда',       тон:'light', фон:'#efedf7',лист:'#fbfaff',текст:'#1d1a2b',акцент:'#6a4cd6',карандаш:'#c2410c'},
-  coffee:    {имя:'Кофе',          тон:'dark',  фон:'#18140f',лист:'#221c16',текст:'#efe6da',акцент:'#e2a65a',карандаш:'#f0855a'}
+  coffee:    {имя:'Кофе',          тон:'dark',  фон:'#18140f',лист:'#221c16',текст:'#efe6da',акцент:'#e2a65a',карандаш:'#f0855a'},
+  // 10.3: зимняя ночь, золото гирлянды и красный карандаш; снег и гирлянда — js/newyear.js
+  newyear:   {имя:'Новый год',     тон:'dark',  фон:'#0b1a2e',лист:'#11243d',текст:'#eef4ff',акцент:'#f4c04e',карандаш:'#ff6f61',сцена:'#0f2138'}
 };
 /* цвета, которые тема не задаёт: опасность, второй и третий ряд, «верно» */
 const ТЕМЫ_ЦВЕТА_ТОНА={
@@ -59704,7 +59816,7 @@ function запуск(){
    когда её нет, значит скрипт умер по дороге, и надо чинить кэш.
    Номер выпуска тут же: сторож сверяет его с номером в разметке и ловит
    случай, когда служебный поток отдал файлы от разных версий. */
-window.PHYSIM_BUILD = '10.2.2';
+window.PHYSIM_BUILD = '10.3.0';
 window.PHYSIM_READY = true;
 
 ;
@@ -61249,10 +61361,15 @@ function переставить9(на){
   if(на){
     const взять=(el,куда,перед)=>{ if(!el||!куда) return; С9.места.push([el,el.parentNode,el.nextSibling]);
       куда.insertBefore(el,перед||null); };
-    const tb=document.querySelector('.topbar'), меню=document.getElementById('btn-simmenu');
-    взять(document.getElementById('btn-settings'),tb,меню);
+    const tb=document.querySelector('.topbar');
     const sh=document.querySelector('#simpane .simhead');
     взять(document.getElementById('rail'),sh,document.getElementById('clock'));
+    /* 10.3: меню сцены и «во весь экран» — в шапке самой сцены, а не в
+       общей панели: они про сцену, и на главной им нечего делать.
+       Настройки — последней кнопкой общей панели. */
+    взять(document.getElementById('btn-simmenu'),sh,null);
+    взять(document.getElementById('btn-simfull'),sh,null);
+    взять(document.getElementById('btn-settings'),tb,null);
     const пульт=document.getElementById('b9-deck');
     взять(document.querySelector('.statusbar'),пульт,null);
     взять(document.getElementById('timeline'),пульт,null);
@@ -61313,6 +61430,72 @@ addEventListener('resize',()=>{ if(стенд()){ ширина9(); отмети�
 if(window.ResizeObserver) try{ new ResizeObserver(()=>{ if(стенд()) отметить9(); }).observe(document.getElementById('simpane')); }catch(_){}
 собрать9();
 обновитьРаскладку();
+
+;
+'use strict';
+/* ===================== НОВЫЙ ГОД (10.3) =====================
+   Тема «Новый год» (themes.js) — цвета. Здесь — украшения, которые
+   не должны нагружать устройство:
+   · снег только на главной, за карточками: до 70 снежинок, 30 кадров в
+     секунду, цикл стоит, когда главная закрыта или вкладка не видна;
+     при спокойной анимации снег рисуется один раз и не движется;
+   · гирлянда под верхней панелью и шапка на логотипе — чистый CSS
+     ([data-ptheme="newyear"] в style.css).
+   Сцены физики не трогаем: снег поверх опыта мешал бы смотреть. */
+const НГ={cv:null,живёт:false,хлопья:[],W:0,H:0,прошлое:0};
+function новыйГодВключён(){ return document.documentElement.dataset.ptheme==='newyear'; }
+function снегГлавной(){
+  const h=document.getElementById('home');
+  if(!h||!новыйГодВключён()||h.classList.contains('hidden')){ if(НГ.cv) НГ.cv.remove(); НГ.cv=null; return; }
+  if(!НГ.cv||!h.contains(НГ.cv)){
+    НГ.cv=document.createElement('canvas'); НГ.cv.className='ny-snow'; НГ.cv.setAttribute('aria-hidden','true');
+    h.prepend(НГ.cv); НГ.хлопья=[]; НГ.W=0;
+  }
+  if(!НГ.живёт){ НГ.живёт=true; НГ.прошлое=performance.now(); requestAnimationFrame(кадрСнега); }
+}
+function размерСнега(){
+  /* холст «прилипает» к верху прокрутки главной и занимает ровно её окно:
+     высота задаётся числом, а отрицательный нижний отступ того же размера
+     кладёт карточки поверх снега, не сдвигая их */
+  const cv=НГ.cv, дом=cv.parentNode, w=дом.clientWidth, h=дом.clientHeight; if(!w||!h) return false;
+  if(cv.style.height!==h+'px'){ cv.style.height=h+'px'; cv.style.marginBottom=(-h)+'px'; }
+  if(w!==НГ.W||h!==НГ.H){
+    НГ.W=w; НГ.H=h; const dpr=Math.min(devicePixelRatio||1,1.5); cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+    const n=Math.min(70,Math.max(30,Math.round(w*h/16000)));
+    while(НГ.хлопья.length<n) НГ.хлопья.push(новаяСнежинка(true));
+    НГ.хлопья.length=n;
+  }
+  return true;
+}
+function новаяСнежинка(где){ return {x:Math.random()*(НГ.W||1000), y:где?Math.random()*(НГ.H||800):-6,
+  r:1+Math.random()*1.8, v:14+Math.random()*30, ф:Math.random()*6.28, а:0.45+Math.random()*0.45}; }
+function кадрСнега(now){
+  const cv=НГ.cv, h=document.getElementById('home');
+  if(!cv||!h||h.classList.contains('hidden')||!новыйГодВключён()){ НГ.живёт=false; if(cv&&!новыйГодВключён()){ cv.remove(); НГ.cv=null; } return; }
+  const тихо=document.documentElement.dataset.motion!=='full';
+  if(document.visibilityState==='visible'&&now-НГ.прошлое>=32&&размерСнега()){
+    const dt=Math.min(0.05,(now-НГ.прошлое)/1000); НГ.прошлое=now;
+    const ctx=cv.getContext('2d'), k=cv.width/НГ.W;
+    ctx.setTransform(k,0,0,k,0,0); ctx.clearRect(0,0,НГ.W,НГ.H);
+    ctx.fillStyle='#ffffff';
+    for(const с of НГ.хлопья){
+      if(!тихо){ с.y+=с.v*dt; с.ф+=dt*0.8; с.x+=Math.sin(с.ф)*8*dt;
+        if(с.y>НГ.H+4){ Object.assign(с,новаяСнежинка(false)); с.x=Math.random()*НГ.W; } }
+      ctx.globalAlpha=с.а; ctx.beginPath(); ctx.arc(с.x,с.y,с.r,0,6.283); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    if(тихо){ НГ.живёт=false; return; }   // спокойный режим: один кадр
+  }
+  requestAnimationFrame(кадрСнега);
+}
+/* главная перерисовывается при каждом открытии — снег подключается следом */
+(function(){
+  const и=window.открытьГлавную; if(typeof и!=='function') return;
+  window.открытьГлавную=function(){ const r=и.apply(this,arguments); try{ снегГлавной(); }catch(_){} return r; };
+  // смена темы в настройках — включить или убрать снег без перезагрузки
+  new MutationObserver(()=>{ try{ снегГлавной(); }catch(_){} }).observe(document.documentElement,{attributes:true,attributeFilter:['data-ptheme','data-motion']});
+  addEventListener('load',()=>{ try{ снегГлавной(); }catch(_){} });
+})();
 </script>
 </body>
 </html>

@@ -3832,3 +3832,95 @@ details.deep>summary,.deep-h{font-family:var(--read-font)}
   .prefs-side-top h3{font:600 22px var(--serif)}
 }
 @media (min-width:761px){ .prefs-side-top{display:none} }
+
+/* =====================================================================
+   10.3: ГЛАВНАЯ — «Продолжить», разделы плитками, задача дня и путь.
+   Плоско: линии и цвет раздела, без теней и градиентов.
+   ===================================================================== */
+.hm10{min-height:100%;display:flex;justify-content:center;padding:40px 40px 56px}
+.hm10-page{width:100%;max-width:1120px;display:flex;flex-direction:column;gap:36px}
+.hm10-lbl{font:600 11px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.hm10-h{font:600 20px/1.2 var(--serif);color:var(--ink);margin:0 0 14px}
+.hm10-bar{display:block;height:4px;background:var(--panel-2);overflow:hidden;border-radius:2px}
+.hm10-bar i{display:block;height:100%;background:var(--sec,var(--accent))}
+/* продолжить */
+.hm10-go{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);border:1px solid var(--line);border-radius:var(--radius-lg);
+  background:var(--panel);overflow:hidden;box-shadow:inset 4px 0 0 var(--sec)}
+.hm10-go-txt{padding:34px 36px 32px 40px;display:flex;flex-direction:column;gap:10px;min-width:0;justify-content:center}
+.hm10-go .hm10-lbl{color:var(--sec)}
+.hm10-go-t{font:600 40px/1.08 var(--serif);letter-spacing:-.015em;color:var(--ink);margin:2px 0 0}
+.hm10-go-s{font:400 14px var(--sans);color:var(--ink-3)}
+.hm10-prog{display:flex;align-items:center;gap:10px;font:500 12px var(--mono);color:var(--ink-2);max-width:320px}
+.hm10-prog .hm10-bar{flex:1}
+.hm10-go-btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.hm10-go-btns .btn{font-size:14px;padding:10px 18px;display:inline-flex;align-items:center;gap:8px}
+.hm10-open svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hm10-plate{position:relative;min-height:300px;background:var(--hero-bg,var(--well));border-left:1px solid var(--line)}
+.hm10-plate canvas{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;display:block;cursor:crosshair}
+/* разделы */
+.hm10-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.hm10-sec{width:100%;height:100%;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;cursor:pointer;
+  padding:18px 18px 16px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel);transition:border-color .12s,background .12s}
+.hm10-sec:hover{border-color:var(--sec);background:var(--panel-2)}
+.hm10-sec:focus-visible{outline:2px solid var(--sec);outline-offset:2px}
+.hm10-art{width:44px;height:44px;margin-bottom:12px;fill:none;stroke:var(--sec);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hm10-art .f{fill:var(--sec);stroke:none}
+.hm10-art .t{stroke-width:3}
+.hm10-sec-t{font:600 16px/1.25 var(--serif);color:var(--ink)}
+.hm10-sec-n{font:400 12.5px var(--sans);color:var(--ink-3)}
+.hm10-sec .hm10-bar{width:100%;margin-top:8px}
+/* задача дня и путь */
+.hm10-row{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px}
+.hm10-card{display:flex;flex-direction:column;gap:10px;padding:20px 22px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel);min-width:0}
+.hm10-card .hm4-stmt{font:400 15px/1.55 var(--serif);color:var(--ink);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.hm10-card p{margin:0;font:400 13.5px/1.5 var(--sans);color:var(--ink-2)}
+.hm10-big{font:600 30px/1.1 var(--serif);color:var(--ink)}
+.hm10-big small{font:400 14px var(--sans);color:var(--ink-3)}
+.hm10-card-f{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;font:400 12.5px var(--sans);color:var(--ink-3)}
+.hm10-card-f span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1100px){ .hm10-grid{grid-template-columns:repeat(2,minmax(0,1fr))} .hm10-go-t{font-size:34px} }
+/* телефон */
+[data-ui="mobile"] .hm10{padding:14px 14px 32px}
+[data-ui="mobile"] .hm10-page{gap:26px}
+[data-ui="mobile"] .hm10-go{grid-template-columns:1fr;box-shadow:inset 0 4px 0 var(--sec)}
+[data-ui="mobile"] .hm10-plate{order:-1;min-height:150px;border-left:0;border-bottom:1px solid var(--line)}
+[data-ui="mobile"] .hm10-go-txt{padding:20px 18px 20px}
+[data-ui="mobile"] .hm10-go-t{font-size:27px}
+[data-ui="mobile"] .hm10-go-btns .btn{flex:1;justify-content:center}
+[data-ui="mobile"] .hm10-grid{grid-template-columns:1fr 1fr;gap:10px}
+[data-ui="mobile"] .hm10-sec{padding:14px 14px 13px}
+[data-ui="mobile"] .hm10-art{width:34px;height:34px;margin-bottom:8px}
+[data-ui="mobile"] .hm10-sec-t{font-size:15px}
+[data-ui="mobile"] .hm10-row{grid-template-columns:1fr}
+[data-ui="mobile"] .hm10-h{font-size:18px;margin-bottom:10px}
+/* 10.3: одно действие — одно место.
+   Вычислитель, «Мой путь» и настройки есть в верхней панели — в меню сцены
+   они нужны только на телефоне (там панели нет); горячие клавиши без
+   клавиатуры не нужны. На главной кнопки сцены и чтения прячутся. */
+:root:not([data-ui="mobile"]) #mi-calc,:root:not([data-ui="mobile"]) #mi-path,#mi-prefs,[data-ui="mobile"] #mi-keys{display:none!important}
+.home-on #btn-reading,.home-on #btn-simmenu,.home-on #btn-simfull,.home-on #m-opensim,.home-on #m-more{display:none!important}
+[data-lay="bench"] .topbar>.sep:nth-last-of-type(1){display:none}
+[data-lay="bench"] .simhead>#btn-simmenu,[data-lay="bench"] .simhead>#btn-simfull{flex:0 0 auto}
+/* на телефоне «Вписать» — в карточке «Масштаб и кадры» внизу */
+[data-ui="mobile"] #mi-fitv,[data-ui="mobile"] #mi-fit-ttl{display:none!important}
+
+/* =====================================================================
+   10.3: НОВЫЙ ГОД — снег на главной (js/newyear.js), гирлянда и шапка.
+   Плоские круги и треугольники, без градиентов; мигание — только
+   прозрачность одного слоя, и только при полной анимации.
+   ===================================================================== */
+.ny-snow{position:sticky;top:0;left:0;display:block;width:100%;height:0;pointer-events:none;z-index:0}
+.home .ny-snow~.hm{position:relative;z-index:1}
+[data-ptheme="newyear"] .topbar,[data-ptheme="newyear"] .mtop{position:relative}
+[data-ptheme="newyear"] .topbar::after,[data-ptheme="newyear"] .mtop::after{content:'';position:absolute;left:0;right:0;bottom:-9px;height:12px;pointer-events:none;z-index:60;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='12'%3E%3Cpath d='M0 2 Q15 7 30 2 T60 2 T90 2 T120 2' fill='none' stroke='%237d8aa3' stroke-width='1'/%3E%3Ccircle cx='15' cy='7.5' r='3' fill='%23f4c04e'/%3E%3Ccircle cx='45' cy='7.5' r='3' fill='%23ff6f61'/%3E%3Ccircle cx='75' cy='7.5' r='3' fill='%235fd39a'/%3E%3Ccircle cx='105' cy='7.5' r='3' fill='%2365b2ff'/%3E%3C/svg%3E") repeat-x}
+[data-ptheme="newyear"] .topbar::before,[data-ptheme="newyear"] .mtop::before{content:'';position:absolute;left:0;right:0;bottom:-9px;height:12px;pointer-events:none;z-index:61;opacity:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='12'%3E%3Ccircle cx='15' cy='7.5' r='3' fill='%23ffffff'/%3E%3Ccircle cx='75' cy='7.5' r='3' fill='%23ffffff'/%3E%3C/svg%3E") repeat-x}
+[data-ptheme="newyear"][data-motion="full"] .topbar::before,[data-ptheme="newyear"][data-motion="full"] .mtop::before{animation:ny-blink 2.4s steps(1) infinite}
+@keyframes ny-blink{0%{opacity:0}50%{opacity:.55}}
+/* шапка на логотипе */
+[data-ptheme="newyear"] #tbrand,[data-ptheme="newyear"] #m-home{position:relative;overflow:visible}
+[data-ptheme="newyear"] #tbrand::after,[data-ptheme="newyear"] #m-home::after{content:'';position:absolute;width:17px;height:15px;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 15'%3E%3Cpath d='M2 12 L9 2 L15 7 L13 12 Z' fill='%23e0453a'/%3E%3Crect x='1' y='11' width='14' height='3.5' rx='1.5' fill='%23ffffff'/%3E%3Ccircle cx='15' cy='7.5' r='2' fill='%23ffffff'/%3E%3C/svg%3E") no-repeat}
+[data-ptheme="newyear"] #tbrand::after{left:6px;top:-1px;transform:rotate(-12deg)}
+[data-ptheme="newyear"] #m-home::after{left:9px;top:2px;transform:rotate(-12deg)}
